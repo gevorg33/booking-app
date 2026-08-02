@@ -148,6 +148,112 @@ describe('ConsumerPackageVisitActions (e2e-bug.36)', () => {
   );
 });
 
+describe('ConsumerPackageVisitActions empty-slots reschedule panel (e2e-bug.313)', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    vi.spyOn(publicApi, 'suggestPackageBlock').mockReset();
+    vi.spyOn(publicApi, 'fetchPackageBlockSlots').mockReset();
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+  });
+
+  async function openReschedulePicker() {
+    await act(async () => {
+      root.render(
+        <ConsumerPackageVisitActions
+          slug="demo"
+          tenant={tenant}
+          anchorBookingId="b1"
+          packageVisit={packageVisit}
+          manageToken="tok"
+          authed={false}
+          copy={CONSUMER_COPY_EN}
+          onUpdated={() => undefined}
+        />,
+      );
+    });
+
+    const rescheduleBtn = Array.from(
+      container.querySelectorAll('button.consumer-action-button'),
+    ).find((el) => (el.textContent ?? '').includes(CONSUMER_COPY_EN.reschedulePackageVisit));
+    expect(rescheduleBtn).toBeTruthy();
+    await act(async () => {
+      rescheduleBtn!.dispatchEvent(new CustomEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+  }
+
+  function findConfirmButton() {
+    return Array.from(container.querySelectorAll('button.consumer-action-button')).find((el) =>
+      (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule),
+    );
+  }
+
+  it('hides Confirm and shows the no-slots message when the suggested day has zero slots', async () => {
+    vi.spyOn(publicApi, 'suggestPackageBlock').mockRejectedValue(
+      new Error('No available block found for the selected services'),
+    );
+    vi.spyOn(publicApi, 'fetchPackageBlockSlots').mockResolvedValue({ slots: [] });
+    await openReschedulePicker();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(CONSUMER_COPY_EN.noSlotsThisDay);
+    });
+    expect(findConfirmButton()).toBeUndefined();
+  });
+
+  it('shows Confirm once the customer picks a different day that has slots', async () => {
+    vi.spyOn(publicApi, 'suggestPackageBlock').mockRejectedValue(
+      new Error('No available block found for the selected services'),
+    );
+    const fetchSlots = vi
+      .spyOn(publicApi, 'fetchPackageBlockSlots')
+      .mockResolvedValue({ slots: [] });
+    await openReschedulePicker();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(CONSUMER_COPY_EN.noSlotsThisDay);
+    });
+    expect(findConfirmButton()).toBeUndefined();
+
+    fetchSlots.mockResolvedValue({
+      slots: [
+        {
+          startTime: '2026-08-05T09:00:00.000Z',
+          endTime: '2026-08-05T10:00:00.000Z',
+          employeeId: 'emp-1',
+        },
+      ],
+    });
+    const dateInput = container.querySelector('ion-datetime');
+    expect(dateInput).toBeTruthy();
+    await act(async () => {
+      dateInput!.dispatchEvent(
+        new CustomEvent('ionChange', { detail: { value: '2026-08-05' } }),
+      );
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    await vi.waitFor(() => {
+      expect(findConfirmButton()).toBeTruthy();
+    });
+    expect(container.textContent).not.toContain(CONSUMER_COPY_EN.noSlotsThisDay);
+  });
+});
+
 describe('ConsumerPackageVisitActions cancel refund notice (e2e-bug.186)', () => {
   let container: HTMLDivElement;
   let root: Root;

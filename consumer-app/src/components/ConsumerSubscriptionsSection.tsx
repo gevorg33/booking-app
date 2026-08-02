@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonSpinner } from '@ionic/react';
+import { IonIcon, IonSpinner } from '@ionic/react';
 import { chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
 import { useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { formatDateDisplay } from '../lib/date-format.js';
 import { formatSubscriptionUsageLine } from '../lib/subscription-account.util.js';
 import type { PublicCustomerSubscription } from '../lib/types.js';
 import { cancelCustomerSubscription, fetchMySubscriptionUsage } from '../services/public-api.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export function ConsumerSubscriptionsSection({
   slug,
@@ -146,22 +147,22 @@ export function ConsumerSubscriptionsSection({
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
               {sub.status === 'active' && sub.appointmentsRemaining > 0 && serviceId ? (
-                <IonButton
+                <ConsumerActionButton
                   fill="clear"
                   size="small"
-                  style={{ '--color': primary, margin: 0, height: 32 }}
+                  color={primary}
                   onClick={() =>
                     history.push(buildSalonPath(slug, `/book/${serviceId}`))
                   }
                 >
                   {copy.subscriptionsBookNext}
-                </IonButton>
+                </ConsumerActionButton>
               ) : null}
-              <IonButton
+              <ConsumerActionButton
                 fill="clear"
                 size="small"
                 color="medium"
-                style={{ margin: 0, height: 32 }}
+                aria-expanded={expanded}
                 onClick={() => void toggleUsage(sub)}
               >
                 {copy.subscriptionsUsageHistory}
@@ -169,18 +170,17 @@ export function ConsumerSubscriptionsSection({
                   slot="end"
                   icon={expanded ? chevronUpOutline : chevronDownOutline}
                 />
-              </IonButton>
+              </ConsumerActionButton>
               {isUnused ? (
-                <IonButton
+                <ConsumerActionButton
                   fill="outline"
                   size="small"
                   color="danger"
-                  style={{ margin: 0, height: 32 }}
                   disabled={cancellingId === sub.id}
                   onClick={() => void handleCancel(sub)}
                 >
                   {cancellingId === sub.id ? copy.submitting : copy.subscriptionsCancel}
-                </IonButton>
+                </ConsumerActionButton>
               ) : null}
             </div>
 

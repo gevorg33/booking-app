@@ -721,10 +721,10 @@ describe('ai-provider-exp-2.logic', () => {
   });
 
   it.each([
-    ['my_stats', handleMyStatsLogic],
-    ['team_floor_status', handleTeamFloorStatusLogic],
-    ['check_in_client', handleCheckInClientLogic],
-    ['mark_running_late', handleMarkRunningLateLogic],
+    'my_stats',
+    'team_floor_status',
+    'check_in_client',
+    'mark_running_late',
   ] as const)(
     'dispatches %s through dispatchProviderExp2Intent',
     async (action) => {

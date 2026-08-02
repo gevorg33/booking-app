@@ -28,6 +28,49 @@ function resolveFlowText(messages: MessageTree, key: string): string {
 }
 
 /**
+ * e2e-bug.330 — playbooks without a curated `shortTitleKey` fall back to
+ * `humanizeGuideStepTitle`'s naive first-3-words cut, which often lands on a
+ * dangling preposition/conjunction/article ("Navigate weeks with", "Track
+ * products and") or a bare clause-boundary dash ("Locations — add"). These
+ * sets and helpers extend that cut until it stops on a real word instead.
+ */
+const CLAUSE_DASH_RE = /^[—–→]+$/u;
+
+const TRAILING_STOPWORDS = new Set([
+  // EN — prepositions/conjunctions/articles/copulas/possessives that can't
+  // end a phrase.
+  'a', 'an', 'the', 'to', 'with', 'and', 'or', 'but', 'when', 'then', 'like',
+  'before', 'after', 'once', 'so', 'that', 'on', 'at', 'in', 'of', 'for',
+  'against', 'is', 'are', 'was', 'were', 'my', 'your', 'our', 'their', 'its',
+  'if',
+  // HY
+  'կամ', 'և', 'եթե',
+  // RU
+  'и', 'или', 'если', 'чтобы', 'для', 'к', 'в', 'с', 'по', 'при', 'на', 'до',
+  'после',
+]);
+
+/** Leading subordinators that make a poor title opener (EN only — the only
+ * confirmed real-world case). */
+const LEADING_SUBORDINATORS = new Set([
+  'when', 'if', 'while', 'once', 'after', 'before', 'since', 'although',
+]);
+
+function stripWordPunctuation(word: string): string {
+  return word.replace(/[^\p{L}\p{N}]/gu, '').toLowerCase();
+}
+
+function endsWithStopword(words: string[]): boolean {
+  const last = words[words.length - 1];
+  return last ? TRAILING_STOPWORDS.has(stripWordPunctuation(last)) : false;
+}
+
+/** e2e-bug.330 — skipping a leading clause can leave a lowercase opener. */
+function capitalizeFirst(text: string): string {
+  return text.length ? text[0]!.toLocaleUpperCase() + text.slice(1) : text;
+}
+
+/**
  * e2e-bug.275 / e2e-bug.294 — when playbooks reuse guide.flows.common.stepN
  * placeholders, derive a short human title from the localized body so hy/ru
  * summaries are not "Քայլ 1/3: Քայլ 1" and stay EN-short (not body-length).
@@ -69,9 +112,41 @@ export function humanizeGuideStepTitle(title: string, body: string): string {
     return ruNa[0].trim();
   }
 
-  const words = cleaned.split(/\s+/).filter(Boolean);
+  let words = cleaned.split(/\s+/).filter(Boolean);
   if (words.length <= 5) return cleaned;
-  return words.slice(0, 3).join(' ');
+
+  // e2e-bug.330 — a leading subordinate clause ("When AI proposes a plan, …")
+  // makes a poor short title; if present, restart after its first comma.
+  const firstWord = stripWordPunctuation(words[0] ?? '');
+  const commaIndex = cleaned.indexOf(',');
+  if (LEADING_SUBORDINATORS.has(firstWord) && commaIndex !== -1) {
+    const rest = cleaned
+      .slice(commaIndex + 1)
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (rest.length >= 2) words = rest;
+  }
+
+  // e2e-bug.330 — a one-word dash label ("Locations — add …") isn't useful
+  // as a title; skip past it into the real clause.
+  if (CLAUSE_DASH_RE.test(words[1] ?? '')) {
+    const rest = words.slice(2);
+    if (rest.length >= 2) words = rest;
+  }
+  // Drop any other standalone dash/arrow tokens — they aren't real words.
+  words = words.filter((word) => !CLAUSE_DASH_RE.test(word));
+  if (words.length <= 5) return capitalizeFirst(words.join(' '));
+
+  // e2e-bug.330 — extend the naive 3-word cut (up to 6) until it stops on a
+  // real word, not a dangling preposition/conjunction/article/copula.
+  let end = 3;
+  while (end < Math.min(6, words.length) && endsWithStopword(words.slice(0, end))) {
+    end += 1;
+  }
+  const picked = words.slice(0, end);
+  while (picked.length > 2 && endsWithStopword(picked)) picked.pop();
+  return capitalizeFirst(picked.join(' '));
 }
 
 export function resolveGuideFlowPlaybook(

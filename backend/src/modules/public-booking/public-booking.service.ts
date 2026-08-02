@@ -180,6 +180,7 @@ import {
 import { extractServiceRankMetadata } from '../../common/utils/service-rank-metadata.util.js';
 import { loadServiceBookingCounts90d } from '../../common/utils/service-booking-popularity.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { resolveAssignedProviderHourRollForwardAllowed } from '../../common/utils/assigned-provider-hour-rollforward.util.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -3585,7 +3586,9 @@ export class PublicBookingService {
     if (!service) throw new NotFoundException('Service not found');
 
     // e2e-bug.273 — materialize ephemeral assigned-provider hours on booking POST only
-    {
+    // e2e-bug.315 — owner-gated: skip materialize (fail closed downstream on a
+    // real slot-availability check) when the business has opted out.
+    if (resolveAssignedProviderHourRollForwardAllowed(business.settings)) {
       const bookingDateKey = dto.startTime.slice(0, 10);
       const assigned = await this.listEmployeesForService(business.id, service);
       await this.materializeAssignedProvidersUpcomingHours(

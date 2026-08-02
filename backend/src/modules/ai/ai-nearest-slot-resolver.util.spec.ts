@@ -3,6 +3,7 @@ import {
   applyChosenAvailabilityWindowToParams,
   buildNearestAvailabilityWindowQueries,
   pickEarliestNearestAvailabilityWindow,
+  resolveNearestBookableSlotNotBeforeTime,
 } from './ai-nearest-slot-resolver.util.js';
 import {
   FLEXIBLE_AVAILABILITY_NEAREST_PICK_SCENARIOS,
@@ -145,5 +146,40 @@ describe('ai-nearest-slot-resolver.util OR windows (avail-1.6)', () => {
       timeOfDay: 'afternoon',
     });
     expect(updated.timeSlot).toBe('13:00');
+  });
+});
+
+// e2e-bug.318 — recommend_specialists must honor timeOfDay when picking sample
+// slot times, not just an explicit timeFrom.
+describe('resolveNearestBookableSlotNotBeforeTime (e2e-bug.318)', () => {
+  it('maps evening/tonight timeOfDay to 17:00', () => {
+    expect(
+      resolveNearestBookableSlotNotBeforeTime({ timeOfDay: 'evening' }, ''),
+    ).toBe('17:00');
+  });
+
+  it('derives evening from prompt text when timeOfDay param is absent', () => {
+    expect(
+      resolveNearestBookableSlotNotBeforeTime(
+        {},
+        'recommend someone for massage tonight',
+      ),
+    ).toBe('17:00');
+  });
+
+  it('maps afternoon timeOfDay to 12:00', () => {
+    expect(
+      resolveNearestBookableSlotNotBeforeTime({ timeOfDay: 'afternoon' }, ''),
+    ).toBe('12:00');
+  });
+
+  it('falls back to an explicit timeFrom when no timeOfDay is present', () => {
+    expect(
+      resolveNearestBookableSlotNotBeforeTime({ timeFrom: '15:30' }, ''),
+    ).toBe('15:30');
+  });
+
+  it('returns null when neither timeOfDay nor timeFrom is present', () => {
+    expect(resolveNearestBookableSlotNotBeforeTime({}, '')).toBeNull();
   });
 });

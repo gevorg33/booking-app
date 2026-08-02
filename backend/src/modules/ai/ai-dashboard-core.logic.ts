@@ -115,6 +115,7 @@ export async function dispatchDashboardCoreIntent(
       return deps.catalog.handleCreateServiceCategory(
         businessId,
         categoryParams,
+        effectivePrompt,
       );
     }
     case 'update_service_category':

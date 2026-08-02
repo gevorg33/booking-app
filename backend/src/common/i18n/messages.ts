@@ -89,6 +89,61 @@ const en: MessageTree = {
     // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
     homeScreenWidgetClarify:
       'Ask about the home screen widget (e.g. "Add next appointment to home screen" or "What does the widget show?").',
+    // e2e-bug.317 — explain_home_screen_widget success copy (hy/ru), deterministic to avoid LLM-enrich flake.
+    homeScreenWidgetUnsupportedInstall:
+      'Home-screen widgets are available in the native iOS and Android consumer apps, not in the mobile browser.',
+    homeScreenWidgetUnsupportedInstructions:
+      'Install OptiSchedule Book from the app store, sign in, then add the widget from your phone home screen.',
+    homeScreenWidgetOpenPicker:
+      'Open your phone home screen widget picker and choose OptiSchedule Book.',
+    homeScreenWidgetAddIos:
+      'On iPhone: long-press the home screen → tap Add (+) → search OptiSchedule Book → add the widget.',
+    homeScreenWidgetAddAndroid:
+      'On Android: long-press the home screen → Widgets → find OptiSchedule Book → drag it onto your home screen.',
+    homeScreenWidgetAddGeneric:
+      'On iPhone use the Add (+) widget gallery; on Android use the Widgets menu after a long-press on the home screen.',
+    homeScreenWidgetStaySignedIn:
+      'Stay signed in and open Account once so the app can sync your next visit and quick rebook snapshot.',
+    homeScreenWidgetShowsTiles:
+      'The widget shows your salon name plus up to two tiles: Next appointment (widgetNextAppointment*) and Book again (widgetQuickRebook*).',
+    homeScreenWidgetTapBehavior:
+      'Tapping next appointment opens Account; tapping Book again opens booking with rebookSource=widget.',
+    homeScreenWidgetSignedOutNote:
+      'You are signed out — the widget shows a sign-in prompt instead of visits.',
+    homeScreenWidgetNextApptWithSubtitle:
+      'Your snapshot includes a next appointment ({subtitle}).',
+    homeScreenWidgetNextApptWithService:
+      'Your snapshot includes a next appointment for {service}.',
+    homeScreenWidgetNextApptGeneric:
+      'Your snapshot currently includes a next appointment.',
+    homeScreenWidgetQuickRebookAvailable:
+      'No upcoming visit is synced yet, but a quick rebook tile is available from your last completed booking.',
+    homeScreenWidgetAuthedNoData:
+      'You are signed in but no upcoming visit or completed rebook tile is synced yet — open Account to refresh bookings.',
+    homeScreenWidgetNextTileUsage:
+      'The Next appointment tile uses widgetNextAppointmentTitle and shows the nearest confirmed or pending future booking.',
+    homeScreenWidgetNextTileBehavior:
+      'It displays service, date, time, and provider, and opens your Account tab when tapped.',
+    homeScreenWidgetCurrentSnapshotService:
+      'Current snapshot service: {service}.',
+    homeScreenWidgetNoUpcomingSnapshot:
+      'No upcoming booking is in the widget snapshot right now.',
+    homeScreenWidgetQuickRebookSource:
+      'Book again on the widget comes from your most recent completed visit (widgetQuickRebook*).',
+    homeScreenWidgetQuickRebookDeepLink:
+      'It deep-links into booking with the same service and rebookSource=widget so you can pick a new slot quickly.',
+    homeScreenWidgetQuickRebookShortcut:
+      'It is a shortcut — not the same as asking the assistant to rebook for you inside the app.',
+    homeScreenWidgetSignedOutTiles:
+      'When you are signed out, the widget shows widgetSignedOutTitle and widgetSignedOutSubtitle with a link to open the salon.',
+    homeScreenWidgetSignedOutSignIn:
+      'Sign in on the consumer app and revisit Account so the widget snapshot can include your visits.',
+    homeScreenWidgetHowItWorksSnapshot:
+      'The app builds a home_screen_widget_snapshot from your bookings and syncs it to iOS WidgetKit / Android App Widget on native platforms.',
+    homeScreenWidgetHowItWorksRefresh:
+      'Account and salon tabs refresh the snapshot when bookings change or the app returns to the foreground.',
+    homeScreenWidgetWebUnsupportedNote:
+      'Widgets require the installed native app — they are not available on web.',
     // e2e-bug.299 — give_ai_feedback chip/summary labels.
     feedbackUpLabel: 'Helpful',
     feedbackDownLabel: 'Not helpful',
@@ -104,6 +159,22 @@ const en: MessageTree = {
     feedbackClarifyWhatWasWrong:
       'Say whether the last answer was helpful or what was wrong (e.g. "That was wrong" or "Wrong date picked").',
     feedbackClarifyHelpfulOrNot:
+      'Say if the answer was helpful or not (e.g. "That was helpful" or "Not helpful").',
+    // e2e-bug.325 — give_provider_ai_feedback chip/summary labels.
+    providerFeedbackUpLabel: 'Helpful',
+    providerFeedbackDownLabel: 'Not helpful',
+    providerFeedbackThanks:
+      'Thanks — this helps improve the provider assistant.',
+    providerFeedbackReasonWrongAction: 'Wrong action',
+    providerFeedbackReasonWrongDate: 'Wrong date',
+    providerFeedbackReasonWrongClient: 'Wrong client',
+    providerFeedbackReasonWrongService: 'Wrong service',
+    providerFeedbackReasonDidNotUnderstand: "Didn't understand",
+    providerFeedbackDownChooseReason:
+      'Not helpful — choose a reason so we can improve the assistant.',
+    providerFeedbackClarifyWhatWasWrong:
+      'Say whether the last answer was helpful or what was wrong (e.g. "Wrong client picked" or "That wasn\'t my intent").',
+    providerFeedbackClarifyHelpfulOrNot:
       'Say if the answer was helpful or not (e.g. "That was helpful" or "Not helpful").',
     // e2e-bug.301 — explain_dashboard_only_action summaries.
     dashboardHandoffTemplate:
@@ -131,6 +202,31 @@ const en: MessageTree = {
     dashboardHandoffActionTimeOff: 'Approve or deny time-off request',
     dashboardHandoffReasonTimeOff:
       'Manager approval uses dashboard approve_time_off_request / deny_time_off_request',
+    // e2e-bug.327 — explain_reassign_limit / explain_time_off_approval summaries.
+    reassignLimitReason:
+      'Same-day reassignment uses the dedicated mobile API; AI reschedule_booking only moves time slots — complex multi-service reassignment stays on the dashboard',
+    reassignLimitTemplate:
+      "{reason}. Use the Reassign button on the booking's dashboard page for multi-service visits.",
+    timeOffApprovalReason:
+      "manager approval uses the dashboard's approve_time_off_request / deny_time_off_request actions",
+    timeOffApprovalTemplate:
+      "Your manager approves or denies time-off requests — {reason}. You'll see the status update (pending, approved, or denied) once they review it.",
+    // e2e-bug.328 — my_stats "Your/Team stats…" summary.
+    myStatsScopeYour: 'Your',
+    myStatsScopeTeam: 'Team',
+    myStatsPeriodMonth: 'this month',
+    myStatsPeriodWeek: 'this week',
+    myStatsCompletedVisits: '{scope} stats {period}: {count} completed {noun}',
+    myStatsPaidRevenue: '{amount} paid revenue',
+    myStatsUtilization: '{percent}% utilization ({booked}/{scheduled} min)',
+    myStatsAvgReview: '{score}★ avg from {count} new {noun}',
+    myStatsTips: '{amount} tips across {count} {noun}',
+    myStatsVisitOne: 'visit',
+    myStatsVisitFew: 'visits',
+    myStatsVisitMany: 'visits',
+    myStatsReviewOne: 'review',
+    myStatsReviewFew: 'reviews',
+    myStatsReviewMany: 'reviews',
     // e2e-bug.302 — product-guide unmatched topic clarify.
     guideTopicMissClarify:
       'I could not match that to a guide topic yet. Try naming the page — Schedule, Operations, AI command bar — or open Help & guide from the sidebar.',
@@ -158,6 +254,10 @@ const en: MessageTree = {
     clinicServicesFastingList: 'Fasting required: {names}.',
     clinicServicesClarify:
       'Ask about clinic catalog services (e.g. "Explain our clinic services and department counts" or "Which lab tests require fasting?").',
+    // e2e-bug.312 — create_service_category success (hy/ru), deterministic to avoid LLM-enrich flake.
+    catalogCategoryCreated: 'Created category "{categoryName}".',
+    catalogCategoryCreatedWithServices:
+      'Created category "{categoryName}" with {count} placeholder service(s).',
     noSpecialists:
       'No specialists are available for booking right now. Please contact the business directly.',
     specialistsHeader: 'Here are our specialists:',
@@ -489,6 +589,10 @@ const hy: MessageTree = {
     clinicServicesFastingList: 'Ծոմավոր է պահանջվում՝ {names}։',
     clinicServicesClarify:
       'Հարցրեք կլինիկական կատալոգի ծառայությունների մասին (օր. «Բացատրի՛ր մեր կլինիկական ծառայությունները» կամ «Որ լաբ թեստերն են ծոմավոր պահանջող»)։',
+    // e2e-bug.312 — create_service_category success (hy/ru), deterministic to avoid LLM-enrich flake.
+    catalogCategoryCreated: 'Ստեղծվեց «{categoryName}» կատեգորիան։',
+    catalogCategoryCreatedWithServices:
+      'Ստեղծվեց «{categoryName}» կատեգորիան՝ {count} օրինակելի ծառայությամբ։',
     // e2e-bug.274 — confirm_my_booking_details.
     confirmBookingAnonClarify:
       'Ավարտեք ամրագրումը կամ մուտք գործեք, որպեսզի կարողանամ կարդալ ձեր այցի մանրամասները սեսիայից։',
@@ -499,6 +603,61 @@ const hy: MessageTree = {
     // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
     homeScreenWidgetClarify:
       'Հարցրեք հիմնական էկրանի վիջեթի մասին (օր. «Ավելացնել հաջորդ հանդիպումը հիմնական էկրանին» կամ «Ինչ է ցույց տալիս վիջեթը»)։',
+    // e2e-bug.317 — explain_home_screen_widget success copy (hy/ru), deterministic to avoid LLM-enrich flake.
+    homeScreenWidgetUnsupportedInstall:
+      'Հիմնական էկրանի վիջեթները հասանելի են iOS և Android հավելվածներում, ոչ թե բջջային բրաուզերում։',
+    homeScreenWidgetUnsupportedInstructions:
+      'Տեղադրեք OptiSchedule Book հավելվածների խանութից, մուտք գործեք, ապա ավելացրեք վիջեթը ձեր հեռախոսի հիմնական էկրանին։',
+    homeScreenWidgetOpenPicker:
+      'Բացեք ձեր հեռախոսի հիմնական էկրանի վիջեթների ընտրիչը և ընտրեք OptiSchedule Book։',
+    homeScreenWidgetAddIos:
+      'iPhone-ում՝ երկար սեղմեք հիմնական էկրանին → հպեք Ավելացնել (+) → փնտրեք OptiSchedule Book → ավելացրեք վիջեթը։',
+    homeScreenWidgetAddAndroid:
+      'Android-ում՝ երկար սեղմեք հիմնական էկրանին → Վիջեթներ → գտեք OptiSchedule Book → քաշեք այն ձեր հիմնական էկրան։',
+    homeScreenWidgetAddGeneric:
+      'iPhone-ում օգտագործեք Ավելացնել (+) վիջեթների պատկերասրահը, Android-ում՝ Վիջեթներ ընտրացանկը հիմնական էկրանին երկար սեղմելուց հետո։',
+    homeScreenWidgetStaySignedIn:
+      'Մնացեք մուտք գործած և բացեք Հաշիվը մեկ անգամ, որպեսզի հավելվածը համաժամեցնի ձեր հաջորդ այցը և արագ վերամրագրման կադրը։',
+    homeScreenWidgetShowsTiles:
+      'Վիջեթը ցույց է տալիս ձեր սրահի անունը, ինչպես նաև մինչև երկու սալիկ՝ Հաջորդ այց (widgetNextAppointment*) և Կրկին ամրագրել (widgetQuickRebook*)։',
+    homeScreenWidgetTapBehavior:
+      'Հպելով հաջորդ այցին՝ բացվում է Հաշիվը, հպելով Կրկին ամրագրելին՝ բացվում է ամրագրումը rebookSource=widget պարամետրով։',
+    homeScreenWidgetSignedOutNote:
+      'Դուք դուրս եք եկել համակարգից․ վիջեթը ցույց է տալիս մուտքի հրավեր՝ այցերի փոխարեն։',
+    homeScreenWidgetNextApptWithSubtitle:
+      'Ձեր կադրը ներառում է հաջորդ այց ({subtitle})։',
+    homeScreenWidgetNextApptWithService:
+      'Ձեր կադրը ներառում է հաջորդ այց {service}-ի համար։',
+    homeScreenWidgetNextApptGeneric:
+      'Ձեր կադրն այժմ ներառում է հաջորդ այց։',
+    homeScreenWidgetQuickRebookAvailable:
+      'Առաջիկա այց դեռ համաժամեցված չէ, սակայն արագ վերամրագրման սալիկը հասանելի է ձեր վերջին ավարտված ամրագրումից։',
+    homeScreenWidgetAuthedNoData:
+      'Դուք մուտք եք գործել, բայց առաջիկա այց կամ ավարտված վերամրագրման սալիկ դեռ համաժամեցված չէ․ բացեք Հաշիվը՝ ամրագրումները թարմացնելու համար։',
+    homeScreenWidgetNextTileUsage:
+      'Հաջորդ այցի սալիկն օգտագործում է widgetNextAppointmentTitle-ը և ցույց է տալիս ամենամոտ հաստատված կամ սպասման մեջ գտնվող ապագա ամրագրումը։',
+    homeScreenWidgetNextTileBehavior:
+      'Այն ցուցադրում է ծառայությունը, ամսաթիվը, ժամը և տրամադրողին, և հպելիս բացում է ձեր Հաշիվ ներդիրը։',
+    homeScreenWidgetCurrentSnapshotService:
+      'Ընթացիկ կադրի ծառայությունը՝ {service}։',
+    homeScreenWidgetNoUpcomingSnapshot:
+      'Վիջեթի կադրում այս պահին առաջիկա ամրագրում չկա։',
+    homeScreenWidgetQuickRebookSource:
+      '«Կրկին ամրագրել» վիջեթում գալիս է ձեր վերջին ավարտված այցից (widgetQuickRebook*)։',
+    homeScreenWidgetQuickRebookDeepLink:
+      'Այն ուղիղ անցում է կատարում ամրագրման դեպի նույն ծառայությունը՝ rebookSource=widget պարամետրով, որպեսզի կարողանաք արագ ընտրել նոր ժամ։',
+    homeScreenWidgetQuickRebookShortcut:
+      'Դա հապավում է․ նույնը չէ, ինչ օգնականին խնդրելը վերամրագրել ձեզ հավելվածի ներսում։',
+    homeScreenWidgetSignedOutTiles:
+      'Երբ դուրս եք եկել համակարգից, վիջեթը ցույց է տալիս widgetSignedOutTitle և widgetSignedOutSubtitle՝ սրահը բացելու հղումով։',
+    homeScreenWidgetSignedOutSignIn:
+      'Մուտք գործեք հաճախորդի հավելվածում և կրկին այցելեք Հաշիվ, որպեսզի վիջեթի կադրը ներառի ձեր այցերը։',
+    homeScreenWidgetHowItWorksSnapshot:
+      'Հավելվածը ձեր ամրագրումներից կառուցում է home_screen_widget_snapshot և համաժամեցնում է iOS WidgetKit / Android App Widget-ի հետ բնիկ հարթակներում։',
+    homeScreenWidgetHowItWorksRefresh:
+      'Հաշիվ և սրահի ներդիրները թարմացնում են կադրը, երբ ամրագրումները փոխվում են կամ հավելվածը վերադառնում է առաջին պլան։',
+    homeScreenWidgetWebUnsupportedNote:
+      'Վիջեթները պահանջում են տեղադրված բնիկ հավելված. դրանք հասանելի չեն վեբում։',
     // e2e-bug.299 — give_ai_feedback chip/summary labels.
     feedbackUpLabel: 'Օգտակար',
     feedbackDownLabel: 'Օգտակար չէ',
@@ -514,6 +673,22 @@ const hy: MessageTree = {
     feedbackClarifyWhatWasWrong:
       'Ասեք՝ վերջին պատասխանը օգտակար էր, թե ինչն էր սխալ (օր. «Սխալ էր» կամ «Սխալ ամսաթիվ»)։',
     feedbackClarifyHelpfulOrNot:
+      'Ասեք՝ պատասխանը օգտակար էր, թե ոչ (օր. «Օգտակար էր» կամ «Օգտակար չէ»)։',
+    // e2e-bug.325 — give_provider_ai_feedback chip/summary labels.
+    providerFeedbackUpLabel: 'Օգտակար',
+    providerFeedbackDownLabel: 'Օգտակար չէ',
+    providerFeedbackThanks:
+      'Շնորհակալություն — սա օգնում է բարելավել մասնագետի օգնականին։',
+    providerFeedbackReasonWrongAction: 'Սխալ գործողություն',
+    providerFeedbackReasonWrongDate: 'Սխալ ամսաթիվ',
+    providerFeedbackReasonWrongClient: 'Սխալ հաճախորդ',
+    providerFeedbackReasonWrongService: 'Սխալ ծառայություն',
+    providerFeedbackReasonDidNotUnderstand: 'Չհասկացա',
+    providerFeedbackDownChooseReason:
+      'Օգտակար չէ — ընտրեք պատճառ, որպեսզի կարողանանք բարելավել մասնագետի օգնականին։',
+    providerFeedbackClarifyWhatWasWrong:
+      'Ասեք՝ վերջին պատասխանը օգտակար էր, թե ինչն էր սխալ (օր. «Սխալ հաճախորդ ընտրվեց» կամ «Դա իմ մտադրությունը չէր»)։',
+    providerFeedbackClarifyHelpfulOrNot:
       'Ասեք՝ պատասխանը օգտակար էր, թե ոչ (օր. «Օգտակար էր» կամ «Օգտակար չէ»)։',
     // e2e-bug.301 — explain_dashboard_only_action summaries.
     dashboardHandoffTemplate:
@@ -541,6 +716,31 @@ const hy: MessageTree = {
     dashboardHandoffActionTimeOff: 'Հաստատել կամ մերժել արձակուրդի հարցումը',
     dashboardHandoffReasonTimeOff:
       'Մենեջերի հաստատումը կատարվում է վահանակից',
+    // e2e-bug.327 — explain_reassign_limit / explain_time_off_approval summaries.
+    reassignLimitReason:
+      'Նույն օրվա վերանշանակումն օգտագործում է հատուկ մոբայլ API. AI-ի reschedule_booking-ը միայն ժամանակային միջակայքեր է տեղափոխում — բազմածառայության բարդ վերանշանակումը մնում է վահանակում',
+    reassignLimitTemplate:
+      '{reason}։ Օգտագործեք «Վերանշանակել» կոճակը ամրագրման վահանակի էջում բազմածառայության այցելությունների համար։',
+    timeOffApprovalReason:
+      'հաստատումը կատարվում է վահանակի approve_time_off_request / deny_time_off_request գործողություններով',
+    timeOffApprovalTemplate:
+      'Ձեր մենեջերը հաստատում կամ մերժում է արձակուրդի հարցումները — {reason}։ Կստանաք կարգավիճակի թարմացում (սպասման մեջ, հաստատված կամ մերժված), երբ նրանք վերանայեն։',
+    // e2e-bug.328 — my_stats "Ձեր/Թիմի ցուցանիշները…" summary.
+    myStatsScopeYour: 'Ձեր',
+    myStatsScopeTeam: 'Թիմի',
+    myStatsPeriodMonth: 'այս ամիս',
+    myStatsPeriodWeek: 'այս շաբաթ',
+    myStatsCompletedVisits: '{scope} ցուցանիշները {period}՝ {count} ավարտված {noun}',
+    myStatsPaidRevenue: '{amount} վճարված եկամուտ',
+    myStatsUtilization: '{percent}% ծանրաբեռնվածություն ({booked}/{scheduled} րոպե)',
+    myStatsAvgReview: '{score}★ միջին գնահատական {count} նոր {noun}-ից',
+    myStatsTips: '{amount} թեյավճար {count} {noun}-ից',
+    myStatsVisitOne: 'այցելություն',
+    myStatsVisitFew: 'այցելություն',
+    myStatsVisitMany: 'այցելություն',
+    myStatsReviewOne: 'կարծիք',
+    myStatsReviewFew: 'կարծիք',
+    myStatsReviewMany: 'կարծիք',
     // e2e-bug.302 — product-guide unmatched topic clarify.
     guideTopicMissClarify:
       'Դեռ չկարողացա գտնել համապատասխան ուղեցույցի թեմա։ Անվանեք էջը — Ժամանակացույց, Գործողություններ, AI հրամանների վահանակ — կամ բացեք Օգնություն և ուղեցույց կողային ընտրացանկից։',
@@ -881,6 +1081,10 @@ const ru: MessageTree = {
     clinicServicesFastingList: 'Требуется голодание: {names}.',
     clinicServicesClarify:
       'Спросите про услуги клинического каталога (например: «Объясни наши клинические услуги» или «Какие лабораторные тесты требуют голодания?»).',
+    // e2e-bug.312 — create_service_category success (hy/ru), deterministic to avoid LLM-enrich flake.
+    catalogCategoryCreated: 'Категория «{categoryName}» успешно создана.',
+    catalogCategoryCreatedWithServices:
+      'Категория «{categoryName}» успешно создана, с {count} пробной услугой(ями).',
     // e2e-bug.274 — confirm_my_booking_details.
     confirmBookingAnonClarify:
       'Завершите запись или войдите, чтобы я мог прочитать детали вашего визита из сессии.',
@@ -891,6 +1095,61 @@ const ru: MessageTree = {
     // e2e-bug.276 — explain_home_screen_widget unrecognized-prompt clarify.
     homeScreenWidgetClarify:
       'Спросите про виджет главного экрана (например: «Добавить следующую запись на главный экран» или «Что показывает виджет»).',
+    // e2e-bug.317 — explain_home_screen_widget success copy (hy/ru), deterministic to avoid LLM-enrich flake.
+    homeScreenWidgetUnsupportedInstall:
+      'Виджеты главного экрана доступны в нативных приложениях iOS и Android, а не в мобильном браузере.',
+    homeScreenWidgetUnsupportedInstructions:
+      'Установите OptiSchedule Book из магазина приложений, войдите в систему, затем добавьте виджет на главный экран телефона.',
+    homeScreenWidgetOpenPicker:
+      'Откройте выбор виджетов на главном экране телефона и выберите OptiSchedule Book.',
+    homeScreenWidgetAddIos:
+      'На iPhone: удерживайте главный экран → нажмите «Добавить» (+) → найдите OptiSchedule Book → добавьте виджет.',
+    homeScreenWidgetAddAndroid:
+      'На Android: удерживайте главный экран → Виджеты → найдите OptiSchedule Book → перетащите его на главный экран.',
+    homeScreenWidgetAddGeneric:
+      'На iPhone используйте галерею виджетов «Добавить» (+); на Android — меню «Виджеты» после удержания главного экрана.',
+    homeScreenWidgetStaySignedIn:
+      'Оставайтесь в системе и один раз откройте «Аккаунт», чтобы приложение синхронизировало ваш следующий визит и снимок быстрой повторной записи.',
+    homeScreenWidgetShowsTiles:
+      'Виджет показывает название салона и до двух плиток: «Следующая запись» (widgetNextAppointment*) и «Записаться снова» (widgetQuickRebook*).',
+    homeScreenWidgetTapBehavior:
+      'Нажатие на «Следующая запись» открывает «Аккаунт»; нажатие на «Записаться снова» открывает запись с rebookSource=widget.',
+    homeScreenWidgetSignedOutNote:
+      'Вы вышли из системы — виджет показывает приглашение войти вместо визитов.',
+    homeScreenWidgetNextApptWithSubtitle:
+      'Ваш снимок включает следующую запись ({subtitle}).',
+    homeScreenWidgetNextApptWithService:
+      'Ваш снимок включает следующую запись на {service}.',
+    homeScreenWidgetNextApptGeneric:
+      'Ваш снимок сейчас включает следующую запись.',
+    homeScreenWidgetQuickRebookAvailable:
+      'Предстоящий визит ещё не синхронизирован, но плитка быстрой повторной записи доступна на основе вашей последней завершённой записи.',
+    homeScreenWidgetAuthedNoData:
+      'Вы вошли в систему, но ни предстоящий визит, ни плитка повторной записи ещё не синхронизированы — откройте «Аккаунт», чтобы обновить записи.',
+    homeScreenWidgetNextTileUsage:
+      'Плитка «Следующая запись» использует widgetNextAppointmentTitle и показывает ближайшую подтверждённую или ожидающую запись.',
+    homeScreenWidgetNextTileBehavior:
+      'Она отображает услугу, дату, время и специалиста, а при нажатии открывает вкладку «Аккаунт».',
+    homeScreenWidgetCurrentSnapshotService:
+      'Услуга в текущем снимке: {service}.',
+    homeScreenWidgetNoUpcomingSnapshot:
+      'Сейчас в снимке виджета нет предстоящей записи.',
+    homeScreenWidgetQuickRebookSource:
+      '«Записаться снова» в виджете берётся из вашего последнего завершённого визита (widgetQuickRebook*).',
+    homeScreenWidgetQuickRebookDeepLink:
+      'Это открывает запись на ту же услугу с rebookSource=widget, чтобы вы могли быстро выбрать новое время.',
+    homeScreenWidgetQuickRebookShortcut:
+      'Это ярлык — не то же самое, что попросить ассистента записать вас повторно внутри приложения.',
+    homeScreenWidgetSignedOutTiles:
+      'Когда вы вышли из системы, виджет показывает widgetSignedOutTitle и widgetSignedOutSubtitle со ссылкой на открытие салона.',
+    homeScreenWidgetSignedOutSignIn:
+      'Войдите в клиентском приложении и снова откройте «Аккаунт», чтобы снимок виджета включал ваши визиты.',
+    homeScreenWidgetHowItWorksSnapshot:
+      'Приложение формирует home_screen_widget_snapshot на основе ваших записей и синхронизирует его с iOS WidgetKit / Android App Widget на нативных платформах.',
+    homeScreenWidgetHowItWorksRefresh:
+      'Вкладки «Аккаунт» и салона обновляют снимок при изменении записей или при возврате приложения на передний план.',
+    homeScreenWidgetWebUnsupportedNote:
+      'Виджеты требуют установленного нативного приложения — они недоступны в вебе.',
     // e2e-bug.299 — give_ai_feedback chip/summary labels.
     feedbackUpLabel: 'Полезно',
     feedbackDownLabel: 'Не полезно',
@@ -907,6 +1166,22 @@ const ru: MessageTree = {
       'Скажите, был ли последний ответ полезен или что было не так (например: «Это было неправильно» или «Неверная дата»).',
     feedbackClarifyHelpfulOrNot:
       'Скажите, был ли ответ полезен (например: «Это было полезно» или «Не полезно»).',
+    // e2e-bug.325 — give_provider_ai_feedback chip/summary labels.
+    providerFeedbackUpLabel: 'Полезно',
+    providerFeedbackDownLabel: 'Не полезно',
+    providerFeedbackThanks:
+      'Спасибо — это помогает улучшить ассистента провайдера.',
+    providerFeedbackReasonWrongAction: 'Неверное действие',
+    providerFeedbackReasonWrongDate: 'Неверная дата',
+    providerFeedbackReasonWrongClient: 'Неверный клиент',
+    providerFeedbackReasonWrongService: 'Неверная услуга',
+    providerFeedbackReasonDidNotUnderstand: 'Не понял',
+    providerFeedbackDownChooseReason:
+      'Не полезно — выберите причину, чтобы мы могли улучшить ассистента.',
+    providerFeedbackClarifyWhatWasWrong:
+      'Скажите, был ли последний ответ полезен или что было не так (например: «Выбран неверный клиент» или «Это не было моим намерением»).',
+    providerFeedbackClarifyHelpfulOrNot:
+      'Скажите, был ли ответ полезен или нет (например: «Это было полезно» или «Не полезно»).',
     // e2e-bug.301 — explain_dashboard_only_action summaries.
     dashboardHandoffTemplate:
       '«{action}» недоступно в мобильном помощнике: {reason}. Используйте панель управления для этого.',
@@ -933,6 +1208,31 @@ const ru: MessageTree = {
     dashboardHandoffActionTimeOff: 'Одобрить или отклонить отпуск',
     dashboardHandoffReasonTimeOff:
       'Одобрение менеджера выполняется в панели',
+    // e2e-bug.327 — explain_reassign_limit / explain_time_off_approval summaries.
+    reassignLimitReason:
+      'Переназначение в тот же день использует отдельный мобильный API; ИИ reschedule_booking только переносит время — сложное переназначение мультиуслуги остаётся в панели',
+    reassignLimitTemplate:
+      '{reason}. Используйте кнопку «Переназначить» на странице бронирования в панели для мультиуслуг.',
+    timeOffApprovalReason:
+      'одобрение выполняется через действия approve_time_off_request / deny_time_off_request в панели',
+    timeOffApprovalTemplate:
+      'Ваш менеджер одобряет или отклоняет запросы на отпуск — {reason}. Вы увидите обновление статуса (в ожидании, одобрено или отклонено) после рассмотрения.',
+    // e2e-bug.328 — my_stats "Ваша/Командная статистика…" summary.
+    myStatsScopeYour: 'Ваша',
+    myStatsScopeTeam: 'Командная',
+    myStatsPeriodMonth: 'за этот месяц',
+    myStatsPeriodWeek: 'за эту неделю',
+    myStatsCompletedVisits: '{scope} статистика {period}: {count} завершённых {noun}',
+    myStatsPaidRevenue: '{amount} оплаченного дохода',
+    myStatsUtilization: 'загрузка {percent}% ({booked}/{scheduled} мин)',
+    myStatsAvgReview: '{score}★ средняя оценка по {count} новым {noun}',
+    myStatsTips: '{amount} чаевых за {count} {noun}',
+    myStatsVisitOne: 'визит',
+    myStatsVisitFew: 'визита',
+    myStatsVisitMany: 'визитов',
+    myStatsReviewOne: 'отзыв',
+    myStatsReviewFew: 'отзыва',
+    myStatsReviewMany: 'отзывов',
     // e2e-bug.302 — product-guide unmatched topic clarify.
     guideTopicMissClarify:
       'Пока не удалось подобрать тему гида. Назовите страницу — Расписание, Операции, панель команд AI — или откройте Справку и гид в боковом меню.',

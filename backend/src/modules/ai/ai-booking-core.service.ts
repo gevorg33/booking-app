@@ -682,7 +682,8 @@ export class AiBookingCoreService {
           availability,
           service.name,
           timeSlot,
-          formatDateDisplay(isoDay),
+          // e2e-bug.332 — AI conflict summary date: no DD/MM slash (sibling of e2e-bug.306/285).
+          formatDateForAiLabel(isoDay),
         ),
         details: {
           params,

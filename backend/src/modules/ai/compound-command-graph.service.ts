@@ -105,6 +105,29 @@ const READ_ONLY_COMPOUND_ACTIONS = new Set([
   'summarize_customers',
 ]);
 
+/**
+ * e2e-bug.329 — these mutate the customer's actual booking (move/create/cancel
+ * an appointment). Silently skipping one when `buildPlanFn` can't build a plan
+ * (e.g. an unresolved booking match) drops the customer's explicit instruction
+ * without ever telling them — the compound must stop and ask instead of
+ * quietly advancing to the next leg with a half-applied intent.
+ */
+const MUST_NOT_SILENTLY_SKIP_ACTIONS = new Set([
+  'reschedule_booking',
+  'create_booking',
+  'book_appointment',
+  'book_nearest_slot',
+  'cancel_bookings',
+]);
+
+const COMPOUND_MUTATE_ACTION_LABELS: Record<string, string> = {
+  reschedule_booking: 'reschedule the booking',
+  create_booking: 'create the booking',
+  book_appointment: 'book the appointment',
+  book_nearest_slot: 'book the nearest slot',
+  cancel_bookings: 'cancel the booking(s)',
+};
+
 const CompoundState = Annotation.Root({
   businessId: Annotation<string>,
   prompt: Annotation<string>,
@@ -466,6 +489,43 @@ export class CompoundCommandGraphService {
           readOnlySummaries: [...state.readOnlySummaries, readResult.summary],
         };
       }
+    } else if (MUST_NOT_SILENTLY_SKIP_ACTIONS.has(parsed.action)) {
+      // e2e-bug.329 — do not silently advance past a mutating step whose plan
+      // could not be built; that drops the customer's move/create/cancel
+      // without telling them. Stop and ask instead (mirrors the
+      // handoff.status === 'clarify' branch above).
+      const actionLabel = COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ?? parsed.action.replace(/_/g, ' ');
+      let clarify: CommandResult = {
+        success: false,
+        action: parsed.action,
+        summary: `I couldn't ${actionLabel} — ${sub.reasoning || "the details didn't match an existing booking"}. Please confirm the customer, date, time, or service and try again.`,
+        details: {
+          needsClarification: true,
+          compoundStep: parsed.action,
+          compoundActions,
+          compoundStepIndex: state.currentIndex,
+          decomposed: true,
+          pipelineTrace: [
+            ...state.pipelineTrace,
+            this.completionPipeline.trace(
+              'resolve',
+              parsed.action,
+              'Could not build plan for step',
+            ),
+          ],
+        },
+      };
+      if (state.currentIndex > 0) {
+        clarify = attachCompoundResumeToClarifyResult(clarify, {
+          plans: state.plans,
+          subIntents: state.subIntents,
+          stepIndex: state.currentIndex,
+          compoundActions,
+          confirmationPrompt: state.prompt,
+          compoundStep: parsed.action,
+        });
+      }
+      return { error: clarify };
     } else {
       return {
         currentIndex: state.currentIndex + 1,

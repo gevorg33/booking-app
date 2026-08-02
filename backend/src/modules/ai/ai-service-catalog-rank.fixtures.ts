@@ -1053,12 +1053,16 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
       id: 'discover-best-provider-budget-en',
       prompt: 'Best rated stylist for a cut under $60 this week',
       params: { serviceCategory: 'haircut' },
+      // e2e-bug.323 — bare "cut" no longer pre-aliases to "haircut" (which
+      // let the hairstyle synonym steal literal "* cut" catalog matches);
+      // it stays "cut" here and still resolves the same catalog via the
+      // haircut/hairstyle synonym fallback when no cut-named service exists.
       expectedAfterServiceDiscovery: {
-        serviceCategory: 'haircut',
+        serviceCategory: 'cut',
         maxPrice: 60,
       },
       expectedAfterPipeline: {
-        serviceCategory: 'haircut',
+        serviceCategory: 'cut',
         maxPrice: 60,
       },
     },
@@ -1113,12 +1117,14 @@ export const SERVICE_DISCOVERY_ENRICHMENT_PIPELINE_SCENARIOS: ServiceDiscoveryEn
         date: 'tomorrow',
         maxPrice: 50,
       },
+      // e2e-bug.323 — bare "cut" no longer pre-aliases to "haircut" (see
+      // discover-best-provider-budget-en above for the full rationale).
       expectedAfterServiceDiscovery: {
-        serviceCategory: 'haircut',
+        serviceCategory: 'cut',
         date: 'tomorrow',
       },
       expectedAfterPipeline: {
-        serviceCategory: 'haircut',
+        serviceCategory: 'cut',
         date: 'tomorrow',
       },
     },

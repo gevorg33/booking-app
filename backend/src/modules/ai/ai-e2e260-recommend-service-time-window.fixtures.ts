@@ -75,6 +75,18 @@ export const E2E260_EXTRACT_CASES: readonly E2e260ExtractCase[] = [
     prompt: 'best rated for massage today',
     expectedServiceName: 'massage',
   },
+  // e2e-bug.319 — "later today" (and bare "later") were missing from the
+  // day-part boundary/strip lists, so "massage later" got glued together.
+  {
+    id: 'e2e319-extract-massage-later-today',
+    prompt: 'recommend someone for massage later today',
+    expectedServiceName: 'massage',
+  },
+  {
+    id: 'e2e319-extract-haircut-later',
+    prompt: 'Who do you recommend for a haircut later?',
+    expectedServiceName: 'haircut',
+  },
 ];
 
 /** stripTrailingTimeWindowFromServiceName */
@@ -109,6 +121,21 @@ export const E2E260_STRIP_CASES: readonly E2e260StripCase[] = [
     polluted: 'this week',
     expected: null,
   },
+  {
+    id: 'e2e319-strip-massage-later-today',
+    polluted: 'massage later today',
+    expected: 'massage',
+  },
+  {
+    id: 'e2e319-strip-haircut-later',
+    polluted: 'haircut later',
+    expected: 'haircut',
+  },
+  {
+    id: 'e2e319-strip-only-later-today',
+    polluted: 'later today',
+    expected: null,
+  },
 ];
 
 /** applyPromptMentionedServiceOverrideToParams */
@@ -140,6 +167,13 @@ export const E2E260_OVERRIDE_CASES: readonly E2e260OverrideCase[] = [
     expectedServiceName: 'swedish massage',
     expectedServiceCategory: null,
   },
+  {
+    id: 'e2e319-override-massage-later-today',
+    prompt: 'recommend someone for massage later today',
+    params: {},
+    expectedServiceName: null,
+    expectedServiceCategory: 'massage',
+  },
 ];
 
 export type E2e260EnrichCase = {
@@ -167,5 +201,11 @@ export const E2E260_ENRICH_CASES: readonly E2e260EnrichCase[] = [
     id: 'e2e260-enrich-best-rated-specialists-massage-week',
     prompt: 'best rated specialists for massage this week',
     expectedServiceCategory: 'massage',
+  },
+  {
+    id: 'e2e319-enrich-massage-later-today',
+    prompt: 'recommend someone for massage later today',
+    expectedServiceCategory: 'massage',
+    forbidCategory: 'massage later',
   },
 ];

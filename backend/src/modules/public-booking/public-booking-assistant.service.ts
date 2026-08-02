@@ -40,6 +40,7 @@ import {
   stripServiceRoleNoise,
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
+import { normalizeAvailabilityServiceCategory } from '../ai/ai-flexible-availability.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import {
   readBusinessPrivacySettings,
@@ -57,6 +58,7 @@ import {
   applyChosenAvailabilityWindowToParams,
   buildNearestAvailabilityWindowQueries,
   buildNearestBookableSlotQuery,
+  resolveNearestBookableSlotNotBeforeTime,
 } from '../ai/ai-nearest-slot-resolver.util.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
 import { AiBusinessHoursLocationService } from '../ai/ai-explain-business-hours-and-location.service.js';
@@ -2228,7 +2230,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       (employee
         ? `Services with ${employee.name}:`
         : serviceQuery
-          ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
+          ? // e2e-bug.322 — normalize raw classifier tokens (e.g. "trim") to
+            // their catalog family label ("haircut") instead of echoing the
+            // literal prompt word back in the header.
+            `Our ${normalizeAvailabilityServiceCategory(stripServiceRoleNoise(String(serviceQuery)))} service types:`
           : params.maxTotalPrice != null
             ? `Service combos within your budget:`
             : params.maxPrice != null
@@ -3109,7 +3114,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             ? filteredServices.map((service) => service.id)
             : undefined,
         dateKeys,
-        notBeforeTime: params.timeFrom ?? null,
+        // e2e-bug.318 — honor timeOfDay ("this evening"/"tonight" → 17:00+),
+        // not just an explicit timeFrom, when picking sample slot times.
+        notBeforeTime: resolveNearestBookableSlotNotBeforeTime(
+          params,
+          prompt ?? '',
+        ),
         limit: 5,
         employeeRole: employeeRole ?? null,
       },

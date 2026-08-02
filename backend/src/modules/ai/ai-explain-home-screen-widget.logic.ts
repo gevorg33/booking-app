@@ -43,7 +43,8 @@ export async function handleExplainHomeScreenWidgetLogic(
   }
 
   const ctx = resolveConsumerHomeScreenWidgetExplainContext(params);
-  const summary = assembleHomeScreenWidgetSummary(parsed.aspect, ctx);
+  // e2e-bug.317 — thread locale into the success summary (was hardcoded English).
+  const summary = assembleHomeScreenWidgetSummary(parsed.aspect, ctx, locale);
   const navigate = buildExplainHomeScreenWidgetNavigate(parsed.aspect);
 
   return success('explain_home_screen_widget', summary, {

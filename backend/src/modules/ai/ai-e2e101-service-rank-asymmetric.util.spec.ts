@@ -77,11 +77,12 @@ describe('e2e-bug.101 service rank high-end vocabulary', () => {
         "What's the cheapest styles?",
       ),
     ).toBe('haircut');
-    // Existing cut/cuts/trim aliases must still resolve the same way — this
-    // one alias table backs all of them (regression check for this pass).
+    // trim still aliases to haircut; bare "cut" stays unaliased as of
+    // e2e-bug.323 (prefers literal "* cut" catalog rows like Men's cut over
+    // the hairstyle synonym, still falls back to haircut/hairstyle otherwise).
     expect(
       extractServiceRankServiceCategoryFromPrompt("What's the cheapest cut?"),
-    ).toBe('haircut');
+    ).toBe('cut');
     expect(
       extractServiceRankServiceCategoryFromPrompt('most expensive trim'),
     ).toBe('haircut');

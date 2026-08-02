@@ -107,19 +107,31 @@ const POSITIVE_CUE = new RegExp(
   'iu',
 );
 
+// e2e-bug.324 — Armenian native "not helpful" ("օգտակար չէ" / past "օգտակար
+// չէր") must rescue the same as "սխալ էր"; the POSITIVE_CUE "օգտակար եր"
+// alternative doesn't overlap since it requires "եր" directly after
+// "օգտակար", not "չէ(ր)".
 const NEGATIVE_CUE = new RegExp(
-  String.raw`\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|thumbs?\s*-?\s*down)\b|👎|սխալ|не\s+полез|неправильн|неверно`,
+  String.raw`\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|thumbs?\s*-?\s*down)\b|👎|սխալ|օգտակար\s+չէ(?:ր)?|ոչ\s+օգտակար|не\s+полез|неправильн|неверно`,
   'iu',
 );
 
 /**
  * e2e-bug.300 — shorthand vote "+1" / "-1". Whole-prompt only so booking math
  * ("party of +1", "1+1", "+10 guests") is not stolen.
+ * e2e-bug.326 — allow a short "thanks"/"thx"/"ty" wrapper on either side
+ * (`"+1 thanks"`, `"thanks +1"`) and the fullwidth `＋1`/`－1` variants,
+ * while staying whole-prompt-anchored so booking math is still excluded.
  */
-const PLUS_ONE_FEEDBACK_PROMPT =
-  /^(?:\+1|\+\s*1|plus\s*(?:one|1))\s*[!.]?$/iu;
-const MINUS_ONE_FEEDBACK_PROMPT =
-  /^(?:-1|-\s*1|minus\s*(?:one|1))\s*[!.]?$/iu;
+const VOTE_WRAPPER = String.raw`(?:thanks?|thx|ty)`;
+const PLUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:\+\s*1|＋\s*1|plus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
+const MINUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:-\s*1|－\s*1|minus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
 
 export function isPlusOneFeedbackPrompt(prompt: string): boolean {
   return PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim());

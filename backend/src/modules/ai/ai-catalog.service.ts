@@ -78,8 +78,17 @@ export class AiCatalogService {
     return decomposeCatalogCompoundPrompt(prompt);
   }
 
-  handleCreateServiceCategory(businessId: string, params: Record<string, any>) {
-    return handleCreateServiceCategoryLogic(this.deps, businessId, params);
+  handleCreateServiceCategory(
+    businessId: string,
+    params: Record<string, any>,
+    prompt?: string,
+  ) {
+    return handleCreateServiceCategoryLogic(
+      this.deps,
+      businessId,
+      params,
+      prompt,
+    );
   }
 
   handleUpdateServiceCategory(businessId: string, params: Record<string, any>) {

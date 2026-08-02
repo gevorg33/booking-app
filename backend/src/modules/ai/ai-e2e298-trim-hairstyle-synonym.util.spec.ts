@@ -32,10 +32,13 @@ describe('e2e-bug.298 trim ↔ hairstyle catalog synonym', () => {
     },
   );
 
-  it('normalizeAvailabilityServiceCategory maps trim/cut/style → haircut', () => {
+  it('normalizeAvailabilityServiceCategory maps trim/style → haircut', () => {
     expect(normalizeAvailabilityServiceCategory('trim')).toBe('haircut');
-    expect(normalizeAvailabilityServiceCategory('cut')).toBe('haircut');
     expect(normalizeAvailabilityServiceCategory('styling')).toBe('haircut');
+  });
+
+  it('normalizeAvailabilityServiceCategory leaves bare "cut" unaliased (e2e-bug.323)', () => {
+    expect(normalizeAvailabilityServiceCategory('cut')).toBe('cut');
   });
 
   it.each(E2E298_RESOLVE_CASES)(
@@ -91,7 +94,13 @@ describe('e2e-bug.298 trim ↔ hairstyle catalog synonym', () => {
   );
 
   it('does not map massage trim-like noise', () => {
-    expect(expandServiceLookupQueries('massage')).toEqual(['massage']);
+    // e2e-bug.320 added a dedicated massage/massages synonym group, so
+    // "massage" now expands to its own family — the point of this test is
+    // that it stays isolated from the haircut/trim/cut/style aliases below.
+    expect(expandServiceLookupQueries('massage')).toEqual([
+      'massage',
+      'massages',
+    ]);
     expect(
       resolveServicesFromCatalogParams(CATALOG, {
         serviceCategory: 'massage',

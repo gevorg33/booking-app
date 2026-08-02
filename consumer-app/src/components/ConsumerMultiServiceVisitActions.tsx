@@ -270,6 +270,12 @@ export function ConsumerMultiServiceVisitActions({
               />
               {slotsLoading ? (
                 <IonSpinner className="ion-margin-top" />
+              ) : slots.length === 0 ? (
+                // e2e-bug.313 — explain the empty slot state instead of just
+                // hiding the picker's Confirm behind a mysterious disabled button.
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: 8 }}>
+                  {copy.noSlotsThisDay}
+                </p>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
                   {slots.map((slot) => {
@@ -300,14 +306,16 @@ export function ConsumerMultiServiceVisitActions({
                   })}
                 </p>
               )}
-              <ConsumerActionButton
-                expand="block"
-                className="ion-margin-top"
-                disabled={!selectedStart || busy === 'reschedule'}
-                onClick={() => void handleReschedule()}
-              >
-                {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
-              </ConsumerActionButton>
+              {selectedStart && (
+                <ConsumerActionButton
+                  expand="block"
+                  className="ion-margin-top"
+                  disabled={busy === 'reschedule'}
+                  onClick={() => void handleReschedule()}
+                >
+                  {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
+                </ConsumerActionButton>
+              )}
             </>
           )}
         </div>

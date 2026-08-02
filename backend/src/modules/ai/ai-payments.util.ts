@@ -671,16 +671,19 @@ export function isAvailabilityFillerServiceName(
 /**
  * e2e-bug.260 — strip trailing relative/absolute date windows glued onto a
  * service name ("massage this week" → "massage"). Shared by extract + param scrub.
+ * e2e-bug.319 — "later today" (and bare "later") were missing, so "massage
+ * later today" glued "later" into the service name before the boundary
+ * matched on "today".
  */
 const TRAILING_SERVICE_TIME_WINDOW =
-  /\s+(?:this\s+(?:week|weekend|month|morning|afternoon|evening)|next\s+(?:week|weekend|month|morning|afternoon|evening)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
+  /\s+(?:this\s+(?:week|weekend|month|morning|afternoon|evening)|next\s+(?:week|weekend|month|morning|afternoon|evening)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|later(?:\s+today)?|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
 
 /** Stop capture before date/time windows (align with waitlist / find_soonest). */
 const SERVICE_NAME_DATE_BOUNDARY =
-  String.raw`(?=\s*(?:,|;|\?|\band\b|\bbook\b|\bwith\b|\bat\b|\bon\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+  String.raw`(?=\s*(?:,|;|\?|\band\b|\bbook\b|\bwith\b|\bat\b|\bon\b|\blater\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
 
 const BARE_SERVICE_TIME_WINDOW =
-  /^(?:this\s+(?:week|weekend|month)|next\s+(?:week|weekend|month)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
+  /^(?:this\s+(?:week|weekend|month)|next\s+(?:week|weekend|month)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|later(?:\s+today)?|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
 
 export function stripTrailingTimeWindowFromServiceName(
   name: string | null | undefined,
@@ -769,7 +772,7 @@ export function extractServiceNameFromPrompt(prompt: string): string | null {
     // ("book if enough seats", "book the wine tour earliest date for 2
     // people") so those cue words never get glued into the service name.
     const bookService = prompt.match(
-      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+|next\s+)?(?!if\b|when\b|unless\b|only\b)([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\bif\b|\bwhen\b|\bunless\b|\bonly\b|\bearliest\b|\bnearest\b|\bsoonest\b|\basap\b|\b(?:slot|appointment|opening|time)\b|$))/i,
+      /\bbook\s+(?:a\s+|an\s+|the\s+)?(?:nearest\s+|soonest\s+|first\s+|next\s+)?(?!if\b|when\b|unless\b|only\b)([a-z][\w\s'-]{2,40}?)(?=\s*(?:,|;|\?|\band\b|\bwho\b|\bwhich\b|\blater\b|\btomorrow\b|\btonight\b|\bevening\b|\bmorning\b|\bafternoon\b|\bat\b|\bfor\b|\bon\b|\bwith\b|\btoday\b|\bthis\b|\bif\b|\bwhen\b|\bunless\b|\bonly\b|\bearliest\b|\bnearest\b|\bsoonest\b|\basap\b|\b(?:slot|appointment|opening|time)\b|$))/i,
     );
     if (bookService) {
       const name = acceptExtractedServiceName(bookService[1]);

@@ -1129,6 +1129,7 @@ export class ProviderAiCommandService {
               : {}),
           },
           prompt,
+          typeof context?.locale === 'string' ? context.locale : undefined,
         );
         break;
       case 'explain_dashboard_only_action':
@@ -1138,10 +1139,16 @@ export class ProviderAiCommandService {
         );
         break;
       case 'explain_reassign_limit':
-        result = this.handleExplainReassignLimit();
+        result = this.handleExplainReassignLimit(
+          prompt,
+          typeof context?.locale === 'string' ? context.locale : undefined,
+        );
         break;
       case 'explain_time_off_approval':
-        result = this.handleExplainTimeOffApproval();
+        result = this.handleExplainTimeOffApproval(
+          prompt,
+          typeof context?.locale === 'string' ? context.locale : undefined,
+        );
         break;
       case 'handoff_to_dashboard_phi':
         result = this.handleHandoffToDashboardPhi();
@@ -4589,22 +4596,28 @@ export class ProviderAiCommandService {
     };
   }
 
-  /** ai-cmd-provider-5.25.2 — static explainer, no live data needed. */
-  private handleExplainReassignLimit(): ProviderCommandResult {
+  /** ai-cmd-provider-5.25.2 — static explainer, no live data needed. e2e-bug.327: localized. */
+  private handleExplainReassignLimit(
+    prompt: string,
+    locale?: string,
+  ): ProviderCommandResult {
     return {
       success: true,
       action: 'explain_reassign_limit',
-      summary: buildExplainReassignLimitSummary(),
+      summary: buildExplainReassignLimitSummary(locale, prompt),
       details: {},
     };
   }
 
-  /** ai-cmd-provider-5.25.3 — static explainer, no live data needed. */
-  private handleExplainTimeOffApproval(): ProviderCommandResult {
+  /** ai-cmd-provider-5.25.3 — static explainer, no live data needed. e2e-bug.327: localized. */
+  private handleExplainTimeOffApproval(
+    prompt: string,
+    locale?: string,
+  ): ProviderCommandResult {
     return {
       success: true,
       action: 'explain_time_off_approval',
-      summary: buildExplainTimeOffApprovalSummary(),
+      summary: buildExplainTimeOffApprovalSummary(locale, prompt),
       details: {},
     };
   }

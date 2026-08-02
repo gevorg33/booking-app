@@ -7,7 +7,8 @@ import { formatLocalizedDate } from '../../common/utils/locale-format.util.js';
 /**
  * Date-grounded AI actions whose summaries must keep deterministic copy —
  * skip LLM enrich (e2e-bug.285 booking dates; e2e-bug.289 tour week locale;
- * e2e-bug.311 clinic catalog locale).
+ * e2e-bug.311 clinic catalog locale; e2e-bug.312 catalog category locale;
+ * e2e-bug.317 home-screen-widget locale).
  */
 export const AI_DATE_GROUNDED_BOOKING_ACTIONS = [
   'create_booking',
@@ -16,6 +17,8 @@ export const AI_DATE_GROUNDED_BOOKING_ACTIONS = [
   'update_bookings',
   'list_tour_calendar_week',
   'explain_clinic_services',
+  'create_service_category',
+  'explain_home_screen_widget',
 ] as const;
 
 export type AiDateGroundedBookingAction =

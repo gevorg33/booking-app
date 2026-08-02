@@ -690,6 +690,7 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
     serviceCategory?: string | null;
     serviceName?: string | null;
     serviceNames?: string[] | null;
+    serviceId?: string | null;
   },
 ): T[] {
   if (Array.isArray(params.serviceNames) && params.serviceNames.length) {
@@ -704,6 +705,20 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
       }
     }
     if (matched.length) return matched;
+  }
+
+  // e2e-bug.321 — an already-resolved exact serviceId pin (a single-service
+  // match, not a category browse) must not be re-expanded via fuzzy name
+  // matching below, which can spuriously pull in an unrelated catalog row
+  // whose normalized name happens to contain the pinned name as a substring
+  // (e.g. "Women's cut" contains "Men's cut" — wo|men's cut).
+  if (
+    !params.serviceCategory &&
+    typeof params.serviceId === 'string' &&
+    params.serviceId.trim()
+  ) {
+    const exact = catalog.find((item) => item.id === params.serviceId);
+    if (exact) return [exact];
   }
 
   const keyword = params.serviceCategory ?? params.serviceName;

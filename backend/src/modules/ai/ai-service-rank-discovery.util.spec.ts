@@ -259,12 +259,14 @@ describe('ai-service-rank-discovery.util tier metadata filter (rank-tier-metadat
 });
 
 describe('ai-service-rank-discovery.util provider budget (discover-best-provider-budget-en)', () => {
-  it('extracts haircut from stylist-for-a-cut provider rank prompt', () => {
+  it('extracts unaliased "cut" from stylist-for-a-cut provider rank prompt', () => {
     const prompt = 'Best rated stylist for a cut under $60 this week';
     expect(isProviderRankDiscoveryPrompt(prompt)).toBe(true);
-    expect(extractProviderRankServiceCategoryFromPrompt(prompt)).toBe(
-      'haircut',
-    );
+    // e2e-bug.323 — bare "cut" must not pre-alias to "haircut": that let the
+    // hairstyle synonym steal literal "* cut" catalog matches (Men's cut /
+    // Women's cut). Staying "cut" still falls back to hairstyle via the
+    // synonym chain when no cut-named service exists.
+    expect(extractProviderRankServiceCategoryFromPrompt(prompt)).toBe('cut');
     expect(extractServiceRankFromPrompt(prompt)).toBeNull();
   });
 });
@@ -319,13 +321,13 @@ describe('ai-service-rank-discovery.util mid-range browse (rank-mid-range-en)', 
 });
 
 describe('ai-service-rank-discovery.util voice premium (rank-voice-premium-en)', () => {
-  it('maps short voice prompt to highest_price haircut', () => {
+  it('maps short voice prompt to highest_price cut (e2e-bug.323 — unaliased)', () => {
     const prompt = 'Premium cut?';
     expect(extractServiceRankFromPrompt(prompt)).toBe('highest_price');
-    expect(extractServiceRankServiceCategoryFromPrompt(prompt)).toBe('haircut');
+    expect(extractServiceRankServiceCategoryFromPrompt(prompt)).toBe('cut');
     expect(buildServiceRankDiscoveryRescueParams(prompt)).toEqual({
       serviceRank: 'highest_price',
-      serviceCategory: 'haircut',
+      serviceCategory: 'cut',
     });
   });
 });

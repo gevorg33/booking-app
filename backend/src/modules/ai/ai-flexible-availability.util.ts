@@ -265,11 +265,18 @@ export function normalizeAvailabilityServiceCategory(keyword: string): string {
   if (lower === 'hairstyles') return 'hairstyle';
   // e2e-bug.297 — plural facials stays in the facial synonym family.
   if (lower === 'facials') return 'facial';
-  // e2e-bug.298 — trim/cut/style aliases normalize to haircut (parity with rank).
+  // e2e-bug.298 — trim/style aliases normalize to haircut (parity with rank).
+  // e2e-bug.323 — bare "cut"/"cuts" is deliberately NOT included here: forcing
+  // it to "haircut" discarded the raw token before matchServicesByQuery ran,
+  // so its literal-substring-first synonym expansion never got a chance to
+  // prefer real catalog rows named "Men's cut" / "Women's cut" over the
+  // unrelated "hairstyle" synonym match. Leaving "cut"/"cuts" unaliased still
+  // falls back to the haircut/hairstyle family via the same synonym group
+  // when no literal cut-named service exists (see
+  // ai-service-rank-discovery.util.ts's RANK_SERVICE_CATEGORY_ALIASES for the
+  // sibling fix on the rank-discovery extraction path).
   if (
     lower === 'trim' ||
-    lower === 'cut' ||
-    lower === 'cuts' ||
     lower === 'style' ||
     lower === 'styles' ||
     lower === 'styling'

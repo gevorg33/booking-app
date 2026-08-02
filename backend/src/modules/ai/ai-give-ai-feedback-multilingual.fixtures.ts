@@ -37,6 +37,14 @@ export const GIVE_AI_FEEDBACK_MULTILINGUAL_SCENARIOS: readonly GiveAiFeedbackMul
       rescueReason: 'give_ai_feedback',
     },
     {
+      id: 'hy-not-helpful-public',
+      prompt: 'Օգտակար չէ',
+      surface: 'public',
+      locale: 'hy',
+      expectedAction: 'give_ai_feedback',
+      rescueReason: 'give_ai_feedback',
+    },
+    {
       id: 'ru-that-was-wrong-public',
       prompt: 'Это было неправильно',
       surface: 'public',

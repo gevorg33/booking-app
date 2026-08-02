@@ -4,10 +4,10 @@ All unique `(e2e|api)-bug.N` IDs mentioned in [`TODO.md`](./TODO.md), tagged **O
 
 | | Count |
 |---|---:|
-| Total unique IDs | 250 |
-| **Open** | 122 |
-| **Fixed** | 128 |
-| With dedicated `##` write-up | 149 |
+| Total unique IDs | 256 |
+| **Open** | 107 |
+| **Fixed** | 149 |
+| With dedicated `##` write-up | 154 |
 | Mention-only (no `##` section) | 86 |
 
 ### Classification rules
@@ -52,23 +52,25 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.276` **[Fixed]** — Home-tab tour reclaims from `explain_home_screen_widget` / `compare_services`; widget clarify localized; live `qa-e2e-bug-276.mjs` 12/12 (2026-08-01) — residual **e2e-bug.295** (Fixed; **317**) — [`TODO.md` e2e-bug.276](./TODO.md#e2e-bug276--explain_home_screen_widget-english-clarify-under-localehy-steals-home-tab-tour--fixed)
 - [x] `e2e-bug.277` **[Fixed]** — public `booking_help` preserves `guide` / localized `supportHandoff` via convert round-trip; live `qa-e2e-bug-277.mjs` 11/11 (2026-08-01) — [`TODO.md` e2e-bug.277](./TODO.md#e2e-bug277--public-booking_help-returns-progress-summary-but-omits-guide--supporthandoff--fixed)
 - [x] `e2e-bug.294` **[Fixed]** — hy/ru `booking_help` shortTitles + humanize locale splits; live `qa-e2e-bug-294.mjs` 15/15 (2026-08-01) — residual **e2e-bug.316** (Fixed; **330**/ **331**) — [`TODO.md` e2e-bug.294](./TODO.md#e2e-bug294--hyru-booking_help-humanized-step-titles-stay-body-length-vs-short-en--fixed)
-- [x] `e2e-bug.316` **[Fixed]** — high-traffic guide playbooks `shortTitleKey` + stepNTitle (booking-flow/packages/professionals/services/checkout); live `qa-e2e-bug-316.mjs` 33/33 (2026-08-01) — residuals **e2e-bug.330**, **e2e-bug.331** — [`TODO.md` e2e-bug.316](./TODO.md#e2e-bug316--other-guide-playbooks-lack-shorttitlekey-e2e-bug294-residual--fixed)
-- [ ] `e2e-bug.330` **[Open]** — remaining ~41 guide playbooks lack `shortTitleKey` (e2e-bug.316 residual) — [`TODO.md` e2e-bug.330](./TODO.md#e2e-bug330--remaining-guide-playbooks-lack-shorttitlekey-e2e-bug316-residual--open)
-- [ ] `e2e-bug.331` **[Open]** — page-help on `/book/services`|`/book/checkout` misroutes away from screen playbook (e2e-bug.316 residual) — [`TODO.md` e2e-bug.331](./TODO.md#e2e-bug331--page-help-on-bookservicesbookcheckout-misroutes-away-from-screen-playbook-e2e-bug316-residual--open)
+- [x] `e2e-bug.316` **[Fixed]** — high-traffic guide playbooks `shortTitleKey` + stepNTitle (booking-flow/packages/professionals/services/checkout); live `qa-e2e-bug-316.mjs` 33/33 (2026-08-01) — residuals **e2e-bug.330 (Fixed)**, **e2e-bug.331 (Fixed)** — [`TODO.md` e2e-bug.316](./TODO.md#e2e-bug316--other-guide-playbooks-lack-shorttitlekey-e2e-bug294-residual--fixed)
+- [x] `e2e-bug.330` **[Fixed]** — remaining ~41 guide playbooks' `humanizeGuideStepTitle` fallback hardened against dangling trailing stopwords/bare dashes (e2e-bug.316 residual); live `qa-e2e-bug-330.mjs` 389/390 (2026-08-02) — [`TODO.md` e2e-bug.330](./TODO.md#e2e-bug330--remaining-guide-playbooks-lack-shorttitlekey-e2e-bug316-residual--fixed)
+- [x] `e2e-bug.331` **[Fixed]** — page-help on `/book/services`|`/book/checkout` misroutes away from screen playbook (e2e-bug.316 residual); root cause: public web assistant runs through the 'customer' AI pipeline, whose route mapper collapsed `/book/...` into the native-app booking bucket; live `qa-e2e-bug-331.mjs` 7/7 (2026-08-02) — [`TODO.md` e2e-bug.331](./TODO.md#e2e-bug331--page-help-on-bookservicesbookcheckout-misroutes-away-from-screen-playbook-e2e-bug316-residual--fixed)
 - [x] `e2e-bug.295` **[Fixed]** — add-next-home-screen → `explain_home_screen_widget` (classified adoption + detector guards); live `qa-e2e-bug-295.mjs` 14/14 (2026-08-01) — residual **e2e-bug.317** — [`TODO.md` e2e-bug.295](./TODO.md#e2e-bug295--publiccustomer-add-next-appointment-to-home-screen-stolen-by-list_my_upcoming_appointments--fixed)
-- [ ] `e2e-bug.317` **[Open]** — `explain_home_screen_widget` success summaries stay English under hy/ru (e2e-bug.295 residual) — [`TODO.md` e2e-bug.317](./TODO.md#e2e-bug317--explain_home_screen_widget-success-summaries-stay-english-under-hyru-e2e-bug295-residual--open)
+- [x] `e2e-bug.317` **[Fixed]** — explain_home_screen_widget success copy localized (27 keys, 6 builders) + skip LLM enrich; live HY/RU/EN 3x-identical 2026-08-02 — residual **e2e-bug.339** — [`TODO.md` e2e-bug.317](./TODO.md#e2e-bug317--explain_home_screen_widget-success-summaries-stay-english-under-hyru-e2e-bug295-residual--fixed)
+- [ ] `e2e-bug.339` **[Open]** — HY "how does the widget work" misroutes to booking_help (e2e-bug.317 residual) — [`TODO.md` e2e-bug.339](./TODO.md#e2e-bug339--hy-ինչպես-է-աշխատում-հիմնական-էկրանի-վիջեթը-misroutes-to-booking_help--open)
 - [x] `e2e-bug.260` **[Fixed]** — `recommend_specialists` trailing time window stripped from serviceName; live `qa-e2e-bug-260.mjs` 11/11 (2026-07-31) — residuals **e2e-bug.278** (Fixed), **e2e-bug.279** (Fixed), **e2e-bug.296** (Fixed; **318**/ **319**), **e2e-bug.297** (Fixed; **320**/ **321**), **e2e-bug.298** (Fixed; **322**/ **323**) — [`TODO.md` e2e-bug.260](./TODO.md#e2e-bug260--recommend_specialists-treats-trailing-time-window-as-service-name--fixed)
 - [x] `e2e-bug.278` **[Fixed]** — recommend + day-part stays on `recommend_specialists`; live `qa-e2e-bug-278.mjs` 12/12 (2026-08-01) — residual **e2e-bug.296** (Fixed; **318**/ **319**) — [`TODO.md` e2e-bug.278](./TODO.md#e2e-bug278--recommend--day-part-misroutes-to-availability-intents--fixed)
 - [x] `e2e-bug.296` **[Fixed]** — recommend someone + tonight/this evening keeps same-day window (TZ normalize + day-part prompt + dateless windows); live `qa-e2e-bug-296.mjs` 16/16 (2026-08-01) — residuals **e2e-bug.318**, **e2e-bug.319** — [`TODO.md` e2e-bug.296](./TODO.md#e2e-bug296--recommend-someone--tonightthis-evening-drops-day-part-filter-14-day-fallback--fixed)
-- [ ] `e2e-bug.318` **[Open]** — evening/tonight `recommend_specialists` lists afternoon slots (<17:00) (e2e-bug.296 residual) — [`TODO.md` e2e-bug.318](./TODO.md#e2e-bug318--eveningtonight-recommend_specialists-lists-afternoon-slots-1700--open)
-- [ ] `e2e-bug.319` **[Open]** — `recommend someone … later today` service scrub → `"massage later"` (e2e-bug.296 residual) — [`TODO.md` e2e-bug.319](./TODO.md#e2e-bug319--recommend-someone--later-today-service-scrub-becomes-massage-later--open)
+- [x] `e2e-bug.318` **[Fixed]** — recommend_specialists now honors timeOfDay for notBeforeTime (evening→17:00); isolated integration test confirms filter (e2e-bug.296 residual) — [`TODO.md` e2e-bug.318](./TODO.md#e2e-bug318--eveningtonight-recommend_specialists-lists-afternoon-slots-1700--fixed)
+- [x] `e2e-bug.319` **[Fixed]** — added `later`/`later today` to service-name day-part strip word-lists; live confirmed catalog resolves correctly 2026-08-02 (e2e-bug.296 residual) — [`TODO.md` e2e-bug.319](./TODO.md#e2e-bug319--recommend-someone--later-today-service-scrub-becomes-massage-later--fixed)
 - [x] `e2e-bug.279` **[Fixed]** — bare `facial` → Face Pilling / Face Plasma / facemassage synonym group; live `qa-e2e-bug-279.mjs` 12/12 (2026-08-01) — residuals **e2e-bug.297** (Fixed; **320**/ **321**), **e2e-bug.298** (Fixed; **322**/ **323**) — [`TODO.md` e2e-bug.279](./TODO.md#e2e-bug279--bare-facial-category-misses-face-pilling--facemassage-catalog-synonyms--fixed)
 - [x] `e2e-bug.297` **[Fixed]** — short `show me facials` keeps face family (synonym multi-match guard); live `qa-e2e-bug-297.mjs` 12/12 (2026-08-01) — residuals **e2e-bug.320**, **e2e-bug.321** — [`TODO.md` e2e-bug.297](./TODO.md#e2e-bug297--short-show-me-facials-collapses-to-face-pilling-only--fixed)
-- [ ] `e2e-bug.320` **[Open]** — short `show me massage` collapses to Deep tissue massage only (e2e-bug.297 residual) — [`TODO.md` e2e-bug.320](./TODO.md#e2e-bug320--short-show-me-massage-collapses-to-deep-tissue-massage-only--open)
-- [ ] `e2e-bug.321` **[Open]** — `list massage services` returns Men's cut / Women's cut (e2e-bug.297 residual) — [`TODO.md` e2e-bug.321](./TODO.md#e2e-bug321--list-massage-services-returns-mens-cut--womens-cut--open)
+- [x] `e2e-bug.320` **[Fixed]** — short `show me massage` now lists full 6-item massage family (added `massage` synonym group + exact-name guard so named variants still pin); live 15/15 (2026-08-02) — [`TODO.md` e2e-bug.320](./TODO.md#e2e-bug320--short-show-me-massage-collapses-to-deep-tissue-massage-only--fixed)
+- [x] `e2e-bug.321` **[Fixed]** — `list massage services` no longer leaks Men's/Women's cut; also fixed the underlying "Women's cut" ⊃ "Men's cut" substring collision in `resolveServicesFromCatalogParams`; live 9/9 (2026-08-02) — [`TODO.md` e2e-bug.321](./TODO.md#e2e-bug321--list-massage-services-returns-mens-cut--womens-cut--fixed)
 - [x] `e2e-bug.298` **[Fixed]** — bare `trim`/`styling` → hairstyle via haircut synonym group; live `qa-e2e-bug-298.mjs` 12/12 (2026-08-01) — residuals **e2e-bug.322**, **e2e-bug.323** — [`TODO.md` e2e-bug.298](./TODO.md#e2e-bug298--bare-trim-still-misses-hairstyle-catalog-synonym--fixed)
-- [ ] `e2e-bug.322` **[Open]** — `list trim services` header stays "Our trim service types" (e2e-bug.298 residual) — [`TODO.md` e2e-bug.322](./TODO.md#e2e-bug322--list-trim-services-header-stays-our-trim-service-types--open)
-- [ ] `e2e-bug.323` **[Open]** — bare "a cut" prefers hairstyle over Men's/Women's cut (e2e-bug.298 residual) — [`TODO.md` e2e-bug.323](./TODO.md#e2e-bug323--bare-a-cut-recommends-hairstyle-over-menswomens-cut--open)
+- [x] `e2e-bug.322` **[Fixed]** — `list trim services` header now normalizes to "Our haircut service types" (2026-08-02) — residual **e2e-bug.340** — [`TODO.md` e2e-bug.322](./TODO.md#e2e-bug322--list-trim-services-header-stays-our-trim-service-types--fixed)
+- [x] `e2e-bug.323` **[Fixed]** — bare "a cut" now correctly prefers Men's/Women's cut over hairstyle (fixed both the rank-extraction alias table and the live family-browse path); live confirmed 2026-08-02 — [`TODO.md` e2e-bug.323](./TODO.md#e2e-bug323--bare-a-cut-recommends-hairstyle-over-menswomens-cut--fixed)
+- [ ] `e2e-bug.340` **[Open]** — lone apostrophe-split "s" token spuriously pins bare prompts (e.g. `list style services`) to `Men's cut`/`Women's cut` (e2e-bug.322 residual) — [`TODO.md` e2e-bug.340](./TODO.md#e2e-bug340--a-lone-apostrophe-split-s-token-spuriously-pins-bare-prompts-to-mens-cut--womens-cut--open)
 - [x] `e2e-bug.261` **[Fixed]** — public `/assistant` accepted forged `context.customerId` (dto.context overwrote JWT); inbound sanitize + auth-last merge; live covered in `qa-e2e-bug-96.mjs` — [`TODO.md` e2e-bug.261](./TODO.md#e2e-bug261--forged-contextcustomerid-bypassed-confirm_my_booking_details-idor-guard--fixed)
 - [x] `e2e-bug.262` **[Fixed]** — public slots omit employee-overlap-blocked startTimes via `validateBookingWindow` overlap gate; live `qa-e2e-bug-262.mjs` 7/7 (2026-07-31) — [`TODO.md` e2e-bug.262](./TODO.md#e2e-bug262--public-slots-list-times-already-blocked-by-employee-booking-overlap--fixed)
 - [x] `e2e-bug.263` **[Fixed]** — visit-status aliases clarify on multi-match (no day-wide bulk); live `qa-e2e-bug-263.mjs` 9/9 (2026-07-31) — [`TODO.md` e2e-bug.263](./TODO.md#e2e-bug263--provider-mark_visit_in_progress--mark_visit_complete-without-bookingid-or-customername-bulk-mutates-every-matching-day-appointment--fixed)
@@ -78,29 +80,32 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.281` **[Fixed]** — public `give_ai_feedback` forwards chip/label details; live `qa-e2e-bug-281.mjs` 13/13 (2026-08-01) — residual **e2e-bug.299** (Fixed) — [`TODO.md` e2e-bug.281](./TODO.md#e2e-bug281--public-give-ai-feedback-response-strips-showreasonchips--aspect--labels--fixed)
 - [x] `e2e-bug.293` **[Fixed]** — `"Thumbs up"` / `"Thumbs down"` / emoji rate correctly; live `qa-e2e-bug-293.mjs` 18/18 (2026-08-01) — residual **e2e-bug.300** (Fixed) — [`TODO.md` e2e-bug.293](./TODO.md#e2e-bug293--public-thumbs-up--thumbs-down--give_ai_feedback-clarify-without-rating--fixed)
 - [x] `e2e-bug.299` **[Fixed]** — public `give_ai_feedback` chip/summary labels localize under `locale:hy|ru`; live `qa-e2e-bug-299.mjs` 22/22 (2026-08-01) — residuals **e2e-bug.324**, **e2e-bug.325** — [`TODO.md` e2e-bug.299](./TODO.md#e2e-bug299--public-give-ai-feedback-chipsummary-labels-stay-english-under-localehyru--fixed)
-- [ ] `e2e-bug.324` **[Open]** — HY native `"Օգտակար չէ"` stays `unknown` (e2e-bug.299 residual) — [`TODO.md` e2e-bug.324](./TODO.md#e2e-bug324--hy-native-օգտակար-չէ-stays-unknown-not-give_ai_feedback--open)
-- [ ] `e2e-bug.325` **[Open]** — provider `give_provider_ai_feedback` chip/summary labels stay English under `locale:hy|ru` (e2e-bug.299 residual) — [`TODO.md` e2e-bug.325](./TODO.md#e2e-bug325--provider-give_provider_ai_feedback-chipsummary-labels-stay-english-under-localehyru--open)
-- [x] `e2e-bug.300` **[Fixed]** — public `+1` / `-1` rate as `give_ai_feedback`; live `qa-e2e-bug-300.mjs` 20/20 (2026-08-01) — residual **e2e-bug.326** — [`TODO.md` e2e-bug.300](./TODO.md#e2e-bug300--public-1--1-stay-unknown-not-thumbs-feedback--fixed)
-- [ ] `e2e-bug.326` **[Open]** — public `"+1 thanks"` / `"thanks +1"` stay `unknown` (e2e-bug.300 residual) — [`TODO.md` e2e-bug.326](./TODO.md#e2e-bug326--public-1-thanks--thanks-1-stay-unknown--open)
-- [x] `e2e-bug.266` **[Fixed]** — provider `my_stats` Armenian `նչ`+`եմ` false-positives removed (phrase match + guide no-steal); live `qa-e2e-bug-266.mjs` 16/16 (2026-07-31) — residuals **e2e-bug.282** (Fixed), **e2e-bug.283** (Fixed), **e2e-bug.301** (Fixed), **e2e-bug.302** (Fixed), **e2e-bug.303** (Fixed; **328**) — [`TODO.md` e2e-bug.266](./TODO.md#e2e-bug266--provider-my-stats-armenian-substring-heuristic-նչեմ-false-positives-on-unrelated-faq-prompts--fixed)
+- [x] `e2e-bug.324` **[Fixed]** — HY native `"Օգտակար չէ"` (+ past `"չէր"`) now rescues to `give_ai_feedback`; live confirmed 2026-08-02 — residual **e2e-bug.341** — [`TODO.md` e2e-bug.324](./TODO.md#e2e-bug324--hy-native-օգտակար-չէ-stays-unknown-not-give_ai_feedback--fixed)
+- [ ] `e2e-bug.341` **[Open]** — `POSITIVE_CUE`'s Armenian "was helpful" alternative has a letter typo (Ե vs Է), only the exact canonical phrase resolves (e2e-bug.324 residual) — [`TODO.md` e2e-bug.341](./TODO.md#e2e-bug341--positive_cues-armenian-was-helpful-alternative-has-a-letter-typo-so-only-the-exact-canonical-phrase-resolves--open)
+- [x] `e2e-bug.325` **[Fixed]** — provider `give_provider_ai_feedback` chip/summary labels now localize under `locale:hy|ru`; live confirmed 2026-08-02 — [`TODO.md` e2e-bug.325](./TODO.md#e2e-bug325--provider-give_provider_ai_feedback-chipsummary-labels-stay-english-under-localehyru--fixed)
+- [x] `e2e-bug.300` **[Fixed]** — public `+1` / `-1` rate as `give_ai_feedback`; live `qa-e2e-bug-300.mjs` 20/20 (2026-08-01) — residual **e2e-bug.326 (Fixed)** — [`TODO.md` e2e-bug.300](./TODO.md#e2e-bug300--public-1--1-stay-unknown-not-thumbs-feedback--fixed)
+- [x] `e2e-bug.326` **[Fixed]** — public `"+1 thanks"` / `"thanks +1"` stay `unknown` (e2e-bug.300 residual); live `qa-e2e-bug-326.mjs` 17/17 (2026-08-02) — [`TODO.md` e2e-bug.326](./TODO.md#e2e-bug326--public-1-thanks--thanks-1-stay-unknown--fixed)
+- [x] `e2e-bug.266` **[Fixed]** — provider `my_stats` Armenian `նչ`+`եմ` false-positives removed (phrase match + guide no-steal); live `qa-e2e-bug-266.mjs` 16/16 (2026-07-31) — residuals **e2e-bug.282** (Fixed), **e2e-bug.283** (Fixed), **e2e-bug.301** (Fixed; **327** Fixed), **e2e-bug.302** (Fixed), **e2e-bug.303** (Fixed; **328**) — [`TODO.md` e2e-bug.266](./TODO.md#e2e-bug266--provider-my-stats-armenian-substring-heuristic-նչեմ-false-positives-on-unrelated-faq-prompts--fixed)
 - [x] `e2e-bug.282` **[Fixed]** — HY/RU call-client FAQ → `explain_dashboard_only_action`; live `qa-e2e-bug-282.mjs` 13/13 (2026-08-01) — residual **e2e-bug.301** (Fixed) — [`TODO.md` e2e-bug.282](./TODO.md#e2e-bug282--hy-ինչու-չեմ-կարող-զանգահարել-հաճախորդին--summarize_client-not-dashboard-handoff--fixed)
 - [x] `e2e-bug.283` **[Fixed]** — product-guide no-steal for my_stats / HY how-am-I; live `qa-e2e-bug-283.mjs` 12/12 (2026-08-01) — residuals **e2e-bug.302** (Fixed), **e2e-bug.303** (Fixed; **328**) — [`TODO.md` e2e-bug.283](./TODO.md#e2e-bug283--rescueproductguideintent-still-steals-my_stats-for-hy-ինչպե՞ս-եմ--fixed)
-- [x] `e2e-bug.301` **[Fixed]** — `explain_dashboard_only_action` summaries localize for HY/RU; live `qa-e2e-bug-301.mjs` 12/12 (2026-08-01) — residual **e2e-bug.327** — [`TODO.md` e2e-bug.301](./TODO.md#e2e-bug301--explain_dashboard_only_action-summaries-stay-english-for-hyru-prompts--fixed)
-- [ ] `e2e-bug.327` **[Open]** — `explain_reassign_limit` / `explain_time_off_approval` summaries stay English for HY/RU (e2e-bug.301 residual) — [`TODO.md` e2e-bug.327](./TODO.md#e2e-bug327--explain_reassign_limit--explain_time_off_approval-summaries-stay-english-for-hyru--open)
+- [x] `e2e-bug.301` **[Fixed]** — `explain_dashboard_only_action` summaries localize for HY/RU; live `qa-e2e-bug-301.mjs` 12/12 (2026-08-01) — residual **e2e-bug.327 (Fixed)** — [`TODO.md` e2e-bug.301](./TODO.md#e2e-bug301--explain_dashboard_only_action-summaries-stay-english-for-hyru-prompts--fixed)
+- [x] `e2e-bug.327` **[Fixed]** — `explain_reassign_limit` / `explain_time_off_approval` summaries localize for HY/RU (e2e-bug.301 residual); live `qa-e2e-bug-327.mjs` 10/10 (2026-08-02) — [`TODO.md` e2e-bug.327](./TODO.md#e2e-bug327--explain_reassign_limit--explain_time_off_approval-summaries-stay-english-for-hyru--fixed)
 - [x] `e2e-bug.302` **[Fixed]** — HY/RU Home|Today tab → `provider-today-calendar` + localized miss clarify; live `qa-e2e-bug-302.mjs` 10/10 (2026-08-01) — [`TODO.md` e2e-bug.302](./TODO.md#e2e-bug302--hy-ինչպե՞ս-օգտագործեմ-home-tab-ը--guide_user_flow-but-topic-miss--en-fallback--fixed)
-- [x] `e2e-bug.303` **[Fixed]** — first-person how-am-I → Your/mine (beats classifier team); live `qa-e2e-bug-303.mjs` 12/12 (2026-08-01) — residual **e2e-bug.328** — [`TODO.md` e2e-bug.303](./TODO.md#e2e-bug303--provider-how-am-i--my_stats-sometimes-returns-team-stats-instead-of-your-stats--fixed)
-- [ ] `e2e-bug.328` **[Open]** — `my_stats` Your/Team stats summaries stay English for HY/RU (e2e-bug.303 residual) — [`TODO.md` e2e-bug.328](./TODO.md#e2e-bug328--my_stats-yourteam-stats-summaries-stay-english-for-hyru--open)
+- [x] `e2e-bug.303` **[Fixed]** — first-person how-am-I → Your/mine (beats classifier team); live `qa-e2e-bug-303.mjs` 12/12 (2026-08-01) — residual **e2e-bug.328 (Fixed; residual 342)** — [`TODO.md` e2e-bug.303](./TODO.md#e2e-bug303--provider-how-am-i--my_stats-sometimes-returns-team-stats-instead-of-your-stats--fixed)
+- [x] `e2e-bug.328` **[Fixed]** — `my_stats` Your/Team stats summaries localize HY/RU (e2e-bug.303 residual); live `qa-e2e-bug-328.mjs` 7/7 (2026-08-02) — residual **e2e-bug.342** — [`TODO.md` e2e-bug.328](./TODO.md#e2e-bug328--my_stats-yourteam-stats-summaries-stay-english-for-hyru--fixed)
+- [ ] `e2e-bug.342` **[Open]** — provider exp-2 domain (list_team_unpaid_today, explain_reviews_inbox, my_stats, …) never rescues when classifier action is exactly `unknown` (e2e-bug.328 residual) — [`TODO.md` e2e-bug.342](./TODO.md#e2e-bug342--provider-exp-2-domain-list_team_unpaid_today-explain_reviews_inbox-my_stats--never-rescues-when-classifier-action-is-exactly-unknown--open)
 - [x] `e2e-bug.267` **[Fixed]** — semicolon / then-put-it move+nearest stays single `reschedule_booking` (`isSingleRescheduleNearestContinuationPrompt`); live `qa-e2e-bug-267.mjs` 10/10 (2026-07-31) — residual **e2e-bug.284** (Fixed; **304**/ **305**) — [`TODO.md` e2e-bug.267](./TODO.md#e2e-bug267--semicolon-move--put-it--nearest-free-time-decomposes-to-compound-instead-of-single-reschedule_booking--fixed)
-- [x] `e2e-bug.284` **[Fixed]** — move+then-book → `reschedule_booking`→`create_booking` golden; live `qa-e2e-bug-284.mjs` 8/8 (2026-08-01) — residuals **e2e-bug.304** (Fixed; **329**), **e2e-bug.305** (Fixed) — [`TODO.md` e2e-bug.284](./TODO.md#e2e-bug284--move--then-book-a-second--collapses-to-create_booking-only-drops-reschedule-step--fixed)
-- [x] `e2e-bug.304` **[Fixed]** — mid-step clarify keeps compound resume + `action=compound_intent`; live `qa-e2e-bug-304.mjs` 6/6 (2026-08-01) — residual **e2e-bug.329** — [`TODO.md` e2e-bug.304](./TODO.md#e2e-bug304--compound-mid-step-clarify-discards-prior-validated-plans-reschedulecreate--fixed)
+- [x] `e2e-bug.284` **[Fixed]** — move+then-book → `reschedule_booking`→`create_booking` golden; live `qa-e2e-bug-284.mjs` 8/8 (2026-08-01) — residuals **e2e-bug.304** (Fixed; **329** Fixed), **e2e-bug.305** (Fixed) — [`TODO.md` e2e-bug.284](./TODO.md#e2e-bug284--move--then-book-a-second--collapses-to-create_booking-only-drops-reschedule-step--fixed)
+- [x] `e2e-bug.304` **[Fixed]** — mid-step clarify keeps compound resume + `action=compound_intent`; live `qa-e2e-bug-304.mjs` 6/6 (2026-08-01) — residual **e2e-bug.329 (Fixed)** — [`TODO.md` e2e-bug.304](./TODO.md#e2e-bug304--compound-mid-step-clarify-discards-prior-validated-plans-reschedulecreate--fixed)
 - [x] `e2e-bug.305` **[Fixed]** — compound clarify top-level `action` is `compound_intent`; live `qa-e2e-bug-305.mjs` 7/7 (2026-08-01) — [`TODO.md` e2e-bug.305](./TODO.md#e2e-bug305--compound-clarify-top-level-action-is-current-step-not-compound_intent--fixed)
-- [ ] `e2e-bug.329` **[Open]** — compound resume follow-up with empty prior plans still skips/fails reschedule leg (e2e-bug.304 residual) — [`TODO.md` e2e-bug.329](./TODO.md#e2e-bug329--compound-resume-follow-up-with-empty-prior-plans-still-skipsfails-reschedule-leg--open)
+- [x] `e2e-bug.329` **[Fixed]** — compound no longer silently skips a mutating leg (reschedule/create/book/cancel) whose plan can't be built; live `qa-e2e-bug-329.mjs` 1/1 (2026-08-02) — [`TODO.md` e2e-bug.329](./TODO.md#e2e-bug329--compound-resume-follow-up-with-empty-prior-plans-still-skipsfails-reschedule-leg--fixed)
 - [x] `e2e-bug.268` **[Fixed]** — first-available create/reschedule clamps start day ≥ today; live `qa-e2e-bug-268.mjs` 9/9 (2026-07-31) — residuals **e2e-bug.285** (Fixed; **306**), **e2e-bug.286** (Fixed; **332**/ **333**) — [`TODO.md` e2e-bug.268](./TODO.md#e2e-bug268--dashboard-first-available-bookingreschedule-can-land-on-past-calendar-days--fixed)
 - [x] `e2e-bug.285` **[Fixed]** — AI success/plan dates unambiguous; live `qa-e2e-bug-285.mjs` 7/7 (2026-08-01) — residual **e2e-bug.306** (Fixed) — [`TODO.md` e2e-bug.285](./TODO.md#e2e-bug285--ai-success-summaries-misread-ddmm-01082026-as-us-january-8--march-8--fixed)
 - [x] `e2e-bug.306` **[Fixed]** — no-slot / availability failure dates use `formatDateForAiLabel`; live `qa-e2e-bug-306.mjs` 8/8 (2026-08-01) — [`TODO.md` e2e-bug.306](./TODO.md#e2e-bug306--nearest-slot--reschedule-no-open-slot-messages-still-use-ddmm-slash-02082026--fixed)
-- [x] `e2e-bug.286` **[Fixed]** — "Create a booking for the first available…" stays `create_booking` (not `create_employee`); live `qa-e2e-bug-286.mjs` 15/15 (2026-08-01) — residuals **e2e-bug.332**, **e2e-bug.333** — [`TODO.md` e2e-bug.286](./TODO.md#e2e-bug286--create-a-booking-for-the-first-available-stolen-by-create_employee--fixed)
-- [ ] `e2e-bug.332` **[Open]** — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (e2e-bug.286 residual) — [`TODO.md` e2e-bug.332](./TODO.md#e2e-bug332--create_booking-is-not-free-at--on-ddmmyyyy-still-uses-slash-dates-e2e-bug286-residual--open)
-- [ ] `e2e-bug.333` **[Open]** — short first-available "Create a booking…" without any-provider may skip BFA scan (e2e-bug.286 residual) — [`TODO.md` e2e-bug.333](./TODO.md#e2e-bug333--short-first-available-create-a-booking-without-any-provider-may-skip-bfa-scan-e2e-bug286-residual--open)
+- [x] `e2e-bug.286` **[Fixed]** — "Create a booking for the first available…" stays `create_booking` (not `create_employee`); live `qa-e2e-bug-286.mjs` 15/15 (2026-08-01) — residuals **e2e-bug.332 (Fixed)**, **e2e-bug.333 (Fixed)** — [`TODO.md` e2e-bug.286](./TODO.md#e2e-bug286--create-a-booking-for-the-first-available-stolen-by-create_employee--fixed)
+- [x] `e2e-bug.332` **[Fixed]** — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (e2e-bug.286 residual); missed `formatDateForAiLabel` call site, sibling of Fixed 306; live `qa-e2e-bug-332.mjs` 4/4 (2026-08-02) — found **e2e-bug.343** — [`TODO.md` e2e-bug.332](./TODO.md#e2e-bug332--create_booking-is-not-free-at--on-ddmmyyyy-still-uses-slash-dates-e2e-bug286-residual--fixed)
+- [ ] `e2e-bug.343` **[Open]** — dashboard create_booking crashes with unhandled 500 on MM/DD slash dates where day > 12 (RangeError: Invalid time value) — [`TODO.md` e2e-bug.343](./TODO.md#e2e-bug343--dashboard-create_booking-crashes-with-an-unhandled-500-on-mmdd-slash-dates-where-day-of-month--12--open)
+- [x] `e2e-bug.333` **[Fixed]** — short first-available "Create a booking…" without any-provider may skip BFA scan (e2e-bug.286 residual); verified already resolved by existing `pickCreateBookingFirstAvailable` search-target validation, no source change needed; live `qa-e2e-bug-333.mjs` 6/6 (2026-08-02) — [`TODO.md` e2e-bug.333](./TODO.md#e2e-bug333--short-first-available-create-a-booking-without-any-provider-may-skip-bfa-scan-e2e-bug286-residual--fixed)
 - [x] `e2e-bug.269` **[Fixed]** — anybody-open-schedule check+book detection restored (indefinite exclusion); live `qa-e2e-bug-269.mjs` 11/11 (2026-07-31) — residual **e2e-bug.287** (Fixed; **307**) — [`TODO.md` e2e-bug.269](./TODO.md#e2e-bug269--checkbook-fixture-anybody-open-schedule-no-longer-matches-ischeckprovidersforserviceprompt--fixed)
 - [x] `e2e-bug.287` **[Fixed]** — dashboard check-only anybody-open → `check_providers_for_service` (registry + rescue order); live `qa-e2e-bug-287.mjs` 18/18 (2026-08-01) — residual **e2e-bug.307** (Fixed; **334**/ **335**) — [`TODO.md` e2e-bug.287](./TODO.md#e2e-bug287--dashboard-check-only-is-anybody-open-routes-to-check_availability-not-check_providers_for_service--fixed)
 - [x] `e2e-bug.307` **[Fixed]** — public `"is anybody open…"` stays availability (not `add_booking_to_calendar`); live `qa-e2e-bug-307.mjs` 17/17 (2026-08-01) — residuals **e2e-bug.334**, **e2e-bug.335** — [`TODO.md` e2e-bug.307](./TODO.md#e2e-bug307--public-is-anybody-open-stolen-by-add_booking_to_calendar--fixed)
@@ -118,13 +123,14 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.291` **[Fixed]** — HY catalog-category create → `create_service_category` (clinic `որ`/`կատեգորիա` false-positive + HY detect); live `qa-e2e-bug-291.mjs` 16/16 (2026-08-01) — residual **e2e-bug.311** (Fixed; **337**) — [`TODO.md` e2e-bug.291](./TODO.md#e2e-bug291--hy-catalog-category-create--explain_clinic_services--fixed)
 - [x] `e2e-bug.311` **[Fixed]** — HY/RU `explain_clinic_services` empty summaries localized + skip enrich; live `qa-e2e-bug-311.mjs` 17/17 (2026-08-01) — residual **e2e-bug.337** — [`TODO.md` e2e-bug.311](./TODO.md#e2e-bug311--hy-explain_clinic_services-empty-summary-stays-english-on-some-prompts--fixed)
 - [ ] `e2e-bug.337` **[Open]** — HY `Բացատրի՛ր մեր կլինիկական ծառայությունները` → `explain_business_hours_and_location` (e2e-bug.311 residual) — [`TODO.md` e2e-bug.337](./TODO.md#e2e-bug337--hy-բացատրիր-կլինիկական-ծառայությունները-stolen-by-explain_business_hours_and_location-e2e-bug311-residual--open)
-- [x] `e2e-bug.292` **[Fixed]** — RU catalog-category create → `create_service_category` (not bulk confirm; Color ≠ create_employee); live `qa-e2e-bug-292.mjs` 15/15 (2026-08-01) — residual **e2e-bug.312** — [`TODO.md` e2e-bug.292](./TODO.md#e2e-bug292--ru-catalog-category-create--bulk_create_catalog-confirm--fixed)
-- [ ] `e2e-bug.312` **[Open]** — RU `create_service_category` success summary sometimes stays English (e2e-bug.292 residual) — [`TODO.md` e2e-bug.312](./TODO.md#e2e-bug312--ru-create_service_category-success-summary-sometimes-stays-english--open)
+- [x] `e2e-bug.292` **[Fixed]** — RU catalog-category create → `create_service_category` (not bulk confirm; Color ≠ create_employee); live `qa-e2e-bug-292.mjs` 15/15 (2026-08-01) — residual **e2e-bug.312** (Fixed; **338**) — [`TODO.md` e2e-bug.292](./TODO.md#e2e-bug292--ru-catalog-category-create--bulk_create_catalog-confirm--fixed)
+- [x] `e2e-bug.312` **[Fixed]** — RU/HY/EN `create_service_category` success deterministic + skip LLM enrich; live 8×RU + 4×HY + 3×EN identical, 2026-08-02 — residual **e2e-bug.338** — [`TODO.md` e2e-bug.312](./TODO.md#e2e-bug312--ru-create_service_category-success-summary-sometimes-stays-english--fixed)
+- [ ] `e2e-bug.338` **[Open]** — `create_service_category` name extraction absorbs trailing placeholder-count clause (e2e-bug.312 residual) — [`TODO.md` e2e-bug.338](./TODO.md#e2e-bug338--create_service_category-name-extraction-absorbs-a-trailing-placeholder-count-clause-into-categoryname--open)
 - [x] `e2e-bug.272` **[Fixed]** — package/multi-service visit CTAs → native `ConsumerActionButton`; live `qa-e2e-bug-272.mjs` 9/9 (2026-08-01) — residuals **e2e-bug.313**, **e2e-bug.314** — [`TODO.md` e2e-bug.272](./TODO.md#e2e-bug272--consumerpackagevisitactions--consumermultiservicevisitactions-still-use-ionbutton-hosts--fixed)
-- [ ] `e2e-bug.313` **[Open]** — package/multi reschedule panel shows disabled Confirm when no slots (e2e-bug.272 residual) — [`TODO.md` e2e-bug.313](./TODO.md#e2e-bug313--package--multi-service-reschedule-panel-shows-confirm-when-no-slots--open)
-- [ ] `e2e-bug.314` **[Open]** — Account `ConsumerSubscriptionsSection` CTAs still `IonButton` (e2e-bug.272 residual) — [`TODO.md` e2e-bug.314](./TODO.md#e2e-bug314--account-consumersubscriptionssection-ctas-still-use-ionbutton-hosts--open)
+- [x] `e2e-bug.313` **[Fixed]** — package/multi reschedule panel hides Confirm + shows noSlotsThisDay when empty; live 2026-08-02 (e2e-bug.272 residual) — [`TODO.md` e2e-bug.313](./TODO.md#e2e-bug313--package--multi-service-reschedule-panel-shows-confirm-when-no-slots--fixed)
+- [x] `e2e-bug.314` **[Fixed]** — Account `ConsumerSubscriptionsSection` CTAs → native `ConsumerActionButton`; live 0 ion-button/15 native, real cancel + usage-toggle verified 2026-08-02 (e2e-bug.272 residual) — [`TODO.md` e2e-bug.314](./TODO.md#e2e-bug314--account-consumersubscriptionssection-ctas-still-use-ionbutton-hosts--fixed)
 - [x] `e2e-bug.273` **[Fixed]** — public bookable-dates/slots GET uses ephemeral projection (no schedule persist); live `qa-e2e-bug-273.mjs` 8/8 (2026-08-01) — residual **e2e-bug.315** — [`TODO.md` e2e-bug.273](./TODO.md#e2e-bug273--public-bookable-datesslots-get-persists-schedule-roll-forward-e2e-bug254-residual--fixed)
-- [ ] `e2e-bug.315` **[Open]** — booking POST auto-materializes assigned-provider hour roll-forward (e2e-bug.273 residual) — [`TODO.md` e2e-bug.315](./TODO.md#e2e-bug315--booking-post-auto-materializes-assigned-provider-hour-roll-forward--open)
+- [x] `e2e-bug.315` **[Fixed]** — booking POST materialize now gated by settings.publicBooking.allowAssignedProviderHourRollForward (default true); live opt-out verified 0 rows written 2026-08-02 (e2e-bug.273 residual) — [`TODO.md` e2e-bug.315](./TODO.md#e2e-bug315--booking-post-auto-materializes-assigned-provider-hour-roll-forward--fixed)
 
 ### Public web — AI residuals (recent) (13)
 
@@ -526,9 +532,10 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.293` | **Fixed** | yes | Thumbs up/down/emoji rate; live qa-e2e-bug-293 18/18 |
 | `e2e-bug.299` | **Fixed** | yes | give_ai_feedback chip/summary labels localize under locale hy/ru; live qa-e2e-bug-299 22/22 |
 | `e2e-bug.300` | **Fixed** | yes | +1 / -1 rate as give_ai_feedback; live qa-e2e-bug-300 20/20 |
-| `e2e-bug.326` | **Open** | yes | "+1 thanks" / "thanks +1" stay unknown (e2e-bug.300 residual) |
-| `e2e-bug.324` | **Open** | yes | HY native Օգտակար չէ stays unknown (e2e-bug.299 residual) |
-| `e2e-bug.325` | **Open** | yes | provider give_provider_ai_feedback labels stay EN under hy/ru |
+| `e2e-bug.326` | **Fixed** | yes | "+1 thanks" / "thanks +1" wrapper phrasing rates correctly (2026-08-02) |
+| `e2e-bug.324` | **Fixed** | yes | HY native Օգտակար չէ now rescues to give_ai_feedback (2026-08-02) |
+| `e2e-bug.341` | **Open** | yes | POSITIVE_CUE Armenian "was helpful" alt has letter typo (e2e-bug.324 residual) |
+| `e2e-bug.325` | **Fixed** | yes | provider give_provider_ai_feedback labels now localize under hy/ru (2026-08-02) |
 | `e2e-bug.244` | **Fixed** | yes | visit-status explainers unreachable; live qa-e2e-bug-244 18/18 |
 | `e2e-bug.245` | **Fixed** | yes | calendar-scheduling explainers unreachable; live qa-e2e-bug-245 16/16 |
 | `e2e-bug.246` | **Fixed** | yes | assistant UX explainers unreachable; live qa-e2e-bug-246 15/15 |
@@ -538,19 +545,21 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.283` | **Fixed** | yes | product-guide no-steal for my_stats; live qa-e2e-bug-283 12/12 |
 | `e2e-bug.302` | **Fixed** | yes | HY/RU Home|Today → provider-today-calendar; live qa-e2e-bug-302 10/10 |
 | `e2e-bug.303` | **Fixed** | yes | first-person how-am-I → Your/mine; live qa-e2e-bug-303 12/12 |
-| `e2e-bug.328` | **Open** | yes | my_stats Your/Team stats summaries stay EN under HY/RU |
+| `e2e-bug.328` | **Fixed** | yes | my_stats Your/Team stats summaries localize HY/RU (2026-08-02) |
+| `e2e-bug.342` | **Open** | yes | exp-2 domain (list_team_unpaid_today, explain_reviews_inbox, my_stats…) never rescues on classifier action='unknown' |
 | `e2e-bug.301` | **Fixed** | yes | explain_dashboard_only_action summaries localize HY/RU; live qa-e2e-bug-301 12/12 |
-| `e2e-bug.327` | **Open** | yes | explain_reassign_limit / explain_time_off_approval summaries stay EN under HY/RU |
+| `e2e-bug.327` | **Fixed** | yes | explain_reassign_limit / explain_time_off_approval summaries localize HY/RU (2026-08-02) |
 | `e2e-bug.248` | **Fixed** | yes | move+nearest → reschedule_booking; live qa-e2e-bug-248 15/15 |
 | `e2e-bug.267` | **Fixed** | yes | semicolon move+put-it nearest → single reschedule; live qa-e2e-bug-267 10/10 |
 | `e2e-bug.284` | **Fixed** | yes | move+then-book golden reschedule→create; live qa-e2e-bug-284 8/8 |
 | `e2e-bug.304` | **Fixed** | yes | mid-step clarify keeps compound resume; live qa-e2e-bug-304 6/6 |
 | `e2e-bug.305` | **Fixed** | yes | compound clarify action=compound_intent; live qa-e2e-bug-305 7/7 |
-| `e2e-bug.329` | **Open** | yes | compound resume empty prior plans still skips/fails reschedule |
-| `e2e-bug.330` | **Open** | yes | remaining ~41 guide playbooks lack shortTitleKey (e2e-bug.316 residual) |
-| `e2e-bug.331` | **Open** | yes | page-help on /book/services|/book/checkout misroutes (e2e-bug.316 residual) |
-| `e2e-bug.332` | **Open** | yes | create_booking "is not free" still uses DD/MM slash (e2e-bug.286 residual) |
-| `e2e-bug.333` | **Open** | yes | short first-available Create a booking may skip BFA (e2e-bug.286 residual) |
+| `e2e-bug.329` | **Fixed** | yes | mutating compound leg no longer silently skips on plan-build failure (2026-08-02) |
+| `e2e-bug.330` | **Fixed** | yes | remaining ~41 guide playbooks' short-title fallback hardened against dangling stopwords (2026-08-02) |
+| `e2e-bug.331` | **Fixed** | yes | page-help on /book/services|/book/checkout misroutes (e2e-bug.316 residual) |
+| `e2e-bug.332` | **Fixed** | yes | create_booking "is not free" still uses DD/MM slash (e2e-bug.286 residual) |
+| `e2e-bug.343` | **Open** | yes | dashboard create_booking crashes (500) on MM/DD slash dates where day > 12 |
+| `e2e-bug.333` | **Fixed** | yes | short first-available Create a booking may skip BFA (e2e-bug.286 residual) |
 | `e2e-bug.334` | **Open** | yes | public is anyone free → explain_provider_availability "anyone" (e2e-bug.307 residual) |
 | `e2e-bug.335` | **Open** | yes | public is anybody open → check_providers not check_availability (e2e-bug.307 residual) |
 | `e2e-bug.268` | **Fixed** | yes | first-available clamps ≥ today; live qa-e2e-bug-268 9/9 |
@@ -576,15 +585,16 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.311` | **Fixed** | yes | HY/RU explain_clinic_services empty localized + skip enrich; live qa-e2e-bug-311 17/17; residual 337 |
 | `e2e-bug.337` | **Open** | yes | HY բացատրի՛ր կլինիկական ծառայությունները → explain_business_hours (e2e-bug.311 residual) |
 | `e2e-bug.292` | **Fixed** | yes | RU catalog-category create → create_service_category; live qa-e2e-bug-292 15/15 |
-| `e2e-bug.312` | **Open** | yes | RU create_service_category success summary sometimes English (e2e-bug.292 residual) |
+| `e2e-bug.312` | **Fixed** | yes | RU/HY/EN create_service_category success deterministic + skip enrich; live 8×RU+4×HY+3×EN identical (e2e-bug.292 residual) |
+| `e2e-bug.338` | **Open** | yes | create_service_category name extraction absorbs trailing placeholder-count clause (e2e-bug.312 residual) |
 | `e2e-bug.252` | **Fixed** | yes | owner alert "a customer reschedules" (-s) + no misclass_to_reschedule steal; live qa-e2e-bug-252 13/13 |
 | `e2e-bug.253` | **Fixed** | yes | Account booking-card / ConsumerBookingActions → ConsumerActionButton; live qa-e2e-bug-253 7/7 |
 | `e2e-bug.272` | **Fixed** | yes | package/multi-service visit actions → ConsumerActionButton; live qa-e2e-bug-272 9/9 |
-| `e2e-bug.313` | **Open** | yes | package/multi reschedule shows Confirm when no slots (e2e-bug.272 residual) |
-| `e2e-bug.314` | **Open** | yes | ConsumerSubscriptionsSection Account CTAs still IonButton (e2e-bug.272 residual) |
+| `e2e-bug.313` | **Fixed** | yes | package/multi reschedule hides Confirm + shows noSlotsThisDay when empty; live 2026-08-02 |
+| `e2e-bug.314` | **Fixed** | yes | ConsumerSubscriptionsSection Account CTAs → native button, live-verified cancel + usage toggle |
 | `e2e-bug.254` | **Fixed** | yes | Face Pilling roll-forward assigned hours; live qa-e2e-bug-254 7/7 |
 | `e2e-bug.273` | **Fixed** | yes | public GET ephemeral projection (no schedule persist); live qa-e2e-bug-273 8/8 |
-| `e2e-bug.315` | **Open** | yes | booking POST still auto-materializes projected hours (e2e-bug.273 residual) |
+| `e2e-bug.315` | **Fixed** | yes | booking POST materialize gated by owner settings flag (default true); live-verified opt-out |
 | `e2e-bug.255` | **Fixed** | yes | provider ready_now / running_late FOR UPDATE claim; live qa-e2e-bug-255 11/11 |
 | `e2e-bug.256` | **Fixed** | yes | GCM-/GCB-/GCS- checkout apply stolen by promo_code_help (e2e-bug.83 residual) |
 | `e2e-bug.257` | **Fixed** | yes | privacy_delete turn-2 yes pending rescue not wired on customer surface |
@@ -597,20 +607,22 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.276` | **Fixed** | yes | Home-tab reclaim from widget/compare; live qa-e2e-bug-276 12/12 |
 | `e2e-bug.277` | **Fixed** | yes | booking_help guide/supportHandoff round-trip; live qa-e2e-bug-277 11/11 |
 | `e2e-bug.295` | **Fixed** | yes | Add next home screen → explain_home_screen_widget; live qa-e2e-bug-295 14/14 |
-| `e2e-bug.317` | **Open** | yes | explain_home_screen_widget success summaries English under hy/ru (e2e-bug.295 residual) |
+| `e2e-bug.317` | **Fixed** | yes | explain_home_screen_widget success copy localized + skip enrich; live HY/RU/EN verified |
+| `e2e-bug.339` | **Open** | yes | HY "how does the widget work" misroutes to booking_help (e2e-bug.317 residual) |
 | `e2e-bug.259` | **Fixed** | yes | hy/ru clarify + Still stuck? handoff; live qa-e2e-bug-259 8/8 |
 | `e2e-bug.260` | **Fixed** | yes | strip trailing time window from recommend serviceName; live qa-e2e-bug-260 11/11 |
 | `e2e-bug.278` | **Fixed** | yes | recommend + day-part → recommend_specialists; live qa-e2e-bug-278 12/12 |
 | `e2e-bug.296` | **Fixed** | yes | recommend someone + tonight/this evening same-day; live qa-e2e-bug-296 16/16 |
-| `e2e-bug.318` | **Open** | yes | evening/tonight recommend lists afternoon slots (e2e-bug.296 residual) |
-| `e2e-bug.319` | **Open** | yes | later today scrub → "massage later" (e2e-bug.296 residual) |
+| `e2e-bug.318` | **Fixed** | yes | recommend_specialists honors timeOfDay for notBeforeTime; isolated filter test confirms |
+| `e2e-bug.319` | **Fixed** | yes | later/later today added to service-name day-part strip; live confirmed |
 | `e2e-bug.279` | **Fixed** | yes | facial → face family synonym; live qa-e2e-bug-279 12/12 |
 | `e2e-bug.297` | **Fixed** | yes | show me facials keeps face family; live qa-e2e-bug-297 12/12 |
-| `e2e-bug.320` | **Open** | yes | show me massage → Deep tissue only (e2e-bug.297 residual) |
-| `e2e-bug.321` | **Open** | yes | list massage services → Men's/Women's cut (e2e-bug.297 residual) |
+| `e2e-bug.320` | **Fixed** | yes | show me massage → now lists full massage family (2026-08-02) |
+| `e2e-bug.321` | **Fixed** | yes | list massage services → fixed; also fixed root substring-collision bug (2026-08-02) |
 | `e2e-bug.298` | **Fixed** | yes | trim/styling → hairstyle synonym; live qa-e2e-bug-298 12/12 |
-| `e2e-bug.322` | **Open** | yes | list trim header stays "Our trim service types" (e2e-bug.298 residual) |
-| `e2e-bug.323` | **Open** | yes | bare "a cut" prefers hairstyle over Men's/Women's cut (e2e-bug.298 residual) |
+| `e2e-bug.322` | **Fixed** | yes | list trim header now normalizes to "Our haircut service types" (2026-08-02) |
+| `e2e-bug.323` | **Fixed** | yes | bare "a cut" now prefers Men's/Women's cut over hairstyle (2026-08-02) |
+| `e2e-bug.340` | **Open** | yes | lone apostrophe "s" token pins bare prompts to Men's/Women's cut (e2e-bug.322 residual) |
 | `e2e-bug.261` | **Fixed** | yes | forged context.customerId bypassed confirm_my_booking_details IDOR guard |
 | `e2e-bug.262` | **Fixed** | yes | public slots omit overlap-blocked starts; live qa-e2e-bug-262 7/7 |
 

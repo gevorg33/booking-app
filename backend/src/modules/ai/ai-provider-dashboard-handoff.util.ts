@@ -21,9 +21,6 @@ function containsCyrillicScript(text: string): boolean {
   return /[Ѐ-ӿ]/.test(text);
 }
 
-const REASSIGN_LIMIT_ROW_ID = 'exp-4-2-reassign-booking';
-const TIME_OFF_APPROVAL_ROW_ID = 'exp-7-2-approve-time-off';
-
 /** Topic keywords per dashboard-only PROVIDER_EXP_UI_AI_PARITY row (ai-cmd-provider-5.25.1). */
 const DASHBOARD_ONLY_TOPIC_KEYWORDS: Record<string, string[]> = {
   'exp-1-1-tap-call': [
@@ -241,15 +238,14 @@ export function isExplainReassignLimitPrompt(prompt: string): boolean {
   );
 }
 
-export function buildExplainReassignLimitSummary(): string {
-  const row = PROVIDER_EXP_UI_AI_PARITY.find(
-    (entry) => entry.id === REASSIGN_LIMIT_ROW_ID,
-  );
-  const reason =
-    row && row.coverage.kind === 'dashboard-only'
-      ? row.coverage.dashboardReason
-      : 'Multi-service visits must be reassigned from the dashboard.';
-  return `${reason} Use the Reassign button on the booking's dashboard page for multi-service visits.`;
+/** e2e-bug.327 — localize under HY/RU (prefer request locale, else infer from prompt script). */
+export function buildExplainReassignLimitSummary(
+  locale?: string,
+  prompt?: string,
+): string {
+  const loc = resolveDashboardHandoffLocale(locale, prompt);
+  const reason = t(loc, 'assistant.reassignLimitReason');
+  return t(loc, 'assistant.reassignLimitTemplate', { reason });
 }
 
 /** ai-cmd-provider-5.25.3 — who approves time-off requests and where. */
@@ -284,15 +280,14 @@ export function isExplainTimeOffApprovalPrompt(prompt: string): boolean {
   );
 }
 
-export function buildExplainTimeOffApprovalSummary(): string {
-  const row = PROVIDER_EXP_UI_AI_PARITY.find(
-    (entry) => entry.id === TIME_OFF_APPROVAL_ROW_ID,
-  );
-  const reason =
-    row && row.coverage.kind === 'dashboard-only'
-      ? row.coverage.dashboardReason
-      : 'Manager approval uses the dashboard.';
-  return `Your manager approves or denies time-off requests — ${reason.charAt(0).toLowerCase()}${reason.slice(1)} You'll see the status update (pending, approved, or denied) once they review it.`;
+/** e2e-bug.327 — localize under HY/RU (prefer request locale, else infer from prompt script). */
+export function buildExplainTimeOffApprovalSummary(
+  locale?: string,
+  prompt?: string,
+): string {
+  const loc = resolveDashboardHandoffLocale(locale, prompt);
+  const reason = t(loc, 'assistant.timeOffApprovalReason');
+  return t(loc, 'assistant.timeOffApprovalTemplate', { reason });
 }
 
 export function rescueDashboardHandoffIntent(

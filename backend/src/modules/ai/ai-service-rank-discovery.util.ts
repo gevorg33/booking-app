@@ -71,8 +71,16 @@ const MID_RANGE_CATEGORY_PATTERN =
   /\bmid[\s-]?range\s+([a-z][\w-]{2,30})(?:\s+service)?\b/i;
 
 const RANK_SERVICE_CATEGORY_ALIASES: Record<string, string> = {
-  cut: 'haircut',
-  cuts: 'haircut',
+  // e2e-bug.323 — bare "cut"/"cuts" must NOT pre-alias to "haircut": doing so
+  // discards the raw token before matchServicesByQuery ever runs, so its
+  // literal-substring-first synonym expansion never gets a chance to prefer
+  // real catalog rows named "Men's cut" / "Women's cut" over the unrelated
+  // "hairstyle" synonym match. Leaving "cut" unaliased (and normalizing
+  // plural "cuts" -> "cut", not "haircut") lets expandServiceLookupQueries
+  // try the raw singular token first (finds "* cut" rows when present) and
+  // still falls back to the haircut/hairstyle family via the same synonym
+  // group when no literal cut-named service exists.
+  cuts: 'cut',
   trim: 'haircut',
   // e2e-bug.101 — "most expensive styling" bypassed the haircut/hairstyle
   // synonym entirely (that group only expands multi-word "hair styling"),

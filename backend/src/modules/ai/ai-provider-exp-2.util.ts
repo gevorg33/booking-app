@@ -11,6 +11,8 @@ import { PROVIDER_REVIEWS_INBOX_LOW_RATING_MAX } from '../provider-mobile/provid
 import { extractCustomerNameFromClientPrompt } from './ai-provider-client-context.util.js';
 import { PROVIDER_EXP_2_MULTILINGUAL_SCENARIOS } from './ai-provider-exp-2-multilingual.fixtures.js';
 import { PROVIDER_EXP_2_PROMPT_SCENARIOS } from './ai-provider-exp-2.fixtures.js';
+import { resolveLocale, t } from '../../common/i18n/messages.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
 
 export const PROVIDER_EXP_2_INTENTS = [
   'my_stats',
@@ -37,6 +39,34 @@ function containsArmenianScript(text: string): boolean {
 
 function containsCyrillicScript(text: string): boolean {
   return /[\u0400-\u04FF]/.test(text);
+}
+
+/** e2e-bug.328 \u2014 prefer request locale; else infer from HY/RU script in the prompt. */
+function resolveMyStatsLocale(locale?: string, prompt?: string): AppLocale {
+  if (typeof locale === 'string' && locale.trim()) {
+    return resolveLocale(locale);
+  }
+  if (prompt && containsArmenianScript(prompt)) return 'hy';
+  if (prompt && containsCyrillicScript(prompt)) return 'ru';
+  return resolveLocale(undefined);
+}
+
+/** Russian has 3 plural forms (1 / 2-4 / 5+); HY/EN only need one/many. */
+function pluralNoun(
+  loc: AppLocale,
+  count: number,
+  forms: { one: string; few: string; many: string },
+): string {
+  if (loc === 'ru') {
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return forms.one;
+    if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) {
+      return forms.few;
+    }
+    return forms.many;
+  }
+  return count === 1 ? forms.one : forms.many;
 }
 
 export function isMyStatsPrompt(prompt: string): boolean {
@@ -816,30 +846,69 @@ export function rescueProviderExp2Intent(
   return null;
 }
 
+/** e2e-bug.328 — localize under HY/RU (prefer request locale, else infer from prompt script). */
 export function formatProviderMyStatsSummary(
   stats: ProviderMyStatsView,
   settings: Record<string, unknown>,
+  locale?: string,
+  prompt?: string,
 ): string {
+  const loc = resolveMyStatsLocale(locale, prompt);
   const money = (amount: number) =>
     formatBusinessMoney(amount, settings, stats.currency);
-  const periodLabel = stats.period === 'month' ? 'this month' : 'this week';
-  const scopeLabel = stats.scope === 'team' ? 'Team' : 'Your';
+  const periodLabel = t(
+    loc,
+    stats.period === 'month'
+      ? 'assistant.myStatsPeriodMonth'
+      : 'assistant.myStatsPeriodWeek',
+  );
+  const scopeLabel = t(
+    loc,
+    stats.scope === 'team' ? 'assistant.myStatsScopeTeam' : 'assistant.myStatsScopeYour',
+  );
+  const visitNoun = (count: number) =>
+    pluralNoun(loc, count, {
+      one: t(loc, 'assistant.myStatsVisitOne'),
+      few: t(loc, 'assistant.myStatsVisitFew'),
+      many: t(loc, 'assistant.myStatsVisitMany'),
+    });
 
   const parts = [
-    `${scopeLabel} stats ${periodLabel}: ${stats.completedBookings} completed visit${stats.completedBookings === 1 ? '' : 's'}`,
-    `${money(stats.paidRevenue)} paid revenue`,
-    `${stats.utilizationPercent}% utilization (${stats.bookedMinutes}/${stats.scheduledMinutes} min)`,
+    t(loc, 'assistant.myStatsCompletedVisits', {
+      scope: scopeLabel,
+      period: periodLabel,
+      count: stats.completedBookings,
+      noun: visitNoun(stats.completedBookings),
+    }),
+    t(loc, 'assistant.myStatsPaidRevenue', { amount: money(stats.paidRevenue) }),
+    t(loc, 'assistant.myStatsUtilization', {
+      percent: stats.utilizationPercent,
+      booked: stats.bookedMinutes,
+      scheduled: stats.scheduledMinutes,
+    }),
   ];
 
   if (stats.averageReviewScore != null) {
     parts.push(
-      `${stats.averageReviewScore}★ avg from ${stats.newReviewsCount} new review${stats.newReviewsCount === 1 ? '' : 's'}`,
+      t(loc, 'assistant.myStatsAvgReview', {
+        score: stats.averageReviewScore,
+        count: stats.newReviewsCount,
+        noun: pluralNoun(loc, stats.newReviewsCount, {
+          one: t(loc, 'assistant.myStatsReviewOne'),
+          few: t(loc, 'assistant.myStatsReviewFew'),
+          many: t(loc, 'assistant.myStatsReviewMany'),
+        }),
+      }),
     );
   }
 
   if (stats.tipsEnabled && stats.tipTotal != null) {
     parts.push(
-      `${money(stats.tipTotal)} tips across ${stats.tippedVisitCount ?? 0} visit${stats.tippedVisitCount === 1 ? '' : 's'}`,
+      t(loc, 'assistant.myStatsTips', {
+        amount: money(stats.tipTotal),
+        count: stats.tippedVisitCount ?? 0,
+        noun: visitNoun(stats.tippedVisitCount ?? 0),
+      }),
     );
   }
 

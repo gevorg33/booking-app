@@ -61,14 +61,32 @@ export function applyPromptMentionedServiceOverrideToParams(
   // filter when many catalog rows match. Fuzzy extractServiceFromPrompt otherwise
   // pins the first hit (Face Pilling) and wipes the family list.
   const synonymToken = findServiceLookupSynonymTokenInPrompt(prompt);
-  if (synonymToken && services.length > 0) {
-    const familyMatches = matchServicesByQuery(services, synonymToken);
+  // e2e-bug.320 — a broad synonym token (e.g. "massage") must not steal a
+  // prompt that already names one specific catalog service verbatim (e.g.
+  // "show me Hot stone massage"); only browse the family when no exact
+  // catalog name is mentioned.
+  const promptLowerForExactCheck = prompt.toLowerCase();
+  const exactCatalogNameMentioned = services.some(
+    (s) =>
+      s.name.length >= 4 &&
+      promptLowerForExactCheck.includes(s.name.toLowerCase()),
+  );
+  if (synonymToken && services.length > 0 && !exactCatalogNameMentioned) {
+    // e2e-bug.323 — plural "cuts" doesn't literal-substring-match singular
+    // catalog names ("Men's cut"/"Women's cut"), so matchServicesByQuery
+    // falls through the synonym chain to "hairstyle" before ever trying the
+    // singular. Seed the family-browse match with "cut" for that one case so
+    // it still prefers literal cut-named catalog rows when present.
+    const familyMatchToken = synonymToken === 'cuts' ? 'cut' : synonymToken;
+    const familyMatches = matchServicesByQuery(services, familyMatchToken);
     if (familyMatches.length > 1) {
       const next: Record<string, unknown> = {
         ...base,
         serviceNames: null,
         serviceName: null,
-        serviceCategory: normalizeAvailabilityServiceCategory(synonymToken),
+        serviceCategory: normalizeAvailabilityServiceCategory(
+          familyMatchToken,
+        ),
       };
       delete next.serviceId;
       delete next.serviceRank;

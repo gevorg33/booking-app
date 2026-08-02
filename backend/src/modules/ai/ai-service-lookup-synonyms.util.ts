@@ -44,6 +44,14 @@ const SERVICE_LOOKUP_SYNONYM_GROUPS: readonly (readonly string[])[] = [
     'face pilling',
     'face plasma',
   ],
+  // e2e-bug.320 — bare "massage" isn't itself a synonym-group member, so
+  // findServiceLookupSynonymTokenInPrompt never fired for it and the
+  // multi-match family guard (e2e-bug.297) was skipped; extractServiceFromPrompt's
+  // tail-suffix fuzzy pin then collapsed "show me massage" to whichever
+  // catalog service happened to tie-break first (e.g. "Deep tissue massage"),
+  // instead of browsing the whole massage family (Swedish/full body/Hot
+  // stone/Neck/Deep tissue massage/facemassage).
+  ['massage', 'massages'],
 ];
 
 /** Alternate phrasings for the same service family (original query first). */

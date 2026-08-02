@@ -4,6 +4,7 @@ import {
   type ExplainHomeScreenWidgetFixture,
 } from './ai-explain-home-screen-widget.fixtures.js';
 import { EXPLAIN_HOME_SCREEN_WIDGET_MULTILINGUAL_SCENARIOS } from './ai-explain-home-screen-widget-multilingual.fixtures.js';
+import { t, type AppLocale } from '../../common/i18n/messages.js';
 
 const REBOOK_MUTATE_WITHOUT_WIDGET_CUE =
   /\b(rebook(?:\s+my)?\s+last|book(?:\s+the)?\s+same|repeat(?:\s+my)?\s+last|book my last|same as last)\b/i;
@@ -211,105 +212,105 @@ export function resolveConsumerHomeScreenWidgetExplainContext(
 
 export function buildAddToHomeScreenLines(
   ctx: ConsumerHomeScreenWidgetExplainContext,
+  locale: AppLocale = 'en',
 ): string[] {
   if (!ctx.widgetSupported) {
     return [
-      'Home-screen widgets are available in the native iOS and Android consumer apps, not in the mobile browser.',
-      'Install OptiSchedule Book from the app store, sign in, then add the widget from your phone home screen.',
+      t(locale, 'assistant.homeScreenWidgetUnsupportedInstall'),
+      t(locale, 'assistant.homeScreenWidgetUnsupportedInstructions'),
     ];
   }
-  const lines = [
-    'Open your phone home screen widget picker and choose OptiSchedule Book.',
-  ];
+  const lines = [t(locale, 'assistant.homeScreenWidgetOpenPicker')];
   if (ctx.platform === 'ios') {
-    lines.push(
-      'On iPhone: long-press the home screen → tap Add (+) → search OptiSchedule Book → add the widget.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetAddIos'));
   } else if (ctx.platform === 'android') {
-    lines.push(
-      'On Android: long-press the home screen → Widgets → find OptiSchedule Book → drag it onto your home screen.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetAddAndroid'));
   } else {
-    lines.push(
-      'On iPhone use the Add (+) widget gallery; on Android use the Widgets menu after a long-press on the home screen.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetAddGeneric'));
   }
-  lines.push(
-    'Stay signed in and open Account once so the app can sync your next visit and quick rebook snapshot.',
-  );
+  lines.push(t(locale, 'assistant.homeScreenWidgetStaySignedIn'));
   return lines;
 }
 
 export function buildWhatShowsLines(
   ctx: ConsumerHomeScreenWidgetExplainContext,
+  locale: AppLocale = 'en',
 ): string[] {
   const lines = [
-    'The widget shows your salon name plus up to two tiles: Next appointment (widgetNextAppointment*) and Book again (widgetQuickRebook*).',
-    'Tapping next appointment opens Account; tapping Book again opens booking with rebookSource=widget.',
+    t(locale, 'assistant.homeScreenWidgetShowsTiles'),
+    t(locale, 'assistant.homeScreenWidgetTapBehavior'),
   ];
   if (ctx.widgetAuthed === false) {
-    lines.push(
-      'You are signed out — the widget shows a sign-in prompt instead of visits.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetSignedOutNote'));
   } else if (ctx.hasNextAppointment) {
-    lines.push(
-      ctx.nextServiceName
-        ? `Your snapshot includes a next appointment${ctx.nextSubtitle ? ` (${ctx.nextSubtitle})` : ` for ${ctx.nextServiceName}`}.`
-        : 'Your snapshot currently includes a next appointment.',
-    );
+    if (ctx.nextServiceName) {
+      lines.push(
+        ctx.nextSubtitle
+          ? t(locale, 'assistant.homeScreenWidgetNextApptWithSubtitle', {
+              subtitle: ctx.nextSubtitle,
+            })
+          : t(locale, 'assistant.homeScreenWidgetNextApptWithService', {
+              service: ctx.nextServiceName,
+            }),
+      );
+    } else {
+      lines.push(t(locale, 'assistant.homeScreenWidgetNextApptGeneric'));
+    }
   } else if (ctx.hasQuickRebook) {
-    lines.push(
-      'No upcoming visit is synced yet, but a quick rebook tile is available from your last completed booking.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetQuickRebookAvailable'));
   } else if (ctx.widgetAuthed) {
-    lines.push(
-      'You are signed in but no upcoming visit or completed rebook tile is synced yet — open Account to refresh bookings.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetAuthedNoData'));
   }
   return lines;
 }
 
 export function buildNextAppointmentWidgetLines(
   ctx: ConsumerHomeScreenWidgetExplainContext,
+  locale: AppLocale = 'en',
 ): string[] {
   const lines = [
-    'The Next appointment tile uses widgetNextAppointmentTitle and shows the nearest confirmed or pending future booking.',
-    'It displays service, date, time, and provider, and opens your Account tab when tapped.',
+    t(locale, 'assistant.homeScreenWidgetNextTileUsage'),
+    t(locale, 'assistant.homeScreenWidgetNextTileBehavior'),
   ];
   if (ctx.hasNextAppointment && ctx.nextServiceName) {
-    lines.push(`Current snapshot service: ${ctx.nextServiceName}.`);
+    lines.push(
+      t(locale, 'assistant.homeScreenWidgetCurrentSnapshotService', {
+        service: ctx.nextServiceName,
+      }),
+    );
   } else if (!ctx.hasNextAppointment) {
-    lines.push('No upcoming booking is in the widget snapshot right now.');
+    lines.push(t(locale, 'assistant.homeScreenWidgetNoUpcomingSnapshot'));
   }
   return lines;
 }
 
-export function buildQuickRebookWidgetLines(): string[] {
+export function buildQuickRebookWidgetLines(
+  locale: AppLocale = 'en',
+): string[] {
   return [
-    'Book again on the widget comes from your most recent completed visit (widgetQuickRebook*).',
-    'It deep-links into booking with the same service and rebookSource=widget so you can pick a new slot quickly.',
-    'It is a shortcut — not the same as asking the assistant to rebook for you inside the app.',
+    t(locale, 'assistant.homeScreenWidgetQuickRebookSource'),
+    t(locale, 'assistant.homeScreenWidgetQuickRebookDeepLink'),
+    t(locale, 'assistant.homeScreenWidgetQuickRebookShortcut'),
   ];
 }
 
-export function buildSignedOutWidgetLines(): string[] {
+export function buildSignedOutWidgetLines(locale: AppLocale = 'en'): string[] {
   return [
-    'When you are signed out, the widget shows widgetSignedOutTitle and widgetSignedOutSubtitle with a link to open the salon.',
-    'Sign in on the consumer app and revisit Account so the widget snapshot can include your visits.',
+    t(locale, 'assistant.homeScreenWidgetSignedOutTiles'),
+    t(locale, 'assistant.homeScreenWidgetSignedOutSignIn'),
   ];
 }
 
 export function buildHomeScreenWidgetHowItWorksLines(
   ctx: ConsumerHomeScreenWidgetExplainContext,
+  locale: AppLocale = 'en',
 ): string[] {
   const lines = [
-    'The app builds a home_screen_widget_snapshot from your bookings and syncs it to iOS WidgetKit / Android App Widget on native platforms.',
-    'Account and salon tabs refresh the snapshot when bookings change or the app returns to the foreground.',
+    t(locale, 'assistant.homeScreenWidgetHowItWorksSnapshot'),
+    t(locale, 'assistant.homeScreenWidgetHowItWorksRefresh'),
   ];
   if (!ctx.widgetSupported) {
-    lines.push(
-      'Widgets require the installed native app — they are not available on web.',
-    );
+    lines.push(t(locale, 'assistant.homeScreenWidgetWebUnsupportedNote'));
   }
   return lines;
 }
@@ -317,27 +318,28 @@ export function buildHomeScreenWidgetHowItWorksLines(
 export function assembleHomeScreenWidgetSummary(
   aspect: ExplainHomeScreenWidgetAspect,
   ctx: ConsumerHomeScreenWidgetExplainContext,
+  locale: AppLocale = 'en',
 ): string {
   let lines: string[];
   switch (aspect) {
     case 'add_to_home_screen':
-      lines = buildAddToHomeScreenLines(ctx);
+      lines = buildAddToHomeScreenLines(ctx, locale);
       break;
     case 'what_shows':
-      lines = buildWhatShowsLines(ctx);
+      lines = buildWhatShowsLines(ctx, locale);
       break;
     case 'next_appointment':
-      lines = buildNextAppointmentWidgetLines(ctx);
+      lines = buildNextAppointmentWidgetLines(ctx, locale);
       break;
     case 'quick_rebook':
-      lines = buildQuickRebookWidgetLines();
+      lines = buildQuickRebookWidgetLines(locale);
       break;
     case 'signed_out_state':
-      lines = buildSignedOutWidgetLines();
+      lines = buildSignedOutWidgetLines(locale);
       break;
     case 'how_it_works':
     default:
-      lines = buildHomeScreenWidgetHowItWorksLines(ctx);
+      lines = buildHomeScreenWidgetHowItWorksLines(ctx, locale);
       break;
   }
   return lines.join(' ');

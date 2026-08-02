@@ -4382,19 +4382,41 @@ Main `PublicBookingAssistantService.chat()` switch handles all 14. `dispatchComp
 
 ---
 
-## e2e-bug.318 — evening/tonight `recommend_specialists` lists afternoon slots (<17:00) — **Open**
+## e2e-bug.318 — evening/tonight `recommend_specialists` lists afternoon slots (<17:00) — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.296 live QA. Same-day period is correct (`01/08/2026`), but success summaries for `"recommend someone … this evening/tonight"` still show slots like `13:30, 14:00, 14:30, 15:00` (all before 17:00). Soft residual noted on 6/6 evening/tonight cases in `qa-e2e-bug-296.mjs`.
 
-**Fix direction:** `recommendProviders` / public recommend handler should honor `timeOfDay` (evening ≥17:00) when presenting sample slots, not only `dateKeys` / `notBeforeTime`.
+**Root cause**: `PublicBookingAssistantService.handleRecommendSpecialists` called `publicBookingService.recommendProviders(...)` with `notBeforeTime: params.timeFrom ?? null` — only reading an explicit `timeFrom`, never `params.timeOfDay`. `params.timeOfDay === 'evening'` was already correctly set by the time-of-day resolver (the same one e2e-bug.296 fixed for date purposes), it just was never consulted at this specific call site. `recommendProviders`'s actual slot-filtering (`isWallClockSlotBookable` against `notBeforeTime`) was already correct — the bug was 100% a missing input at the one caller.
+
+**Fix** (2026-08-02): reused the already-existing `resolveNearestBookableSlotNotBeforeTime(params, prompt)` helper (`ai-nearest-slot-resolver.util.ts`, already proven correct and used by the nearest-slot/find_soonest_appointment flows — maps `timeOfDay: 'evening'` → `'17:00'`, `'afternoon'` → `'12:00'`, `'morning'` → `'00:00'`, falls back to `timeFrom`/`notBeforeTime`) at the `recommendProviders` call site in `handleRecommendSpecialists` instead of reading `params.timeFrom` directly. One-line change plus an import addition; no changes needed to `recommendProviders` itself.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ai-nearest-slot-resolver.util.spec.ts` with 5 new cases directly on `resolveNearestBookableSlotNotBeforeTime` (evening/tonight → `17:00` from both param and prompt-text derivation, afternoon → `12:00`, explicit `timeFrom` fallback, null when neither is present).
+- Integration: new `e2e318-recommend-specialists-notbefore-time.integration.spec.ts` — directly isolates `recommendProviders`'s `notBeforeTime` filtering against a mixed same-day slot set (13:30–18:00, spanning both afternoon and evening): with `notBeforeTime: '17:00'`, `previewTimes` contains **only** hours ≥17; with `notBeforeTime: null` (regression control), the pre-17:00 hours are present again, confirming the filter is real and not a tautology. **7/7** new tests + existing `e2e254`/`e2e273`/`e2e315`/`ai-nearest-slot-resolver` suites — **53/53** total, zero regressions.
+- `npx tsc --noEmit` — zero new errors vs. baseline.
+- Full eval suite (`ai-command-eval.spec.ts`) — byte-identical 469-line failing-case-ID list before/after.
+- Live, real backend: re-ran the exact original repro prompts (`"recommend someone for massage this evening"`, `"recommend someone for massage tonight"`, `"Who is best for massage tonight?"`) against `gevgas-operations-7c299253` — all correctly returned `"No available specialists for … during 02/08/2026"` rather than crashing or returning stale afternoon-only results. Investigated why: this salon's near-term real calendar is genuinely exhausted for massage-family services after the extensive live QA activity earlier this session (confirmed via direct `scheduling_periods`/`scheduling_slots` row counts and a same-day seeded-slot attempt that hit the business's 24-hour minimum-notice setting) — so the live environment can't currently reproduce the original "afternoon slots shown despite evening request" symptom to compare before/after. The isolated integration test above is the primary proof for this fix since it directly exercises the exact mechanism (mixed-hour raw slots → `notBeforeTime` filter → `previewTimes`) without depending on this salon's current live availability window. A basic pipeline regression check (`"recommend someone for a haircut"`, no day-part) confirmed the broader `recommend_specialists` flow still returns clean, sensible responses post-fix.
+
+No new issues found during this pass.
 
 ---
 
-## e2e-bug.319 — `recommend someone … later today` service scrub becomes `"massage later"` — **Open**
+## e2e-bug.319 — `recommend someone … later today` service scrub becomes `"massage later"` — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.296 live QA. `"recommend someone for massage later today"` routes to `recommend_specialists` but returns `success:false` `"I couldn't find \"massage later\""` — trailing `later` from `later today` is glued into the service query (day-part strip incomplete for that cue).
 
-**Fix direction:** strip `later today` (and peers) from service-name extraction before catalog lookup, same as tonight/this evening window scrub.
+**Root cause**: three sibling day-part regexes in `ai-payments.util.ts` — `TRAILING_SERVICE_TIME_WINDOW`, `SERVICE_NAME_DATE_BOUNDARY`, `BARE_SERVICE_TIME_WINDOW` (the e2e-bug.260 fix's shared word-lists for stripping trailing time windows off an extracted service name) — all recognized `today|tomorrow|tonight|this evening|...` but never `later`/`later today`. For `"...for massage later today"`, `extractServiceNameFromPrompt`'s `forService` regex (`ai-payments.util.ts:717-727`) lazily captures a service name up to the first recognized boundary word; since `later` wasn't in the boundary lookahead, the lazy capture skipped past it and only stopped at `today` — swallowing `"massage later"` as one string. `stripTrailingTimeWindowFromServiceName` then couldn't strip `later` either (same missing word), so `"massage later"` reached catalog lookup unchanged and matched nothing (no service literally named that). Separately, `applyRelativeDateFromPrompt` (date-side resolver) already treated `later today` as "today" correctly per e2e-bug.296 — this was purely a gap in the sibling service-*name*-side word-lists, never updated when the date-side one was fixed.
+
+**Fix** (2026-08-02): added `later(?:\s+today)?` / `\blater\b` to all three regexes (`ai-payments.util.ts`), plus the same `\blater\b` addition to the separate inline `bookService` boundary regex (line ~772) for consistency with `"book X later today"` phrasing.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ai-e2e260-recommend-service-time-window.fixtures.ts` (+6 new e2e-bug.319 cases across all 4 layers: `extractServiceNameFromPrompt`, `stripTrailingTimeWindowFromServiceName`, `applyPromptMentionedServiceOverrideToParams`, `enrichPublicAssistantParamsFromPrompt`) — **30/30** in `ai-e2e260-recommend-service-time-window.util.spec.ts`, no regressions to the existing e2e-bug.260 cases in the same file.
+- `npx tsc --noEmit` — zero new errors vs. baseline.
+- Broader regression sweep: `ai-payments*`, `ai-e2e229-pay-online-named-service`, `ai-e2e89-cancel-and-rebook-lookup`, `ai-explain-amount-due-now`, `ai-retail-finance.util` — 200/201 passing; the 1 pre-existing failure (`ai-payments.logic.spec.ts` "explains stripe requirement and receipt status") confirmed via `git stash` isolation to be **unrelated** — identical failure with the fix stashed out.
+- Full eval suite (`ai-command-eval.spec.ts`) — byte-identical 469-line failing-case-ID list before/after.
+- Live, real backend: `"recommend someone for massage later today"` → `recommend_specialists`, `"No available specialists for massage services during 02/08/2026."` — correctly resolved the full massage catalog family (previously: `"I couldn't find \"massage later\""`, a hard catalog-miss). `"Who do you recommend for a haircut later?"` → correctly resolved to `"hairstyle"` (haircut synonym), not `"haircut later"`. Regression control `"recommend someone for a massage this evening"` (the already-fixed e2e-bug.296/318 phrasing) unaffected.
+
+No new issues found during this pass.
 
 ---
 
@@ -4434,21 +4456,58 @@ Main `PublicBookingAssistantService.chat()` switch handles all 14. `dispatchComp
 
 ---
 
-## e2e-bug.320 — short `"show me massage"` collapses to Deep tissue massage only — **Open**
+## e2e-bug.320 — short `"show me massage"` collapses to Deep tissue massage only — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.297 live QA. `"show me massage"` → `list_services` header `Our Deep tissue massage service types` with a single row, while the salon has Swedish / full body / Hot stone / Neck / Deep tissue / facemassage. Same fuzzy single-pin class as e2e-bug.297, but `massage` is not in `SERVICE_LOOKUP_SYNONYM_GROUPS`, so the facials family guard does not apply.
 
-**Fix direction:** treat broad single-token catalog queries (`massage`, `color`, …) like synonym families when `matchServicesByQuery` returns multiple substring hits — keep category browse instead of pinning the first fuzzy name.
+**Root cause:** `matchServicesByQuery` reused the family-multi-match mechanism from e2e-bug.297 (`findServiceLookupSynonymTokenInPrompt` → `matchServicesByQuery`), but `massage`/`massages` were never registered as a synonym group, so the guard never fired and `extractServiceFromPrompt`'s normalized tail-suffix fallback pinned whichever massage catalog row tied first (catalog array order).
+
+**Fix (2026-08-02):**
+1. Added `['massage', 'massages']` to `SERVICE_LOOKUP_SYNONYM_GROUPS` (`ai-service-lookup-synonyms.util.ts`) — reuses the entire e2e-bug.297 family-browse mechanism with no other code path changes needed.
+2. **Regression found + fixed during test-writing:** the naive fix broke pinning of *named* massage variants (`"show me Hot stone massage"` collapsed to the whole 6-item family too), because the broad token `massage` is a substring of every catalog name and `matchServicesByQuery`'s single-broad-token branch returns all of them regardless of a more specific name already present in the prompt. Fixed by gating the family-browse branch in `applyPromptMentionedServiceOverrideToParams` (`ai-booking-param-hints.util.ts`) on "no catalog service name is mentioned verbatim in the prompt" — if an exact catalog name substring is present (e.g. `"Hot stone massage"`), the family override is skipped and the normal single-service pin logic runs. This generalizes correctly for the pre-existing facial family too (no exact facial catalog names are literal substrings of `"show me facials"`, so behavior there is unchanged).
+3. Fixtures/tests: `ai-e2e320-show-me-massage.fixtures.ts` / `.util.spec.ts` (14 cases: short/bare phrasing, explicit "massage services" phrasing, named-variant single-pin controls incl. the newly-found regression, facemassage word-boundary edge case, unrelated haircut-family negative control).
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253` (Deep tissue / Hot stone / full body / facemassage / Neck / Swedish massage + Men's cut / Women's cut):
+- Unit: `ai-e2e320-show-me-massage.util.spec.ts` (14) + `ai-e2e297-show-me-facials.util.spec.ts` (17 regression) — **31/31** passed.
+- `tsc --noEmit`: zero new errors (pre-existing unrelated baseline in `service`/`strategy-eval` modules untouched).
+- Eval suite (`ai-command-eval.spec.ts`): failing-case-ID list byte-identical to the established 469-line baseline (`baseline_ids_312.txt`) — zero regression.
+- Live (`/public/gevgas-operations-7c299253/assistant`), 15 prompts, all correct:
+  - Family browse (6 rows each): `"show me massage"`, `"show massage"`, `"massage"`, `"show me massages"`, `"list massage services"`, `"show me massage services"`, `"what massages do you have"`, `"I want a massage"`, `"do you offer massage"`, `"massage please"`.
+  - Single-pin controls (unaffected): `"show me Hot stone massage"` → 1 row; `"show me Deep tissue massage"` → single-service `check_availability`; `"show me facemassage"` → single-service `check_providers_for_service`.
+  - Sibling non-regression: `"show me facials"` → still 3-row face family (e2e-bug.297 intact); `"show me Men's cut"` → still shows both Men's/Women's cut (e2e-bug.321 unrelated substring collision, left untouched/Open as scoped).
+- No DB writes during live QA (all read-only list/check-availability actions) — no cleanup required.
 
 ---
 
-## e2e-bug.321 — `"list massage services"` returns Men's cut / Women's cut — **Open**
+## e2e-bug.321 — `"list massage services"` returns Men's cut / Women's cut — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.297 live QA. Reproduced 3/3:
 - `"list massage services"` / `"show me massages"` → `list_services` success listing **Men's cut** + **Women's cut** (hair), not massage catalog rows.
 - `"list facial services"` correctly lists the face family on the same salon.
 
-**Fix direction:** stop haircut/hairstyle (or Men's/Women's cut) inheritance from stealing massage list filters — scrub classifier/session `serviceName` when the prompt clearly names massage.
+**Root cause (two parts, both confirmed live):**
+1. **Stale-session preservation** — `applyPromptMentionedServiceOverrideToParams` returned `base` unchanged (`if (!rawName) return base;`) whenever neither a catalog match nor `extractServiceNameFromPrompt` found anything for the current prompt, silently keeping a prior turn's `serviceName`/`serviceId` (e.g. `"Men's cut"` from an earlier message) instead of clearing it for the new massage-list intent. This path is already sidestepped by the e2e-bug.320 fix for any prompt matching the (now-registered) `massage`/`massages` synonym group, since that branch runs first and unconditionally clears `serviceName`/`serviceId`.
+2. **Substring catalog collision (still independently reproducible on a single fresh turn)** — `resolveServicesFromCatalogParams` ignored an already-resolved exact `serviceId` pin and re-queried the catalog via `matchServicesByQuery(catalog, serviceName)`. `normalizeServiceLookup("Women's cut")` → `"women'scut"`, which contains `normalizeServiceLookup("Men's cut")` → `"men'scut"` as a literal substring (**wo|men's cut**), so asking for `"Men's cut"` alone (with no prior turn at all) matched **both** rows via the broad-token/token-match branch.
+
+**Fix (2026-08-02):**
+1. e2e-bug.320's `['massage', 'massages']` synonym group closes the stale-preservation path for massage prompts specifically (no separate change needed here — verified live below).
+2. `resolveServicesFromCatalogParams` (`ai-orchestration.helpers.ts`) now short-circuits on an already-resolved `serviceId` (when `serviceCategory` is not actively browsing a family) and returns that exact catalog row directly, instead of re-deriving matches via fuzzy name search. This is a general fix — not massage/haircut-specific — and also fixed the single-turn `"show me Men's cut"` collision, which previously showed Women's cut too even with no session history at all.
+3. Fixtures/tests: `ai-e2e321-mens-cut-substring-collision.fixtures.ts` / `.util.spec.ts` (7 cases: raw substring-collision documentation, single-pin resolve for both directions, direct `serviceId` short-circuit for both directions, stale-session-pollution non-leak, family-browse-still-wins-over-stale-serviceId, `serviceNames[]` multi-resolve path unaffected).
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e321-*` (7) + `ai-e2e320-*` (14) + `ai-e2e297-*` (17) — **38/38** passed.
+- `tsc --noEmit`: zero new errors.
+- Eval suite (`ai-command-eval.spec.ts`): failing-case-ID list byte-identical to the established 469-line baseline — zero regression.
+- Wider `ai-orchestration.helpers.spec.ts` + `ai-payments.logic.spec.ts` spot-check: 2 pre-existing failures (a hardcoded-date test now genuinely past `2026-06-15` vs. today `2026-08-02`, and an unrelated stripe-checkout-total assertion) reproduced byte-identically with `ai-orchestration.helpers.ts` stashed out — confirmed unrelated to this fix.
+- Broad `src/modules/ai/` directory run hits a large number of pre-existing suite-load crashes (`Cannot read properties of undefined (reading 'find')` in `ai-service-discovery-multilingual.fixtures.ts`, already documented at HEAD in the e2e-bug.210 entry above) — reproduced identically with all 3 of this fix's changed files stashed out, confirming it's sandbox-level and unrelated; not re-filed.
+- Live (`/public/gevgas-operations-7c299253/assistant`), all correct:
+  - Original repro, fresh session: `"list massage services"`, `"show me massages"` → full 6-row massage family (not Men's/Women's cut).
+  - Original repro, multi-turn (`"show me Men's cut"` then real `sessionContext` carried into turn 2): `"list massage services"`, `"show me massages"` → full 6-row massage family, stale Men's cut context correctly discarded.
+  - Substring-collision direct repro: `"show me Men's cut"` → **only** Men's cut (previously also showed Women's cut, even single-turn); `"show me Women's cut"` → only Women's cut.
+  - Sibling non-regression: `"show me facials"` / `"list facial services"` → still the 3-row face family (e2e-bug.297 intact).
+  - Generic control: `"what services do you offer"` / `"list all services"` → full unfiltered 17-service catalog, unaffected.
+- No DB writes during live QA (all read-only `list_services` actions) — no cleanup required.
+- No new issues discovered during this pass.
 
 ---
 
@@ -4470,19 +4529,52 @@ Main `PublicBookingAssistantService.chat()` switch handles all 14. `dispatchComp
 
 ---
 
-## e2e-bug.322 — `list trim services` header stays `"Our trim service types"` — **Open**
+## e2e-bug.322 — `list trim services` header stays `"Our trim service types"` — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.298 live QA. Resolve works (`hairstyle` row), but the list header uses the raw prompt token `"trim"` instead of the normalized `"haircut"` / catalog `"hairstyle"` label (`Our trim service types:` vs `Our hairstyle service types:` on `"show me trim"`).
 
-**Fix direction:** when building `handleListServices` header, prefer `normalizeAvailabilityServiceCategory(serviceQuery)` or the resolved catalog family label over the raw classifier token.
+**Root cause:** the public assistant's `list_services` header builder (`public-booking-assistant.service.ts`) used `serviceQuery = params.serviceCategory ?? params.serviceName` verbatim — `` `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:` `` — with no call to `normalizeAvailabilityServiceCategory`. For `"list trim services"`, `extractServiceTypeKeywordFromListPrompt`'s short-noun regex (`/\b(?:show|list)\s+(?:me\s+)?(facials?|haircuts?|hairstyles?|massages?|trims?|cuts?)\b/i`) captures the literal word `"trim"` and `enrichListServicesParamsFromPrompt` stores it as `serviceCategory` unnormalized, so the header echoed the raw classifier token. (`"show me trim"` happened to look correct only because it takes a different branch — a single-service catalog pin — not because the category was normalized.)
+
+**Fix (2026-08-02):** normalize the header's category label via `normalizeAvailabilityServiceCategory(stripServiceRoleNoise(String(serviceQuery)))` (`public-booking-assistant.service.ts`), reusing the same normalization already used elsewhere (e2e-bug.320/297's family-browse header). This is display-only — does not touch `serviceCategory`'s underlying value used for catalog resolution, which already worked correctly via synonym expansion.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253` (hairstyle / Men's cut / Women's cut):
+- Unit: `ai-e2e322-list-trim-header-normalize.util.spec.ts` (5 cases: trim/cut/cuts → haircut, massage/facial pass through unchanged, multi-word phrases pass through unchanged) — **5/5** passed.
+- `tsc --noEmit`: zero new errors.
+- Eval suite: failing-case-ID list byte-identical to the established 469-line baseline — zero regression.
+- Live: `"list trim services"` → `Our haircut service types:` (was `Our trim service types:`); `"list cut services"` → `Our haircut service types:`; `"show me trim"` / `"show me a trim"` / `"show me cut"` unaffected (still correctly resolve hairstyle); massage/facial family headers (`"show me massage"`, `"list massage services"`, `"show me facials"`, `"list facial services"`) unaffected — still correct.
+- No DB writes during live QA (read-only `list_services`) — no cleanup required.
+- **New issue discovered during this pass, filed as e2e-bug.340** (see below) — unrelated to the header fix itself, found while probing "list style services" as an adjacent trim/cut/style phrasing.
 
 ---
 
-## e2e-bug.323 — bare `"a cut"` recommends `hairstyle` over Men's/Women's cut — **Open**
+## e2e-bug.323 — bare `"a cut"` recommends `hairstyle` over Men's/Women's cut — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.298 live QA. Salon has both `hairstyle` and `Men's cut` / `Women's cut`. `"best specialists for a cut"` now succeeds via trim/cut→haircut synonym → `hairstyle`, and does not surface Men's/Women's cut. Substring match on bare `cut` would have preferred those catalog names.
 
-**Fix direction:** when the prompt is bare `cut`/`cuts` and the catalog has `* cut` services, prefer those literal matches (or union) before haircut→hairstyle synonym expansion.
+**Root cause (two call sites, both pre-aliased bare "cut"/"cuts" straight to "haircut" before any catalog matching ran, discarding the raw token that would have found the literal `* cut` rows):**
+1. `RANK_SERVICE_CATEGORY_ALIASES` (`ai-service-rank-discovery.util.ts`) mapped `cut`/`cuts` → `haircut` for the deterministic rank-discovery extraction path (used by rescue functions and directly-tested scenarios).
+2. **The actual live path for `"best specialists for a cut"`** — `applyPromptMentionedServiceOverrideToParams`'s e2e-bug.297/320/321 family-browse guard (`ai-booking-param-hints.util.ts`) computes `familyMatches` using the *raw* synonym token (correctly finds Men's cut + Women's cut for bare "cut"), but then stored `serviceCategory: normalizeAvailabilityServiceCategory(synonymToken)` — and `normalizeAvailabilityServiceCategory('cut')` (`ai-flexible-availability.util.ts`) unconditionally aliased to `'haircut'`. So the family match was computed correctly but then thrown away in favor of the aliased label, which re-resolves through `matchServicesByQuery('haircut', …)` — whose synonym-group alias order tries `hairstyle` before `cut`/`cuts`, picking `hairstyle` instead.
+
+**Fix (2026-08-02):**
+1. Removed `cut`/`cuts` from `RANK_SERVICE_CATEGORY_ALIASES`, added `cuts: 'cut'` (plural normalizes to singular, not to `haircut`) — fixes the deterministic rank-extraction path.
+2. Removed `cut`/`cuts` from `normalizeAvailabilityServiceCategory`'s trim/style alias list (`ai-flexible-availability.util.ts`) — fixes the actual live path.
+3. `applyPromptMentionedServiceOverrideToParams` now seeds the family-browse match with `'cut'` when the matched synonym token is plural `'cuts'` (which doesn't literal-substring-match singular catalog names like `"Men's cut"`), so both singular and plural bare-cut prompts consistently prefer literal cut-named rows.
+4. `trim`/`style`/`styles`/`styling` are untouched — still alias to `haircut` (e2e-bug.298 unaffected, since none of those risk a literal-name collision the way `cut` does with `"* cut"` service names).
+5. Fixtures/tests: `ai-e2e323-bare-cut-recommend.fixtures.ts` / `.util.spec.ts` (16 cases spanning both extraction paths, the plural-normalization edge case, the trim/styling regression guard, and an explicit end-to-end `enrichPublicAssistantParamsFromPrompt` case exercising the actual live code path).
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253` (hairstyle / Men's cut / Women's cut, plus massage/facial families):
+- Unit: `ai-e2e323-*` (16) + `ai-e2e101-service-rank-asymmetric` (11) + `ai-service-rank-discovery.util.spec` + `ai-service-catalog-rank.util.spec` (120) + `ai-e2e298-*` (20) + `ai-e2e297/320/321/322-*` (all) — **289/289** passed. Fixed 6 stale pre-existing tests along the way that hardcoded the old buggy `'haircut'` expectation for bare `cut`/`cuts` prompts (2 in `ai-service-catalog-rank.fixtures.ts`, 2 in `ai-service-rank-discovery.util.spec.ts`, 1 in `ai-e2e101-*`, 1 in `ai-e2e298-*`) — all now assert the corrected, functionally-equivalent `'cut'` value.
+- `tsc --noEmit`: zero new errors (confirmed pre-existing baseline unchanged via stash isolation).
+- Eval suite: failing-case-ID list byte-identical to the established 469-line baseline — zero regression.
+- Two failures found in `ai-structural-extractors.spec.ts` during the sweep (`overrides stale session serviceName…` date drift, `resolves basic cut clarify follow-up…`) — both confirmed byte-identical with this fix's 4 changed files stashed out, i.e. pre-existing and unrelated; left untouched.
+- Live (`/public/gevgas-operations-7c299253/assistant`):
+  - `"best specialists for a cut"` / `"best specialists for cut"` / `"best specialists for cuts"` → now correctly `"No available specialists for 2 services"` (Men's cut + Women's cut), not hairstyle.
+  - `"cheapest cut"` / `"premium cut"` (list-rank path, same root fix) → now list Men's cut + Women's cut.
+  - `"best specialists for trim"` / `"...for styling"` → still correctly resolve hairstyle (e2e-bug.298 unaffected).
+  - `"best specialists for massage"` / `"...for facial"` / `"...for hairstyle"` / `"...for Men's cut"` (explicit) → all unaffected.
+  - `"list trim services"` (e2e-bug.322), `"show me massage"` / `"list massage services"` (e2e-bug.320/321), `"show me facials"` (e2e-bug.297) → all still correct, zero regression.
+- No DB writes during live QA (all read-only `recommend_specialists`/`list_services` actions) — no cleanup required.
+- No new issues discovered during this pass (the two pre-existing `ai-structural-extractors.spec.ts` failures were investigated and confirmed unrelated/pre-existing, not newly introduced).
 
 ---
 
@@ -4570,13 +4662,33 @@ Main `PublicBookingAssistantService.chat()` switch handles all 14. `dispatchComp
 
 ---
 
-## e2e-bug.317 — `explain_home_screen_widget` success summaries stay English under hy/ru (e2e-bug.295 residual) — **Open**
+## e2e-bug.317 — `explain_home_screen_widget` success summaries stay English under hy/ru (e2e-bug.295 residual) — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.295 live QA. Intent routing is correct, but success copy from `buildAddToHomeScreenLines` / `assembleHomeScreenWidgetSummary` is hardcoded English (e.g. `"Home-screen widgets are available in the native iOS and Android…"`, `"The app builds a home_screen_widget_snapshot…"`) even when `locale:hy` / `locale:ru` (including native HY/RU prompts). Clarify path was localized in e2e-bug.276; success path was not.
 
-**Fix direction:** route widget aspect summaries through `t(locale, …)` message keys (parity with `assistant.homeScreenWidgetClarify`).
+**Fix** (2026-08-02): same root cause and fix pattern as e2e-bug.311/312 — the LLM enrich step (`CommandReasoningService.enrichResult`) was nondeterministically translating/reverting the hardcoded-English summary since `explain_home_screen_widget` wasn't excluded from it. Fixed both layers:
+1. Added 27 deterministic EN/HY/RU `assistant.homeScreenWidget*` message keys (`messages.ts`) covering every line across all 6 aspect-builder functions (`buildAddToHomeScreenLines`, `buildWhatShowsLines`, `buildNextAppointmentWidgetLines`, `buildQuickRebookWidgetLines`, `buildSignedOutWidgetLines`, `buildHomeScreenWidgetHowItWorksLines`), including the 3 dynamic-interpolation branches (next-appointment with subtitle, with service name only, or generic).
+2. Threaded a `locale: AppLocale = 'en'` param through all 6 builders + `assembleHomeScreenWidgetSummary` (`ai-explain-home-screen-widget.util.ts`), replacing every hardcoded string with `t(locale, key, vars)`.
+3. `handleExplainHomeScreenWidgetLogic` (`ai-explain-home-screen-widget.logic.ts`) now passes its already-resolved `locale` (used since e2e-bug.276 for the clarify path) into `assembleHomeScreenWidgetSummary`.
+4. Added `'explain_home_screen_widget'` to `AI_DATE_GROUNDED_BOOKING_ACTIONS` (`ai-date-label.util.ts`) so `CommandReasoningService.enrichResult` skips the LLM rewrite for this action entirely.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ai-explain-home-screen-widget.logic.spec.ts` with 5 new cases (HY how_it_works, RU add_to_home_screen, HY unsupported-platform, RU dynamic service-name interpolation, EN default) — **93/93** across all 5 home-screen-widget spec files, no regressions (existing tests didn't pass a `locale` arg, so they exercise the new `= 'en'` default and kept passing unchanged).
+- `npx tsc --noEmit` — zero new errors vs. baseline.
+- Full eval suite (`ai-command-eval.spec.ts`) — byte-identical 469-line failing-case-ID list before/after.
+- Live, real backend (`POST /public/gevgas-operations-7c299253/assistant`): HY `"Ավելացնել հաջորդ հանդիպումը հիմնական էկրանին"` × 3 → identical Armenian summary each time (previously flaky). RU canonical `"Как работает виджет на главном экране?"` × 3 → identical Russian `how_it_works` summary each time, correctly containing the untranslated technical term `home_screen_widget_snapshot` (content parity preserved, not literally translated). EN control × 3 → unaffected, identical English. HY `"Ինչ է ցույց տալիս վիջեթը"` (what_shows aspect) → correct Armenian summary confirming a second aspect/builder path is also localized.
+
+**Residual filed**: **e2e-bug.339** — natural HY "how does X work" phrasing for the widget falls through to `booking_help` instead of `explain_home_screen_widget`.
 
 ---
+
+## e2e-bug.339 — HY "Ինչպես է աշխատում հիմնական էկրանի վիջեթը" misroutes to `booking_help` — **Open**
+
+Found during guru live QA for **e2e-bug.317** (2026-08-02) on salon `gevgas-operations-7c299253`.
+
+A natural free-form HY phrasing — `"Ինչպես է աշխատում հիմնական էկրանի վիջեթը"` ("How does the home screen widget work") — doesn't match `isExplainHomeScreenWidgetPrompt`'s HY semantic gate in `ai-explain-home-screen-widget.util.ts` (requires `ավելացնել|ցույց|կրկին` — add/show/again — alongside `վիջեթ|հիմնական էկրան`, which this "how does it work" phrasing lacks) and instead falls through and gets classified as `booking_help`, returning a `"Step 1/3: …"` onboarding-flow summary instead of the widget explanation. Confirmed live: the exact canonical multilingual fixture prompts (`EXPLAIN_HOME_SCREEN_WIDGET_MULTILINGUAL_SCENARIOS`, e.g. `"Ինչ է ցույց տալիս վիջեթը"`, `"Ավելացնել հաջորդ հանդիպումը հիմնական էկրանին"`) all route and localize correctly — this is narrowly the "how does it work" phrasing shape in Armenian.
+
+**Fix direction**: extend the HY semantic gate in `isExplainHomeScreenWidgetPrompt` to also match a "how it works" cue word (e.g. `ինչպես` — how) alongside `վիջեթ|հիմնական էկրան`, mirroring the existing EN gate's `/\bhow\b/i.test(prompt) && /\bwidget\b/i.test(prompt)` fallback (line ~87 of the same file), which already handles this exact phrasing shape in English.
 
 ## e2e-bug.277 — public `booking_help` returns progress summary but omits `guide` / `supportHandoff` — **Fixed**
 
@@ -4643,13 +4755,30 @@ Found during guru live QA for **e2e-bug.294** (2026-08-01).
 - **e2e-bug.330** — ~41 remaining playbooks (dashboard/provider/overlays/availability/…) still lack `shortTitleKey`
 - **e2e-bug.331** — `explain_current_screen` / page-help on `/book/services` and `/book/checkout` misroutes (booking_help + same screen is correct)
 
-## e2e-bug.330 — remaining guide playbooks lack `shortTitleKey` (e2e-bug.316 residual) — **Open**
+## e2e-bug.330 — remaining guide playbooks lack `shortTitleKey` (e2e-bug.316 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.316** (2026-08-01). High-traffic customer/public playbooks now have short titles; **41** other playbooks still use only `guide.flows.common.stepN` (sample: `dashboard.ai.ops`, `dashboard.core.calendar`, `provider-appointments`, `public-availability`, overlays).
 
 **Fix direction**: batch-add `shortTitleKey` + `stepNTitle` catalog copy for dashboard/provider/overlay/availability playbooks (or generate short titles from humanize + catalog gate).
 
-## e2e-bug.331 — page-help on `/book/services`|/book/checkout` misroutes away from screen playbook (e2e-bug.316 residual) — **Open**
+**Root cause:** confirmed the naive fallback (`humanizeGuideStepTitle`'s `words.slice(0, 3)`) — not just "no curated title" — was the real defect: hand-auditing all 41×3-4 steps × 3 locales (130 steps) showed ~45% landed on a syntactically broken fragment: a dangling trailing preposition/conjunction/article/copula (`"Navigate weeks with"`, `"Track products and"`, `"Overlapping periods are"`) or a bare clause-boundary dash token counted as a "word" (`"Locations — add"`, `"Разверните задачу —"`).
+
+**Fix (2026-08-02):** chose the "generate short titles from humanize" alternative explicitly offered in the original fix direction over hand-authoring ~390 curated strings (130 steps × 3 locales) whose HY/RU quality I couldn't independently verify. Hardened `humanizeGuideStepTitle` (`guide-flow.corpus.util.ts`) with 4 new, purely mechanical rules layered after the existing from/`հանրային`/`на`-clause splits:
+1. A leading subordinate clause (`"When AI proposes a plan, review each step…"`) restarts after its first comma — targets the one confirmed real-world case (`When`/`If`/`While`/etc. openers).
+2. A one-word dash label (`"Locations — add…"`) skips past it into the real clause; any other standalone dash/arrow token is dropped from the word count entirely (fixes the "counted the dash as a word" root cause directly).
+3. The naive 3-word cut now extends (capped at 6 words) until it stops on a word that isn't in a small, hand-verified EN/HY/RU trailing-stopword set (prepositions/conjunctions/articles/copulas/possessives), then trims back if still dangling at the cap.
+4. Any text produced by rules 1–3 gets its first letter capitalized (skipping a leading clause can otherwise leave a lowercase opener, e.g. `"add each branch"`).
+The from/`հանրային`/`на` splits and the ≤5-total-words passthrough are untouched — zero behavior change for the 6 already-curated playbooks (booking-funnel/services/professionals/checkout/booking-flow/packages-gift-cards) or any step whose fallback was already fine.
+
+**Verification (2026-08-02)** on the real production pipeline (via `dist/` build, not source, to bypass Jest module caching):
+- Unit: new `ai-e2e330-guide-short-title-fallback.util.spec.ts` — 10 direct probes for each new rule + an exhaustive scan asserting **zero** of the 130 affected steps end in a trailing stopword/bare dash or start lowercase across en/hy/ru (390 checks) — **12/12** passed.
+- Full existing guide-flow/humanize/multiturn/e2e275/e2e294/e2e316 suites (1299 tests) — unchanged, all passing (zero regression on already-curated playbooks).
+- `tsc --noEmit`: zero new errors.
+- Eval suite: failing-case-ID list byte-identical to baseline (pre-existing, unrelated) — zero regression.
+- Live: `frontend/scripts/qa-e2e-bug-330.mjs` (calls `resolveGuideFlowPlaybook` → `buildGuideResponseFromFlowPlaybook` → `buildGuideResponseForMultiTurnStep` directly against the built `dist/` output, matching e2e-bug.316's established technique that bypasses the dashboard command endpoint's LLM-enrich rewrite, which paraphrases/obscures the raw short title) — **389/390** clean across all 41 playbooks × 3 locales × their steps. Sample: `dashboard.core.schedule` EN now reads "Step 3 of 4: Block Schedule removes" / "Step 4 of 4: Overlapping periods are flagged" (previously "…removes" / "…are"); `provider-appointments` HY step titles fully clean. The 1 remaining case (`dashboard.ai.getting-started` HY step 2, `"default կամ Custom API key"`) is a pre-existing lowercase-embedded-English-term quirk in the source body text itself, confirmed present in the pre-fix debug dump — not a dangling-stopword defect and not touched by this fix.
+- No DB writes during live QA (guide playbook resolution is a static, in-memory lookup) — no cleanup required.
+
+## e2e-bug.331 — page-help on `/book/services`|/book/checkout` misroutes away from screen playbook (e2e-bug.316 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.316** (2026-08-01). With `context.screen`:
 
@@ -4658,7 +4787,19 @@ Found during guru live QA for **e2e-bug.316** (2026-08-01). With `context.screen
 - `Help me with this page` + `/book/checkout` → `explain_current_screen` / `"Pick a professional"` (consumer-booking-flow, wrong)
 - `Help me with this page` + `/book/services` → clarify + booking-flow body fragment (not services short title)
 
-**Fix direction**: prefer route-matched public playbook (`public-booking-services` / `public-checkout`) for `explain_current_screen` when `mapPublicBookingGuideRoute` resolves services/checkout.
+**Root cause**: the public web booking assistant HTTP endpoint (`PublicBookingController.assistant()`, `public-booking.controller.ts`) is dispatched entirely through the shared `'customer'` AI gateway pipeline (`AiGatewayService.execute({ surface: 'customer', ... })` → `CustomerAiCommandService`) — `PublicBookingAssistantService`'s own `'public'`-hardcoded guide logic is unreachable dead code for this endpoint, a red herring during initial investigation. Because `surface` is always `'customer'` here, session-context resolution (`resolveProductGuideSessionContext`) ran the **customer-app** route mapper (`mapCustomerMobileGuideRoute`), which deliberately collapses every path matching `/book(/|$|?)` — including the public web funnel's `/book/services`, `/book/professionals`, `/book/checkout` — into one generic native-app bucket (`CUSTOMER_APP_GUIDE_ROUTES.booking = '/s/book'`), since the real customer mobile app never uses bare `/book/...` paths (always `/s/book...`/`/consumer/book...`). That collapsed route then resolved to native-app consumer-booking-flow playbook content ("Pick a professional") instead of the public funnel's step-specific playbook.
+
+Two fixes were required (the second only surfaced after live-instrumenting the actual dispatch path, since a caller — `dispatchCustomerAppGuideIntent` — pre-computes `route` via the customer mapper *before* calling session-context resolution, which the first fix's route-presence guard didn't account for):
+
+1. `resolveProductGuideSessionContext` (`ai-product-guide-session.util.ts`) now detects a bare `/book/...` screen under a nominal `'customer'` surface (via `isPublicBookingFunnelScreen`, matching the real customer app's actual routing convention) and re-resolves both `surface` (→ `'public'`) and `route` (via `parseBookingPathToGuideRoute` against the raw screen, not the customer mapper) from the raw screen — regardless of whether a caller already pre-populated `context.route` with the customer mapper's generic `'/s/book'` value.
+2. `resolvePostFailureGuideSnippet` (`ai-product-guide-failure-fallback.util.ts`) now prefers a specific public-funnel step route (services/professionals/checkout) over a generic prompt-similarity match against the whole-funnel overview topic, so a vague "help me with this page" prompt on `/book/checkout` doesn't get bumped back to the funnel's step-1 overview.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e331-public-funnel-surface-detection.*` — **13/13** (session-context surface/route correction incl. the pre-populated-route case, fallback-snippet route-specificity precedence, generic-overview non-regression, dashboard/provider-surface non-regression, real customer-app `/s/book` non-regression)
+- `npx jest --testPathPatterns='src/modules/ai/.*ai-product-guide'` — **26 suites / 1243 tests passed**
+- `npx tsc --noEmit` — zero new errors (pre-existing unrelated errors in `ai-product-guide-failure-fallback.util.spec.ts` confirmed via `git stash` isolation, byte-identical before/after)
+- Eval suite (`ai-command-eval.spec.ts` + `.integration.spec.ts`) — same pre-existing failure signature confirmed byte-identical with/without the fix via `git stash` isolation (7 unrelated case IDs + 2 unrelated integration assertions, all pre-dating this ticket)
+- Live: `frontend/scripts/qa-e2e-bug-331.mjs` — **7/7**, stable across 3 repeated runs (both original symptoms fixed, plus the `explain_current_screen`-path residual found via live debug instrumentation after the first fix alone proved insufficient, plus generic-overview and real-customer-app-route non-regression checks)
 
 ---
 
@@ -5854,15 +5995,24 @@ Short chip-label synonyms `"Thumbs up"` / `"Thumbs down"` now route to `give_ai_
 - Unit: `ai-e2e300-plus-minus-one.util.spec.ts` (+ give-ai-feedback util / e2e293) — **111** related passed
 - Live: `frontend/scripts/qa-e2e-bug-300.mjs` — **20/20**
 
-**Residuals filed:** **e2e-bug.326** (`"+1 thanks"` / `"thanks +1"` stay `unknown`).
+**Residuals filed:** **e2e-bug.326** (Fixed — `"+1 thanks"` / `"thanks +1"` wrapper phrasing now rates correctly).
 
 ---
 
-## e2e-bug.326 — public `"+1 thanks"` / `"thanks +1"` stay `unknown` — **Open**
+## e2e-bug.326 — public `"+1 thanks"` / `"thanks +1"` stay `unknown` — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.300 guru edge QA. Bare `"+1"` / `"-1"` now rate correctly, but conversational wrappers (`"+1 thanks"`, `"thanks +1"`) still return `unknown`. Unicode fullwidth `＋1` also misses (rarer).
 
-**Fix direction:** allow optional short wrappers (`thanks` / `thx` / emoji) around anchored +1/−1 while still forbidding embedded booking math (`party of +1`).
+**Root cause:** `PLUS_ONE_FEEDBACK_PROMPT`/`MINUS_ONE_FEEDBACK_PROMPT` (`ai-give-ai-feedback.util.ts`, mirrored in `ai-provider-give-ai-feedback.util.ts`) were anchored `^...$` with only an optional trailing `[!.]?` — any leading/trailing word (even "thanks") broke the whole-prompt match, and the core alternation only recognized ASCII `+`/`-`, not fullwidth `＋`/`－`.
+
+**Fix (2026-08-02):** widened both regexes to `^(?:wrapper[\s,!.]*)?core(?:[\s,!.]*wrapper)?[\s!.]*$` where `wrapper = (?:thanks?|thx|ty)` and `core` now also matches fullwidth `＋\s*1` / `－\s*1`. Stayed whole-prompt-anchored (no floating match), so booking math (`"party of +1"`, `"Book +1 massage tomorrow"`, `"+10 thanks"`) is still excluded — the wrapper vocabulary is narrow (no `👍`/`👎`, to avoid a `"+1 👎"` sign contradiction) and the numeral must still be exactly `1`.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: new `ai-e2e326-plus-minus-one-wrappers.util.spec.ts` (17 cases: wrapped up/down, fullwidth, negatives, provider mirror) + full `ai-e2e300`/`give-ai-feedback` family — **233/233** passed.
+- `tsc --noEmit`: zero new errors (pre-existing baseline unchanged via stash isolation).
+- Eval suite: failing-case-ID list byte-identical to baseline (7 pre-existing unrelated failures, confirmed via stash isolation) — zero regression.
+- Live: `frontend/scripts/qa-e2e-bug-326.mjs` — **17/17** (`"+1 thanks"`, `"thanks +1"`, `"-1 thanks"`, `"thanks -1"`, `"+1 thx!"`, `"ty, +1"`, `"thanks plus one"`, fullwidth `＋1`/`－1`/`＋1 thanks`, 5 booking-math negatives incl. `"thanks, book +1 massage"`, bare `+1`/`-1` non-regression).
+- No DB writes during live QA (feedback classification is stateless) — no cleanup required.
 
 ---
 
@@ -5900,19 +6050,44 @@ Found during guru live QA for **e2e-bug.265** (2026-07-31).
 
 ---
 
-## e2e-bug.324 — HY native `"Օգտակար չէ"` stays `unknown` (not `give_ai_feedback`) — **Open**
+## e2e-bug.324 — HY native `"Օգտակար չէ"` stays `unknown` (not `give_ai_feedback`) — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.299 guru edge QA. HY `"Օգտակար էր"` / `"Սխալ էր"` and RU `"Не полезно"` rescue correctly, but the natural thumbs-down phrase `"Օգտակար չէ"` returns public `unknown` (localized clarify) — `NEGATIVE_CUE` / multilingual fixtures cover `սխալ` and RU `не полез`, not Armenian `օգտակար չէ`.
 
-**Fix direction:** add `օգտակար\s+չէ` (and close variants) to negative feedback cues + multilingual scenarios; ensure positives-first/`օգտակար էր` lookbehind does not steal.
+**Root cause:** `NEGATIVE_CUE` (`ai-give-ai-feedback.util.ts`) had no Armenian alternative for "not helpful" at all — it only matched `սխալ` (wrong) and the Russian negatives, so `"Օգտակար չէ"` fell through every cue check (including `POSITIVE_CUE`, which requires a different suffix) and landed on `unknown`.
+
+**Fix (2026-08-02):** added `օգտակար\s+չէ(?:ր)?` (covers present "չէ" and past "չէր") and `ոչ\s+օգտակար` to `NEGATIVE_CUE`; also added the canonical phrase to `GIVE_AI_FEEDBACK_MULTILINGUAL_SCENARIOS` for the exact-match fast path. Confirmed no overlap with `POSITIVE_CUE`'s `օգտակար\s+եր` alternative — different Armenian letter after "օգտակար " (「եր」 vs 「չէ」), so positives still resolve correctly.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e324-hy-not-helpful.util.spec.ts` (7 cases: present/past/lowercase negatives, positive-control non-regression, HY/RU sibling non-regression) + full `ai-give-ai-feedback.*` suite — **103/103** passed.
+- `tsc --noEmit`: zero new errors (pre-existing baseline unchanged via stash isolation).
+- Eval suite: failing-case-ID list byte-identical to the established 469-line baseline — zero regression.
+- Live (`/public/gevgas-operations-7c299253/assistant`, `locale:hy`): `"Օգտակար չէ"`, `"Օգտակար չէր"`, and lowercase `"օգտակար չէ"` all now correctly return `give_ai_feedback` with the "choose a reason" prompt (previously `unknown`). Controls unaffected: `"Օգտակար էր"` (positive), `"Սխալ էր"` (HY negative), `"Не полезно"` (RU negative), `"thumbs down"` (EN).
+- No DB writes during live QA (feedback classification is stateless at this stage) — no cleanup required.
+
+**New issue discovered during this pass, filed as e2e-bug.341** (see below) — a pre-existing, separate typo bug in `POSITIVE_CUE`'s Armenian alternative, unrelated to this ticket's negative-cue scope.
 
 ---
 
-## e2e-bug.325 — provider `give_provider_ai_feedback` chip/summary labels stay English under `locale:hy|ru` — **Open**
+## e2e-bug.325 — provider `give_provider_ai_feedback` chip/summary labels stay English under `locale:hy|ru` — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.299 fix (code inspection after public localization). `ai-provider-give-ai-feedback.util.ts` still hardcodes `PROVIDER_FEEDBACK_*` EN strings into `feedbackUpLabel` / reason options / summaries; public/customer path is now i18n'd.
 
-**Fix direction:** reuse the same `assistant.feedback*` keys (or provider-scoped mirrors) and thread provider request locale into the provider feedback handler.
+**Root cause:** two gaps. (1) `ai-provider-give-ai-feedback.util.ts` never called `t()`/`resolveLocale()` at all — every label/summary was a hardcoded EN constant. (2) Even if it had, `provider-ai-command.service.ts`'s `give_provider_ai_feedback` dispatch case never threaded `context?.locale` into `handleGiveProviderAiFeedback` — `context.locale` was already being read and passed for other intents (`explain_dashboard_only_action`) in the same switch statement, just not this one.
+
+**Fix (2026-08-02):**
+1. Added provider-scoped mirror keys to `messages.ts` (EN/HY/RU) — `assistant.providerFeedback{UpLabel,DownLabel,Thanks,ReasonWrongAction,ReasonWrongDate,ReasonWrongClient,ReasonWrongService,ReasonDidNotUnderstand,DownChooseReason,ClarifyWhatWasWrong,ClarifyHelpfulOrNot}` — provider-scoped rather than reusing the customer `assistant.feedback*` keys directly, since the copy genuinely differs ("client" not "person", "provider assistant" not "assistant", different example phrasing in the clarify strings).
+2. `ai-provider-give-ai-feedback.util.ts`: added `resolveGiveProviderAiFeedbackLocale` + `localizedProviderFeedback*` helpers (mirrors the customer file's e2e-bug.299 pattern exactly); threaded `locale` through `buildGiveProviderAiFeedbackSummary`, `buildGiveProviderAiFeedbackDetails`, and `handleGiveProviderAiFeedback`.
+3. `provider-ai-command.service.ts`: the `give_provider_ai_feedback` case now passes `context?.locale` as `handleGiveProviderAiFeedback`'s 3rd argument.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e325-provider-feedback-locale.util.spec.ts` (9 cases: HY/RU label+summary localization, HY/RU clarify-path non-English-fallback, EN default regression guard) + full `ai-provider-give-ai-feedback.util.spec.ts` (15) — **24/24** passed.
+- `tsc --noEmit`: zero new errors.
+- Eval suite: failing-case-ID list byte-identical to the established 469-line baseline — zero regression.
+- A pre-existing, unrelated snapshot-drift failure was found in `sync-guide-corpus-i18n.spec.ts` (compares `frontend/src/i18n/messages/*.ts`'s `guide`/`helpCenter` trees against a committed snapshot — unrelated to this ticket's backend `messages.ts` keys) — confirmed byte-identical with this fix's `messages.ts` change stashed out, i.e. pre-existing; left untouched.
+- Live (`POST /businesses/:businessId/provider/ai/command`, JWT-authed staff user) on `gevgas-operations-7c299253`: `locale:hy` and `locale:ru` for `"that was helpful"` (positive), `"wrong client picked"` (reason-given), and `"Not helpful"` (needs-reason-chips) all now return fully localized `feedbackUpLabel`/`feedbackDownLabel`/`feedbackThanks`/`feedbackReasonOptions`/summary — previously all English regardless of locale. `locale:en` control unaffected (unchanged EN strings, verbatim).
+- No DB writes during live QA (feedback classification is stateless) — no cleanup required.
+- No new issues discovered during this pass (the `sync-guide-corpus-i18n` finding was investigated and confirmed pre-existing/unrelated, not newly introduced).
 
 ---
 
@@ -6223,13 +6398,41 @@ Russian `"Добавь категорию каталога с названием
 
 **Residual filed**: RU `create_service_category` success summary sometimes stays English — **e2e-bug.312**.
 
-## e2e-bug.312 — RU `create_service_category` success summary sometimes stays English — **Open**
+## e2e-bug.312 — RU `create_service_category` success summary sometimes stays English — **Fixed**
 
 Found during guru live QA for **e2e-bug.292** (2026-08-01) on salon `gevgas-operations-7c299253`.
 
 With `locale:ru`, some creates return Russian (`"Категория '…' успешно создана."`) while siblings on the same pass stay English (`"Created the category '…'."` / `"Created the new service category named '…'."`). Routing and `categoryName` are correct.
 
-**Fix direction**: deterministic localized success copy for `create_service_category` (skip unreliable LLM enrich), same family as e2e-bug.289 / e2e-bug.311.
+**Root cause**: `handleCreateServiceCategoryLogic` (`ai-catalog.logic.ts`) built a single hardcoded English success summary with no locale awareness at all. The RU wording seen in the original bug report never came from this function — it came from `CommandReasoningService.enrichResult` (`command-reasoning.service.ts`), a downstream LLM "enrich" pass that runs on every successful `CommandResult` not on its skip-list, calling the model at `temperature: 0.15` with no instruction to preserve the input's language. `create_service_category` was absent from both the enrich skip-list and `AI_DATE_GROUNDED_BOOKING_ACTIONS` (the mechanism e2e-bug.289/311 already use to opt out), so the deterministic English summary was nondeterministically paraphrased into Russian on some calls and left in English on others — same failure shape as e2e-bug.289/311, one file over.
+
+**Fix** (2026-08-02):
+1. Deterministic EN/HY/RU `assistant.catalogCategoryCreated(WithServices)` strings in `messages.ts`, plus a `resolveCreateServiceCategoryLocale` helper (prompt script → `params.locale`, same pattern as `resolveExplainClinicServicesLocale`) in `ai-catalog.logic.ts`.
+2. `handleCreateServiceCategoryLogic` now takes an optional `prompt` param and builds its success summary via `t(locale, ...)` instead of a hardcoded template; threaded `effectivePrompt`/`step.segment` through both call sites (`ai-dashboard-core.logic.ts`'s single-intent dispatch and `ai-catalog.logic.ts`'s compound-catalog step loop) and `AiCatalogService.handleCreateServiceCategory`.
+3. Added `create_service_category` to `AI_DATE_GROUNDED_BOOKING_ACTIONS` (`ai-date-label.util.ts`) so `CommandReasoningService.enrichResult` skips the LLM rewrite for this action entirely.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ai-catalog.logic.spec.ts` with 5 new cases (RU/HY/EN deterministic summaries, placeholder-variant RU wording, `params.locale` fallback when the prompt has no detectable script) — **44/44** passing in that file; `ai-catalog.service.spec.ts` + `ai-dashboard-core.logic.spec.ts` — **10/10**.
+- `npx tsc --noEmit` — zero new errors vs. baseline (baseline has ~1418 pre-existing errors, all in unrelated spec files).
+- Full eval suite (`ai-command-eval.spec.ts`) — `git stash` isolation: byte-identical 469-line failing-case-ID list before/after the fix (2 pre-existing test failures in that suite, both unrelated to catalog categories).
+- Live, real backend (`POST /businesses/:id/ai/command`), repeated calls to catch the original flakiness directly:
+  - RU × 8 distinct prompts (`"Добавь категорию каталога с названием QA312RU-…, пожалуйста"`) → **8/8** returned the identical deterministic Russian string (`"Категория «…» успешно создана."`) — this is the exact scenario that was previously flaky.
+  - HY × 4 (`"Ավելացրու կատալոգի կատեգորիա անունով QA312HY-…"`) → **4/4** identical Armenian string (`"Ստեղծվեց «…» կատեգորիան։"`).
+  - EN × 3 (regression check, no prompt-script signal) → **3/3** identical English string (`"Created category "…"."`).
+  - RU placeholder-service variant (`"Создай категорию каталога с 2 услугами-заглушками под названием …"`) → correct localized wording with count: `"Категория «…» успешно создана, с 2 пробной услугой(ями)."`.
+  - `params.locale` fallback (no prompt script, `locale: 'ru'` in params) → Russian summary, confirming the resolver's fallback path works independent of prompt-script detection.
+
+**Residual filed**: category-name extraction over-captures a trailing placeholder-count clause into `categoryName` (locale-independent, not part of this fix's scope) — **e2e-bug.338**.
+
+## e2e-bug.338 — `create_service_category` name extraction absorbs a trailing placeholder-count clause into `categoryName` — **Open**
+
+Found during guru live QA for **e2e-bug.312** (2026-08-02) on salon `gevgas-operations-7c299253`, while probing the placeholder-service variant of the success message.
+
+`"Create a catalog category named QA312ENP-… with 2 placeholder services"` → `categoryName` becomes `"QA312ENP-… with 2 placeholder services"` (the whole trailing clause absorbed into the name) instead of just `"QA312ENP-…"`; summary reads `Created category "QA312ENP-… with 2 placeholder services" with 2 placeholder service(s).` — cosmetically wrong but not silently lossy (the count itself, 2, is still parsed correctly and 2 placeholder services are created). Reproduced identically in Russian: `"Создай категорию каталога с названием QA312RUP-… и 2 placeholder услугами"` → `categoryName` = `"QA312RUP-… и 2 placeholder услугами"`. Confirmed **locale-independent** (both EN and RU affected identically) and **word-order-dependent**: when the count clause precedes the name instead (`"Создай категорию каталога с 2 услугами-заглушками под названием QA312RUP2-…"`), `categoryName` extracts cleanly with no over-capture.
+
+**Root cause**: `extractCreateServiceCategoryFromPrompt` (`ai-catalog.util.ts:339`) — every `…named/called X` and RU `…названием X` regex pattern is anchored to end-of-string (`$`) with a lazy-but-unbounded capture group (`([A-Za-z][\w\s&'-]+?)` / `(.+?)`), and the only trailing content stripped before the anchor is a small fixed set of politeness words (`please/kindly/пожалуйста/…`). A trailing count/placeholder clause isn't one of those, so the whole clause gets pulled into the name.
+
+**Fix direction**: extend `stripTrailingCategoryNamePoliteness` (or add a sibling helper) to also strip a trailing `with N placeholder service(s)` / RU `и N услугами-заглушками`-style count clause before returning the captured name — mirroring how politeness words are already stripped post-capture, so the placeholderCount extraction (which already works correctly) isn't affected, only the name capture boundary.
 
 ## e2e-bug.253 — Account booking-card / `ConsumerBookingActions` still use `IonButton` hosts — **Fixed**
 
@@ -6255,21 +6458,37 @@ Found during guru live QA for **e2e-bug.253** (2026-07-31); fixed 2026-08-01 on 
 - **e2e-bug.313** — package/multi reschedule panel still shows disabled Confirm when suggest/slots fail
 - **e2e-bug.314** — `ConsumerSubscriptionsSection` Account CTAs still `IonButton`
 
-## e2e-bug.313 — Package / multi-service reschedule panel shows Confirm when no slots — **Open**
+## e2e-bug.313 — Package / multi-service reschedule panel shows Confirm when no slots — **Fixed**
 
 Found during guru live QA for **e2e-bug.272** (2026-08-01) on salon `gevgas-operations-7c299253`.
 
 After opening **Reschedule package visit** / **Reschedule visit**, when `suggestPackageBlock` / `suggestPublicMultiServiceBlock` (or day slots) fails with e.g. `"No available block found for the selected services"`, the panel still renders a disabled **Confirm reschedule** button beneath the empty slot row + alert. Single-booking `ConsumerBookingActions` already has a clearer empty-day path; visit actions always mount Confirm.
 
-**Fix direction**: hide Confirm (and optionally the empty slot container) when `!selectedStart && !slotsLoading` and an error/empty state is shown; keep date picker so the customer can try another day.
+**Fix** (2026-08-02): `ConsumerPackageVisitActions.tsx` and `ConsumerMultiServiceVisitActions.tsx` — when `!slotsLoading && slots.length === 0`, the slot row now renders the same `copy.noSlotsThisDay` message `ConsumerBookingActions` already uses (deterministic, localized, EN/HY/RU) instead of an empty flex container. The **Confirm reschedule** button is now conditionally rendered only when `selectedStart` is set (`{selectedStart && <ConsumerActionButton>...}`), rather than always mounted with `disabled={!selectedStart}` — so it disappears entirely instead of sitting there disabled with no explanation. The `IonDatetime` date picker stays mounted in both states so the customer can try another day.
 
-## e2e-bug.314 — Account `ConsumerSubscriptionsSection` CTAs still use `IonButton` hosts — **Open**
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ConsumerPackageVisitActions.spec.tsx` (+2 cases: empty-day hides Confirm + shows `noSlotsThisDay`; switching to a day with slots re-shows Confirm) and `ConsumerMultiServiceVisitActions.spec.tsx` (+1 case) — **15/15** across both files (12 + 3 new, no regressions to the existing e2e-bug.36/e2e-bug.186/e2e-bug.34 suites in the same files).
+- `npx tsc --noEmit` (consumer-app) — zero new errors vs. baseline (pre-existing `ConsumerMultiServiceVisitActions.spec.tsx:136` mock-type gap and unrelated `GiftCardCheckoutPage` errors, both untouched by this fix).
+- Live, real backend + real consumer-app dev server: seeded a fresh test customer with an active package visit (`Massage Package`, 2 bookings) and a multi-service visit (`Alexandrite full body + Deep tissue massage`, 2 bookings) on `gevgas-operations-7c299253`, signed in via a real customer JWT, opened both **Reschedule package visit** and **Reschedule visit** panels on the live Account page. Both immediately reproduced the exact original bug scenario live (`suggestPackageBlock`/`suggestPublicMultiServiceBlock` failing with `"No available block found for the selected services"` / `"No provider can perform all selected services"`) — and confirmed the fix: `"No times available this day"` shown, **zero** `Confirm reschedule` button anywhere in the DOM (checked via full accessibility-tree dump, not just visual), and the date picker remained interactive (clicked a second date, panel stayed in the same correctly-empty state with no stray Confirm). Screenshot captured showing the calendar + empty-state message with no dangling disabled button.
+- Cleanup: all seeded bookings, the package purchase, the multi-service group, and the test customer row were deleted from the DB after verification; confirmed 0 rows remain.
+
+No new issues found during this pass — the only other message surfaced (`"No provider can perform all selected services"` on the multi-service panel) is expected, correct behavior for the synthetic test data (two services without a shared provider), not a bug.
+
+## e2e-bug.314 — Account `ConsumerSubscriptionsSection` CTAs still use `IonButton` hosts — **Fixed**
 
 Found during guru live QA for **e2e-bug.272** (2026-08-01) while auditing remaining Account light-DOM CTA gaps after package/multi visit conversion.
 
 `consumer-app/src/components/ConsumerSubscriptionsSection.tsx` still renders cancel / manage / buy-style CTAs via `IonButton`, so VoiceOver/a11y trees that do not pierce shadow DOM can still see `generic` instead of `button` on the Account subscriptions card — same family as e2e-bug.4 / .253 / .272.
 
-**Fix direction**: swap to `ConsumerActionButton` (`size="small"`, danger/outline as appropriate), fixtures + unit + extend live Account QA.
+**Fix** (2026-08-02): all 3 CTAs (`Book next visit`, `Usage history`, `Cancel subscription`) now render via `ConsumerActionButton` (`size="small"`; `fill="clear"` + `color={primary}` for Book next, `fill="clear"` + `color="medium"` for Usage history, `fill="outline"` + `color="danger"` for Cancel). Added `aria-expanded` to the Usage history toggle, matching the established expand/collapse pattern already used in `ConsumerBookingActions`/`ConsumerPackageVisitActions`/`ConsumerMultiServiceVisitActions` (e2e-bug.253/272). Source no longer imports `IonButton` (keeps `IonIcon`/`IonSpinner`).
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: extended `ConsumerSubscriptionsSection.spec.tsx` (+3 cases: no `ion-button` hosts + all 3 CTAs present as native buttons; `aria-expanded` toggles true/false on click; Cancel CTA absent once a subscription has usage) — **7/7** across the file, no regressions to the existing e2e-bug.187 refund-notice suite (updated its `ion-button` selector to `button.consumer-action-button`).
+- `npx tsc --noEmit` (consumer-app) — zero new errors vs. baseline.
+- Live, real backend + real consumer-app dev server: seeded a fresh test customer with 2 active subscriptions (one unused 4/4, one partially used 2/4) on `gevgas-operations-7c299253`, signed in via a real customer JWT, loaded the live Account page. Confirmed via a full-page DOM query: **0** `ion-button` elements anywhere on the page, **15** native `button.consumer-action-button` elements. Clicked the unused subscription's **Cancel subscription** button live — the real `cancelCustomerSubscription` API call fired, the card's status flipped from `active` → `Cancelled` in the UI, and both `Book next visit`/`Cancel subscription` correctly disappeared (gated on `status === 'active'`), leaving only `Usage history`. Clicked **Usage history** on the other subscription — `aria-expanded` flipped `false → true` live, the real `fetchMySubscriptionUsage` call fired and rendered `"No usage recorded yet."` (no usage ledger rows seeded, correct empty state).
+- Cleanup: seeded subscriptions + the test customer row deleted from the DB after verification; confirmed 0 rows remain.
+
+No new issues found during this pass.
 
 ## e2e-bug.254 — Face Pilling online/full-prepay but zero bookable dates/slots — **Fixed**
 
@@ -6296,13 +6515,25 @@ Found during guru live QA for **e2e-bug.254** (2026-07-31); fixed 2026-08-01 on 
 
 **Residual filed**: **e2e-bug.315** — booking POST still auto-materializes projected hours (owner/cron template path not yet the sole writer).
 
-## e2e-bug.315 — booking POST auto-materializes assigned-provider hour roll-forward — **Open**
+## e2e-bug.315 — booking POST auto-materializes assigned-provider hour roll-forward — **Fixed**
 
 Found during guru live QA for **e2e-bug.273** (2026-08-01).
 
 Public GET no longer persists schedule (e2e-bug.273 Fixed), but `createBooking` still calls `materializeAssignedProvidersUpcomingHours` so an anonymous customer booking a projected Face Pilling slot can insert `scheduling_periods` + `scheduling_slots` for the assignee. Better than GET mutation, but still not the owner-facing / cron / recurring-template path called for in the original .273 fix direction — owners who intentionally left a specialist off the calendar can still get hours created by a public book.
 
-**Fix direction**: prefer recurring schedule templates for exclusive specialists; gate materialize behind owner policy or move to an explicit dashboard “extend hours” / cron job; booking should fail closed with a clear “provider has no hours” when templates are missing (or only materialize when a business setting allows it).
+**Fix** (2026-08-02): took the "only materialize when a business setting allows it" option from the fix direction — new `resolveAssignedProviderHourRollForwardAllowed(settings)` util (`assigned-provider-hour-rollforward.util.ts`) reads `settings.publicBooking.allowAssignedProviderHourRollForward`, same namespaced-settings convention as `customer-self-service.util.ts`/`product-recommendation-settings.util.ts`. **Defaults to `true`** (unchanged behavior — existing businesses relying on e2e-bug.254's auto-fill, including the QA salon, keep working with zero config) so this is purely additive; an owner can set the flag to `false` to make `createBooking` skip the materialize call entirely for that business, so a customer booking a truly-unscheduled specialist's projected slot fails closed downstream at normal slot-availability validation instead of silently writing real recurring hours for a specialist the owner deliberately left off the calendar. The GET-side ephemeral projection (bookable-dates/day-slots, e2e-bug.273) is untouched — it doesn't call materialize and isn't affected by this flag either way, so availability still displays correctly regardless of the setting.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: new `assigned-provider-hour-rollforward.util.spec.ts` — **4/4** (default-true on missing/empty/undefined settings, explicit-false, non-false truthy values all treated as allowed).
+- Integration: new `e2e315-assigned-provider-hour-rollforward-gate.integration.spec.ts` — **3/3** (`createBooking` calls materialize when unset/true, skips entirely when explicitly `false`); existing `e2e254-assigned-provider-hours.*` (materialize-path direct-call tests, unaffected — they call the private method directly, not through `createBooking`) and `e2e273-public-get-no-schedule-persist.*` — **37/37** total across all 4 files, zero regressions.
+- `npx tsc --noEmit` — zero new errors vs. baseline.
+- Full eval suite (`ai-command-eval.spec.ts`) — byte-identical 469-line failing-case-ID list before/after (unrelated to this fix's domain).
+- Live, real backend (`gevgas-operations-7c299253`, `Face Pilling` service, exclusively assigned to Karo Mazmanyan, whose only real future `scheduling_periods`/`scheduling_slots` rows were confirmed **0** before testing — genuinely ephemeral-only):
+  - Default (flag unset, current production state): `POST /public/.../bookings` for the projected 2026-08-05 09:00 slot → rejected downstream with `"Online payment is required..."` (Face Pilling requires prepayment, unrelated to this fix) — but confirmed via direct DB query that materialize **did** run before that rejection: **2** `scheduling_periods` + **48** `scheduling_slots` rows created for Karo on 2026-08-05, matching the documented pre-fix behavior exactly (unchanged default).
+  - Set `settings.publicBooking.allowAssignedProviderHourRollForward: false` on the live business → confirmed bookable-dates GET **unaffected** (still ephemeral, e2e-bug.273 behavior intact) → `POST /public/.../bookings` for the projected 2026-08-12 09:00 slot → same downstream payment rejection, but direct DB query confirmed **0** `scheduling_periods` + **0** `scheduling_slots` rows for Karo on 2026-08-12 — materialize was correctly skipped.
+  - Cleanup: deleted the 2 periods + 48 slots materialized during the default-flag test, reverted the business settings flag back to unset, and confirmed `bookable-dates` returned to its exact original ephemeral projection (`2026-08-05, .12, .19, .26`) — fully restored to pre-test state.
+
+No new issues found during this pass.
 
 ## e2e-bug.282 — HY "Ինչու չեմ կարող զանգահարել հաճախորդին" → `summarize_client` (not dashboard handoff) — **Fixed**
 
@@ -6338,17 +6569,29 @@ Provider prompt `"Ինչու չեմ կարող զանգահարել հաճախո
 - Unit: `ai-e2e301-dashboard-handoff-locale.util.spec.ts` + messages + e2e282/handoff — **100** related passed
 - Live: `frontend/scripts/qa-e2e-bug-301.mjs` — **12/12**
 
-**Residuals filed:** **e2e-bug.327** (`explain_reassign_limit` / `explain_time_off_approval` summaries still EN under HY/RU).
+**Residuals filed:** **e2e-bug.327** (Fixed — `explain_reassign_limit` / `explain_time_off_approval` summaries now localize under HY/RU).
 
 ---
 
-## e2e-bug.327 — `explain_reassign_limit` / `explain_time_off_approval` summaries stay English for HY/RU — **Open**
+## e2e-bug.327 — `explain_reassign_limit` / `explain_time_off_approval` summaries stay English for HY/RU — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.301 guru live QA. `explain_dashboard_only_action` now localizes, but dedicated handoffs still use hardcoded EN builders:
 - HY `"Ինչու չեմ կարող վերանշանակել բազմածառայության ամրագրումը"` → `explain_reassign_limit` with EN `"Same-day reassignment uses dedicated mobile API…"`.
 - HY `"Ով է հաստատում իմ արձակուրդը"` → `explain_time_off_approval` with EN `"Your manager approves or denies…"`.
 
-**Fix direction:** localize `buildExplainReassignLimitSummary` / `buildExplainTimeOffApprovalSummary` via the same i18n + locale threading pattern as e2e-bug.301.
+**Root cause:** `buildExplainReassignLimitSummary` / `buildExplainTimeOffApprovalSummary` (`ai-provider-dashboard-handoff.util.ts`) built their sentences with raw JS template literals over the static (English-only) `PROVIDER_EXP_UI_AI_PARITY` row's `dashboardReason` field — no `t()`/locale call anywhere, and the dispatch call sites (`provider-ai-command.service.ts`) invoked them with zero arguments.
+
+**Fix (2026-08-02):**
+- Added `assistant.reassignLimitReason`/`reassignLimitTemplate` and `assistant.timeOffApprovalReason`/`timeOffApprovalTemplate` i18n keys (en/hy/ru) in `messages.ts`, mirroring e2e-bug.301's `dashboardHandoffTemplate` pattern.
+- `buildExplainReassignLimitSummary(locale?, prompt?)` / `buildExplainTimeOffApprovalSummary(locale?, prompt?)` now resolve locale via the existing `resolveDashboardHandoffLocale` (prefers request `locale`, else infers HY/RU from prompt script) and compose the summary via `t(loc, ...)`; dropped the now-redundant `PROVIDER_EXP_UI_AI_PARITY` row lookup (`REASSIGN_LIMIT_ROW_ID`/`TIME_OFF_APPROVAL_ROW_ID`) since the localized reason text is now the single source of truth.
+- `provider-ai-command.service.ts`'s `handleExplainReassignLimit`/`handleExplainTimeOffApproval` now take `(prompt, locale?)` and thread `context?.locale` through, matching `handleExplainDashboardOnlyAction`'s established call shape.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: new `ai-e2e327-reassign-timeoff-locale.util.spec.ts` (11 cases) + full `ai-provider-dashboard-handoff.util.spec.ts` + `messages.spec.ts` — **111** related passed.
+- `tsc --noEmit`: zero new errors.
+- Eval suite: failing-case-ID list byte-identical to the established baseline (pre-existing, unrelated) — zero regression.
+- Live: `frontend/scripts/qa-e2e-bug-327.mjs` (JWT-authed `POST /businesses/:businessId/provider/ai/command`) — **10/10** (EN baseline, HY/RU native-script prompts, HY/RU explicit `context.locale` on the EN canonical prompt, for both `explain_reassign_limit` and `explain_time_off_approval`).
+- No DB writes during live QA (both intents are stateless static explainers) — no cleanup required.
 
 ---
 
@@ -6404,14 +6647,58 @@ Found during guru live QA for **e2e-bug.283** (2026-08-01).
 
 **Residual:** **e2e-bug.328** — `my_stats` summary copy stays English under HY/RU locale.
 
-## e2e-bug.328 — `my_stats` "Your/Team stats…" summaries stay English for HY/RU — **Open**
+## e2e-bug.328 — `my_stats` "Your/Team stats…" summaries stay English for HY/RU — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.303 guru live QA. Scope is now correct (`mine`/`team`), but `formatProviderMyStatsSummary` always emits English:
 - HY `"Ինչպե՞ս եմ այս ամիս"` + `locale:hy` → `"Your stats this month…"`
 - RU `"Как у меня дела этот месяц?"` + `locale:ru` → `"Your stats this month…"`
 - HY `"Թիմի ցուցանիշները այս շաբաթ"` → `"Team stats this week…"`
 
-**Fix direction:** localize `formatProviderMyStatsSummary` (Your/Team stats, period labels, visit/revenue phrasing) via i18n + locale/script threading.
+**Root cause:** `formatProviderMyStatsSummary` (`ai-provider-exp-2.util.ts`) built every fragment (scope label, period label, revenue/utilization/review/tips lines, including English `s`-suffix pluralization) with raw JS template literals — no `t()`/locale call anywhere — and `handleMyStatsLogic` (`ai-provider-exp-2.logic.ts`) never received or threaded a `context`/`locale` argument at all.
+
+**Fix (2026-08-02):**
+- Added `assistant.myStats*` i18n keys (en/hy/ru) in `messages.ts`: scope labels, period labels, and templates for the completed-visits/paid-revenue/utilization/avg-review/tips lines, plus one/few/many noun forms for "visit(s)" and "review(s)".
+- `formatProviderMyStatsSummary(stats, settings, locale?, prompt?)` now resolves locale (prefers request `locale`, else infers HY/RU from prompt script — mirrors e2e-bug.301/327's `resolveDashboardHandoffLocale` pattern) and composes every fragment via `t(loc, ...)`. Added a `pluralNoun` helper implementing correct Russian 1/2-4/5+ noun agreement (Armenian and English only need a one/many split); count-based pluralization behavior for EN is unchanged (verified byte-identical).
+- `handleMyStatsLogic` now accepts a 6th `context?: Record<string, unknown>` param, extracts `context.locale`, and threads `(locale, prompt)` into the summary builder; `dispatchProviderExp2Intent`'s `my_stats` case passes `context` through (it was already threaded to every other exp-2 handler, `my_stats` was the one omission).
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: new `ai-e2e328-my-stats-locale.util.spec.ts` (9 cases incl. EN byte-identical regression guard + singular/plural non-regression) + full `ai-provider-exp-2.util.spec.ts` / `ai-provider-exp-2.logic.spec.ts` / `messages.spec.ts` — **256** related passed.
+- `tsc --noEmit`: zero new errors.
+- Eval suite: failing-case-ID list byte-identical to the established baseline (pre-existing, unrelated) — zero regression.
+- Live: `frontend/scripts/qa-e2e-bug-328.mjs` (JWT-authed `POST /businesses/:businessId/provider/ai/command`) — **7/7** (EN baseline, HY/RU native-script prompts, HY/RU explicit `context.locale` on the EN canonical prompt, for both `mine` and `team` scope).
+- No DB writes during live QA (`my_stats` is a read-only aggregate query) — no cleanup required.
+
+**Residual filed:** **e2e-bug.342** — investigated the pre-existing `ai-provider-exp-2-locale-parity.spec.ts` 42-case failure sweep (confirmed byte-identical before/after this fix via `git stash` isolation, not caused by this change) and root-caused it to a real rescue-pipeline gap affecting `list_team_unpaid_today` / `explain_reviews_inbox` (and structurally the whole exp-2 domain) whenever the upstream classifier returns `action: 'unknown'`.
+
+## e2e-bug.342 — provider exp-2 domain (`list_team_unpaid_today`, `explain_reviews_inbox`, `my_stats`, …) never rescues when classifier action is exactly `'unknown'` — **Open**
+
+**Found 2026-08-02** while investigating a pre-existing, unrelated 42-case failure sweep in `ai-provider-exp-2-locale-parity.spec.ts` during e2e-bug.328 guru QA (confirmed via `git stash` isolation that e2e-bug.328's changes did not cause or touch this — same 42 failures before and after).
+
+All 42 failures are `rescuedAction: expected X, got none` for the HY/RU siblings of ~21 EN golden scenarios split across two intents: `list_team_unpaid_today` (e.g. `unpaid-today-floor-en-hy/ru`, `unpaid-today-hasnt-paid-en-hy/ru`, …) and `explain_reviews_inbox` (e.g. `reviews-inbox-negative-review-en-hy/ru`, `reviews-inbox-five-star-latest-en-hy/ru`, …).
+
+**Root cause:** confirmed by direct unit testing that the underlying detectors are correct and fully HY/RU-aware — `isListTeamUnpaidTodayPrompt('Կա՞ որևէ մեկը հարկում, ով դեռ չի վճարել')` → `true`, `isExplainReviewsInboxPrompt('Ցուցադրիր վատ կարծիքները այս շաբաթ')` → `true`, and `rescueProviderExp2Intent(prompt, 'unknown')` correctly returns `{ action: 'list_team_unpaid_today', ... }` / `{ action: 'explain_reviews_inbox', ... }` for both. The bug is in the pipeline wiring, not the detection logic: `rescueProviderExp2Intent` is only reachable from `AiIntentRescueService.tryRescueProviderExp2` (`ai-intent-rescue.service.ts:3950`), which is only called from `runRescueClassifiedPhase` (`ai-intent-rescue.service.ts:1478`) — and `runIntentRescuePipeline` (`ai-intent-rescue-pipeline.util.ts:127`) only invokes `runRescueClassifiedPhase` when `enrichedInput.action !== 'unknown'`. Neither `runRescueProviderPhase` (runs first, unconditionally) nor `runRescueUnknownPhase` (runs when `action === 'unknown'`) calls `tryRescueProviderExp2`, so whenever the upstream classifier gives up entirely and returns literally `'unknown'` for one of these prompts, the whole exp-2 domain — not just the 2 intents the golden set happens to flag, but structurally `my_stats`, `team_floor_status`, `check_in_client`, `mark_running_late`, `mark_ready_now`, `suggest_cancel_note`, `request_client_review`, `list_reassign_options`, `reassign_booking_same_day`, and `open_dashboard_deep_link` too — has no rescue path at all.
+
+This did **not** block e2e-bug.303/328's live QA for `my_stats`, because the real classifier evidently assigns those well-formed HY/RU prompts a non-`'unknown'` action directly (so `runRescueClassifiedPhase` does run) — the gap only manifests on a genuine total classifier miss, which is exactly what the golden regression harness simulates (`rescueFromAction` defaults to `'unknown'` when unset) and exactly the scenario a live user hits with a phrasing the classifier has never seen.
+
+**Fix direction:** add a `tryRescueProviderExp2`-equivalent call to `runRescueUnknownPhase` (or to `runRescueProviderPhase`, gated on `surface === 'provider'`) in `ai-intent-rescue.service.ts` so the exp-2 domain is reachable on a genuine `'unknown'` classification, not only on a wrong-but-known one. Re-run `ai-provider-exp-2-locale-parity.spec.ts` (currently 42 failing) to confirm the fix; verify no double-rescue conflicts with the existing `runRescueProviderPhase` explainer no-steal guards (e2e-bug.244–247) ahead of it.
+
+---
+
+## e2e-bug.343 — dashboard `create_booking` crashes with an unhandled 500 on MM/DD slash dates where day-of-month > 12 — **Open**
+
+**Found 2026-08-02** while live-verifying **e2e-bug.332**. Reproduced on `gevgas-operations-7c299253` via the dashboard AI command endpoint:
+
+- Prompt `"Book Gevorg Gasparyan for a Deep tissue massage on 08/19/2026 at 09:30 AM"` → `action: "error"`, `summary: "Something went wrong running that command. Please try again or rephrase your request."` (opaque, no useful guidance to the dashboard user).
+- Server log: `RangeError: Invalid time value` at `Date.toISOString()` in `toIsoDay` (`common/utils/date-format.util.ts:160`), called from `CommandCompletionPipelineService.normalizeDateParams` (`command-completion.pipeline.service.ts:165`), called from `AiCommandService.executeSingleIntent`.
+- Same date with an unambiguous ISO or month-name format (`"2026-08-19"` / `"August 19 2026"`) does not crash.
+
+**Root cause**: `parseDateInput`'s slash-date branch (`date-format.util.ts:142-145`) unconditionally treats `NN/NN/YYYY` as **DD/MM/YYYY**: `new Date(`${slash[3]}-${slash[2]}-${slash[1]}T00:00:00.000Z`)`. For `"08/19/2026"` this builds `new Date("2026-19-08T00:00:00.000Z")` — month `"19"` is invalid, producing an `Invalid Date`. Unlike the regex's sibling branches, this early-return path is never validated with `Number.isNaN(d.getTime())` — that check only guards the generic fallback `new Date(value)` at the bottom of the function — so the invalid `Date` object (truthy, since any `Date` instance is truthy even when its internal time is `NaN`) is returned as-is. `toIsoDay`'s `if (!d) return value;` guard doesn't catch it either, so the very next line, `d.toISOString()`, throws — surfacing as an unhandled 500 all the way up through `AiGatewayService`.
+
+This is the same DD/MM-vs-MM/DD ambiguity family as **e2e-bug.285/306/332**, but more severe: those produced a wrong-but-valid slash string, while a day-of-month that's numerically impossible as a month (13-31) here produces an outright crash instead of a graceful validation error.
+
+**Fix direction**: in `parseDateInput`'s slash branch, validate the constructed `Date` with `Number.isNaN(d.getTime())` before returning it (return `null` on failure, matching the fallback branch's contract) — and/or, since the day-of-month value being `> 12` is an unambiguous signal the input is actually MM/DD (impossible as DD/MM), swap the interpretation in that case rather than failing. `toIsoDay` should also defensively guard `Number.isNaN(d.getTime())` (not just `!d`) before calling `.toISOString()`, so any future invalid-Date leak degrades to a clarification message instead of an unhandled crash.
+
+---
 
 ## e2e-bug.284 — "Move …; then book a second …" collapses to `create_booking` only (drops reschedule step) — **Fixed**
 
@@ -6427,7 +6714,7 @@ Found during guru live QA for **e2e-bug.267** (2026-07-31) on salon `gevgas-oper
 **Verification (2026-08-01)** on `gevgas-operations-7c299253`:
 - Unit: `ai-e2e284-reschedule-then-create-booking.util.spec.ts` + e2e267 — **32** passed
 - Live: `frontend/scripts/qa-e2e-bug-284.mjs` — **8/8**
-- Residuals filed: **e2e-bug.304** (Fixed; **329**); **e2e-bug.305** (Fixed)
+- Residuals filed: **e2e-bug.304** (Fixed; **329** Fixed); **e2e-bug.305** (Fixed)
 
 
 ## e2e-bug.304 — compound mid-step clarify discards prior validated plans (reschedule→create) — **Fixed**
@@ -6448,7 +6735,7 @@ Found during guru live QA for **e2e-bug.284** (2026-08-01).
 - Unit: `ai-e2e304-compound-midstep-resume.util.spec.ts` — 12/12
 - Live: `frontend/scripts/qa-e2e-bug-304.mjs` — **6/6** (2026-08-01) on `gevgas-operations-7c299253`
 
-**Residual:** **e2e-bug.329** — resume follow-up with empty prior plans can still skip/fail the reschedule leg / misbind create entities on this salon data.
+**Residual:** **e2e-bug.329** (Fixed) — resume follow-up with empty prior plans can still skip/fail the reschedule leg / misbind create entities on this salon data.
 
 ## e2e-bug.305 — compound clarify top-level `action` is current step, not `compound_intent` — **Fixed**
 
@@ -6463,13 +6750,22 @@ Found during guru live QA for **e2e-bug.284** (2026-08-01).
 - Live: `frontend/scripts/qa-e2e-bug-305.mjs` — **7/7** (2026-08-01) on `gevgas-operations-7c299253` (2 mid-step clarifies observed with `action=compound_intent`, `compoundStep=create_booking`)
 
 No new residuals from this dedicated run (see **e2e-bug.329** from 304).
-## e2e-bug.329 — compound resume follow-up with empty prior plans still skips/fails reschedule leg — **Open**
+## e2e-bug.329 — compound resume follow-up with empty prior plans still skips/fails reschedule leg — **Fixed**
 
 **Found 2026-08-01** during e2e-bug.304 guru live QA on `gevgas-operations-7c299253`.
 
 Clarify now keeps `compoundResumeSubIntents` and `action=compound_intent`, but when `compoundResumePlans` is empty (reschedule validated but no plan built — e.g. no matching Gevorg appointment), follow-up `"Start time: 10:00"` restarts the compound and can still fail without executing a move, e.g. orchestration error booking massage with provider Gevorg (`no schedule on …`) instead of completing reschedule→create for Anna.
 
-**Fix direction**: ensure skipped-but-validated prior mutate steps are re-planned with clearer booking match errors; keep customer/provider params isolated across compound legs on resume.
+**Root cause:** in `CompoundCommandGraphService.processSubIntent` (`compound-command-graph.service.ts`), when `buildPlanFn` returned `null` for a sub-step whose classification/validation had already passed (`handoff.status !== 'clarify'` — the exact "validated but no plan built" state), the code silently pushed the action onto `skippedSteps` and advanced `currentIndex` to the next leg, **without ever building or executing a plan for the failed step**. On a resume with empty prior plans, `currentIndex` restarts at 0 (the reschedule leg), so this meant: reschedule fails to build silently → graph advances straight to the create leg → the create leg executes (or itself fails) with no indication anywhere that the customer's actual "move this booking" instruction was dropped. `skippedSteps` was attached to `result.details` but never surfaced in the user-facing summary.
+
+**Fix (2026-08-02):** added `MUST_NOT_SILENTLY_SKIP_ACTIONS` (`reschedule_booking`, `create_booking`, `book_appointment`, `book_nearest_slot`, `cancel_bookings` — the actions that directly move/create/cancel a customer's actual appointment). When `buildPlanFn` returns `null` for one of these, the compound now stops and returns a clear failure ("I couldn't reschedule the booking — …") instead of silently advancing — mirroring the existing `handoff.status === 'clarify'` branch immediately above it, including reattaching compound-resume state via `attachCompoundResumeToClarifyResult` when `currentIndex > 0` so the user isn't dead-ended if an earlier leg in the same run did succeed. Non-mutating/genuinely-optional actions (e.g. `apply_schedule` with nothing to apply) keep the original silent-skip behavior unchanged.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: new `ai-e2e329-compound-mutate-no-silent-skip.util.spec.ts` (6 cases, directly exercising `CompoundCommandGraphService.run()` with mocked dependencies) + `compound-command-graph.service.spec.ts` / `booking-command-graph.service.spec.ts` / e2e304 / e2e305 — **28** passed. Cases cover: fresh compound stops at the failing reschedule leg (doesn't call `buildPlan` for the create leg); the exact e2e-bug.329 resume-with-empty-plans condition (`resumePlans: [], resumeStepIndex: 0`); resume-state reattachment when an earlier leg already built successfully; non-regression for genuinely-optional skippable actions; non-regression for the fully-successful two-leg happy path.
+- `tsc --noEmit`: zero new errors (pre-existing baseline unchanged).
+- Eval suite: failing-case-ID set byte-identical to the established baseline via exact diff (not just count) — zero regression, verified with extra rigor given this touches the core LangGraph booking-mutation pipeline.
+- Live (`frontend/scripts/qa-e2e-bug-329.mjs`, dashboard-admin, JWT-authed `POST /businesses/:businessId/ai/command`): `"Move QaBug329ReallyDoesNotExist's appointment to Friday 3pm; then book a Swedish massage for QaBug329NoSuchCustomer with Gevorg tomorrow at 10am"` (both customers deliberately nonexistent so the reschedule leg's plan build fails) — now returns `action=reschedule_booking, success=false, "I couldn't reschedule the booking — …"` and creates **zero** bookings. Confirmed this is a genuine behavior change by reverting the fix (`git stash`) and re-running the identical live request: pre-fix, the same prompt silently advanced past the failed reschedule into the create leg's own clarify (`"Service: Could not find service 'QaBug329NoSuchCustomer'"` — the reschedule failure was never surfaced), demonstrating the exact cross-leg silent-skip bug reported.
+- No stray data: the QA script's DB cleanup step confirmed no customer/booking rows leaked from either the fixed or reverted run.
 
 ## e2e-bug.285 — AI success summaries misread DD/MM (`01/08/2026`) as US "January 8" / "March 8" — **Fixed**
 
@@ -6527,17 +6823,35 @@ Prompt `"Create a booking for the first available massage slot on Monday for any
 - **e2e-bug.332** — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (sibling of Fixed **306**)
 - **e2e-bug.333** — short "Create a booking for the first available massage slot" (no any-provider) can still attempt a fixed wall-clock slot vs first-available scan
 
-## e2e-bug.332 — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (e2e-bug.286 residual) — **Open**
+## e2e-bug.332 — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (e2e-bug.286 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.286** (2026-08-01). After correct `create_booking` routing, short first-available miss summary was `"Gevorg Gasparyan is not free at 13:10 on 01/08/2026 for Deep tissue massage."` — ambiguous DD/MM slash (same class as Fixed **e2e-bug.306** / **285**, different message builder).
 
-**Fix direction**: route the provider-not-free / conflict summary date through `formatDateForAiLabel`.
+**Root cause**: `AiBookingCoreService`'s availability-conflict branch built the `describeUnavailable` summary from `formatDateDisplay(isoDay)` (locale-formatted, slash) instead of `formatDateForAiLabel(isoDay)` (unambiguous, e.g. "1 August 2026") — the sibling "No one is available for …" message two lines above it already used the correct helper; this one call site was missed.
 
-## e2e-bug.333 — short first-available "Create a booking…" without any-provider may skip BFA scan (e2e-bug.286 residual) — **Open**
+**Fix (2026-08-02)**: `ai-booking-core.service.ts`'s availability-conflict branch now passes `formatDateForAiLabel(isoDay)` into `BookingSlotResolverService.describeUnavailable(...)`, matching the sibling message and the established `AI_DATE_GROUNDED_BOOKING_ACTIONS` convention.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e332-create-booking-conflict-slash-date.util.spec.ts` — **5/5** (slot_unavailable/no_schedule/service_not_scheduled reasons across 4 dates + exact reported-ticket string reproduction)
+- `npx jest --testPathPatterns='ai-booking-core|booking-slot-resolver|ai-e2e306|ai-e2e285|ai-e2e332'` — **4 suites / 31 tests passed**; `ai-dashboard-create-booking.integration` + `ai-check-and-book.integration` — **67/67**
+- `npx tsc --noEmit` — zero new errors
+- Live: `frontend/scripts/qa-e2e-bug-332.mjs` — **4/4**, stable across 3 runs (real DB-driven conflict reproduction against an existing future booking: `"Gevorg Gasparyan is not free at 09:30 on 18 August 2026 for Deep tissue massage."`, no slash date; sibling "no one available" message regression-checked too)
+
+**Found while verifying**: **e2e-bug.343** — dashboard `create_booking` crashes with an unhandled 500 ("Something went wrong…") when the date is given as MM/DD/YYYY slash with a day-of-month > 12 (e.g. "08/19/2026").
+
+## e2e-bug.333 — short first-available "Create a booking…" without any-provider may skip BFA scan (e2e-bug.286 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.286** (2026-08-01). Canonical `"… on Monday for any provider"` correctly first-available-scans (empty windows OK). Short `"Create a booking for the first available massage slot"` returned a fixed-time conflict (`13:10 on 01/08/2026`) rather than a first-available window scan — `bookingFirstAvailable` may not stick on that phrasing after execute.
 
-**Fix direction**: ensure `enrichBookingTimeHintsFromPrompt` / create_booking execute path sets `bookingFirstAvailable` whenever `first available` + service/slot cues are present (even without `any provider`).
+**Verified already resolved (2026-08-02), no source change needed**: re-tested the exact reported prompt on `gevgas-operations-7c299253` — it no longer produces a fixed-time conflict. `enrichBookingTimeHintsFromPrompt` (`ai-booking-param-hints.util.ts:188`) already correctly sets `params.bookingFirstAvailable = true` for any `create_booking`/`reschedule_booking` prompt matching `isFirstAvailableBookingPrompt`, regardless of whether an "any provider" cue is present — it never fails to "stick". The actual defect was one layer downstream: `AiBookingCoreService.pickCreateBookingFirstAvailable` (`ai-booking-core.service.ts:785`) now explicitly validates its search targets before scanning — when neither a named provider was resolved nor `allProviders` was set, it returns a clear clarification (`'Specify a provider or say "any provider" for first-available booking.'`) instead of falling through to a fixed-wall-clock-time conflict check. This is architecturally the right call for a *mutating* action (creating a real booking) — auto-guessing a provider is riskier than asking — and it fully eliminates the reported misleading-conflict symptom. (A distinct `'No active providers found to search for availability.'` message covers the `allProviders=true` + zero-active-employees case.) It's unclear from history whether this validation was already present when the ticket was filed or landed as a side effect of the `AiBookingCoreService` extraction refactor; either way, current behavior is correct and now has dedicated regression coverage.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e333-first-available-no-provider-clarify.util.spec.ts` — **6/6** (`enrichBookingTimeHintsFromPrompt` sets `bookingFirstAvailable` without ever guessing `allProviders` across 4 phrasings; `pickCreateBookingFirstAvailable`'s two zero-target validation branches return the correct distinct messages, never a fake conflict)
+- `npx jest --testPathPatterns='ai-booking-core|ai-e2e286|ai-dashboard-create-booking.integration|ai-check-and-book.integration|ai-e2e333'` — **88/88**
+- `npx tsc --noEmit` — zero new errors
+- Live: `frontend/scripts/qa-e2e-bug-333.mjs` — **6/6**, stable across 3 runs (original repro, canonical any-provider case, named-provider case, "soonest" synonym, and the `reschedule_booking` sibling path — none produce a fixed-time conflict or a slash date)
+
+**Fix direction** *(superseded — no longer applicable)*: ~~ensure `enrichBookingTimeHintsFromPrompt` / create_booking execute path sets `bookingFirstAvailable` whenever `first available` + service/slot cues are present (even without `any provider`)~~ — confirmed already true; the real gap was the missing search-target validation, which is also already in place.
 
 ## e2e-bug.287 — dashboard check-only `"is anybody open…"` routes to `check_availability` not `check_providers_for_service` — **Fixed**
 
@@ -6611,6 +6925,26 @@ Found during guru live QA for **e2e-bug.311** (2026-08-01) on salon `gevgas-oper
 After empty-summary locale is fixed, HY `"Բացատրի՛ր մեր կլինիկական ծառայությունները"` (and `…և բաժինները`) still routes to `explain_business_hours_and_location` with an English hours summary, while EN `"Explain our clinic services and department counts"` correctly hits `explain_clinic_services`. Fasting/catalog count HY prompts are fine.
 
 **Fix direction**: HY clinic-catalog explain cues (`կլինիկական ծառայություն` / բաժին) must win over business-hours detectors; rescue `explain_clinic_services` for bare բացատր + clinic catalog phrasing.
+
+## e2e-bug.340 — a lone apostrophe-split `"s"` token spuriously pins bare prompts to `"Men's cut"` / `"Women's cut"` — **Open**
+
+**Found 2026-08-02** during e2e-bug.322 live QA on `gevgas-operations-7c299253` (catalog includes `hairstyle`, `Men's cut`, `Women's cut`). `"list style services"` → `list_services` success but pins to a single row, `Men's cut` (`Our Men's cut service types:`), instead of resolving `hairstyle` (which `"show me trim"` / `"show me a trim"` / `"show me cut"` correctly resolve on the same catalog).
+
+**Root cause:** `matchServiceInPrompt`'s "clarify follow-up" fallback (`ai-structural-extractors.ts:688-711`) tokenizes each catalog service name by replacing non-alphanumeric characters — including apostrophes — with spaces before splitting on whitespace. `"Men's cut"` → `"men s cut"` → tokens `["men", "s", "cut"]`, producing a **lone single-character `"s"` token**. The scoring loop treats a prompt token as matching a name token when either `nameToken.includes(promptToken) || promptToken.includes(nameToken)` — so any prompt word that merely *contains the letter "s"* (i.e. almost any plural or "-s"-ending English word) satisfies `promptToken.includes("s")` and counts as a full token match against `"s"`. For `"list style services"`, clarifyTokens = `["list", "style", "services"]` (2–4 tokens, the function's required range) — every one of them contains the letter `"s"`, so all three spuriously "match" the lone `"s"` token from `"Men's cut"`, producing a perfect `score === clarifyTokens.length` and pinning the whole prompt to `Men's cut` even though it shares no real word with the prompt at all. `"Women's cut"` scores identically but loses the `>` tie-break since it's evaluated after `Men's cut` in catalog order. Reproduced 3/3 with a synthetic catalog and confirmed live; `"show me some styles"` and `"what styles are available"` do **not** trigger it (different branch / clarifyTokens shape), so the trigger condition is narrow but real.
+
+**Impact:** any two-to-four-word prompt (almost any short natural sentence, since "is/does/has/services/details/..." type words are common) can silently misresolve to whichever apostrophe-possessive catalog service appears first, on any salon whose catalog has a `"X's ..."`-named service — independent of and unrelated to the trim/cut/massage synonym-group work in e2e-bug.297/298/320/321/322.
+
+**Fix direction:** either (a) drop single-character tokens (length < 2) before scoring in the clarify-follow-up loop, so a bare `"s"` split from an apostrophe can never count as a real token match, or (b) tokenize on `/['’]s\b/` specially (treat the possessive `'s` as part of the preceding word, i.e. `"men's"` → one token, not `"men"` + `"s"`) so catalog names with possessives don't fragment into noise tokens in the first place. Option (b) is more correct (also improves the intended matching for genuine possessive-name prompts) but touches shared tokenization; option (a) is a one-line, lower-risk guard (`nameTokens.filter(t => t.length >= 2)`) that directly closes the observed failure without behavior change for any non-possessive catalog name.
+
+## e2e-bug.341 — `POSITIVE_CUE`'s Armenian "was helpful" alternative has a letter typo, so only the exact canonical phrase resolves — **Open**
+
+**Found 2026-08-02** during e2e-bug.324 live QA on `gevgas-operations-7c299253`. `parseGiveAiFeedbackRating`/`parseGiveAiFeedbackAspect` (`ai-give-ai-feedback.util.ts`) return `undefined`/`'generic'` for any Armenian "this was helpful" phrasing other than the one exact canonical string `"Օգտակար էր"` — e.g. `"Դա օգտակար էր"` (`isGiveAiFeedbackPrompt` itself returns **false**, not just the wrong rating) fails classification entirely at the deterministic-util level. Live, the LLM classifier still routes such paraphrases to `give_ai_feedback` (masking the bug for casual testing), but the summary shown is the generic "say whether it was helpful or what was wrong" clarify text instead of the "thank you" positive-confirmation message — reproduced 2/2 with `"Դա օգտակար էր"` and `"Շատ օգտակար էր"`.
+
+**Root cause:** `POSITIVE_CUE`'s Armenian alternative is written `օգտակար\s+եր` — using the letter **Ե (Yech, U+0565)**, not **Է (Eh, U+0537)**. The real Armenian word for "was" is `էր` (Eh+Ra), so the regex literally cannot match any real occurrence of "օգտակար էր" ("was helpful") — it was presumably typed with a visually-similar wrong letter. The only reason the single canonical phrase `"Օգտակար էր"` still classifies correctly today is `matchMultilingualScenario`'s separate **exact-string** fixture lookup in `GIVE_AI_FEEDBACK_MULTILINGUAL_SCENARIOS`, which is a coincidental fallback used only by `isGiveAiFeedbackPrompt` (the yes/no action-detection gate) — `parseGiveAiFeedbackRating`/`parseGiveAiFeedbackAspect` don't consult that fixture list at all, so even the canonical exact phrase resolves an `undefined` rating when called directly (only the full public-assistant pipeline papers over it, and only for that one exact string).
+
+**Fix direction:** replace `եր` with the correct `էր` in `POSITIVE_CUE`'s Armenian alternative (`String.raw`...օգտակար\s+էր...``). Verify the sibling `NEGATIVE_CUE` fix from e2e-bug.324 (`օգտակար\s+չէ(?:ր)?`) already uses the correct Է letter (it does — confirmed by direct codepoint inspection during this ticket's investigation). Add a regression test asserting `parseGiveAiFeedbackRating('Դա օգտակար էր')` (and other non-canonical positive paraphrases) resolves `'up'`, not `undefined`.
+
+---
 
 ### Cross-cutting verification (applies to every phase)
 
