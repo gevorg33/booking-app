@@ -48,6 +48,7 @@ import {
 } from '../../common/utils/business-compliance.util.js';
 import { readTenantAppInstallSettings } from '../../common/utils/tenant-app-install-settings.util.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
+import { formatDateForAiLabel } from '../ai/ai-date-label.util.js';
 import {
   attachCheckProvidersHandoff,
   buildCheckProvidersHandoffFromResult,
@@ -2942,7 +2943,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         providerLabel,
         daysLabel:
           dayCount === 1
-            ? formatDateDisplay(allDateKeys[0], locale)
+            ? // e2e-bug.345 — no-slot day label: no DD/MM slash (sibling of Fixed 285/306/332).
+              formatDateForAiLabel(allDateKeys[0], locale)
             : String(dayCount),
         maxPrice: params.maxPrice,
       });

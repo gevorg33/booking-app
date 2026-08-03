@@ -314,6 +314,20 @@ export function isSalonOrBusinessAboutPrompt(prompt: string): boolean {
   return false;
 }
 
+/**
+ * e2e-bug.346 — "tell me about"/"learn about" followed by "this/the/your X"
+ * is virtually never a person-name search (you'd say "tell me about Anna",
+ * not "tell me about this Anna") — it's a reference to some other noun
+ * (salon, booking, tour, ...). Generalizes e2e-bug.191's salon/business-only
+ * exclusion so a new noun (e.g. "this booking", "the wine tour" — task #259)
+ * doesn't need its own one-off allowlist entry every time one is reported.
+ */
+function isDeterminerAboutPrompt(prompt: string): boolean {
+  return /\b(?:tell\s+me\s+about|learn(?:\s+more)?\s+about)\s+(?:this|the|your)\s+\S/i.test(
+    prompt,
+  );
+}
+
 function isNonPersonProviderCapture(cleaned: string): boolean {
   if (!cleaned) return true;
   // Any capture that names the venue (not a person) — including long slash forms
@@ -321,7 +335,9 @@ function isNonPersonProviderCapture(cleaned: string): boolean {
   if (/\b(?:salon|business|studio|spa|company|place)\b/i.test(cleaned)) {
     return true;
   }
-  if (/^(?:this|the|your)\b/i.test(cleaned) && /\binfo(?:rmation)?\b/i.test(cleaned)) {
+  // e2e-bug.346 — a capture led by "this/the/your" is a noun reference, not a
+  // person's name, regardless of which noun follows.
+  if (/^(?:this|the|your)\b/i.test(cleaned)) {
     return true;
   }
   return false;
@@ -329,6 +345,7 @@ function isNonPersonProviderCapture(cleaned: string): boolean {
 
 function hasNamedProviderCue(prompt: string): boolean {
   if (isSalonOrBusinessAboutPrompt(prompt)) return false;
+  if (isDeterminerAboutPrompt(prompt)) return false;
   if (/\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(prompt)) {
     return false;
   }

@@ -23,7 +23,13 @@ describe('AiCatalogService (thin wrapper)', () => {
     create: jest.fn(async (_b, dto) => ({ id: 'cat-1', name: dto.name })),
   };
   const serviceService = {
-    findAll: jest.fn().mockResolvedValue([
+    // e2e-bug.347 — return a FRESH array per call, like the real repository.
+    // `handleBulkCreateCatalogLogic` pushes newly-created services onto the
+    // array it gets back from `findAll`; with a single shared `mockResolvedValue`
+    // array that push leaked across handler calls inside one test, so a service
+    // created by an earlier assertion made a later one report "All listed
+    // services already exist in the catalog."
+    findAll: jest.fn(async () => [
       {
         id: 's1',
         name: 'Massage',

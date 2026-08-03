@@ -109,7 +109,9 @@ export function isExplainHomeScreenWidgetPrompt(prompt: string): boolean {
   if (
     (containsArmenianScript(text) &&
       /(վիջեթ|հիմնական\s+էկրան)/i.test(text) &&
-      /(ավելացնել|ցույց|կրկին)/i.test(text)) ||
+      // e2e-bug.339 — ինչպես (how) covers "how does it work" phrasing,
+      // mirroring EN's /\bhow\b/ + /\bwidget\b/ fallback and RU's "работа".
+      /(ավելացնել|ցույց|կրկին|ինչպես)/i.test(text)) ||
     (containsCyrillicScript(text) &&
       /(виджет|главн)/i.test(text) &&
       /(добав|показыва|запис|работа)/i.test(text))

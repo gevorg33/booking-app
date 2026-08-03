@@ -47,6 +47,14 @@ const PROVIDER_NAME_BLOCKLIST = new Set([
   'their',
   'available',
   'availability',
+  // e2e-bug.334 — indefinite pronouns are never a real provider name
+  // ("is anyone free…" must not be looked up as employee "anyone").
+  'anyone',
+  'anybody',
+  'someone',
+  'somebody',
+  'everyone',
+  'everybody',
 ]);
 
 /** First + optional last name — e2e-bug.93 full-name roster asks. */
@@ -184,9 +192,11 @@ export function isExplainProviderAvailabilityPrompt(prompt: string): boolean {
   if (RANK_BLOCK.test(prompt)) return false;
   if (SPECIALTY_READ_BLOCK.test(prompt)) return false;
 
-  const namedSchedule = NAMED_SCHEDULE_PATTERNS.some((pattern) =>
-    pattern.test(prompt),
-  );
+  // e2e-bug.334 — must respect PROVIDER_NAME_BLOCKLIST (raw pattern.test()
+  // ignored it, so "is anyone free…" matched syntactically even though the
+  // captured "anyone" was never a real provider name).
+  const namedSchedule =
+    extractProviderNameForAvailabilityPrompt(prompt) !== null;
   const teamOpenings = TEAM_OPENINGS_PATTERNS.some((pattern) =>
     pattern.test(prompt),
   );

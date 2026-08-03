@@ -103,7 +103,10 @@ export type GiveAiFeedbackIntent = (typeof GIVE_AI_FEEDBACK_INTENTS)[number];
 // (same hardening as provider e2e-bug.243).
 // e2e-bug.293 — UI chip labels "Thumbs up" / "Thumbs down" (+ emoji).
 const POSITIVE_CUE = new RegExp(
-  String.raw`\b(that\s+was\s+helpful|(?<!\bnot\s)helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped|thumbs?\s*-?\s*up)\b|👍|օգտակար\s+եր|(?<!\bне\s)полезно|спасибо.{0,12}помог`,
+  // e2e-bug.341 — the Armenian alternative must use Է (Eh, U+0537), not the
+  // visually-similar Ե (Yech, U+0565); "էր" is the real word for "was", so
+  // the typo'd "եր" never matched any real occurrence of "օգտակար էր".
+  String.raw`\b(that\s+was\s+helpful|(?<!\bnot\s)helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped|thumbs?\s*-?\s*up)\b|👍|օգտակար\s+էր|(?<!\bне\s)полезно|спасибо.{0,12}помог`,
   'iu',
 );
 

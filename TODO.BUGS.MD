@@ -4,9 +4,9 @@ All unique `(e2e|api)-bug.N` IDs mentioned in [`TODO.md`](./TODO.md), tagged **O
 
 | | Count |
 |---|---:|
-| Total unique IDs | 256 |
-| **Open** | 107 |
-| **Fixed** | 149 |
+| Total unique IDs | 270 |
+| **Open** | 2 |
+| **Fixed** | 268 |
 | With dedicated `##` write-up | 154 |
 | Mention-only (no `##` section) | 86 |
 
@@ -15,9 +15,11 @@ All unique `(e2e|api)-bug.N` IDs mentioned in [`TODO.md`](./TODO.md), tagged **O
 1. Dedicated `##` section with **Fix direction** → **Open**
 2. Dedicated `##` section with completed Fix/Verification → **Fixed**
 3. Prose/checklist clearly says Fixed / RESOLVED → **Fixed**
-4. Otherwise → **Open** (conservative; includes unclear mention-only IDs)
+4. Otherwise → actually read the mention(s) in TODO.md before tagging. Do NOT default to Open — a bug with no dedicated `##` header very often still has an inline **Fixed:** write-up plus a later "re-verification ... confirmed genuinely fixed" pass; only tag Open if the prose itself says so (no fix language, or explicit "not fixed here" / "filed, not investigated" / "still open").
 
-_(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verify before closing.
+_(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading — says nothing about fixed/open status by itself, just that there's no dedicated header. Always read the actual mention before tagging.
+
+**2026-08-03 correction**: rule 4 previously read "Otherwise → Open (conservative; includes unclear mention-only IDs)" — this silently defaulted every mention-only bug to Open without ever checking its actual prose for a **Fixed:** write-up. Audited all 51 mention-only bugs this had mistagged (e2e-bug.101–163, .166, .167, .172, .174, .178, .186, .205, .206); every single one was already genuinely Fixed in TODO.md (root cause + fix + a later "Conclusion: ... genuinely fixed" re-verification pass) and had been Open in this file for no reason other than the flawed default. All 51 corrected to Fixed here; rule 4 rewritten above so this doesn't recur.
 
 ---
 
@@ -57,7 +59,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.331` **[Fixed]** — page-help on `/book/services`|`/book/checkout` misroutes away from screen playbook (e2e-bug.316 residual); root cause: public web assistant runs through the 'customer' AI pipeline, whose route mapper collapsed `/book/...` into the native-app booking bucket; live `qa-e2e-bug-331.mjs` 7/7 (2026-08-02) — [`TODO.md` e2e-bug.331](./TODO.md#e2e-bug331--page-help-on-bookservicesbookcheckout-misroutes-away-from-screen-playbook-e2e-bug316-residual--fixed)
 - [x] `e2e-bug.295` **[Fixed]** — add-next-home-screen → `explain_home_screen_widget` (classified adoption + detector guards); live `qa-e2e-bug-295.mjs` 14/14 (2026-08-01) — residual **e2e-bug.317** — [`TODO.md` e2e-bug.295](./TODO.md#e2e-bug295--publiccustomer-add-next-appointment-to-home-screen-stolen-by-list_my_upcoming_appointments--fixed)
 - [x] `e2e-bug.317` **[Fixed]** — explain_home_screen_widget success copy localized (27 keys, 6 builders) + skip LLM enrich; live HY/RU/EN 3x-identical 2026-08-02 — residual **e2e-bug.339** — [`TODO.md` e2e-bug.317](./TODO.md#e2e-bug317--explain_home_screen_widget-success-summaries-stay-english-under-hyru-e2e-bug295-residual--fixed)
-- [ ] `e2e-bug.339` **[Open]** — HY "how does the widget work" misroutes to booking_help (e2e-bug.317 residual) — [`TODO.md` e2e-bug.339](./TODO.md#e2e-bug339--hy-ինչպես-է-աշխատում-հիմնական-էկրանի-վիջեթը-misroutes-to-booking_help--open)
+- [x] `e2e-bug.339` **[Fixed]** — HY "how does the widget work" now routes to explain_home_screen_widget; live `qa-e2e-bug-339.mjs` 6/6 (2026-08-03) — [`TODO.md` e2e-bug.339](./TODO.md#e2e-bug339--hy-ինչպես-է-աշխատում-հիմնական-էկրանի-վիջեթը-misroutes-to-booking_help--fixed)
 - [x] `e2e-bug.260` **[Fixed]** — `recommend_specialists` trailing time window stripped from serviceName; live `qa-e2e-bug-260.mjs` 11/11 (2026-07-31) — residuals **e2e-bug.278** (Fixed), **e2e-bug.279** (Fixed), **e2e-bug.296** (Fixed; **318**/ **319**), **e2e-bug.297** (Fixed; **320**/ **321**), **e2e-bug.298** (Fixed; **322**/ **323**) — [`TODO.md` e2e-bug.260](./TODO.md#e2e-bug260--recommend_specialists-treats-trailing-time-window-as-service-name--fixed)
 - [x] `e2e-bug.278` **[Fixed]** — recommend + day-part stays on `recommend_specialists`; live `qa-e2e-bug-278.mjs` 12/12 (2026-08-01) — residual **e2e-bug.296** (Fixed; **318**/ **319**) — [`TODO.md` e2e-bug.278](./TODO.md#e2e-bug278--recommend--day-part-misroutes-to-availability-intents--fixed)
 - [x] `e2e-bug.296` **[Fixed]** — recommend someone + tonight/this evening keeps same-day window (TZ normalize + day-part prompt + dateless windows); live `qa-e2e-bug-296.mjs` 16/16 (2026-08-01) — residuals **e2e-bug.318**, **e2e-bug.319** — [`TODO.md` e2e-bug.296](./TODO.md#e2e-bug296--recommend-someone--tonightthis-evening-drops-day-part-filter-14-day-fallback--fixed)
@@ -70,7 +72,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.298` **[Fixed]** — bare `trim`/`styling` → hairstyle via haircut synonym group; live `qa-e2e-bug-298.mjs` 12/12 (2026-08-01) — residuals **e2e-bug.322**, **e2e-bug.323** — [`TODO.md` e2e-bug.298](./TODO.md#e2e-bug298--bare-trim-still-misses-hairstyle-catalog-synonym--fixed)
 - [x] `e2e-bug.322` **[Fixed]** — `list trim services` header now normalizes to "Our haircut service types" (2026-08-02) — residual **e2e-bug.340** — [`TODO.md` e2e-bug.322](./TODO.md#e2e-bug322--list-trim-services-header-stays-our-trim-service-types--fixed)
 - [x] `e2e-bug.323` **[Fixed]** — bare "a cut" now correctly prefers Men's/Women's cut over hairstyle (fixed both the rank-extraction alias table and the live family-browse path); live confirmed 2026-08-02 — [`TODO.md` e2e-bug.323](./TODO.md#e2e-bug323--bare-a-cut-recommends-hairstyle-over-menswomens-cut--fixed)
-- [ ] `e2e-bug.340` **[Open]** — lone apostrophe-split "s" token spuriously pins bare prompts (e.g. `list style services`) to `Men's cut`/`Women's cut` (e2e-bug.322 residual) — [`TODO.md` e2e-bug.340](./TODO.md#e2e-bug340--a-lone-apostrophe-split-s-token-spuriously-pins-bare-prompts-to-mens-cut--womens-cut--open)
+- [x] `e2e-bug.340` **[Fixed]** — lone apostrophe-split "s" token no longer spuriously pins bare prompts to `Men's cut`/`Women's cut`; live `qa-e2e-bug-340.mjs` 6/6 (2026-08-03) — [`TODO.md` e2e-bug.340](./TODO.md#e2e-bug340--a-lone-apostrophe-split-s-token-spuriously-pins-bare-prompts-to-mens-cut--womens-cut--fixed)
 - [x] `e2e-bug.261` **[Fixed]** — public `/assistant` accepted forged `context.customerId` (dto.context overwrote JWT); inbound sanitize + auth-last merge; live covered in `qa-e2e-bug-96.mjs` — [`TODO.md` e2e-bug.261](./TODO.md#e2e-bug261--forged-contextcustomerid-bypassed-confirm_my_booking_details-idor-guard--fixed)
 - [x] `e2e-bug.262` **[Fixed]** — public slots omit employee-overlap-blocked startTimes via `validateBookingWindow` overlap gate; live `qa-e2e-bug-262.mjs` 7/7 (2026-07-31) — [`TODO.md` e2e-bug.262](./TODO.md#e2e-bug262--public-slots-list-times-already-blocked-by-employee-booking-overlap--fixed)
 - [x] `e2e-bug.263` **[Fixed]** — visit-status aliases clarify on multi-match (no day-wide bulk); live `qa-e2e-bug-263.mjs` 9/9 (2026-07-31) — [`TODO.md` e2e-bug.263](./TODO.md#e2e-bug263--provider-mark_visit_in_progress--mark_visit_complete-without-bookingid-or-customername-bulk-mutates-every-matching-day-appointment--fixed)
@@ -81,7 +83,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.293` **[Fixed]** — `"Thumbs up"` / `"Thumbs down"` / emoji rate correctly; live `qa-e2e-bug-293.mjs` 18/18 (2026-08-01) — residual **e2e-bug.300** (Fixed) — [`TODO.md` e2e-bug.293](./TODO.md#e2e-bug293--public-thumbs-up--thumbs-down--give_ai_feedback-clarify-without-rating--fixed)
 - [x] `e2e-bug.299` **[Fixed]** — public `give_ai_feedback` chip/summary labels localize under `locale:hy|ru`; live `qa-e2e-bug-299.mjs` 22/22 (2026-08-01) — residuals **e2e-bug.324**, **e2e-bug.325** — [`TODO.md` e2e-bug.299](./TODO.md#e2e-bug299--public-give-ai-feedback-chipsummary-labels-stay-english-under-localehyru--fixed)
 - [x] `e2e-bug.324` **[Fixed]** — HY native `"Օգտակար չէ"` (+ past `"չէր"`) now rescues to `give_ai_feedback`; live confirmed 2026-08-02 — residual **e2e-bug.341** — [`TODO.md` e2e-bug.324](./TODO.md#e2e-bug324--hy-native-օգտակար-չէ-stays-unknown-not-give_ai_feedback--fixed)
-- [ ] `e2e-bug.341` **[Open]** — `POSITIVE_CUE`'s Armenian "was helpful" alternative has a letter typo (Ե vs Է), only the exact canonical phrase resolves (e2e-bug.324 residual) — [`TODO.md` e2e-bug.341](./TODO.md#e2e-bug341--positive_cues-armenian-was-helpful-alternative-has-a-letter-typo-so-only-the-exact-canonical-phrase-resolves--open)
+- [x] `e2e-bug.341` **[Fixed]** — `POSITIVE_CUE`'s Armenian "was helpful" letter typo (Ե→Է) fixed; live `qa-e2e-bug-341.mjs` 5/5 (2026-08-03) — [`TODO.md` e2e-bug.341](./TODO.md#e2e-bug341--positive_cues-armenian-was-helpful-alternative-has-a-letter-typo-so-only-the-exact-canonical-phrase-resolves--fixed)
 - [x] `e2e-bug.325` **[Fixed]** — provider `give_provider_ai_feedback` chip/summary labels now localize under `locale:hy|ru`; live confirmed 2026-08-02 — [`TODO.md` e2e-bug.325](./TODO.md#e2e-bug325--provider-give_provider_ai_feedback-chipsummary-labels-stay-english-under-localehyru--fixed)
 - [x] `e2e-bug.300` **[Fixed]** — public `+1` / `-1` rate as `give_ai_feedback`; live `qa-e2e-bug-300.mjs` 20/20 (2026-08-01) — residual **e2e-bug.326 (Fixed)** — [`TODO.md` e2e-bug.300](./TODO.md#e2e-bug300--public-1--1-stay-unknown-not-thumbs-feedback--fixed)
 - [x] `e2e-bug.326` **[Fixed]** — public `"+1 thanks"` / `"thanks +1"` stay `unknown` (e2e-bug.300 residual); live `qa-e2e-bug-326.mjs` 17/17 (2026-08-02) — [`TODO.md` e2e-bug.326](./TODO.md#e2e-bug326--public-1-thanks--thanks-1-stay-unknown--fixed)
@@ -93,7 +95,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.302` **[Fixed]** — HY/RU Home|Today tab → `provider-today-calendar` + localized miss clarify; live `qa-e2e-bug-302.mjs` 10/10 (2026-08-01) — [`TODO.md` e2e-bug.302](./TODO.md#e2e-bug302--hy-ինչպե՞ս-օգտագործեմ-home-tab-ը--guide_user_flow-but-topic-miss--en-fallback--fixed)
 - [x] `e2e-bug.303` **[Fixed]** — first-person how-am-I → Your/mine (beats classifier team); live `qa-e2e-bug-303.mjs` 12/12 (2026-08-01) — residual **e2e-bug.328 (Fixed; residual 342)** — [`TODO.md` e2e-bug.303](./TODO.md#e2e-bug303--provider-how-am-i--my_stats-sometimes-returns-team-stats-instead-of-your-stats--fixed)
 - [x] `e2e-bug.328` **[Fixed]** — `my_stats` Your/Team stats summaries localize HY/RU (e2e-bug.303 residual); live `qa-e2e-bug-328.mjs` 7/7 (2026-08-02) — residual **e2e-bug.342** — [`TODO.md` e2e-bug.328](./TODO.md#e2e-bug328--my_stats-yourteam-stats-summaries-stay-english-for-hyru--fixed)
-- [ ] `e2e-bug.342` **[Open]** — provider exp-2 domain (list_team_unpaid_today, explain_reviews_inbox, my_stats, …) never rescues when classifier action is exactly `unknown` (e2e-bug.328 residual) — [`TODO.md` e2e-bug.342](./TODO.md#e2e-bug342--provider-exp-2-domain-list_team_unpaid_today-explain_reviews_inbox-my_stats--never-rescues-when-classifier-action-is-exactly-unknown--open)
+- [x] `e2e-bug.342` **[Fixed]** — `list_team_unpaid_today`/`explain_reviews_inbox` were missing from the command registry (not a pipeline gap); live `qa-e2e-bug-342.mjs` 5/5 (2026-08-03) — [`TODO.md` e2e-bug.342](./TODO.md#e2e-bug342--provider-exp-2-domain-list_team_unpaid_today-explain_reviews_inbox-my_stats--never-rescues-when-classifier-action-is-exactly-unknown--fixed)
 - [x] `e2e-bug.267` **[Fixed]** — semicolon / then-put-it move+nearest stays single `reschedule_booking` (`isSingleRescheduleNearestContinuationPrompt`); live `qa-e2e-bug-267.mjs` 10/10 (2026-07-31) — residual **e2e-bug.284** (Fixed; **304**/ **305**) — [`TODO.md` e2e-bug.267](./TODO.md#e2e-bug267--semicolon-move--put-it--nearest-free-time-decomposes-to-compound-instead-of-single-reschedule_booking--fixed)
 - [x] `e2e-bug.284` **[Fixed]** — move+then-book → `reschedule_booking`→`create_booking` golden; live `qa-e2e-bug-284.mjs` 8/8 (2026-08-01) — residuals **e2e-bug.304** (Fixed; **329** Fixed), **e2e-bug.305** (Fixed) — [`TODO.md` e2e-bug.284](./TODO.md#e2e-bug284--move--then-book-a-second--collapses-to-create_booking-only-drops-reschedule-step--fixed)
 - [x] `e2e-bug.304` **[Fixed]** — mid-step clarify keeps compound resume + `action=compound_intent`; live `qa-e2e-bug-304.mjs` 6/6 (2026-08-01) — residual **e2e-bug.329 (Fixed)** — [`TODO.md` e2e-bug.304](./TODO.md#e2e-bug304--compound-mid-step-clarify-discards-prior-validated-plans-reschedulecreate--fixed)
@@ -104,28 +106,34 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.306` **[Fixed]** — no-slot / availability failure dates use `formatDateForAiLabel`; live `qa-e2e-bug-306.mjs` 8/8 (2026-08-01) — [`TODO.md` e2e-bug.306](./TODO.md#e2e-bug306--nearest-slot--reschedule-no-open-slot-messages-still-use-ddmm-slash-02082026--fixed)
 - [x] `e2e-bug.286` **[Fixed]** — "Create a booking for the first available…" stays `create_booking` (not `create_employee`); live `qa-e2e-bug-286.mjs` 15/15 (2026-08-01) — residuals **e2e-bug.332 (Fixed)**, **e2e-bug.333 (Fixed)** — [`TODO.md` e2e-bug.286](./TODO.md#e2e-bug286--create-a-booking-for-the-first-available-stolen-by-create_employee--fixed)
 - [x] `e2e-bug.332` **[Fixed]** — create_booking "is not free at … on DD/MM/YYYY" still uses slash dates (e2e-bug.286 residual); missed `formatDateForAiLabel` call site, sibling of Fixed 306; live `qa-e2e-bug-332.mjs` 4/4 (2026-08-02) — found **e2e-bug.343** — [`TODO.md` e2e-bug.332](./TODO.md#e2e-bug332--create_booking-is-not-free-at--on-ddmmyyyy-still-uses-slash-dates-e2e-bug286-residual--fixed)
-- [ ] `e2e-bug.343` **[Open]** — dashboard create_booking crashes with unhandled 500 on MM/DD slash dates where day > 12 (RangeError: Invalid time value) — [`TODO.md` e2e-bug.343](./TODO.md#e2e-bug343--dashboard-create_booking-crashes-with-an-unhandled-500-on-mmdd-slash-dates-where-day-of-month--12--open)
+- [x] `e2e-bug.343` **[Fixed]** — dashboard create_booking no longer crashes on MM/DD slash dates where day > 12; graceful clarification instead; live `qa-e2e-bug-343.mjs` 4/4 (2026-08-03) — [`TODO.md` e2e-bug.343](./TODO.md#e2e-bug343--dashboard-create_booking-crashes-with-an-unhandled-500-on-mmdd-slash-dates-where-day-of-month--12--fixed)
 - [x] `e2e-bug.333` **[Fixed]** — short first-available "Create a booking…" without any-provider may skip BFA scan (e2e-bug.286 residual); verified already resolved by existing `pickCreateBookingFirstAvailable` search-target validation, no source change needed; live `qa-e2e-bug-333.mjs` 6/6 (2026-08-02) — [`TODO.md` e2e-bug.333](./TODO.md#e2e-bug333--short-first-available-create-a-booking-without-any-provider-may-skip-bfa-scan-e2e-bug286-residual--fixed)
 - [x] `e2e-bug.269` **[Fixed]** — anybody-open-schedule check+book detection restored (indefinite exclusion); live `qa-e2e-bug-269.mjs` 11/11 (2026-07-31) — residual **e2e-bug.287** (Fixed; **307**) — [`TODO.md` e2e-bug.269](./TODO.md#e2e-bug269--checkbook-fixture-anybody-open-schedule-no-longer-matches-ischeckprovidersforserviceprompt--fixed)
 - [x] `e2e-bug.287` **[Fixed]** — dashboard check-only anybody-open → `check_providers_for_service` (registry + rescue order); live `qa-e2e-bug-287.mjs` 18/18 (2026-08-01) — residual **e2e-bug.307** (Fixed; **334**/ **335**) — [`TODO.md` e2e-bug.287](./TODO.md#e2e-bug287--dashboard-check-only-is-anybody-open-routes-to-check_availability-not-check_providers_for_service--fixed)
-- [x] `e2e-bug.307` **[Fixed]** — public `"is anybody open…"` stays availability (not `add_booking_to_calendar`); live `qa-e2e-bug-307.mjs` 17/17 (2026-08-01) — residuals **e2e-bug.334**, **e2e-bug.335** — [`TODO.md` e2e-bug.307](./TODO.md#e2e-bug307--public-is-anybody-open-stolen-by-add_booking_to_calendar--fixed)
-- [ ] `e2e-bug.334` **[Open]** — public `"is anyone free…"` → `explain_provider_availability` looks up specialist `"anyone"` (e2e-bug.307 residual) — [`TODO.md` e2e-bug.334](./TODO.md#e2e-bug334--public-is-anyone-free-stolen-by-explain_provider_availability-e2e-bug307-residual--open)
-- [ ] `e2e-bug.335` **[Open]** — public `"is anybody open…"` returns `check_providers_for_service` not `check_availability` (e2e-bug.307 residual) — [`TODO.md` e2e-bug.335](./TODO.md#e2e-bug335--public-is-anybody-open-returns-check_providers_for_service-not-check_availability-e2e-bug307-residual--open)
+- [x] `e2e-bug.307` **[Fixed]** — public `"is anybody open…"` stays availability (not `add_booking_to_calendar`); live `qa-e2e-bug-307.mjs` 17/17 (2026-08-01) — residuals **e2e-bug.334 (Fixed)**, **e2e-bug.335 (Fixed)** — [`TODO.md` e2e-bug.307](./TODO.md#e2e-bug307--public-is-anybody-open-stolen-by-add_booking_to_calendar--fixed)
+- [x] `e2e-bug.334` **[Fixed]** — public `"is anyone free…"` → `explain_provider_availability` looks up specialist `"anyone"` (e2e-bug.307 residual); indefinite-pronoun blocklist + namedSchedule gate + check_providers pronoun set all widened; live `qa-e2e-bug-334.mjs` 6/6 (2026-08-02) — found **e2e-bug.344** — [`TODO.md` e2e-bug.334](./TODO.md#e2e-bug334--public-is-anyone-free-stolen-by-explain_provider_availability-e2e-bug307-residual--fixed)
+- [x] `e2e-bug.344` **[Fixed]** — public `"is someone/everyone free… this <period>… for <service>"` misroutes to `confirm_my_booking_details` (BOOKING_CONTEXT regex false-positive, e2e-bug.334 residual); `this` restricted to booking-container nouns only; live `qa-e2e-bug-344.mjs` 5/5 (2026-08-03) — found **e2e-bug.346** — [`TODO.md` e2e-bug.344](./TODO.md#e2e-bug344--public-is-someoneeveryone-free-for-service-misroutes-to-confirm_my_booking_details-when-combined-with-a-bare-this-period-e2e-bug334-residual--fixed)
+- [x] `e2e-bug.335` **[Fixed]** — public `"is anybody open…"` returns `check_providers_for_service` not `check_availability` (e2e-bug.307 residual); verified already correct (customer-gateway anti-regression guard from e2e-bug.190/92 makes the e287 "public alias" unreachable in production, same class as e2e-bug.331/334) — live `qa-e2e-bug-335.mjs` 6/6 (2026-08-02) — found **e2e-bug.345** — [`TODO.md` e2e-bug.335](./TODO.md#e2e-bug335--public-is-anybody-open-returns-check_providers_for_service-not-check_availability-e2e-bug307-residual--fixed)
+- [x] `e2e-bug.345` **[Fixed]** — public `check_availability` no-slots summary still uses DD/MM slash dates (e2e-bug.335 residual); missed `formatDateForAiLabel` call site shared by any-specialist/named-provider variants, sibling of Fixed 285/306/332; live `qa-e2e-bug-345.mjs` 4/4 (2026-08-02) — [`TODO.md` e2e-bug.345](./TODO.md#e2e-bug345--public-check_availability-no-slots-summary-still-uses-ddmm-slash-dates-e2e-bug335-residual--fixed)
+- [x] `e2e-bug.347` **[Fixed]** — dashboard "create a category **with** these services" created the category but silently dropped every service; 5 root causes in the catalog parsing/decomposition layer (rigid `SERVICE_LINE`, `{1,40}?` blocking single-letter categories, preamble/clause bleed, `;` over-splitting, terminal `categoryName` branch); live `qa-e2e-bug-347.mjs` — multi-category case fully fixed (2026-08-03) — residuals **e2e-bug.348**, **e2e-bug.349** — [`TODO.md` e2e-bug.347](./TODO.md#e2e-bug347--dashboard-create-a-category-with-these-services-creates-the-category-but-silently-drops-every-service--fixed)
+- [ ] `e2e-bug.348` **[Open]** — Case-1 residual of e2e-bug.347: the LLM's own `compoundSteps` route "category + services" to `create_services`, so services are created with `category_id = NULL` while the summary falsely claims the category was created — [`TODO.md` e2e-bug.348](./TODO.md#e2e-bug348--case-1-residual-the-llms-own-compound-decomposition-routes-category--services-to-create_services-losing-the-category-link--open)
+- [ ] `e2e-bug.349` **[Open]** — dashboard `"Create categories Y and Z. Under Y add …"` stolen by the customer-surface `add_services_to_cart` (cross-surface leak, e2e-bug.131 family) + no sentence-level decomposition and no plural `categories` cue — [`TODO.md` e2e-bug.349](./TODO.md#e2e-bug349--dashboard-create-categories-y-and-z-under-y-add--is-stolen-by-the-customer-surface-add_services_to_cart--open)
+- [x] `e2e-bug.346` **[Fixed]** — public `"Tell me about this booking"` misroutes to `explain_provider_specialty` (same "tell me about X" over-capture family as e2e-bug.191 / task #259); general "this/the/your + noun" determiner fix, also resolves task #259's "wine tour" case as a side effect; live `qa-e2e-bug-346.mjs` 7/7 (2026-08-03) — [`TODO.md` e2e-bug.346](./TODO.md#e2e-bug346--public-tell-me-about-this-booking-misroutes-to-explain_provider_specialty-same-over-capture-family-as-e2e-bug191--task-259--fixed)
 - [x] `e2e-bug.270` **[Fixed]** — `list_tour_calendar_week` no longer crashes on week-phrase `weekStartDate` (ISO normalize + buildWeekDateKeys fallback); live `qa-e2e-bug-270.mjs` 17/17 (2026-07-31) — residuals **e2e-bug.288** (Fixed; **308** Fixed), **e2e-bug.289** (Fixed; **309**/ **310**) — [`TODO.md` e2e-bug.270](./TODO.md#e2e-bug270--list_tour_calendar_week-crashes-with-invalid-time-value-on-some-week-phrasing-variants--fixed)
 - [x] `e2e-bug.288` **[Fixed]** — next/last week tour lists → `list_tour_calendar_week` (not upcoming clarify); live `qa-e2e-bug-288.mjs` 17/17 (2026-08-01) — residual **e2e-bug.308** (Fixed) — [`TODO.md` e2e-bug.288](./TODO.md#e2e-bug288--any-tours-next-week--tour-bookings-last-week-misroute-to-list_upcoming_tour_departures-clarify--fixed)
 - [x] `e2e-bug.308` **[Fixed]** — tour calendar week empty summaries use `formatDateForAiLabel` (no DD/MM slash); live covered in `qa-e2e-bug-289.mjs` (2026-08-01) — [`TODO.md` e2e-bug.308](./TODO.md#e2e-bug308--list_tour_calendar_week-empty-summaries-use-ddmm-slash-for-thislast-week--fixed)
 - [x] `e2e-bug.289` **[Fixed]** — HY/RU `list_tour_calendar_week` summaries localized + skip enrich; live `qa-e2e-bug-289.mjs` 16/16 (2026-08-01) — residuals **e2e-bug.309** (Fixed; **336**), **e2e-bug.310** (Fixed) — [`TODO.md` e2e-bug.289](./TODO.md#e2e-bug289--hy-list_tour_calendar_week-success-summary-stays-english--fixed)
-- [x] `e2e-bug.309` **[Fixed]** — RU next/last-week calendar tours → `list_tour_calendar_week` (not upcoming clarify; span exclusion + week anchors); live `qa-e2e-bug-309.mjs` 19/19 (2026-08-01) — residual **e2e-bug.336** — [`TODO.md` e2e-bug.309](./TODO.md#e2e-bug309--ru-туры-на-следующей-неделе-в-календаре-misroutes-to-upcoming-departures-clarify--fixed)
+- [x] `e2e-bug.309` **[Fixed]** — RU next/last-week calendar tours → `list_tour_calendar_week` (not upcoming clarify; span exclusion + week anchors); live `qa-e2e-bug-309.mjs` 19/19 (2026-08-01) — residual **e2e-bug.336 (Fixed)** — [`TODO.md` e2e-bug.309](./TODO.md#e2e-bug309--ru-туры-на-следующей-неделе-в-календаре-misroutes-to-upcoming-departures-clarify--fixed)
 - [x] `e2e-bug.310` **[Fixed]** — HY անցած/նախորդ/անցյալ/վերջին շաբաթ last-week anchors deterministic; live `qa-e2e-bug-310.mjs` 18/18 (2026-08-01) — [`TODO.md` e2e-bug.310](./TODO.md#e2e-bug310--hy-անցած-շաբաթվա-էքսկուրսիաները-flaky-week-anchor-this-week-vs-last-week--fixed)
-- [ ] `e2e-bug.336` **[Open]** — `explain_tour_calendar_span` empty summaries still use DD/MM slash dates (e2e-bug.309 residual) — [`TODO.md` e2e-bug.336](./TODO.md#e2e-bug336--explain_tour_calendar_span-empty-summaries-still-use-ddmm-slash-dates-e2e-bug309-residual--open)
+- [x] `e2e-bug.336` **[Fixed]** — `explain_tour_calendar_span` empty summaries still use DD/MM slash dates (e2e-bug.309 residual); added `resolveExplainTourCalendarSpanLocale` + `formatDateForAiLabel` threading (mirrors e2e-bug.308/289); live `qa-e2e-bug-336.mjs` 6/6 (2026-08-02) — [`TODO.md` e2e-bug.336](./TODO.md#e2e-bug336--explain_tour_calendar_span-empty-summaries-still-use-ddmm-slash-dates-e2e-bug309-residual--fixed)
 - [x] `e2e-bug.271` **[Fixed]** — voice `named X … please` keeps full `categoryName` (prompt reconcile + politeness strip); live `qa-e2e-bug-271.mjs` 14/14 (2026-07-31) — residuals **e2e-bug.290** (Fixed), **e2e-bug.291** (Fixed; **311**), **e2e-bug.292** (Fixed; **312**) — [`TODO.md` e2e-bug.271](./TODO.md#e2e-bug271--create_service_category-voice-phrasing-drops-trailing-name-tokens-before-please--fixed)
 - [x] `e2e-bug.290` **[Fixed]** — trailing `kindly`/`cheers`/`appreciate it` stripped from categoryName; live `qa-e2e-bug-290.mjs` 17/17 (2026-08-01) — residuals **e2e-bug.291** (Fixed; **311**), **e2e-bug.292** (Fixed; **312**) — [`TODO.md` e2e-bug.290](./TODO.md#e2e-bug290--trailing-kindly-absorbed-into-create_service_category-name--fixed)
 - [x] `e2e-bug.291` **[Fixed]** — HY catalog-category create → `create_service_category` (clinic `որ`/`կատեգորիա` false-positive + HY detect); live `qa-e2e-bug-291.mjs` 16/16 (2026-08-01) — residual **e2e-bug.311** (Fixed; **337**) — [`TODO.md` e2e-bug.291](./TODO.md#e2e-bug291--hy-catalog-category-create--explain_clinic_services--fixed)
 - [x] `e2e-bug.311` **[Fixed]** — HY/RU `explain_clinic_services` empty summaries localized + skip enrich; live `qa-e2e-bug-311.mjs` 17/17 (2026-08-01) — residual **e2e-bug.337** — [`TODO.md` e2e-bug.311](./TODO.md#e2e-bug311--hy-explain_clinic_services-empty-summary-stays-english-on-some-prompts--fixed)
-- [ ] `e2e-bug.337` **[Open]** — HY `Բացատրի՛ր մեր կլինիկական ծառայությունները` → `explain_business_hours_and_location` (e2e-bug.311 residual) — [`TODO.md` e2e-bug.337](./TODO.md#e2e-bug337--hy-բացատրիր-կլինիկական-ծառայությունները-stolen-by-explain_business_hours_and_location-e2e-bug311-residual--open)
+- [x] `e2e-bug.337` **[Fixed]** — HY `Բացատրի՛ր մեր կլինիկական ծառայությունները` (emphasis-mark ՛ defeats hours-cue exclusion) → `explain_clinic_services`; live `qa-e2e-bug-337.mjs` 6/6 (2026-08-03) — [`TODO.md` e2e-bug.337](./TODO.md#e2e-bug337--hy-բացատրիր-կլինիկական-ծառայությունները-stolen-by-explain_business_hours_and_location-e2e-bug311-residual--fixed)
 - [x] `e2e-bug.292` **[Fixed]** — RU catalog-category create → `create_service_category` (not bulk confirm; Color ≠ create_employee); live `qa-e2e-bug-292.mjs` 15/15 (2026-08-01) — residual **e2e-bug.312** (Fixed; **338**) — [`TODO.md` e2e-bug.292](./TODO.md#e2e-bug292--ru-catalog-category-create--bulk_create_catalog-confirm--fixed)
 - [x] `e2e-bug.312` **[Fixed]** — RU/HY/EN `create_service_category` success deterministic + skip LLM enrich; live 8×RU + 4×HY + 3×EN identical, 2026-08-02 — residual **e2e-bug.338** — [`TODO.md` e2e-bug.312](./TODO.md#e2e-bug312--ru-create_service_category-success-summary-sometimes-stays-english--fixed)
-- [ ] `e2e-bug.338` **[Open]** — `create_service_category` name extraction absorbs trailing placeholder-count clause (e2e-bug.312 residual) — [`TODO.md` e2e-bug.338](./TODO.md#e2e-bug338--create_service_category-name-extraction-absorbs-a-trailing-placeholder-count-clause-into-categoryname--open)
+- [x] `e2e-bug.338` **[Fixed]** — `create_service_category` name extraction strips trailing placeholder-count clause; live `qa-e2e-bug-338.mjs` 7/7 (2026-08-03) — [`TODO.md` e2e-bug.338](./TODO.md#e2e-bug338--create_service_category-name-extraction-absorbs-a-trailing-placeholder-count-clause-into-categoryname--fixed)
 - [x] `e2e-bug.272` **[Fixed]** — package/multi-service visit CTAs → native `ConsumerActionButton`; live `qa-e2e-bug-272.mjs` 9/9 (2026-08-01) — residuals **e2e-bug.313**, **e2e-bug.314** — [`TODO.md` e2e-bug.272](./TODO.md#e2e-bug272--consumerpackagevisitactions--consumermultiservicevisitactions-still-use-ionbutton-hosts--fixed)
 - [x] `e2e-bug.313` **[Fixed]** — package/multi reschedule panel hides Confirm + shows noSlotsThisDay when empty; live 2026-08-02 (e2e-bug.272 residual) — [`TODO.md` e2e-bug.313](./TODO.md#e2e-bug313--package--multi-service-reschedule-panel-shows-confirm-when-no-slots--fixed)
 - [x] `e2e-bug.314` **[Fixed]** — Account `ConsumerSubscriptionsSection` CTAs → native `ConsumerActionButton`; live 0 ion-button/15 native, real cancel + usage-toggle verified 2026-08-02 (e2e-bug.272 residual) — [`TODO.md` e2e-bug.314](./TODO.md#e2e-bug314--account-consumersubscriptionssection-ctas-still-use-ionbutton-hosts--fixed)
@@ -189,63 +197,63 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 - [x] `e2e-bug.202` **[Fixed]** — `book_lab_collection_nearest` reports full compound success for a nonexistent lab panel (no abort, no booking) — [`TODO.md` L3627](./TODO.md#L3627)
 - [x] `e2e-bug.203` **[Fixed]** — `guest_book_and_manage` / `guest_pay_cash_manage` stolen by `explain_guest_checkout_fields` when a service is named — [`TODO.md` L3640](./TODO.md#L3640)
 - [x] `e2e-bug.204` **[Fixed]** — `public_assistant_compound` is unreachable on live `/public/:slug/assistant` (public-only recipe + customer surface) — [`TODO.md` L3653](./TODO.md#L3653)
-- [ ] `e2e-bug.205` **[Open]** — `tour_group_checkout` / `book_tour_nearest_departure` glue capacity/date cue text into `serviceName` and still report compound success — [`TODO.md` L3581](./TODO.md#L3581)
-- [ ] `e2e-bug.206` **[Open]** — incomplete tour group prompt (`Wine tour for 6 next Saturday` without capacity gate) → opaque `security_blocked` — [`TODO.md` L3589](./TODO.md#L3589)
+- [x] `e2e-bug.205` **[Fixed]** — `tour_group_checkout` / `book_tour_nearest_departure` glue capacity/date cue text into `serviceName` and still report compound success — [`TODO.md` L3581](./TODO.md#L3581)
+- [x] `e2e-bug.206` **[Fixed]** — incomplete tour group prompt (`Wine tour for 6 next Saturday` without capacity gate) → opaque `security_blocked` — [`TODO.md` L3589](./TODO.md#L3589)
 
 ### Other e2e (headed / late) (6)
 
-- [ ] `e2e-bug.166` **[Open]** — locale hydration mismatch on the booking confirmation page (found via user-reported Next.js dev overlay) — [`TODO.md` L3110](./TODO.md#L3110)
-- [ ] `e2e-bug.167` **[Open]** — no dashboard AI action exists to report refunds at all, confirmed with unusually strong ground truth: a real refund issued minutes earlier in this exact session is completely invis _(mention-only)_ — [`TODO.md` L3137](./TODO.md#L3137)
-- [ ] `e2e-bug.172` **[Open]** — `AcceptInvitePage` doesn't establish (or clear) a session, so a newly-invited employee can silently land in whoever was previously logged in on that device — [`TODO.md` L3234](./TODO.md#L3234)
-- [ ] `e2e-bug.174` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L3287](./TODO.md#L3287)
-- [ ] `e2e-bug.178` **[Open]** — investigated a suspected 6th e2e-bug.3 instance (false alarm, already fixed) + fixed a real, previously-unverified keyboard-accessibility bug: the assistant FAB had zero keyboard-a — [`TODO.md` L3293](./TODO.md#L3293)
-- [ ] `e2e-bug.186` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1124](./TODO.md#L1124)
+- [x] `e2e-bug.166` **[Fixed]** — locale hydration mismatch on the booking confirmation page (found via user-reported Next.js dev overlay) — [`TODO.md` L3110](./TODO.md#L3110)
+- [x] `e2e-bug.167` **[Fixed]** — no dashboard AI action exists to report refunds at all, confirmed with unusually strong ground truth: a real refund issued minutes earlier in this exact session is completely invis _(mention-only)_ — [`TODO.md` L3137](./TODO.md#L3137)
+- [x] `e2e-bug.172` **[Fixed]** — `AcceptInvitePage` doesn't establish (or clear) a session, so a newly-invited employee can silently land in whoever was previously logged in on that device — [`TODO.md` L3234](./TODO.md#L3234)
+- [x] `e2e-bug.174` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L3287](./TODO.md#L3287)
+- [x] `e2e-bug.178` **[Fixed]** — investigated a suspected 6th e2e-bug.3 instance (false alarm, already fixed) + fixed a real, previously-unverified keyboard-accessibility bug: the assistant FAB had zero keyboard-a — [`TODO.md` L3293](./TODO.md#L3293)
+- [x] `e2e-bug.186` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1124](./TODO.md#L1124)
 
 ### e2e-bug.101–165 (mention or headed) (44)
 
-- [ ] `e2e-bug.101` **[Open]** — largely fixed on this surface. High-end rank vocab no longer searches a literal service name (`couldn't find "most expensive"` gone). Rank extracts symmetrically with cheapest: _(mention-only)_ — [`TODO.md` L2017](./TODO.md#L2017)
-- [ ] `e2e-bug.102` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1588](./TODO.md#L1588)
-- [ ] `e2e-bug.106` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2120](./TODO.md#L2120)
-- [ ] `e2e-bug.108` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1805](./TODO.md#L1805)
-- [ ] `e2e-bug.109` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2191](./TODO.md#L2191)
-- [ ] `e2e-bug.110` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1806](./TODO.md#L1806)
-- [ ] `e2e-bug.111` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2168](./TODO.md#L2168)
-- [ ] `e2e-bug.112` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2172](./TODO.md#L2172)
-- [ ] `e2e-bug.113` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2345](./TODO.md#L2345)
-- [ ] `e2e-bug.118` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1304](./TODO.md#L1304)
-- [ ] `e2e-bug.122` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1213](./TODO.md#L1213)
-- [ ] `e2e-bug.128` **[Open]** — `confirm_my_booking_details` never validates the guest manage-token; any garbage token + a real `bookingId` leaks a total stranger's full booking details, unauthenticated, business _(mention-only)_ — [`TODO.md` L2120](./TODO.md#L2120)
-- [ ] `e2e-bug.129` **[Open]** — `explain_my_subscription` is itself unreachable via natural language, which is why the `subscription_first_visit` compound can never get past step 1. — Fixed: (1) `isOpenBillingSet _(mention-only)_ — [`TODO.md` L2406](./TODO.md#L2406)
-- [ ] `e2e-bug.130` **[Open]** — a gift-card purchase request is severely cross-domain misclassified into multi-service-booking availability-checking, not any gift-card action at all. — Fixed: (1) `isMultiServiceA _(mention-only)_ — [`TODO.md` L2408](./TODO.md#L2408)
-- [ ] `e2e-bug.131` **[Open]** — `remove_service_from_cart` hallucinates to a *dashboard-admin* action name, not just a plausible customer one. — Fixed: (1) `isUnassignServicesFromProviderPrompt` no longer treats  _(mention-only)_ — [`TODO.md` L1329](./TODO.md#L1329)
-- [ ] `e2e-bug.132` **[Open]** — `explain_cancel_policy` correctly classifies formal and even heavily-typo'd phrasing, but misclassifies the most natural, casual phrasing of the same question into a completely unr _(mention-only)_ — [`TODO.md` L2462](./TODO.md#L2462)
-- [ ] `e2e-bug.133` **[Open]** — a tour-business booking request gets routed into a clinic-only action, and the response literally announces it's on the wrong vertical. — Fixed: (1) `isExplainResultStatusPrompt` n _(mention-only)_ — [`TODO.md` L2490](./TODO.md#L2490)
-- [ ] `e2e-bug.134` **[Open]** — `guest_manage_visit`: a guest with a valid manage-link token asking to cancel their booking is told to sign in instead — the opposite of what a manage link is for. — Fixed: (1) `is _(mention-only)_ — [`TODO.md` L2496](./TODO.md#L2496)
-- [ ] `e2e-bug.135` **[Open]** — 142) — e2e-bug.135 (systemic pipeline-internals leak), e2e-bug.136 (mutation false-success on `clear_schedule`), e2e-bug.137 (react_agent tool-registry gap, confirmed across 7 doma _(mention-only)_ — [`TODO.md` L2538](./TODO.md#L2538)
-- [ ] `e2e-bug.136` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2556](./TODO.md#L2556)
-- [ ] `e2e-bug.137` **[Open]** — 3 further independent confirmations, widening the confirmed-broken domain list. Same session, immediately following: `"What promo codes are currently active"` → `react_agent`: `"I  _(mention-only)_ — [`TODO.md` L2567](./TODO.md#L2567)
-- [ ] `e2e-bug.138` **[Open]** — a business-owner request for a business-wide customer-segment list gets misclassified into a customer-self-service "view MY OWN subscriptions" intent, and then fails with a sign-in _(mention-only)_ — [`TODO.md` L2588](./TODO.md#L2588)
-- [ ] `e2e-bug.139` **[Open]** — a support-ticket question is confidently answered with a real number, but the number belongs to a completely different domain (AI agent tasks), because no dashboard AI action for r _(mention-only)_ — [`TODO.md` L2590](./TODO.md#L2590)
-- [ ] `e2e-bug.140` **[Open]** — `record_expense` extracts a garbage value into the `category` field because the classifier has zero guidance on what a valid category looks like. — Fixed: `normalizeExpenseCategory _(mention-only)_ — [`TODO.md` L2596](./TODO.md#L2596)
-- [ ] `e2e-bug.141` **[Open]** — `delete_expense` fails to match an expense by description even though the classifier's own rules document description-matching as supported, and the description text given matched  _(mention-only)_ — [`TODO.md` L2598](./TODO.md#L2598)
-- [ ] `e2e-bug.142` **[Open]** — no dashboard AI action can list/view promo codes at all, so a request to see the promo code the AI itself just created falls through to the tool-less react_agent and is denied. — F _(mention-only)_ — [`TODO.md` L2602](./TODO.md#L2602)
-- [ ] `e2e-bug.143` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2612](./TODO.md#L2612)
-- [ ] `e2e-bug.144` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2618](./TODO.md#L2618)
-- [ ] `e2e-bug.145` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2628](./TODO.md#L2628)
-- [ ] `e2e-bug.146` **[Open]** — `"Set commission rate for Gevorg Gasparyan to 20 percent"` → `react_agent`: `"I currently cannot set commission rates for employees."` — but `create_commission_rule` is a real, dis _(mention-only)_ — [`TODO.md` L2636](./TODO.md#L2636)
-- [ ] `e2e-bug.147` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2642](./TODO.md#L2642)
-- [ ] `e2e-bug.148` **[Open]** — `create_product` fails to extract a plainly-stated price because its regex fallback only recognizes rigid `"price 5"`/`"retail 5"` number-adjacent forms, not natural phrasing like  _(mention-only)_ — [`TODO.md` L2648](./TODO.md#L2648)
-- [ ] `e2e-bug.149` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2662](./TODO.md#L2662)
-- [ ] `e2e-bug.150` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2672](./TODO.md#L2672)
-- [ ] `e2e-bug.151` **[Open]** — creating a plain catalog category gets misclassified as creating a discount promo code, with the category name treated as a promo code name. — Fixed: `isCreateServiceCategoryPrompt _(mention-only)_ — [`TODO.md` L2690](./TODO.md#L2690)
-- [ ] `e2e-bug.152` **[Open]** — the exact same prompt, verbatim, routes to a completely different action on repeated asks, flipping between a correct real-data answer and a flat denial. — Fixed: `isListClinicTask _(mention-only)_ — [`TODO.md` L2696](./TODO.md#L2696)
-- [ ] `e2e-bug.153` **[Open]** — 155's pattern. Not numbered. _(mention-only)_ — [`TODO.md` L2746](./TODO.md#L2746)
-- [ ] `e2e-bug.154` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2754](./TODO.md#L2754)
-- [ ] `e2e-bug.155` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2760](./TODO.md#L2760)
-- [ ] `e2e-bug.157` **[Open]** — creating a multi-service package gets misclassified into gift-card-bundle creation, a real but semantically distinct action, and the error message's own example makes the confusion _(mention-only)_ — [`TODO.md` L2840](./TODO.md#L2840)
-- [ ] `e2e-bug.159` **[Open]** — asking to set up a personal, ongoing owner alert gets reinterpreted as a one-off customer-facing notification proposal, misunderstanding both who should be notified and about what. _(mention-only)_ — [`TODO.md` L2880](./TODO.md#L2880)
-- [ ] `e2e-bug.162` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2952](./TODO.md#L2952)
-- [ ] `e2e-bug.163` **[Open]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2966](./TODO.md#L2966)
+- [x] `e2e-bug.101` **[Fixed]** — largely fixed on this surface. High-end rank vocab no longer searches a literal service name (`couldn't find "most expensive"` gone). Rank extracts symmetrically with cheapest: _(mention-only)_ — [`TODO.md` L2017](./TODO.md#L2017)
+- [x] `e2e-bug.102` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1588](./TODO.md#L1588)
+- [x] `e2e-bug.106` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2120](./TODO.md#L2120)
+- [x] `e2e-bug.108` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1805](./TODO.md#L1805)
+- [x] `e2e-bug.109` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2191](./TODO.md#L2191)
+- [x] `e2e-bug.110` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1806](./TODO.md#L1806)
+- [x] `e2e-bug.111` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2168](./TODO.md#L2168)
+- [x] `e2e-bug.112` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2172](./TODO.md#L2172)
+- [x] `e2e-bug.113` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2345](./TODO.md#L2345)
+- [x] `e2e-bug.118` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1304](./TODO.md#L1304)
+- [x] `e2e-bug.122` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L1213](./TODO.md#L1213)
+- [x] `e2e-bug.128` **[Fixed]** — `confirm_my_booking_details` never validates the guest manage-token; any garbage token + a real `bookingId` leaks a total stranger's full booking details, unauthenticated, business _(mention-only)_ — [`TODO.md` L2120](./TODO.md#L2120)
+- [x] `e2e-bug.129` **[Fixed]** — `explain_my_subscription` is itself unreachable via natural language, which is why the `subscription_first_visit` compound can never get past step 1. — Fixed: (1) `isOpenBillingSet _(mention-only)_ — [`TODO.md` L2406](./TODO.md#L2406)
+- [x] `e2e-bug.130` **[Fixed]** — a gift-card purchase request is severely cross-domain misclassified into multi-service-booking availability-checking, not any gift-card action at all. — Fixed: (1) `isMultiServiceA _(mention-only)_ — [`TODO.md` L2408](./TODO.md#L2408)
+- [x] `e2e-bug.131` **[Fixed]** — `remove_service_from_cart` hallucinates to a *dashboard-admin* action name, not just a plausible customer one. — Fixed: (1) `isUnassignServicesFromProviderPrompt` no longer treats  _(mention-only)_ — [`TODO.md` L1329](./TODO.md#L1329)
+- [x] `e2e-bug.132` **[Fixed]** — `explain_cancel_policy` correctly classifies formal and even heavily-typo'd phrasing, but misclassifies the most natural, casual phrasing of the same question into a completely unr _(mention-only)_ — [`TODO.md` L2462](./TODO.md#L2462)
+- [x] `e2e-bug.133` **[Fixed]** — a tour-business booking request gets routed into a clinic-only action, and the response literally announces it's on the wrong vertical. — Fixed: (1) `isExplainResultStatusPrompt` n _(mention-only)_ — [`TODO.md` L2490](./TODO.md#L2490)
+- [x] `e2e-bug.134` **[Fixed]** — `guest_manage_visit`: a guest with a valid manage-link token asking to cancel their booking is told to sign in instead — the opposite of what a manage link is for. — Fixed: (1) `is _(mention-only)_ — [`TODO.md` L2496](./TODO.md#L2496)
+- [x] `e2e-bug.135` **[Fixed]** — 142) — e2e-bug.135 (systemic pipeline-internals leak), e2e-bug.136 (mutation false-success on `clear_schedule`), e2e-bug.137 (react_agent tool-registry gap, confirmed across 7 doma _(mention-only)_ — [`TODO.md` L2538](./TODO.md#L2538)
+- [x] `e2e-bug.136` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2556](./TODO.md#L2556)
+- [x] `e2e-bug.137` **[Fixed]** — 3 further independent confirmations, widening the confirmed-broken domain list. Same session, immediately following: `"What promo codes are currently active"` → `react_agent`: `"I  _(mention-only)_ — [`TODO.md` L2567](./TODO.md#L2567)
+- [x] `e2e-bug.138` **[Fixed]** — a business-owner request for a business-wide customer-segment list gets misclassified into a customer-self-service "view MY OWN subscriptions" intent, and then fails with a sign-in _(mention-only)_ — [`TODO.md` L2588](./TODO.md#L2588)
+- [x] `e2e-bug.139` **[Fixed]** — a support-ticket question is confidently answered with a real number, but the number belongs to a completely different domain (AI agent tasks), because no dashboard AI action for r _(mention-only)_ — [`TODO.md` L2590](./TODO.md#L2590)
+- [x] `e2e-bug.140` **[Fixed]** — `record_expense` extracts a garbage value into the `category` field because the classifier has zero guidance on what a valid category looks like. — Fixed: `normalizeExpenseCategory _(mention-only)_ — [`TODO.md` L2596](./TODO.md#L2596)
+- [x] `e2e-bug.141` **[Fixed]** — `delete_expense` fails to match an expense by description even though the classifier's own rules document description-matching as supported, and the description text given matched  _(mention-only)_ — [`TODO.md` L2598](./TODO.md#L2598)
+- [x] `e2e-bug.142` **[Fixed]** — no dashboard AI action can list/view promo codes at all, so a request to see the promo code the AI itself just created falls through to the tool-less react_agent and is denied. — F _(mention-only)_ — [`TODO.md` L2602](./TODO.md#L2602)
+- [x] `e2e-bug.143` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2612](./TODO.md#L2612)
+- [x] `e2e-bug.144` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2618](./TODO.md#L2618)
+- [x] `e2e-bug.145` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2628](./TODO.md#L2628)
+- [x] `e2e-bug.146` **[Fixed]** — `"Set commission rate for Gevorg Gasparyan to 20 percent"` → `react_agent`: `"I currently cannot set commission rates for employees."` — but `create_commission_rule` is a real, dis _(mention-only)_ — [`TODO.md` L2636](./TODO.md#L2636)
+- [x] `e2e-bug.147` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2642](./TODO.md#L2642)
+- [x] `e2e-bug.148` **[Fixed]** — `create_product` fails to extract a plainly-stated price because its regex fallback only recognizes rigid `"price 5"`/`"retail 5"` number-adjacent forms, not natural phrasing like  _(mention-only)_ — [`TODO.md` L2648](./TODO.md#L2648)
+- [x] `e2e-bug.149` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2662](./TODO.md#L2662)
+- [x] `e2e-bug.150` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2672](./TODO.md#L2672)
+- [x] `e2e-bug.151` **[Fixed]** — creating a plain catalog category gets misclassified as creating a discount promo code, with the category name treated as a promo code name. — Fixed: `isCreateServiceCategoryPrompt _(mention-only)_ — [`TODO.md` L2690](./TODO.md#L2690)
+- [x] `e2e-bug.152` **[Fixed]** — the exact same prompt, verbatim, routes to a completely different action on repeated asks, flipping between a correct real-data answer and a flat denial. — Fixed: `isListClinicTask _(mention-only)_ — [`TODO.md` L2696](./TODO.md#L2696)
+- [x] `e2e-bug.153` **[Fixed]** — 155's pattern. Not numbered. _(mention-only)_ — [`TODO.md` L2746](./TODO.md#L2746)
+- [x] `e2e-bug.154` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2754](./TODO.md#L2754)
+- [x] `e2e-bug.155` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2760](./TODO.md#L2760)
+- [x] `e2e-bug.157` **[Fixed]** — creating a multi-service package gets misclassified into gift-card-bundle creation, a real but semantically distinct action, and the error message's own example makes the confusion _(mention-only)_ — [`TODO.md` L2840](./TODO.md#L2840)
+- [x] `e2e-bug.159` **[Fixed]** — asking to set up a personal, ongoing owner alert gets reinterpreted as a one-off customer-facing notification proposal, misunderstanding both who should be notified and about what. _(mention-only)_ — [`TODO.md` L2880](./TODO.md#L2880)
+- [x] `e2e-bug.162` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2952](./TODO.md#L2952)
+- [x] `e2e-bug.163` **[Fixed]** — see TODO.md mentions _(mention-only)_ — [`TODO.md` L2966](./TODO.md#L2966)
 - [x] `e2e-bug.165` **[Fixed]** — dashboard `BookingService.cancel()` had zero refund logic + concurrent cancels silent lost-update — [`TODO.md` L3518](./TODO.md#L3518)
 
 ### e2e-bug.1–100 (mostly mention-only) (11)
@@ -398,67 +406,67 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.95` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.96` | **Fixed** | yes | confirm_my_booking_details unauthenticated IDOR (bookingId alone / garbage token) |
 | `e2e-bug.97` | **Fixed** | no | see TODO.md mentions |
-| `e2e-bug.101` | **Open** | no | largely fixed on this surface. High-end rank vocab no longer searches a literal  |
-| `e2e-bug.102` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.106` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.101` | **Fixed** | no | largely fixed on this surface. High-end rank vocab no longer searches a literal  |
+| `e2e-bug.102` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.106` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.107` | **Fixed** | no | see TODO.md mentions |
-| `e2e-bug.108` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.109` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.110` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.111` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.112` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.113` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.108` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.109` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.110` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.111` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.112` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.113` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.114` | **Fixed** | no | see TODO.md mentions |
-| `e2e-bug.118` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.122` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.128` | **Open** | no | `confirm_my_booking_details` never validates the guest manage-token; any garbage |
-| `e2e-bug.129` | **Open** | no | `explain_my_subscription` is itself unreachable via natural language, which is w |
-| `e2e-bug.130` | **Open** | no | a gift-card purchase request is severely cross-domain misclassified into multi-s |
-| `e2e-bug.131` | **Open** | no | `remove_service_from_cart` hallucinates to a *dashboard-admin* action name, not  |
-| `e2e-bug.132` | **Open** | no | `explain_cancel_policy` correctly classifies formal and even heavily-typo'd phra |
-| `e2e-bug.133` | **Open** | no | a tour-business booking request gets routed into a clinic-only action, and the r |
-| `e2e-bug.134` | **Open** | no | `guest_manage_visit`: a guest with a valid manage-link token asking to cancel th |
-| `e2e-bug.135` | **Open** | no | 142) — e2e-bug.135 (systemic pipeline-internals leak), e2e-bug.136 (mutation fal |
-| `e2e-bug.136` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.137` | **Open** | no | 3 further independent confirmations, widening the confirmed-broken domain list.  |
-| `e2e-bug.138` | **Open** | no | a business-owner request for a business-wide customer-segment list gets misclass |
-| `e2e-bug.139` | **Open** | no | a support-ticket question is confidently answered with a real number, but the nu |
-| `e2e-bug.140` | **Open** | no | `record_expense` extracts a garbage value into the `category` field because the  |
-| `e2e-bug.141` | **Open** | no | `delete_expense` fails to match an expense by description even though the classi |
-| `e2e-bug.142` | **Open** | no | no dashboard AI action can list/view promo codes at all, so a request to see the |
-| `e2e-bug.143` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.144` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.145` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.146` | **Open** | no | `"Set commission rate for Gevorg Gasparyan to 20 percent"` → `react_agent`: `"I  |
-| `e2e-bug.147` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.148` | **Open** | no | `create_product` fails to extract a plainly-stated price because its regex fallb |
-| `e2e-bug.149` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.150` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.151` | **Open** | no | creating a plain catalog category gets misclassified as creating a discount prom |
-| `e2e-bug.152` | **Open** | no | the exact same prompt, verbatim, routes to a completely different action on repe |
-| `e2e-bug.153` | **Open** | no | 155's pattern. Not numbered. |
-| `e2e-bug.154` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.155` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.118` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.122` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.128` | **Fixed** | no | `confirm_my_booking_details` never validates the guest manage-token; any garbage |
+| `e2e-bug.129` | **Fixed** | no | `explain_my_subscription` is itself unreachable via natural language, which is w |
+| `e2e-bug.130` | **Fixed** | no | a gift-card purchase request is severely cross-domain misclassified into multi-s |
+| `e2e-bug.131` | **Fixed** | no | `remove_service_from_cart` hallucinates to a *dashboard-admin* action name, not  |
+| `e2e-bug.132` | **Fixed** | no | `explain_cancel_policy` correctly classifies formal and even heavily-typo'd phra |
+| `e2e-bug.133` | **Fixed** | no | a tour-business booking request gets routed into a clinic-only action, and the r |
+| `e2e-bug.134` | **Fixed** | no | `guest_manage_visit`: a guest with a valid manage-link token asking to cancel th |
+| `e2e-bug.135` | **Fixed** | no | 142) — e2e-bug.135 (systemic pipeline-internals leak), e2e-bug.136 (mutation fal |
+| `e2e-bug.136` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.137` | **Fixed** | no | 3 further independent confirmations, widening the confirmed-broken domain list.  |
+| `e2e-bug.138` | **Fixed** | no | a business-owner request for a business-wide customer-segment list gets misclass |
+| `e2e-bug.139` | **Fixed** | no | a support-ticket question is confidently answered with a real number, but the nu |
+| `e2e-bug.140` | **Fixed** | no | `record_expense` extracts a garbage value into the `category` field because the  |
+| `e2e-bug.141` | **Fixed** | no | `delete_expense` fails to match an expense by description even though the classi |
+| `e2e-bug.142` | **Fixed** | no | no dashboard AI action can list/view promo codes at all, so a request to see the |
+| `e2e-bug.143` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.144` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.145` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.146` | **Fixed** | no | `"Set commission rate for Gevorg Gasparyan to 20 percent"` → `react_agent`: `"I  |
+| `e2e-bug.147` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.148` | **Fixed** | no | `create_product` fails to extract a plainly-stated price because its regex fallb |
+| `e2e-bug.149` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.150` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.151` | **Fixed** | no | creating a plain catalog category gets misclassified as creating a discount prom |
+| `e2e-bug.152` | **Fixed** | no | the exact same prompt, verbatim, routes to a completely different action on repe |
+| `e2e-bug.153` | **Fixed** | no | 155's pattern. Not numbered. |
+| `e2e-bug.154` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.155` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.156` | **Fixed** | no | a mutation *confirmation prompt* (the text a business owner reads right before a |
-| `e2e-bug.157` | **Open** | no | creating a multi-service package gets misclassified into gift-card-bundle creati |
+| `e2e-bug.157` | **Fixed** | no | creating a multi-service package gets misclassified into gift-card-bundle creati |
 | `e2e-bug.158` | **Fixed** | no | see TODO.md mentions |
-| `e2e-bug.159` | **Open** | no | asking to set up a personal, ongoing owner alert gets reinterpreted as a one-off |
+| `e2e-bug.159` | **Fixed** | no | asking to set up a personal, ongoing owner alert gets reinterpreted as a one-off |
 | `e2e-bug.160` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.161` | **Fixed** | no | see TODO.md mentions |
-| `e2e-bug.162` | **Open** | no | see TODO.md mentions |
-| `e2e-bug.163` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.162` | **Fixed** | no | see TODO.md mentions |
+| `e2e-bug.163` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.164` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.165` | **Fixed** | yes | dashboard `BookingService.cancel()` had zero refund logic + concurrent cancels silent lost-update |
-| `e2e-bug.166` | **Open** | yes | locale hydration mismatch on the booking confirmation page (found via user-repor |
-| `e2e-bug.167` | **Open** | no | no dashboard AI action exists to report refunds at all, confirmed with unusually |
+| `e2e-bug.166` | **Fixed** | yes | locale hydration mismatch on the booking confirmation page (found via user-repor |
+| `e2e-bug.167` | **Fixed** | no | no dashboard AI action exists to report refunds at all, confirmed with unusually |
 | `e2e-bug.168` | **Fixed** | yes | "Orchestrix AI" plan execution crashes with `Cannot read properties of undefined |
 | `e2e-bug.169` | **Fixed** | yes | `propose_create_direct_schedule(s)` never resolves `employeeId` from a bare `emp |
 | `e2e-bug.170` | **Fixed** | yes | `propose_block_schedule` can never succeed at execution: it never builds the `is |
 | `e2e-bug.171` | **Fixed** | yes | a correctly-classified, high-confidence dashboard scheduling command gets silent |
-| `e2e-bug.172` | **Open** | yes | `AcceptInvitePage` doesn't establish (or clear) a session, so a newly-invited em |
-| `e2e-bug.174` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.172` | **Fixed** | yes | `AcceptInvitePage` doesn't establish (or clear) a session, so a newly-invited em |
+| `e2e-bug.174` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.177` | **Fixed** | yes | every consumer-app AI-assistant `clientAction` (native push, notification settin |
-| `e2e-bug.178` | **Open** | yes | investigated a suspected 6th e2e-bug.3 instance (false alarm, already fixed) + f |
+| `e2e-bug.178` | **Fixed** | yes | investigated a suspected 6th e2e-bug.3 instance (false alarm, already fixed) + f |
 | `e2e-bug.179` | **Fixed** | yes | `prepaymentDue()`'s 50%-deposit fallback silently undercharges by a cent on exac |
 | `e2e-bug.180` | **Fixed** | yes | checkout payment-method gating checked `service.prepaymentMode` directly instead |
 | `e2e-bug.181` | **Fixed** | yes | a declined/abandoned online payment left the customer permanently stranded with  |
@@ -466,7 +474,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.183` | **Fixed** | yes | cancelling a booking that's currently in progress (partway through the visit) is |
 | `e2e-bug.184` | **Fixed** | yes | booking cancellation was completely broken for any booking whose cancel reached  |
 | `e2e-bug.185` | **Fixed** | yes | a customer whose booking-cancellation refund genuinely failed (Stripe error, etc |
-| `e2e-bug.186` | **Open** | no | see TODO.md mentions |
+| `e2e-bug.186` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.187` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.188` | **Fixed** | no | see TODO.md mentions |
 | `e2e-bug.189` | **Fixed** | yes | `list_providers` ("Who are your providers / specialists?") misroutes to `check_p |
@@ -485,8 +493,8 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.202` | **Fixed** | yes | `book_lab_collection_nearest` reports full compound success for a nonexistent la |
 | `e2e-bug.203` | **Fixed** | yes | `guest_book_and_manage` / `guest_pay_cash_manage` stolen by `explain_guest_check |
 | `e2e-bug.204` | **Fixed** | yes | `public_assistant_compound` is unreachable on live `/public/:slug/assistant` (pu |
-| `e2e-bug.205` | **Open** | yes | `tour_group_checkout` / `book_tour_nearest_departure` glue capacity/date cue tex |
-| `e2e-bug.206` | **Open** | yes | incomplete tour group prompt (`Wine tour for 6 next Saturday` without capacity g |
+| `e2e-bug.205` | **Fixed** | yes | `tour_group_checkout` / `book_tour_nearest_departure` glue capacity/date cue tex |
+| `e2e-bug.206` | **Fixed** | yes | incomplete tour group prompt (`Wine tour for 6 next Saturday` without capacity g |
 | `e2e-bug.207` | **Fixed** | yes | public booking home omits hours and service-category teaser (checklist landing c |
 | `e2e-bug.208` | **Fixed** | yes | `/book/[slug]/services` is not a full-catalog browse (hard redirect + slot filte |
 | `e2e-bug.209` | **Fixed** | yes | services list never surfaces prepayment/deposit (API fields unused in UI) |
@@ -534,7 +542,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.300` | **Fixed** | yes | +1 / -1 rate as give_ai_feedback; live qa-e2e-bug-300 20/20 |
 | `e2e-bug.326` | **Fixed** | yes | "+1 thanks" / "thanks +1" wrapper phrasing rates correctly (2026-08-02) |
 | `e2e-bug.324` | **Fixed** | yes | HY native Օգտակար չէ now rescues to give_ai_feedback (2026-08-02) |
-| `e2e-bug.341` | **Open** | yes | POSITIVE_CUE Armenian "was helpful" alt has letter typo (e2e-bug.324 residual) |
+| `e2e-bug.341` | **Fixed** | yes | POSITIVE_CUE Armenian "was helpful" letter typo (Ե→Է) fixed; live qa-e2e-bug-341 5/5 (e2e-bug.324 residual) |
 | `e2e-bug.325` | **Fixed** | yes | provider give_provider_ai_feedback labels now localize under hy/ru (2026-08-02) |
 | `e2e-bug.244` | **Fixed** | yes | visit-status explainers unreachable; live qa-e2e-bug-244 18/18 |
 | `e2e-bug.245` | **Fixed** | yes | calendar-scheduling explainers unreachable; live qa-e2e-bug-245 16/16 |
@@ -546,7 +554,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.302` | **Fixed** | yes | HY/RU Home|Today → provider-today-calendar; live qa-e2e-bug-302 10/10 |
 | `e2e-bug.303` | **Fixed** | yes | first-person how-am-I → Your/mine; live qa-e2e-bug-303 12/12 |
 | `e2e-bug.328` | **Fixed** | yes | my_stats Your/Team stats summaries localize HY/RU (2026-08-02) |
-| `e2e-bug.342` | **Open** | yes | exp-2 domain (list_team_unpaid_today, explain_reviews_inbox, my_stats…) never rescues on classifier action='unknown' |
+| `e2e-bug.342` | **Fixed** | yes | list_team_unpaid_today/explain_reviews_inbox were missing from command registry, not a pipeline gap; live qa-e2e-bug-342 5/5 |
 | `e2e-bug.301` | **Fixed** | yes | explain_dashboard_only_action summaries localize HY/RU; live qa-e2e-bug-301 12/12 |
 | `e2e-bug.327` | **Fixed** | yes | explain_reassign_limit / explain_time_off_approval summaries localize HY/RU (2026-08-02) |
 | `e2e-bug.248` | **Fixed** | yes | move+nearest → reschedule_booking; live qa-e2e-bug-248 15/15 |
@@ -558,10 +566,16 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.330` | **Fixed** | yes | remaining ~41 guide playbooks' short-title fallback hardened against dangling stopwords (2026-08-02) |
 | `e2e-bug.331` | **Fixed** | yes | page-help on /book/services|/book/checkout misroutes (e2e-bug.316 residual) |
 | `e2e-bug.332` | **Fixed** | yes | create_booking "is not free" still uses DD/MM slash (e2e-bug.286 residual) |
-| `e2e-bug.343` | **Open** | yes | dashboard create_booking crashes (500) on MM/DD slash dates where day > 12 |
+| `e2e-bug.343` | **Fixed** | yes | dashboard create_booking no longer crashes on MM/DD slash dates where day > 12; graceful clarification; live qa-e2e-bug-343 4/4 |
 | `e2e-bug.333` | **Fixed** | yes | short first-available Create a booking may skip BFA (e2e-bug.286 residual) |
-| `e2e-bug.334` | **Open** | yes | public is anyone free → explain_provider_availability "anyone" (e2e-bug.307 residual) |
-| `e2e-bug.335` | **Open** | yes | public is anybody open → check_providers not check_availability (e2e-bug.307 residual) |
+| `e2e-bug.334` | **Fixed** | yes | public is anyone free → explain_provider_availability "anyone" (e2e-bug.307 residual) |
+| `e2e-bug.344` | **Fixed** | yes | public is someone/everyone free misroutes to confirm_my_booking_details (e2e-bug.334 residual) |
+| `e2e-bug.335` | **Fixed** | yes | public is anybody open → check_providers not check_availability (e2e-bug.307 residual) |
+| `e2e-bug.345` | **Fixed** | yes | public check_availability no-slots summary still uses DD/MM slash dates (e2e-bug.335 residual) |
+| `e2e-bug.346` | **Fixed** | yes | public "Tell me about this booking" misroutes to explain_provider_specialty (e2e-bug.191/#259 family) |
+| `e2e-bug.347` | **Fixed** | yes | dashboard "create category WITH services" dropped every service; 5 parsing/decomposition root causes; live qa-e2e-bug-347 multi-category case fixed |
+| `e2e-bug.348` | **Open** | yes | e2e-bug.347 residual: LLM compoundSteps route category+services to create_services, category link lost + false-success summary |
+| `e2e-bug.349` | **Open** | yes | dashboard "Under Y add …" stolen by customer-surface add_services_to_cart; no sentence split, no plural "categories" cue |
 | `e2e-bug.268` | **Fixed** | yes | first-available clamps ≥ today; live qa-e2e-bug-268 9/9 |
 | `e2e-bug.285` | **Fixed** | yes | AI date labels unambiguous; skip enrich for booking; live qa-e2e-bug-285 7/7 |
 | `e2e-bug.306` | **Fixed** | yes | no-slot/availability dates use AI labels; live qa-e2e-bug-306 8/8 |
@@ -577,16 +591,16 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.289` | **Fixed** | yes | HY/RU tour calendar week summaries localized + skip enrich; live qa-e2e-bug-289 16/16 |
 | `e2e-bug.309` | **Fixed** | yes | RU next/last-week calendar tours → list_tour_calendar_week; live qa-e2e-bug-309 19/19; residual 336 |
 | `e2e-bug.310` | **Fixed** | yes | HY last-week anchors deterministic (անցած/նախորդ/անցյալ/վերջին); live qa-e2e-bug-310 18/18 |
-| `e2e-bug.336` | **Open** | yes | explain_tour_calendar_span empty summaries still DD/MM slash (e2e-bug.309 residual) |
+| `e2e-bug.336` | **Fixed** | yes | explain_tour_calendar_span empty summaries still DD/MM slash (e2e-bug.309 residual) |
 | `e2e-bug.251` | **Fixed** | yes | catalog category create ≠ import_services_from_menu; live qa-e2e-bug-251 11/11 |
 | `e2e-bug.271` | **Fixed** | yes | voice named X…please keeps full categoryName; live qa-e2e-bug-271 14/14 |
 | `e2e-bug.290` | **Fixed** | yes | trailing kindly/cheers/appreciate stripped from categoryName; live qa-e2e-bug-290 17/17 |
 | `e2e-bug.291` | **Fixed** | yes | HY catalog-category create → create_service_category; live qa-e2e-bug-291 16/16 |
 | `e2e-bug.311` | **Fixed** | yes | HY/RU explain_clinic_services empty localized + skip enrich; live qa-e2e-bug-311 17/17; residual 337 |
-| `e2e-bug.337` | **Open** | yes | HY բացատրի՛ր կլինիկական ծառայությունները → explain_business_hours (e2e-bug.311 residual) |
+| `e2e-bug.337` | **Fixed** | yes | HY բացատրի՛ր (emphasis mark ՛ defeats hours-cue exclusion) → explain_clinic_services; live qa-e2e-bug-337 6/6 (e2e-bug.311 residual) |
 | `e2e-bug.292` | **Fixed** | yes | RU catalog-category create → create_service_category; live qa-e2e-bug-292 15/15 |
 | `e2e-bug.312` | **Fixed** | yes | RU/HY/EN create_service_category success deterministic + skip enrich; live 8×RU+4×HY+3×EN identical (e2e-bug.292 residual) |
-| `e2e-bug.338` | **Open** | yes | create_service_category name extraction absorbs trailing placeholder-count clause (e2e-bug.312 residual) |
+| `e2e-bug.338` | **Fixed** | yes | create_service_category name extraction strips trailing placeholder-count clause; live qa-e2e-bug-338 7/7 (e2e-bug.312 residual) |
 | `e2e-bug.252` | **Fixed** | yes | owner alert "a customer reschedules" (-s) + no misclass_to_reschedule steal; live qa-e2e-bug-252 13/13 |
 | `e2e-bug.253` | **Fixed** | yes | Account booking-card / ConsumerBookingActions → ConsumerActionButton; live qa-e2e-bug-253 7/7 |
 | `e2e-bug.272` | **Fixed** | yes | package/multi-service visit actions → ConsumerActionButton; live qa-e2e-bug-272 9/9 |
@@ -608,7 +622,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.277` | **Fixed** | yes | booking_help guide/supportHandoff round-trip; live qa-e2e-bug-277 11/11 |
 | `e2e-bug.295` | **Fixed** | yes | Add next home screen → explain_home_screen_widget; live qa-e2e-bug-295 14/14 |
 | `e2e-bug.317` | **Fixed** | yes | explain_home_screen_widget success copy localized + skip enrich; live HY/RU/EN verified |
-| `e2e-bug.339` | **Open** | yes | HY "how does the widget work" misroutes to booking_help (e2e-bug.317 residual) |
+| `e2e-bug.339` | **Fixed** | yes | HY "how does the widget work" now routes to explain_home_screen_widget; live qa-e2e-bug-339 6/6 (e2e-bug.317 residual) |
 | `e2e-bug.259` | **Fixed** | yes | hy/ru clarify + Still stuck? handoff; live qa-e2e-bug-259 8/8 |
 | `e2e-bug.260` | **Fixed** | yes | strip trailing time window from recommend serviceName; live qa-e2e-bug-260 11/11 |
 | `e2e-bug.278` | **Fixed** | yes | recommend + day-part → recommend_specialists; live qa-e2e-bug-278 12/12 |
@@ -622,7 +636,7 @@ _(mention-only)_ = referenced in TODO.md but no `## e2e-bug.N` heading. Re-verif
 | `e2e-bug.298` | **Fixed** | yes | trim/styling → hairstyle synonym; live qa-e2e-bug-298 12/12 |
 | `e2e-bug.322` | **Fixed** | yes | list trim header now normalizes to "Our haircut service types" (2026-08-02) |
 | `e2e-bug.323` | **Fixed** | yes | bare "a cut" now prefers Men's/Women's cut over hairstyle (2026-08-02) |
-| `e2e-bug.340` | **Open** | yes | lone apostrophe "s" token pins bare prompts to Men's/Women's cut (e2e-bug.322 residual) |
+| `e2e-bug.340` | **Fixed** | yes | lone apostrophe "s" token no longer pins bare prompts to Men's/Women's cut; live qa-e2e-bug-340 6/6 (e2e-bug.322 residual) |
 | `e2e-bug.261` | **Fixed** | yes | forged context.customerId bypassed confirm_my_booking_details IDOR guard |
 | `e2e-bug.262` | **Fixed** | yes | public slots omit overlap-blocked starts; live qa-e2e-bug-262 7/7 |
 

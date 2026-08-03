@@ -102,8 +102,13 @@ export interface CatalogCompoundStep {
 const CATALOG_VERB =
   /\b(create|add|bulk|configure|enable|deactivate|duplicate|update|assign|list|set|hide|block)\b/i;
 
+// e2e-bug.347 — a semicolon only starts a new step when a catalog verb follows
+// it. Splitting on every ";" shredded service enumerations ("service A, 30
+// minutes, $50; service B, 45 minutes, $45"), so each service line became its
+// own "step" and the category link was lost. The "and <verb>" branch already
+// required a following verb; the semicolon branch now does too.
 const COMPOUND_SPLIT =
-  /\s*;\s*|\s+and\s+(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)/i;
+  /\s*;\s*(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)|\s+and\s+(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)/i;
 
 export function isCatalogIntent(action: string): action is CatalogIntent {
   return (CATALOG_INTENTS as readonly string[]).includes(action);
@@ -318,14 +323,23 @@ export function parseAssignServiceCategoryFromPrompt(prompt: string): {
 const CATEGORY_NAME_TRAILING_POLITENESS =
   '(?:please|kindly|thanks(?:\\s+you)?|thank\\s+you|pls|thx|cheers|appreciate(?:\\s+it)?|пожалуйста|խնդրում\\s+եմ)';
 
+// e2e-bug.338 — a trailing "with N placeholder service(s)" / RU "и N placeholder
+// услугами" / "и N услугами-заглушками" count clause must not be absorbed into
+// categoryName; placeholderCount itself is parsed separately and unaffected.
+const CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE =
+  '(?:with|and|и)\\s+\\d+\\s+(?:placeholder\\s+services?|placeholder\\s+услуг\\p{L}*|услуг\\p{L}*[\\s-]*заглушк\\p{L}*)';
+
+const CATEGORY_NAME_TRAILING_EXTRA = `(?:${CATEGORY_NAME_TRAILING_POLITENESS}|${CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE})`;
+
 export function stripTrailingCategoryNamePoliteness(
   name: string,
 ): string {
   let out = name.trim();
-  // Repeat: "kindly please" / "please kindly" / stacked softeners.
+  // Repeat: "kindly please" / "please kindly" / stacked softeners and
+  // placeholder-count clauses in any order.
   const trailing = new RegExp(
-    `\\s+(?:${CATEGORY_NAME_TRAILING_POLITENESS})(?:\\s+(?:${CATEGORY_NAME_TRAILING_POLITENESS}))*\\s*[.?!]*\\s*$`,
-    'i',
+    `\\s+${CATEGORY_NAME_TRAILING_EXTRA}(?:\\s+${CATEGORY_NAME_TRAILING_EXTRA})*\\s*[.?!]*\\s*$`,
+    'iu',
   );
   for (let i = 0; i < 4; i++) {
     const next = out.replace(trailing, '').replace(/[.?!]+$/g, '').trim();
@@ -911,8 +925,46 @@ export function rescueCatalogIntent(
   return null;
 }
 
+/**
+ * e2e-bug.347 — two alternatives, delimited-first then bare:
+ * 1. `Name, 30 minutes, $50` / `Name (30 min, $50)` — a comma or paren
+ *    separates the name from the duration and/or the duration from the price.
+ * 2. `Name 60m $65` — the original whitespace-only form (kept verbatim so
+ *    existing bulk-catalog prompts parse identically).
+ * Ordering matters: the delimited branch must be tried first, otherwise the
+ * bare branch matches a truncated name inside a delimited line.
+ */
 const SERVICE_LINE =
-  /([^,;]+?)\s+(\d+)\s*(?:m|min(?:ute)?s?)\s*(?:\$|USD\s*)?(\d+(?:\.\d{1,2})?)/gi;
+  /([^,;()]+?)\s*[,(]\s*(\d+)\s*(?:m|min(?:ute)?s?)\b\s*[,)]?\s*(?:for\s+)?(?:\$|USD\s*)?(\d+(?:\.\d{1,2})?)|([^,;()]+?)\s+(\d+)\s*(?:m|min(?:ute)?s?)\b\s*(?:\$|USD\s*)?(\d+(?:\.\d{1,2})?)/gi;
+
+/**
+ * e2e-bug.347 — the name capture can absorb the list connector joining two
+ * entries ("… and B (45 min, $45)" → "and B") and the generic "service"
+ * descriptor users write in enumerations ("service A, 30 minutes, $50" → the
+ * intended name is "A"). Both are stripped, never down to an empty string —
+ * so a catalog entry genuinely called "Service" survives untouched.
+ */
+function normalizeServiceLineName(raw: string): string {
+  let name = raw.replace(/^[\s:.\-–—]+|[\s:.\-–—]+$/g, '').trim();
+  // e2e-bug.347 — when the whole prompt is scanned (rather than the
+  // already-split services text) the first name absorbs the command preamble:
+  // "Create category Hair with Women's cut" → "Women's cut". Only strip when
+  // the prefix actually looks like a create-category preamble, so a service
+  // legitimately named "Facial with peel" is left alone.
+  const preamble = name.match(
+    /^.*\b(?:categor(?:y|ies)|catalog|menu)\b.*?\bwith\s+(?:services?\s+)?(.+)$/i,
+  );
+  if (preamble?.[1]?.trim()) name = preamble[1].trim();
+  // "…with three services: service A" — the enumeration colon also fronts the
+  // first entry when the raw prompt (not the split services text) is scanned.
+  const afterColon = name.split(':').pop()?.trim();
+  if (afterColon) name = afterColon;
+  const withoutConnector = name.replace(/^(?:and|or|plus|&|и|плюс|և)\s+/i, '').trim();
+  if (withoutConnector) name = withoutConnector;
+  const withoutDescriptor = name.replace(/^services?\s+/i, '').trim();
+  if (withoutDescriptor) name = withoutDescriptor;
+  return name;
+}
 
 export function parseServiceLinesFromText(text: string): CatalogServiceDraft[] {
   const services: CatalogServiceDraft[] = [];
@@ -920,13 +972,17 @@ export function parseServiceLinesFromText(text: string): CatalogServiceDraft[] {
   let match: RegExpExecArray | null;
   const re = new RegExp(SERVICE_LINE.source, 'gi');
   while ((match = re.exec(text)) !== null) {
-    const name = match[1].replace(/^[\s:-]+|[\s:-]+$/g, '').trim();
+    const rawName = match[1] ?? match[4] ?? '';
+    const rawDuration = match[2] ?? match[5];
+    const rawPrice = match[3] ?? match[6];
+    if (!rawDuration || !rawPrice) continue;
+    const name = normalizeServiceLineName(rawName);
     if (!name || seen.has(name.toLowerCase())) continue;
     seen.add(name.toLowerCase());
     services.push({
       serviceName: name,
-      durationMinutes: Math.max(10, parseInt(match[2], 10)),
-      price: parseFloat(match[3]),
+      durationMinutes: Math.max(10, parseInt(rawDuration, 10)),
+      price: parseFloat(rawPrice),
     });
   }
   return services;
@@ -1034,12 +1090,16 @@ export function parseBulkCatalogWithCountFromPrompt(
 export function parseBulkCatalogFromPrompt(
   prompt: string,
 ): CatalogCategoryDraft | null {
+  // e2e-bug.347 — `{1,40}?` demanded at least two characters, so a
+  // single-letter category ("category Y with …") never matched and the whole
+  // draft came back null. `{0,40}?` allows the one-character name; the lazy
+  // quantifier still stops at the first "with"/":" boundary for longer names.
   const categoryMatch =
     prompt.match(
-      /\bcategory\s+([A-Za-z][\w\s&'-]{1,40}?)(?:\s+with|\s*:|$)/i,
+      /\bcategor(?:y|ies)\s+([A-Za-z][\w\s&'-]{0,40}?)(?:\s+with\b|\s*[:(]|$)/i,
     ) ??
     prompt.match(
-      /\b(?:catalog|menu)\s+(?:for\s+)?([A-Za-z][\w\s&'-]{1,40}?)(?:\s+with|\s*:|$)/i,
+      /\b(?:catalog|menu)\s+(?:for\s+)?([A-Za-z][\w\s&'-]{0,40}?)(?:\s+with\b|\s*[:(]|$)/i,
     );
   if (!categoryMatch) return null;
 
@@ -1227,7 +1287,18 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
     };
   }
   if (isCreateServiceCategoryPrompt(text)) {
-    const name = text.match(/\bcategory\s+([A-Za-z][\w\s&'-]+)/i)?.[1]?.trim();
+    // e2e-bug.347 — the greedy capture used to swallow the trailing service
+    // clause ("category Y with services A (30 min, $50)" → "Y with services A").
+    // Prefer the sanitized extractor, then fall back to a lazy match that stops
+    // at the "with …"/":"/"(" boundary, same as `parseBulkCatalogFromPrompt`.
+    const name =
+      extractCreateServiceCategoryFromPrompt(text) ??
+      (() => {
+        const raw = text.match(
+          /\bcategor(?:y|ies)\s+([A-Za-z][\w\s&'-]{0,40}?)(?:\s+with\b|\s*[:(,]|\s*$)/i,
+        )?.[1];
+        return raw ? stripTrailingCategoryNamePoliteness(raw) : undefined;
+      })();
     return {
       action: 'create_service_category',
       params: { categoryName: name ?? null },

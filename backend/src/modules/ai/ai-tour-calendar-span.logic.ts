@@ -1,9 +1,6 @@
 import type { Booking } from '../booking/entities/booking.entity.js';
 import type { BookingService } from '../booking/booking.service.js';
-import {
-  formatDateDisplay,
-  getTodayDateKey,
-} from '../../common/utils/date-format.util.js';
+import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import {
   extractTourBookingMetadata,
   isTourService,
@@ -16,7 +13,10 @@ import {
   TOUR_SERVICE_COLORS,
   type CalendarWeekBooking,
 } from '../../common/utils/tour-calendar.util.js';
+import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
+import { detectSemanticPromptLocale } from './intent-anchor.seed.util.js';
 import {
   parseExplainTourCalendarSpanFromPrompt,
   type ParsedExplainTourCalendarSpan,
@@ -85,9 +85,23 @@ function resolveWeekAnchor(
   return withRange[0] ?? getTodayDateKey();
 }
 
-function formatSpanRange(start: string, end: string): string {
-  const startLabel = formatDateDisplay(start);
-  const endLabel = formatDateDisplay(end);
+/** Prefer prompt script (hy/ru), then params.locale — e2e-bug.336 (mirrors e2e-bug.289). */
+export function resolveExplainTourCalendarSpanLocale(
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): AppLocale {
+  const text = String(prompt ?? params._prompt ?? '');
+  const detected = detectSemanticPromptLocale(text);
+  if (detected === 'hy' || detected === 'ru') return detected;
+  return resolveLocale(
+    typeof params.locale === 'string' ? params.locale : null,
+  );
+}
+
+// e2e-bug.336 — no DD/MM slash dates (sibling of Fixed e2e-bug.306/308).
+function formatSpanRange(start: string, end: string, locale: AppLocale): string {
+  const startLabel = formatDateForAiLabel(start, locale);
+  const endLabel = formatDateForAiLabel(end, locale);
   return start === end ? startLabel : `${startLabel}–${endLabel}`;
 }
 
@@ -96,8 +110,9 @@ function buildAspectSummary(
   weekDateKeys: string[],
   spans: ReturnType<typeof buildTourCalendarSpans>,
   colorMap: Record<string, string>,
+  locale: AppLocale,
 ): string {
-  const weekLabel = `${formatDateDisplay(weekDateKeys[0])}–${formatDateDisplay(weekDateKeys[6])}`;
+  const weekLabel = `${formatDateForAiLabel(weekDateKeys[0], locale)}–${formatDateForAiLabel(weekDateKeys[6], locale)}`;
   const parts: string[] = [];
 
   if (aspect === 'all' || aspect === 'multiDaySpan') {
@@ -110,7 +125,7 @@ function buildAspectSummary(
         .slice(0, 3)
         .map(
           (span) =>
-            `${span.serviceName} cols ${span.colStart + 1}–${span.colEnd + 1} (${formatSpanRange(span.tourStartDate, span.tourEndDate)})`,
+            `${span.serviceName} cols ${span.colStart + 1}–${span.colEnd + 1} (${formatSpanRange(span.tourStartDate, span.tourEndDate, locale)})`,
         )
         .join('; ');
       parts.push(
@@ -155,7 +170,7 @@ function buildAspectSummary(
         .slice(0, 2)
         .map(
           (span) =>
-            `${span.serviceName} stored ${formatSpanRange(span.tourStartDate, span.tourEndDate)} clipped to cols ${span.colStart + 1}–${span.colEnd + 1}`,
+            `${span.serviceName} stored ${formatSpanRange(span.tourStartDate, span.tourEndDate, locale)} clipped to cols ${span.colStart + 1}–${span.colEnd + 1}`,
         )
         .join('; ');
       parts.push(
@@ -227,12 +242,14 @@ export async function handleExplainTourCalendarSpanLogic(
   const calendarBookings = tourBookings.map(toCalendarWeekBooking);
   const spans = buildTourCalendarSpans(calendarBookings, weekDateKeys);
   const colorMap = buildServiceColorMap(spans.map((span) => span.serviceId));
+  const locale = resolveExplainTourCalendarSpanLocale(params, prompt);
 
   const summary = buildAspectSummary(
     parsed.aspect,
     weekDateKeys,
     spans,
     colorMap,
+    locale,
   );
 
   return success('explain_tour_calendar_span', summary, {

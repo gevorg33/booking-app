@@ -226,7 +226,13 @@ function hasHoursCue(prompt: string): boolean {
     /\b(?:open(?:ing)?\s+hours?|business\s+hours?|operating\s+hours?|what\s+time|when\s+are\s+you\s+open|are\s+you\s+open|close|closing|hours?\s+on|your\s+hours|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+hours?)\b/i.test(
       prompt,
     ) ||
-    /(?:աշխատանքային|բաց(?!իր|ատրիր)|ժամեր|երբ)/iu.test(prompt) ||
+    // e2e-bug.337 — the negative lookahead must tolerate the Armenian
+    // emphasis mark (՛, U+055B) commonly inserted in imperative forms
+    // ("Բացատրի՛ր" = "Explain!"), otherwise "ատրիր" never literally matches
+    // and "բաց" alone wrongly fires the hours cue.
+    /(?:աշխատանքային|բաց(?!՛?իր|ատրի՛?ր)|ժամեր|երբ)/iu.test(
+      prompt,
+    ) ||
     /(?:часы|открыт|работаете|закрыва)/iu.test(prompt)
   );
 }

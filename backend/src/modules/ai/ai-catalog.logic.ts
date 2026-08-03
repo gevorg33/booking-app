@@ -263,16 +263,27 @@ export async function handleBulkCreateCatalogLogic(
   params: Record<string, any>,
   prompt: string,
 ): Promise<CommandResult> {
+  // e2e-bug.347 — the classifier routinely fills `categoryName` but leaves
+  // `services` empty. The old `params.categoryName ? … : parse…` shape made
+  // that branch terminal, so the prompt was never parsed and the handler
+  // clarified ("Provide category and service lines") even though the service
+  // lines were spelled out verbatim. Parse the prompt up front and use it to
+  // backfill whichever half the classifier left missing.
+  const parsedDraft =
+    parseBulkCatalogFromPrompt(prompt) ??
+    parseBulkCatalogWithCountFromPrompt(prompt);
+  const paramServices = (params.services ?? []) as CatalogServiceDraft[];
   const draft: CatalogCategoryDraft | null =
     params.catalogDraft ??
     (params.categoryName
       ? {
           categoryName: params.categoryName,
-          services: (params.services ?? []) as CatalogServiceDraft[],
+          services: paramServices.length
+            ? paramServices
+            : (parsedDraft?.services ?? []),
           localizedNames: params.localizedNames,
         }
-      : (parseBulkCatalogFromPrompt(prompt) ??
-        parseBulkCatalogWithCountFromPrompt(prompt)));
+      : parsedDraft);
 
   if (!draft?.categoryName || !draft.services?.length) {
     return failure(

@@ -4682,13 +4682,20 @@ No new issues found during this pass.
 
 ---
 
-## e2e-bug.339 — HY "Ինչպես է աշխատում հիմնական էկրանի վիջեթը" misroutes to `booking_help` — **Open**
+## e2e-bug.339 — HY "Ինչպես է աշխատում հիմնական էկրանի վիջեթը" misroutes to `booking_help` — **Fixed**
 
 Found during guru live QA for **e2e-bug.317** (2026-08-02) on salon `gevgas-operations-7c299253`.
 
 A natural free-form HY phrasing — `"Ինչպես է աշխատում հիմնական էկրանի վիջեթը"` ("How does the home screen widget work") — doesn't match `isExplainHomeScreenWidgetPrompt`'s HY semantic gate in `ai-explain-home-screen-widget.util.ts` (requires `ավելացնել|ցույց|կրկին` — add/show/again — alongside `վիջեթ|հիմնական էկրան`, which this "how does it work" phrasing lacks) and instead falls through and gets classified as `booking_help`, returning a `"Step 1/3: …"` onboarding-flow summary instead of the widget explanation. Confirmed live: the exact canonical multilingual fixture prompts (`EXPLAIN_HOME_SCREEN_WIDGET_MULTILINGUAL_SCENARIOS`, e.g. `"Ինչ է ցույց տալիս վիջեթը"`, `"Ավելացնել հաջորդ հանդիպումը հիմնական էկրանին"`) all route and localize correctly — this is narrowly the "how does it work" phrasing shape in Armenian.
 
-**Fix direction**: extend the HY semantic gate in `isExplainHomeScreenWidgetPrompt` to also match a "how it works" cue word (e.g. `ինչպես` — how) alongside `վիջեթ|հիմնական էկրան`, mirroring the existing EN gate's `/\bhow\b/i.test(prompt) && /\bwidget\b/i.test(prompt)` fallback (line ~87 of the same file), which already handles this exact phrasing shape in English.
+**Fix (2026-08-03)**: extended the HY semantic gate in `isExplainHomeScreenWidgetPrompt` (`ai-explain-home-screen-widget.util.ts:110-113`) to also match `ինչպես` (how) alongside `վիջեթ|հիմնական էկրան`, mirroring the existing EN gate's `/\bhow\b/i.test(prompt) && /\bwidget\b/i.test(prompt)` fallback and RU's "работа" cue. Confirmed the gate stays narrow: unrelated HY "how" phrasing without a widget/home-screen noun (e.g. `"Ինչպես ամրագրել"` — how to book) correctly stays excluded.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e339-hy-widget-how-it-works.util.spec.ts` — **10/10** (exact reported repro + `how_it_works` aspect resolution, HY "how to remove widget" sibling, EN/RU "how does it work" regressions, HY "what shows"/"add widget" regressions, 2 unrelated-"how"-without-widget-noun controls).
+- `npx jest --testPathPatterns='ai-e2e339|ai-e2e276|ai-e2e295|ai-explain-home-screen-widget|customer-ai-command-explain-home-screen-widget'` — **130/130**, zero regressions.
+- `npx tsc --noEmit` — zero new errors.
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-339.mjs` — **6/6**, stable across 3 runs, via the public `/public/:slug/assistant` customer endpoint (this is a consumer-app feature — the dashboard staff endpoint correctly has no `explain_home_screen_widget` intent at all, which is why an initial live-test attempt against the wrong endpoint misleadingly failed before switching to the correct surface).
 
 ## e2e-bug.277 — public `booking_help` returns progress summary but omits `guide` / `supportHandoff` — **Fixed**
 
@@ -4978,7 +4985,7 @@ DB check after all 10 live calls: `SELECT ... FROM bookings WHERE business_id = 
 | `"Mountain trek for 5"` | classifier picked plain `unknown` directly (not one of the two hallucinated IDs) — already a benign "I didn't fully understand" clarify, not `security_blocked`; outside this bug's specific reproduction, not touched by this fix |
 | `"Safari tour for 6 next Saturday"` (nonexistent tour) | same benign `unknown` fallback — no crash, no leak |
 | `"Weekend Heritage Tour for 4 next Friday"` | same benign `unknown` fallback |
-| `"Tell me about the wine tour"` | misclassified to `explain_provider_specialty` — a **separate, pre-existing** classifier quirk (treats "the wine tour" as a provider name lookup), unrelated to the `security_blocked` bug this pass targets; noted but not fixed here to keep this change scoped |
+| `"Tell me about the wine tour"` | misclassified to `explain_provider_specialty` — a **separate, pre-existing** classifier quirk (treats "the wine tour" as a provider name lookup), unrelated to the `security_blocked` bug this pass targets; noted but not fixed here to keep this change scoped. **Resolved 2026-08-03 as a side effect of e2e-bug.346**'s general "tell me about this/the/your X" fix — now correctly routes to `explain_tour_booking`. |
 
 No DB mutations in any of the above (all read-only explain/unknown outcomes). The 3 "benign unknown" and 1 "separate misclassification" cases are documented for future follow-up but are not regressions from this fix and not the specific defect e2e-bug.206 reported.
 
@@ -6424,7 +6431,7 @@ With `locale:ru`, some creates return Russian (`"Категория '…' усп
 
 **Residual filed**: category-name extraction over-captures a trailing placeholder-count clause into `categoryName` (locale-independent, not part of this fix's scope) — **e2e-bug.338**.
 
-## e2e-bug.338 — `create_service_category` name extraction absorbs a trailing placeholder-count clause into `categoryName` — **Open**
+## e2e-bug.338 — `create_service_category` name extraction absorbs a trailing placeholder-count clause into `categoryName` — **Fixed**
 
 Found during guru live QA for **e2e-bug.312** (2026-08-02) on salon `gevgas-operations-7c299253`, while probing the placeholder-service variant of the success message.
 
@@ -6432,7 +6439,14 @@ Found during guru live QA for **e2e-bug.312** (2026-08-02) on salon `gevgas-oper
 
 **Root cause**: `extractCreateServiceCategoryFromPrompt` (`ai-catalog.util.ts:339`) — every `…named/called X` and RU `…названием X` regex pattern is anchored to end-of-string (`$`) with a lazy-but-unbounded capture group (`([A-Za-z][\w\s&'-]+?)` / `(.+?)`), and the only trailing content stripped before the anchor is a small fixed set of politeness words (`please/kindly/пожалуйста/…`). A trailing count/placeholder clause isn't one of those, so the whole clause gets pulled into the name.
 
-**Fix direction**: extend `stripTrailingCategoryNamePoliteness` (or add a sibling helper) to also strip a trailing `with N placeholder service(s)` / RU `и N услугами-заглушками`-style count clause before returning the captured name — mirroring how politeness words are already stripped post-capture, so the placeholderCount extraction (which already works correctly) isn't affected, only the name capture boundary.
+**Fix (2026-08-03)**: extended `stripTrailingCategoryNamePoliteness` (`ai-catalog.util.ts:321`) with a new `CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE` alternative — `(?:with|and|и)\s+\d+\s+(?:placeholder\s+services?|placeholder\s+услуг\p{L}*|услуг\p{L}*[\s-]*заглушк\p{L}*)` — merged into the same iterative trailing-strip loop as the politeness words (so `"… with 2 placeholder services please"` strips both in either order). Because the clause requires a digit immediately after `with`/`and`/`и`, legitimately-named categories like `"Spa with Sauna"` or `"Hair and Beauty"` are untouched. `placeholderCount` itself is parsed from the LLM classifier's own params (not this regex) and was never affected.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e338-category-name-placeholder-clause.util.spec.ts` — **10/10** new cases (both exact reported repros EN/RU, singular "placeholder service"/"placeholder услугой", native RU "услугами-заглушками", clause+trailing-politeness combo, count-clause-precedes-name regression, no-count regression, 2 legitimate-"with"/"and"-in-name cases) — each checked through `extractCreateServiceCategoryFromPrompt`, `reconcileCreateServiceCategoryNameFromPrompt`, and `enrichServiceCategoryRescueParams` together.
+- `npx jest --testPathPatterns='ai-e2e338|ai-e2e291|ai-e2e271|ai-e2e290|ai-e2e292|ai-e2e312|ai-catalog\.util'` — **147/147**, zero regressions.
+- `npx tsc --noEmit` — zero new errors (pre-existing unrelated `ai-catalog.util.spec.ts` duplicate-identifier error confirmed via `git stash` isolation).
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-338.mjs` — **7/7**, stable across 3 runs (exact reported EN/RU repros now create clean-named categories with the placeholder count still correctly reported; count-first RU regression and a legitimate "with Extras" name both still correct).
 
 ## e2e-bug.253 — Account booking-card / `ConsumerBookingActions` still use `IonButton` hosts — **Fixed**
 
@@ -6670,7 +6684,7 @@ Found during guru live QA for **e2e-bug.283** (2026-08-01).
 
 **Residual filed:** **e2e-bug.342** — investigated the pre-existing `ai-provider-exp-2-locale-parity.spec.ts` 42-case failure sweep (confirmed byte-identical before/after this fix via `git stash` isolation, not caused by this change) and root-caused it to a real rescue-pipeline gap affecting `list_team_unpaid_today` / `explain_reviews_inbox` (and structurally the whole exp-2 domain) whenever the upstream classifier returns `action: 'unknown'`.
 
-## e2e-bug.342 — provider exp-2 domain (`list_team_unpaid_today`, `explain_reviews_inbox`, `my_stats`, …) never rescues when classifier action is exactly `'unknown'` — **Open**
+## e2e-bug.342 — provider exp-2 domain (`list_team_unpaid_today`, `explain_reviews_inbox`, `my_stats`, …) never rescues when classifier action is exactly `'unknown'` — **Fixed**
 
 **Found 2026-08-02** while investigating a pre-existing, unrelated 42-case failure sweep in `ai-provider-exp-2-locale-parity.spec.ts` during e2e-bug.328 guru QA (confirmed via `git stash` isolation that e2e-bug.328's changes did not cause or touch this — same 42 failures before and after).
 
@@ -6682,9 +6696,23 @@ This did **not** block e2e-bug.303/328's live QA for `my_stats`, because the rea
 
 **Fix direction:** add a `tryRescueProviderExp2`-equivalent call to `runRescueUnknownPhase` (or to `runRescueProviderPhase`, gated on `surface === 'provider'`) in `ai-intent-rescue.service.ts` so the exp-2 domain is reachable on a genuine `'unknown'` classification, not only on a wrong-but-known one. Re-run `ai-provider-exp-2-locale-parity.spec.ts` (currently 42 failing) to confirm the fix; verify no double-rescue conflicts with the existing `runRescueProviderPhase` explainer no-steal guards (e2e-bug.244–247) ahead of it.
 
+**Actual root cause (2026-08-03) — corrects the hypothesis above**: `tryRescueProviderExp2` was already unconditionally wired into `runRescueUnknownPhase` (`ai-intent-rescue.service.ts:2815`), so the pipeline-wiring gap this ticket originally suspected doesn't exist — `runIntentRescuePipeline` correctly reaches it whenever `action === 'unknown'`. The real defect is one step later: `runIntentRescuePipeline` passes every rescue result through `acceptRescueForSurface`, which calls `isIntentAllowedOnSurface(action, 'provider')` — and that resolves via `getCommandEntry(action)`, i.e. the command registry (`ai-command-registry.build.ts`'s `INTENT_BINDING_SEEDS`). `list_team_unpaid_today` and `explain_reviews_inbox` were the only two of the exp-2 domain's 14 actions **entirely absent** from the registry (confirmed via grep: 0 matches in `ai-command-registry.build.ts`, vs. 2–3 matches for every sibling action). `getCommandEntry` returns `undefined` for an unregistered id, so `isIntentAllowedOnSurface` returns `false`, and `acceptRescueForSurface` silently drops the already-correct rescue result back to `null` — the detectors and `tryRescueProviderExp2` were never the problem.
+
+**Fix (2026-08-03)**: added `'list_team_unpaid_today'` and `'explain_reviews_inbox'` to the exp-2 domain's `intents:` array in `INTENT_BINDING_SEEDS` (`ai-command-registry.build.ts:1102-1116`, `apiModule: 'provider-exp-2'`, `surfaces: ['provider']`) — matching exactly how the other 12 exp-2 actions (`my_stats`, `team_floor_status`, …) are already registered in that same group. Did **not** add them to `PROVIDER_EXCLUSIVE_INTENTS` (a separate registry group bound to `apiModule: 'provider-mobile'` / `handler: 'ProviderAiCommandService'`) since these two actions are actually dispatched by `AiProviderExp2Service`, per `ai-provider-exp-2.logic.ts`'s own switch statement — registering them there instead would have created a handler mismatch.
+
+**Verification (2026-08-03)**:
+- Unit: `ai-e2e342-provider-exp2-unknown-registry-gap.util.spec.ts` — **5/5** (registry now allows both actions on `surface: 'provider'`; both ticket-quoted HY/RU prompts now correctly rescue end-to-end through the full `AiIntentRescueService.rescue()` gateway, not just the raw detector).
+- `ai-provider-exp-2-locale-parity.spec.ts` — **277/277** (was 235 passing / 42 failing before the fix — all 42 `rescuedAction: expected X, got none` failures now resolved, zero new failures).
+- `npx jest --testPathPatterns='ai-e2e342|ai-provider-exp-2-locale-parity|ai-provider-exp-2\.util|ai-provider-exp-2\.logic|ai-command-registry|ai-e2e77-cross-surface-rescue-gate'` — **529/530** (1 pre-existing, unrelated apiModule-mismatch failure in `ai-command-registry.integration.spec.ts` confirmed identical with and without this fix via `git stash` — a different customer-surface intent's registry conflict, not a "missing entirely" gap like this ticket's).
+- `npx tsc --noEmit` — zero new errors.
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-342.mjs` — **5/5**, stable across 3 runs against the real `/businesses/:id/provider/ai/command` endpoint (both ticket-quoted HY prompts + their RU siblings now resolve `list_team_unpaid_today` / `explain_reviews_inbox` with `success: true`; a sibling exp-2 intent, `my_stats`, confirmed still reachable as a regression control).
+
+**Systemic check**: none of the exp-2 domain's other 12 actions have this defect (all already present in the registry, confirmed via grep count ≥2 for each); this fix is self-contained to the two missing rows.
+
 ---
 
-## e2e-bug.343 — dashboard `create_booking` crashes with an unhandled 500 on MM/DD slash dates where day-of-month > 12 — **Open**
+## e2e-bug.343 — dashboard `create_booking` crashes with an unhandled 500 on MM/DD slash dates where day-of-month > 12 — **Fixed**
 
 **Found 2026-08-02** while live-verifying **e2e-bug.332**. Reproduced on `gevgas-operations-7c299253` via the dashboard AI command endpoint:
 
@@ -6697,6 +6725,148 @@ This did **not** block e2e-bug.303/328's live QA for `my_stats`, because the rea
 This is the same DD/MM-vs-MM/DD ambiguity family as **e2e-bug.285/306/332**, but more severe: those produced a wrong-but-valid slash string, while a day-of-month that's numerically impossible as a month (13-31) here produces an outright crash instead of a graceful validation error.
 
 **Fix direction**: in `parseDateInput`'s slash branch, validate the constructed `Date` with `Number.isNaN(d.getTime())` before returning it (return `null` on failure, matching the fallback branch's contract) — and/or, since the day-of-month value being `> 12` is an unambiguous signal the input is actually MM/DD (impossible as DD/MM), swap the interpretation in that case rather than failing. `toIsoDay` should also defensively guard `Number.isNaN(d.getTime())` (not just `!d`) before calling `.toISOString()`, so any future invalid-Date leak degrades to a clarification message instead of an unhandled crash.
+
+**Fix (2026-08-03)**: implemented both halves of the fix direction, plus one more discovered along the way:
+1. `parseDateInput`'s slash branch (`date-format.util.ts:142-156`) now swaps day/month when the assumed-month component is `> 12` and the assumed-day component is `<= 12` (unambiguous MM/DD signal), and validates the constructed `Date` with `Number.isNaN`, returning `null` on failure.
+2. `toIsoDay` (`date-format.util.ts:165-170`) now guards `Number.isNaN(d.getTime())` (not just `!d`) before calling `.toISOString()`.
+3. **Newly discovered while live-testing**: the exact ticket-reported prompt still crashed after fix #1/#2, via a *different* mechanism — `parseDateInput`'s **ISO branch** (`YYYY-MM-DD`) was still unguarded, unconditionally returning `new Date(...)` even when malformed (e.g. `"2026-19-08"`, a pseudo-ISO string with `params.date` already garbled to this shape by the classifier's own date extraction *before* it ever reaches `parseDateInput`). Since an Invalid Date object is truthy, `parseDateInput(x) ?? fallback` patterns elsewhere in the codebase (e.g. `BookingSlotResolverService.getProviderAvailabilityForService`) never reached their fallback, and the Invalid Date flowed unguarded into `dayStart`/`dayEnd` construction, then into a TypeORM query parameter — surfacing as `QueryFailedError: invalid input syntax for type timestamp with time zone: "0NaN-NaN-NaNTNaN:NaN:NaN.NaN+NaN:NaN"` (TypeORM's own manual date-to-SQL serialization of an Invalid Date's NaN internals). Fixed by adding the same `Number.isNaN` guard to the ISO branch, **and** added a defensive `invalid_date` short-circuit directly in `BookingSlotResolverService.checkSlotAvailability` (`booking-slot-resolver.service.ts`) — new `SlotUnavailableReason` value `'invalid_date'` with a clear `describeUnavailable` message ("Could not understand the date... Please specify a clear date") — so any date malformed at any upstream layer degrades gracefully before ever reaching the DB query, not just the two specific call sites already traced.
+
+The residual imprecision (the classifier's own date-extraction still sometimes garbles an MM/DD slash date into a malformed pseudo-ISO string before our deterministic code ever sees it) is inherent to using an LLM-assisted classifier for ambiguous slash dates — the same known ambiguity class this whole e2e-bug.285/306/332/343 family addresses — and is not a distinct, separately-fixable code defect; the graceful-degradation architecture above is the correct boundary defense regardless of which upstream layer produces the malformed string.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `e2e343-mmdd-day-over-12-no-crash.util.spec.ts` — **6/6** (exact reported repro, DD/MM regression, ambiguous-both-valid keeps DD/MM assumption, both-components-over-12 graceful null, December MM/DD swap, exact crash scenario no longer throws); `booking-slot-resolver.service.spec.ts` — **5/5** (2 new `describeUnavailable`/`checkSlotAvailability` cases for the `invalid_date` reason, confirmed no repo access happens before the guard fires).
+- `npx jest --testPathPatterns='e2e343|date-format.util.spec|ai-e2e296|booking-slot-resolver\.service\.spec|ai-e2e332'` — **210/210**, zero regressions.
+- `npx tsc --noEmit` — zero new errors in touched files.
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-343.mjs` — **4/4**, stable across 3 runs (exact reported repro + a December MM/DD sibling both now return a graceful `create_booking` clarification response with `status:201` instead of a 500 crash — confirmed via direct request that the response body shows `"reason":"invalid_date"` and the clear message, not a raw crash; unambiguous ISO and month-name date regressions confirmed still working).
+
+---
+
+## e2e-bug.344 — public `"is someone/everyone free… for <service>"` misroutes to `confirm_my_booking_details` when combined with a bare "this <period>" (e2e-bug.334 residual) — **Fixed**
+
+**Found 2026-08-02** while live-verifying **e2e-bug.334**. After fixing the indefinite-pronoun-as-provider-name bug, two of the six pronoun variants still misroute — but to a completely different, unrelated action:
+
+- `"is someone free this evening for Swedish massage"` → `confirm_my_booking_details` / `"Finish booking or sign in so I can read your appointment details from the session."`
+- `"is everyone available this week for a haircut"` → `confirm_my_booking_details` (same generic sign-in-required message)
+- All 4 other pronoun variants (anyone/anybody/somebody, without a bare "this <period>" phrase) correctly resolve to `check_providers_for_service`.
+
+**Root cause**: `isConfirmMyBookingDetailsPrompt`'s `BOOKING_CONTEXT` regex (`ai-confirm-my-booking-details.util.ts:63`) includes the alternative `\b(?:my|this|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b` — the greedy `.*` lets the word "this" from an unrelated **temporal** phrase ("this evening", "this week") pair up with a **service** keyword arbitrarily far later in the sentence, even though "this" isn't functioning as a booking determiner ("this booking/appointment") at all. Combined with `READ_CUE` matching the bare word "is" (present in nearly every availability question), `isConfirmMyBookingDetailsPrompt` returns true for any "is X … this <period> for <service>" phrasing, hijacking it before `check_providers_for_service`'s own detection ever gets a chance. This is a **general** false-positive class, not specific to indefinite pronouns — e.g. "Is Karo free this evening for a massage" would risk the same misroute if it didn't already exit earlier via a named-provider branch.
+
+**Fix direction**: tighten `BOOKING_CONTEXT`'s `this` branch so it doesn't span across an intervening temporal-window phrase ("this evening/week/morning/…") — e.g. require "this" to be immediately adjacent to the booking noun (`this\s+(?:booking|appointment|visit|reservation)`) rather than allowing `.*` to bridge over "evening"/"week"/"afternoon" first, or explicitly exclude prompts where the nearest word after "this" is a time-of-day/week token.
+
+**Fix (2026-08-03)**: `ai-confirm-my-booking-details.util.ts`'s `BOOKING_CONTEXT` regex — split the single `\b(?:my|this|upcoming|current)\b.*\b(?:booking|...|service)\b` alternative into two: `\b(?:my|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b` (unchanged, full noun set) and `\bthis\b.*\b(?:booking|appointment|visit|reservation)\b` (bare "this" now restricted to the actual booking-container nouns only — no longer pairs with a service-type noun like massage/haircut/facial/service). This closes the gap where "this" from an unrelated temporal phrase ("this evening", "this week") could bridge across `.*` to a service keyword arbitrarily later in the sentence; "this booking/appointment/visit/reservation" (the legitimate usage) is unaffected since those nouns are still in the restricted set.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e344-this-period-not-booking-context.util.spec.ts` — **7/7** (3 "this <period>" false-positive repros incl. both exact reported prompts, 1 named-provider control confirming the pre-existing named-provider exit path is untouched, 3 legit "this booking/appointment" controls confirming the fix doesn't regress the intended usage).
+- `npx tsc --noEmit` — zero new errors.
+- Targeted jest sweep + full `ai-command-eval` — stable at the established 32 failed/241 passed/273 total baseline, confirmed byte-identical via `git stash` isolation of this file alone.
+- Live: `frontend/scripts/qa-e2e-bug-344.mjs` against `/public/gevgas-operations-7c299253/assistant` — **5/5**, stable across 3 runs (both exact reported repros + a sibling pronoun variant now correctly resolve to `check_providers_for_service`; the 4-pronoun-without-"this <period>" regression from e2e-bug.334 stays correct; legit `confirm_my_booking_details` phrasing stays correct).
+- **Live-test control-phrase note**: two candidate regression-control phrasings were tried and rejected because each collides with a *different*, unrelated, pre-existing bug on the public surface (both confirmed via `git stash` isolation of this ticket's fix file + full rebuild/restart to reproduce identically with the fix absent): `"Tell me about this booking"` → misrouted to `explain_provider_specialty`; `"What time is my current appointment?"` → misrouted to `explain_business_hours_and_location`. Filed the first as **e2e-bug.346** below (root-caused to the same `explain_provider_specialty` "tell me about X" over-capture family as e2e-bug.191/task #259); settled on `"Details for this appointment"` as the live control since it hits neither collision.
+
+---
+
+## e2e-bug.345 — public `check_availability` no-slots summary still uses DD/MM slash dates (e2e-bug.335 residual) — **Fixed**
+
+**Found 2026-08-02** while live-verifying **e2e-bug.335**. `"check availability for Swedish massage tomorrow"` (public surface) correctly stays `check_availability`, but the no-slots summary reads `"No open slots for Swedish massage with any specialist on the requested day(s) (04/08/2026). Try another day or specialist."` — an ambiguous DD/MM slash date.
+
+**Root cause**: `public-booking-assistant.service.ts:2939` calls `composeAvailabilityNoSlotsSummary({ ..., daysLabel: dayCount === 1 ? formatDateDisplay(allDateKeys[0], locale) : String(dayCount), ... })` — `formatDateDisplay` produces the locale-formatted (slash) date instead of `formatDateForAiLabel`'s unambiguous label. Same family as Fixed **e2e-bug.285/306/332**, but `check_availability` is not in `AI_DATE_GROUNDED_BOOKING_ACTIONS`, and this specific call site (inside `PublicBookingAssistantService`, not `AiBookingCoreService`) hadn't been swept for this pattern yet.
+
+**Fix (2026-08-02)**: `public-booking-assistant.service.ts`'s single-day no-slots branch now calls `formatDateForAiLabel(allDateKeys[0], locale)` instead of `formatDateDisplay`. This call site is shared by both the "any specialist" (`check_availability`) and named-provider (`explain_provider_availability`) no-slots variants, so both are fixed together.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e345-public-availability-noslots-slash-date.util.spec.ts` — **5/5** (3 dates × any-specialist/named-provider labels, exact reported-string reproduction, multi-day count-path non-regression)
+- `npx jest --testPathPatterns='ai-flexible-availability|ai-e2e345|ai-e2e306|public-booking-assistant'` — **453/459** (6 pre-existing unrelated failures — `serviceCategory` param mismatches in `ai-flexible-availability.integration.spec.ts` — confirmed byte-identical via `git stash` isolation)
+- `npx tsc --noEmit` — zero new errors
+- Live: `frontend/scripts/qa-e2e-bug-345.mjs` — **4/4**, stable across 3 runs (any-specialist and named-provider no-slots messages both now read e.g. "4 August 2026"; multi-day count path — no date at all — confirmed unaffected)
+
+---
+
+## e2e-bug.346 — public `"Tell me about this booking"` misroutes to `explain_provider_specialty` (same over-capture family as e2e-bug.191 / task #259) — **Fixed**
+
+**Found 2026-08-03** while live-verifying **e2e-bug.344**. A candidate regression-control phrasing for e2e-bug.344's fix, `"Tell me about this booking"`, was expected to route to `confirm_my_booking_details` (its own unit-level `isConfirmMyBookingDetailsPrompt` fixture control already confirms this returns `true`), but on the live public assistant surface (`/public/:slug/assistant`) it instead returns `action: explain_provider_specialty`, `"I couldn't find a provider named this booking."` Confirmed via `git stash` isolation (full rebuild + server restart + direct manual request) that this misroute reproduces byte-identically with e2e-bug.344's fix completely absent — 100% pre-existing and unrelated to that ticket.
+
+**Root cause**: `hasNamedProviderCue` (`ai-explain-provider-specialty.util.ts:330-354`) matches `/\b(?:tell me about|learn(?: more)? about|...)\b/i` (line 343) for **any** following text, gated only by `isSalonOrBusinessAboutPrompt` (line 331, the e2e-bug.191 salon/business exclusion). There is no exclusion for booking-container nouns ("this booking/appointment/visit/reservation"), so "Tell me about this booking" is treated as a named-provider specialty lookup with "this booking" captured as the (nonsensical) provider name. This is the same recurring defect family as **e2e-bug.191** (fixed for "this/the/your salon|business") and task #259 ("Tell me about the wine tour", still open) — each is a different noun tripping the same overly-broad "tell me about X" → provider-name capture, one at a time, rather than a general fix for non-person nouns.
+
+**Fix direction**: either (a) extend `isSalonOrBusinessAboutPrompt`/`isNonPersonProviderCapture`'s noun list to also cover booking/appointment/visit/reservation/tour-type nouns (narrow, same whack-a-mole pattern as e2e-bug.191), or (b) the more durable fix — invert the check so `hasNamedProviderCue` requires the captured phrase to plausibly *be* a person name (e.g. reject captures containing common non-person nouns, or requiring the capture to be dictionary-checkable against known employee first names) rather than allowing any capture through unless it happens to match one of a growing exclusion list. Not fixed here to keep e2e-bug.344 scoped; filed per this session's standing "report newly discovered issues" instruction.
+
+**Fix (2026-08-03)**: went with the durable option (b). `ai-explain-provider-specialty.util.ts`:
+1. New `isDeterminerAboutPrompt(prompt)` — `/\b(?:tell\s+me\s+about|learn(?:\s+more)?\s+about)\s+(?:this|the|your)\s+\S/i`. A person's name is never referred to with a "this/the/your" determiner ("tell me about Anna", never "tell me about this Anna") — so this cue firing means the captured phrase is a noun reference, not a name search, regardless of which noun follows. Wired into `hasNamedProviderCue`'s early-exit gate alongside the existing `isSalonOrBusinessAboutPrompt` (e2e-bug.191) check.
+2. `isNonPersonProviderCapture` — the narrow `/^(?:this|the|your)\b/i` + `/\binfo(?:rmation)?\b/i` combo (only rejected "this/the/your ... info") widened to unconditionally reject any capture starting with "this/the/your", for the same reason.
+3. This generalizes the fix beyond the reported "this booking" case — confirmed live it also resolves task #259's "Tell me about the wine tour" (now correctly routes to `explain_tour_booking`) as a side effect, without a dedicated per-noun allowlist entry.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e346-tell-me-about-this-noun-not-provider-name.util.spec.ts` — **6/6** (exact reported repro, "the wine tour" sibling, "your membership" determiner sibling, "this appointment" sibling, 2 legit named-provider controls confirming "Tell me about Anna"/"Learn about Sophie" stay `explain_provider_specialty`).
+- `npx tsc --noEmit` — zero new errors.
+- `npx jest --testPathPatterns='ai-explain-provider-specialty|ai-e2e346'` — **85/85** (the file's own pre-existing "curly hair" → `recommend_specialists` eval-case failure, confirmed byte-identical via `git stash` isolation of this file alone, is unrelated and untouched by this fix).
+- `npx jest --testPathPatterns='ai-confirm-my-booking-details'` — **94/94** (confirms the fix doesn't disturb the sibling `confirm_my_booking_details` fixture that already expected "Tell me about this booking" to win).
+- `npx jest --testPathPatterns='ai-explain-salon-profile|ai-explain-business-hours-and-location|ai-explain-any-provider-option|ai-explain-professional-profile'` — **290/290** (nearby detectors sharing the same "tell me about" cue family, all unaffected).
+- Full `ai-command-eval` — stable at the established 32 failed/241 passed/273 total baseline, zero regressions.
+- Live: `frontend/scripts/qa-e2e-bug-346.mjs` against `/public/gevgas-operations-7c299253/assistant` — **7/7**, stable across 3 runs (exact repro + wine-tour sibling + your-membership sibling + this-appointment sibling all escape `explain_provider_specialty`; named-provider and specialty-match controls unaffected).
+
+---
+
+## e2e-bug.347 — dashboard "create a category **with** these services" creates the category but silently drops every service — **Fixed**
+
+**Reported 2026-08-03.** "Create a category Y with three services: service A, 30 minutes, $50; service B, 45 minutes, $45; service C, 60 minutes, $70 — and enable online payment for all of them." → only the category is created; the services vanish. Reported as holding for one category and for several.
+
+**Live reproduction (dashboard `POST /businesses/:id/ai/command`, salon `gevgas-operations-7c299253`)** confirmed the report and showed the failure is not one bug but three, with different symptoms per phrasing:
+- **Case 1** (one category, semicolon-separated list) → `bulk_create_catalog`, `success:false`, `"Provide category and service lines to create. Example: \"Create category Hair with Women's cut 60m $65\""`. Nothing created at all. The handler's own example gives the game away: the only shape it could parse was whitespace-delimited, no commas.
+- **Case 2** (two categories, parenthesised lines) → 2 categories created with **corrupted names** `"Y with services A"` / `"Z with services C"`, and **zero** services.
+- **Case 3** ("Create categories Y and Z. Under Y add …") → stolen by `add_services_to_cart` (a *customer* cart intent) on the dashboard surface; nothing created.
+
+**Root causes** (all `backend/src/modules/ai/ai-catalog.util.ts` unless noted):
+1. **`SERVICE_LINE` too rigid.** `/([^,;]+?)\s+(\d+)\s*(?:m|min(?:ute)?s?)\s*(?:\$|USD\s*)?(\d+…)/` allowed no delimiter between name, duration and price, so both shapes people actually type — `A, 30 minutes, $50` and `A (30 min, $50)` — parsed to **zero** services. Since `isBulkCreateCatalogPrompt` gates on `parseServiceLinesFromText(...).length > 0`, this one defect cascaded into the routing decisions below.
+2. **Single-letter categories impossible.** `parseBulkCatalogFromPrompt`'s capture `([A-Za-z][\w\s&'-]{1,40}?)` demands a first char **plus at least one more**, so `category Y with …` never matched and the entire draft returned `null` (Case 2's missing services).
+3. **Preamble/clause bleed.** The first parsed service name absorbed the command preamble (`"Create category Hair with Women's cut"` instead of `"Women's cut"` — pre-existing, confirmed via `git stash`), and `classifyCatalogSegment`'s inline `/\bcategory\s+([A-Za-z][\w\s&'-]+)/` greedily swallowed the trailing service clause, producing Case 2's corrupted category names.
+4. **Semicolon over-splitting.** `COMPOUND_SPLIT` split on **every** `;`. The `and` branch already required a following catalog verb, but the semicolon branch did not — so a service enumeration was shredded into one bogus "step" per service line.
+5. **Terminal `categoryName` branch** (`ai-catalog.logic.ts`). `handleBulkCreateCatalogLogic` used `params.catalogDraft ?? (params.categoryName ? {…} : parse…)`. When the classifier filled `categoryName` but left `services` empty — which it routinely does — the prompt was **never parsed**, so the handler clarified even though the service lines were spelled out verbatim.
+
+**Fix (2026-08-03)**:
+1. `SERVICE_LINE` became a two-branch alternation — delimited (`,`/`(`) tried first, then the original whitespace form verbatim so existing prompts parse identically.
+2. New `normalizeServiceLineName` strips the list connector the capture absorbs (`"and B"` → `"B"`), the generic `service` descriptor (`"service A"` → `"A"`), the command preamble, and any enumeration colon — never down to an empty string, so an entry genuinely named "Service" survives.
+3. `{1,40}?` → `{0,40}?` (plus `categor(?:y|ies)` and a `(` boundary) so one-character category names resolve.
+4. `classifyCatalogSegment` now prefers the sanitized `extractCreateServiceCategoryFromPrompt`, falling back to a lazy match that stops at the `with …`/`:`/`(` boundary.
+5. `COMPOUND_SPLIT`'s semicolon branch now requires a following catalog verb, matching the `and` branch.
+6. `handleBulkCreateCatalogLogic` parses the prompt up front and uses it to **backfill** whichever half the classifier left missing.
+7. Test-only: `ai-catalog.service.spec.ts`'s `serviceService.findAll` returns a **fresh** array per call. The handler `push`es created services onto the array `findAll` returns; with one shared `mockResolvedValue` array that leaked across handler calls inside a single test. This surfaced *because* the fix is correct — that spec's earlier assertion previously created a service literally named `"Create category Hair with Cut"`, so it never collided with the later `"Cut"`.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e347-category-with-services-parsing.util.spec.ts` — **11/11** (both delimited shapes, the legacy whitespace shape as a regression guard, single-letter categories, full category+services drafts, and a negative guard that a bare "create category" prompt invents no services).
+- `npx jest --testPathPatterns='ai-catalog|ai-e2e347|ai-e2e338|ai-e2e151|bulk|ai-create-promo-code'` — **257/257** (was 246/246 before this ticket's 11 new cases).
+- `npx tsc --noEmit` — zero new errors in the touched files.
+- Full `ai-command-eval` — **32 failed / 241 passed / 273 total**, byte-identical to the established baseline. Zero regressions.
+- Live: `frontend/scripts/qa-e2e-bug-347.mjs` (mutating; cleans up after itself) — **Case 2 fully fixed and stable across 3 runs**: categories `Y`/`Z` with correct names, and all four services created under the correct parent with correct duration/price. **Case 1 improved from "nothing created" to "all three services created"**, but the category link is still lost — filed as **e2e-bug.348**. **Case 3 unchanged** — filed as **e2e-bug.349**.
+
+**Scope note**: this ticket fixes the deterministic catalog parsing/decomposition layer, which is what silently dropped the services. Two residuals with *different* root causes are tracked separately below rather than bolted on here.
+
+---
+
+## e2e-bug.348 — Case-1 residual: the LLM's own compound decomposition routes "category + services" to `create_services`, losing the category link — **Open**
+
+**Found 2026-08-03** while fixing **e2e-bug.347**. After that fix, `"Create a category Y with three services: service A, 30 minutes, $50; …"` now creates all three services (it previously created nothing), but:
+- the category `Y` is **not** created, and all three services land with `category_id = NULL`;
+- the services keep the LLM's literal names (`"service A"`), not the parser's normalized `"A"` — proving the deterministic path did **not** produce them;
+- the summary nonetheless claims *"Category Y has been successfully created with three services … Online payment has been enabled for all services"* — a false-success/overclaiming summary (`prepayment_mode` is `none` on all three), same family as **e2e-bug.136** / **e2e-bug.156**.
+
+Reproduced identically on 3 consecutive runs, so this is deterministic, not sampling variance.
+
+**Root cause (partially traced)**: the response arrives as `compound_intent` whose steps came from the **LLM's** `params.compoundSteps`, not from `decomposeCatalogCompoundPrompt`. Because `compoundSteps` is supplied, `handleCatalogCompoundLogic` uses it verbatim and the deterministic bulk path — now fully capable of building `{categoryName: 'Y', services: [A,B,C]}` (unit-proven in `ai-e2e347-*.util.spec.ts`) — is bypassed entirely. The exact point where the LLM decomposition is preferred over the deterministic one has not been pinned to a line.
+
+**Fix direction**: either have the compound builder prefer the deterministic catalog decomposition when `parseBulkCatalogFromPrompt` yields a complete draft for a single-category prompt, or post-validate LLM-supplied `create_services` steps that sit alongside a create-category instruction and promote them to `bulk_create_catalog`. Note an earlier attempt to suppress compounding wholesale for such prompts broke 4 existing tests (it also killed the legitimate "category+services **and** add package" compound), so the fix must not be a blanket exemption. Separately, the summary should be built from the actual results rather than restating the request.
+
+---
+
+## e2e-bug.349 — dashboard "Create categories Y and Z. Under Y add …" is stolen by the customer-surface `add_services_to_cart` — **Open**
+
+**Found 2026-08-03** while fixing **e2e-bug.347** (this was Case 3 of that report, which the reporter had marked "[to verify]").
+
+**Live** (dashboard, owner JWT): `"Create categories Y and Z. Under Y add service A (30 min, $50) and service B (45 min, $45). Under Z add service C (60 min, $70). Turn on online payment for everything."` → `compound_intent`, `success:false`, `"Stopped at step 1 (add_services_to_cart): Name which services to add."` Nothing is created. Unchanged by e2e-bug.347's fix (verified before and after).
+
+**Root cause (two compounding gaps)**:
+1. **Cross-surface action leak** — `add_services_to_cart` is a *customer* booking-cart intent with no meaning on the dashboard, yet it wins step 1 on a dashboard-authenticated request. Same family as the already-Fixed **e2e-bug.131** (dashboard action names leaking into the customer classifier) but running the opposite direction.
+2. **Sentence-separated steps aren't decomposed** — `COMPOUND_SPLIT` handles `;` and `and <verb>` but not `.`, and `isBulkCreateCatalogPrompt`'s category cues match `category\b` but not the plural `categories`, so "Create categories Y and Z" registers no create-category context at all.
+
+**Fix direction**: gate `add_services_to_cart` to the customer/public surfaces in the rescue chain (mirroring how e2e-bug.131 gated the provider Exp3 rescue to `surface === 'provider'`); teach the category cues the plural form; and add an `Under <Category> add <service lines>` segment classifier mapping to `bulk_create_catalog` with that category. Sentence splitting should be added narrowly (only when a catalog verb starts the next sentence) to avoid the over-splitting class of bug that e2e-bug.347 just fixed for semicolons.
 
 ---
 
@@ -6898,35 +7068,88 @@ On `surface: public`, rescue of `"is anybody open tomorrow morning for Swedish m
 - **e2e-bug.334** — `"is anyone free…"` → `explain_provider_availability` (looks up specialist `"anyone"`)
 - **e2e-bug.335** — public `"is anybody open…"` executes `check_providers_for_service` instead of public `check_availability` (e287 public-alias contract)
 
-## e2e-bug.334 — public `"is anyone free…"` stolen by `explain_provider_availability` (e2e-bug.307 residual) — **Open**
+## e2e-bug.334 — public `"is anyone free…"` stolen by `explain_provider_availability` (e2e-bug.307 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.307** (2026-08-01). `"is anyone free tomorrow morning for Swedish massage"` returns `explain_provider_availability` with `"I couldn't find \"anyone\". Available specialists: …"` instead of team-wide availability (`check_availability` / `check_providers_for_service`). `"is anybody open…"` is correct.
 
-**Fix direction**: treat indefinite `anyone`/`anybody`/`someone` as team-wide open-check (same as `isCheckProvidersForServicePrompt`); never resolve `"anyone"` as an employee name.
+**Root cause (three compounding gaps)**:
+1. `PROVIDER_NAME_BLOCKLIST` (`ai-explain-provider-availability.util.ts:34`) excluded `"any"` but not the indefinite pronouns `"anyone"/"anybody"/"someone"/"somebody"/"everyone"/"everybody"` — so `extractProviderNameForAvailabilityPrompt`'s `NAMED_SCHEDULE_PATTERNS` (`\b(?:is|are)\s+X\s+(?:available|free)\b`) happily captured "anyone" as a literal provider name.
+2. Even after blocklisting the pronouns, `isExplainProviderAvailabilityPrompt`'s own `namedSchedule` gate independently re-ran `NAMED_SCHEDULE_PATTERNS.some((p) => p.test(prompt))` — a raw regex-match check that never consulted the blocklist at all — so the prompt was still classified as a named-schedule ask even though the "name" it would have extracted was blocklisted.
+3. `isCheckProvidersForServicePrompt` (`ai-payments.util.ts`)'s own indefinite-pronoun handling was inconsistent: its negative lookahead at line 374 (guarding "named X is available" exclusion) had `someone` but was missing `somebody`, and its final `who|which|what|anyone|anybody` / `anyone|anybody` OR-branches (lines 403/410) only recognized 2 of the 6 pronouns — so `"someone"/"somebody"/"everyone"/"everybody"` variants would have fallen through to no match at all even once (1) and (2) were fixed.
 
-## e2e-bug.335 — public `"is anybody open…"` returns `check_providers_for_service` not `check_availability` (e2e-bug.307 residual) — **Open**
+**Fix (2026-08-02)**:
+1. Added all 6 indefinite pronouns to `PROVIDER_NAME_BLOCKLIST`.
+2. `isExplainProviderAvailabilityPrompt`'s `namedSchedule` now reuses `extractProviderNameForAvailabilityPrompt(prompt) !== null` instead of a raw pattern-match, so it always respects the blocklist.
+3. Widened `isCheckProvidersForServicePrompt`'s three pronoun references (lines 357, 374, 403, 410) to the full 6-pronoun set consistently.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e334-indefinite-pronoun-not-provider-name.util.spec.ts` — **9/9** (all 6 pronouns × representative verb phrasings never extract a name / never match explain_provider_availability / always match check_providers_for_service; named-provider regression preserved)
+- `npx jest --testPathPatterns='ai-explain-provider-availability|ai-e2e307|ai-e2e93|ai-e2e92|ai-e2e334|ai-payments'` — **209/209** (1 pre-existing unrelated failure in `ai-payments.logic.spec.ts` confirmed byte-identical via `git stash` isolation)
+- `npx tsc --noEmit` — zero new errors (1 pre-existing unrelated error in `ai-explain-provider-availability.integration.spec.ts` confirmed via `git stash`)
+- Eval suite (`ai-command-eval.spec.ts`) — same pre-existing 2-failure signature confirmed via prior tickets' established baseline
+- Live: `frontend/scripts/qa-e2e-bug-334.mjs` — **6/6**, stable across 3 runs (anyone/anybody/somebody × free/available/open, `"is anybody open…"` sibling regression, named-provider regression)
+
+**Found while verifying**: **e2e-bug.344** — `"is someone/everyone free/available … for <service>"` misroutes to `confirm_my_booking_details` when the prompt also contains a bare temporal "this <period>" (e.g. "this evening", "this week") — a separate, pre-existing `BOOKING_CONTEXT` regex false-positive, unrelated to the employee-name defect fixed here.
+
+## e2e-bug.335 — public `"is anybody open…"` returns `check_providers_for_service` not `check_availability` (e2e-bug.307 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.307** (2026-08-01). After calendar steal is fixed, live public `"is anybody open tomorrow morning for Swedish massage"` succeeds as `check_providers_for_service` (empty-state OK) rather than the e287 public-surface alias `check_availability`. Functionally useful; contract drift vs e287 `E2E287_PUBLIC_CHECK_AVAILABILITY`.
 
-**Fix direction**: keep public indefinite open-checks on `check_availability` (or document/registry-allow `check_providers_for_service` on public and update e287 fixtures).
+**Verified already correct — no source change needed (2026-08-02)**: this is the same architectural class as **e2e-bug.331/334** — the public web assistant is dispatched entirely through the shared `'customer'` AI gateway (`CustomerAiCommandService`), and `customer-ai-command.service.ts:398-400` has an explicit, deliberate anti-regression guard from **e2e-bug.190/92**: *"never hard-remap check_availability → check_providers_for_service on the customer gateway that backs /public/:slug/assistant (that remap reintroduced the gravity well)"*.
 
-## e2e-bug.336 — `explain_tour_calendar_span` empty summaries still use DD/MM slash dates (e2e-bug.309 residual) — **Open**
+The e287 `E2E287_PUBLIC_CHECK_AVAILABILITY` fixture calls `disambiguateMisclassifiedAvailabilityIntent('public', ...)` directly with a hardcoded `'public'` surface — a valid unit-level test of that function in isolation, but not a claim about the real dispatch path. In production, `ai-intent-rescue.service.ts`'s multi-surface availability-disambiguation loop (~line 8150) resolves the *primary* surface from the caller's actual surface (`'customer'` for this endpoint), and only tries the `'public'`-labeled secondary alias when the primary surface's own resolution **disagrees** with the current action. Since the `'customer'`-surface resolution for "is anybody open…" already agrees on `check_providers_for_service`, the loop never reaches the `'public'` secondary branch — so the e287 fixture's "public alias" scenario, while correct in isolation, is architecturally unreachable for the real public HTTP endpoint. `check_providers_for_service` already returns a correct, useful, non-error team-wide availability summary, so there is no functional defect to fix — the fixture's expectation was simply written before this surface-unification detail was understood (the same class of stale assumption behind e2e-bug.331's `PublicBookingAssistantService` red herring).
+
+**Resolution**: keep current live behavior as-is (no source change); the `E2E287_PUBLIC_CHECK_AVAILABILITY` unit fixture remains valid as a test of the isolated utility function and was left untouched.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Existing unit coverage (`ai-e2e287-anybody-open-check-only` fixtures/specs) — unchanged, still passing (isolated-function contract, not a production-path claim)
+- Live: `frontend/scripts/qa-e2e-bug-335.mjs` — **6/6**, stable across 3 runs (indefinite open-checks stay `check_providers_for_service`; named-provider and explicit "check availability"/"what times" phrasings correctly stay `check_availability`)
+
+**Found while verifying**: **e2e-bug.345** — the public `check_availability` no-slots summary (`composeAvailabilityNoSlotsSummary`, called from `public-booking-assistant.service.ts:2939`) uses `formatDateDisplay` (ambiguous DD/MM slash) instead of `formatDateForAiLabel` — the same family as Fixed **e2e-bug.285/306/332**, but on the public `check_availability` path specifically.
+
+## e2e-bug.336 — `explain_tour_calendar_span` empty summaries still use DD/MM slash dates (e2e-bug.309 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.309** (2026-08-01) on salon `gevgas-operations-7c299253`.
 
 RU `"Почему тур отображается на несколько дней на календаре провайдера"` correctly routes to `explain_tour_calendar_span`, but the empty-state summary still uses slash dates (`с 27/07/2026 по 02/08/2026`) instead of `formatDateForAiLabel` (same family as **e2e-bug.308** for `list_tour_calendar_week`).
 
-**Fix direction**: route span-explain week range labels through `formatDateForAiLabel` (mirror e2e-bug.308 / e2e-bug.306).
+**Root cause**: `ai-tour-calendar-span.logic.ts`'s `formatSpanRange` and `buildAspectSummary`'s `weekLabel` both used `formatDateDisplay` (locale-formatted slash) with no locale threading at all — unlike its sibling `ai-tour-calendar-week.logic.ts`, which already carries the `formatDateForAiLabel` + `resolveTourCalendarWeekLocale` fix from **e2e-bug.308/289**.
 
-## e2e-bug.337 — HY `"Բացատրի՛ր մեր կլինիկական ծառայությունները"` stolen by `explain_business_hours_and_location` (e2e-bug.311 residual) — **Open**
+**Fix (2026-08-02)**:
+1. Added `resolveExplainTourCalendarSpanLocale(params, prompt)`, mirroring `resolveTourCalendarWeekLocale` exactly (prefer HY/RU detected from prompt script, else `params.locale`).
+2. `formatSpanRange` and `buildAspectSummary`'s `weekLabel` now call `formatDateForAiLabel(date, locale)` instead of `formatDateDisplay(date)`.
+3. `handleExplainTourCalendarSpanLogic` resolves locale once and threads it through.
+
+The rest of the deterministic English prose is unchanged (out of scope — this ticket is about date-format ambiguity, not full-message translation, unlike e2e-bug.289). Live testing showed the downstream LLM enrichment layer independently translates the whole summary into the visitor's language while correctly preserving the now-unambiguous month-name date underneath.
+
+**Verification (2026-08-02)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e336-tour-calendar-span-slash-date.util.spec.ts` — **6/6** (EN/RU/HY multi-day-span labels, exact reported RU scenario reproduction, `clippedWeek` aspect's span-range label, locale-resolver unit check)
+- `npx jest --testPathPatterns='ai-tour-calendar-span|ai-e2e336|ai-e2e306|ai-e2e308|ai-e2e289'` — **82/82** (a separate, unrelated 3-failure staleness issue in `ai-tour-calendar-week.logic.spec.ts` — relative "today" dates drifting past hardcoded fixture dates — confirmed pre-existing via `git stash`, in a file this fix never touches)
+- `npx tsc --noEmit` — zero new errors (pre-existing mock-type mismatches already present identically in the sibling spec file)
+- Live: `frontend/scripts/qa-e2e-bug-336.mjs` — **6/6**, stable across 3 runs (exact reported RU repro, EN/HY siblings, service-colors and clipped-week aspects) — RU/HY responses show fully translated summaries (`"с 3 по 9 августа 2026 года"`, `"3 օգոստոսի, 2026 թ.–9 օգոստոսի, 2026 թ."`) with no slash dates anywhere
+
+**Found while verifying**: `ai-tour-calendar-week.logic.spec.ts` has 3 pre-existing failures from relative-date staleness (hardcoded fixture expects "8 June 2026" week windows that have since scrolled out of the "this/next week" range as real time passed) — noted but not filed as a new ticket since it's a known, self-resolving test-fixture staleness class, not a product defect.
+
+## e2e-bug.337 — HY `"Բացատրի՛ր մեր կլինիկական ծառայությունները"` stolen by `explain_business_hours_and_location` (e2e-bug.311 residual) — **Fixed**
 
 Found during guru live QA for **e2e-bug.311** (2026-08-01) on salon `gevgas-operations-7c299253`.
 
 After empty-summary locale is fixed, HY `"Բացատրի՛ր մեր կլինիկական ծառայությունները"` (and `…և բաժինները`) still routes to `explain_business_hours_and_location` with an English hours summary, while EN `"Explain our clinic services and department counts"` correctly hits `explain_clinic_services`. Fasting/catalog count HY prompts are fine.
 
-**Fix direction**: HY clinic-catalog explain cues (`կլինիկական ծառայություն` / բաժին) must win over business-hours detectors; rescue `explain_clinic_services` for bare բացատր + clinic catalog phrasing.
+**Root cause (2026-08-03)**: not a clinic-detector priority issue as originally suspected — `isExplainClinicServicesPrompt` already correctly returns `true` for the reported prompt. The real bug is in the *competing* `ai-explain-business-hours-and-location.util.ts`'s `hasHoursCue`, whose positive branch `բաց(?!իր|ատրիր)` is a negative-lookahead guard meant to stop bare "բաց" (open) from firing on the imperatives "բացիր" (open it) / "բացատրիր" (explain it). That lookahead was written against the unmarked *citation-form* spelling. Real-world Armenian imperatives commonly insert the emphasis mark ՛ (U+055B) mid-word for stress ("Բացատրի՛ր" = "Explain!", literally Բացատր + ի + ՛ + ր) — codepoint-dumping the string showed ՛ sits directly between "ի" and the final "ր", so the literal substring "ատրիր" never matches, the exclusion silently fails to fire, and bare "բաց" wins `hasHoursCue`, stealing the intent from `explain_clinic_services` in the dispatch/rescue pipeline. A genuinely novel defect class for this codebase (first orthographic-emphasis-mark bug found), not a regex-priority ordering issue like e2e-bug.291's `կատեգորիա` false positive.
 
-## e2e-bug.340 — a lone apostrophe-split `"s"` token spuriously pins bare prompts to `"Men's cut"` / `"Women's cut"` — **Open**
+**Fix (2026-08-03)**: widened the two negative-lookahead branches in `hasHoursCue` (`ai-explain-business-hours-and-location.util.ts`) from `(?!իր|ատրիր)` to `(?!՛?իր|ատրի՛?ր)`, tolerating an optional emphasis mark before each final "ր" — a minimal, targeted fix rather than a loose `.?` wildcard that could risk unrelated false negatives.
+
+**Systemic-pattern check**: audited ~20 other `ai-*.util.ts` files containing "ատրիր" or a `(?!իր`-style lookahead, to see whether the same fragility exists elsewhere. None do — every other hit is a plain positive "բացատրիր" alternative inside a loose multi-word OR-regex (e.g. `/ինչ|բացատրիր|...que/i`), not an exclusion lookahead. Confirmed via direct test that even if the emphasis mark broke the "բացատրիր" alternative in isolation, the same OR-regex's other common-word alternatives (`ինչ`, `երբ`, etc.) still match in practice, so those detectors have no live, reproducible defect from this mark. No new systemic ticket filed — this fix is self-contained to `hasHoursCue`.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e337-hy-emphasis-mark-clinic-explain.util.spec.ts` — **8/8** new cases (both ticket-reported HY prompts, no-emphasis regression, EN control, real HY hours question with/without emphasis mark, unrelated "open the doors" imperative with/without emphasis mark) — each case checks both `isExplainClinicServicesPrompt` and `isExplainBusinessHoursAndLocationPrompt` together, closing the gap that e2e-bug.291's fixtures left (that spec only ever checked the clinic detector, never the competing hours detector, so it never caught this).
+- `npx jest --testPathPatterns='ai-e2e337|ai-clinic-service|ai-e2e311|ai-e2e291|ai-explain-business-hours-and-location|customer-ai-command-explain-business-hours-and-location'` — **256/256**, zero regressions.
+- `npx tsc --noEmit` — zero new errors on the touched file.
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, byte-identical with and without the fix applied (isolated via `git stash`), confirming all 32 failures are pre-existing and unrelated.
+- Live: `frontend/scripts/qa-e2e-bug-337.mjs` — **6/6**, stable across 3 runs (both exact reported HY prompts now hit `explain_clinic_services` with a real clinic summary; no-emphasis HY regression, EN control, and both hours-question controls — with and without the emphasis mark — all still correct).
+
+## e2e-bug.340 — a lone apostrophe-split `"s"` token spuriously pins bare prompts to `"Men's cut"` / `"Women's cut"` — **Fixed**
 
 **Found 2026-08-02** during e2e-bug.322 live QA on `gevgas-operations-7c299253` (catalog includes `hairstyle`, `Men's cut`, `Women's cut`). `"list style services"` → `list_services` success but pins to a single row, `Men's cut` (`Our Men's cut service types:`), instead of resolving `hairstyle` (which `"show me trim"` / `"show me a trim"` / `"show me cut"` correctly resolve on the same catalog).
 
@@ -6936,13 +7159,31 @@ After empty-summary locale is fixed, HY `"Բացատրի՛ր մեր կլինիկ
 
 **Fix direction:** either (a) drop single-character tokens (length < 2) before scoring in the clarify-follow-up loop, so a bare `"s"` split from an apostrophe can never count as a real token match, or (b) tokenize on `/['’]s\b/` specially (treat the possessive `'s` as part of the preceding word, i.e. `"men's"` → one token, not `"men"` + `"s"`) so catalog names with possessives don't fragment into noise tokens in the first place. Option (b) is more correct (also improves the intended matching for genuine possessive-name prompts) but touches shared tokenization; option (a) is a one-line, lower-risk guard (`nameTokens.filter(t => t.length >= 2)`) that directly closes the observed failure without behavior change for any non-possessive catalog name.
 
-## e2e-bug.341 — `POSITIVE_CUE`'s Armenian "was helpful" alternative has a letter typo, so only the exact canonical phrase resolves — **Open**
+**Fix (2026-08-03)**: implemented option (a) — `matchServiceInPrompt`'s clarify-follow-up loop (`ai-structural-extractors.ts:697-701`) now filters `nameTokens` to `word.length >= 2`, dropping the lone `"s"` fragment that "Men's cut" → `["men", "s", "cut"]` produces. Confirmed the impact is broader than the originally-reported prompt: `"does this service exist"` and `"what services are these"` — both completely unrelated to any service name — also spuriously pinned to `"Men's cut"` before the fix, since nearly any English word ending or containing the letter "s" satisfied `token.includes("s")`. Confirmed genuine possessive-name prompts (`"men's cut please"`, `"women's cut please"`) still resolve correctly — the fix only removes the noise token, not the real ones.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253` (hairstyle / Men's cut / Women's cut):
+- Unit: `ai-e2e340-apostrophe-lone-s-token.util.spec.ts` — **5/5** (exact reported repro now `undefined` instead of the wrong pin, 2 additional unrelated-prompt false-positive probes now `undefined`, 2 legitimate possessive-name prompts still correctly resolve).
+- `npx jest --testPathPatterns='ai-e2e340|ai-structural-extractors|ai-e2e297|ai-e2e298|ai-e2e320|ai-e2e321|ai-e2e322'` — **139/141** (2 pre-existing failures in `ai-structural-extractors.spec.ts` confirmed via `git stash` isolation — identical with and without this fix, an unrelated `basic cut` clarify-scoring scenario predating this ticket).
+- `npx tsc --noEmit` — zero new errors (3 pre-existing `ai-structural-extractors.spec.ts` argument-count errors confirmed identical via `git stash`).
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-340.mjs` — **6/6**, stable across 3 runs, via the public `/public/:slug/assistant` customer endpoint (exact reported repro no longer pins to Men's cut; 2 additional unrelated-prompt probes confirmed clean; genuine possessive-name booking prompt still resolves; established trim→hairstyle synonym regressions unaffected).
+
+## e2e-bug.341 — `POSITIVE_CUE`'s Armenian "was helpful" alternative has a letter typo, so only the exact canonical phrase resolves — **Fixed**
 
 **Found 2026-08-02** during e2e-bug.324 live QA on `gevgas-operations-7c299253`. `parseGiveAiFeedbackRating`/`parseGiveAiFeedbackAspect` (`ai-give-ai-feedback.util.ts`) return `undefined`/`'generic'` for any Armenian "this was helpful" phrasing other than the one exact canonical string `"Օգտակար էր"` — e.g. `"Դա օգտակար էր"` (`isGiveAiFeedbackPrompt` itself returns **false**, not just the wrong rating) fails classification entirely at the deterministic-util level. Live, the LLM classifier still routes such paraphrases to `give_ai_feedback` (masking the bug for casual testing), but the summary shown is the generic "say whether it was helpful or what was wrong" clarify text instead of the "thank you" positive-confirmation message — reproduced 2/2 with `"Դա օգտակար էր"` and `"Շատ օգտակար էր"`.
 
 **Root cause:** `POSITIVE_CUE`'s Armenian alternative is written `օգտակար\s+եր` — using the letter **Ե (Yech, U+0565)**, not **Է (Eh, U+0537)**. The real Armenian word for "was" is `էր` (Eh+Ra), so the regex literally cannot match any real occurrence of "օգտակար էր" ("was helpful") — it was presumably typed with a visually-similar wrong letter. The only reason the single canonical phrase `"Օգտակար էր"` still classifies correctly today is `matchMultilingualScenario`'s separate **exact-string** fixture lookup in `GIVE_AI_FEEDBACK_MULTILINGUAL_SCENARIOS`, which is a coincidental fallback used only by `isGiveAiFeedbackPrompt` (the yes/no action-detection gate) — `parseGiveAiFeedbackRating`/`parseGiveAiFeedbackAspect` don't consult that fixture list at all, so even the canonical exact phrase resolves an `undefined` rating when called directly (only the full public-assistant pipeline papers over it, and only for that one exact string).
 
 **Fix direction:** replace `եր` with the correct `էր` in `POSITIVE_CUE`'s Armenian alternative (`String.raw`...օգտակար\s+էր...``). Verify the sibling `NEGATIVE_CUE` fix from e2e-bug.324 (`օգտակար\s+չէ(?:ր)?`) already uses the correct Է letter (it does — confirmed by direct codepoint inspection during this ticket's investigation). Add a regression test asserting `parseGiveAiFeedbackRating('Դա օգտակար էր')` (and other non-canonical positive paraphrases) resolves `'up'`, not `undefined`.
+
+**Fix (2026-08-03)**: replaced `եր` with `էր` in `POSITIVE_CUE`'s Armenian alternative (`ai-give-ai-feedback.util.ts:105-108`) — confirmed via direct codepoint dump that the original was U+0565 (Ե, Yech) where U+0537 (Է, Eh) belongs, so the regex literally could never match any real occurrence of the word "էր" ("was"). Confirmed `NEGATIVE_CUE`'s `օգտակար\s+չէ(?:ր)?` already used the correct Է letter, so this fix is isolated to the positive alternative only. This also fixes `parseGiveAiFeedbackRating`/`parseGiveAiFeedbackAspect` for the exact canonical phrase itself (`"Օգտակար էր"`), which previously resolved `undefined`/`'generic'` even though `isGiveAiFeedbackPrompt` returned `true` for it via the separate exact-string fixture lookup — a second, previously-undiscovered facet of the same typo.
+
+**Verification (2026-08-03)** on `gevgas-operations-7c299253`:
+- Unit: `ai-e2e341-hy-positive-cue-letter-typo.util.spec.ts` — **5/5** (canonical exact phrase + both reported paraphrases now resolve `rating: 'up'` / `aspect: 'positive'`; 2 sibling negative-cue controls from e2e-bug.324 confirmed unaffected).
+- `npx jest --testPathPatterns='ai-e2e341|ai-give-ai-feedback\.util|ai-give-ai-feedback\.logic|customer-ai-command.*give.*feedback'` — **77/77**, zero regressions.
+- `npx tsc --noEmit` — zero new errors (2 pre-existing `ai-give-ai-feedback.{integration,logic}.spec.ts` errors confirmed identical via `git stash`).
+- Full eval suite (`ai-command-eval`) — 32 failed / 241 passed / 273 total, identical to the established pre-existing baseline.
+- Live: `frontend/scripts/qa-e2e-bug-341.mjs` — **5/5**, stable across 3 runs, via the public `/public/:slug/assistant` customer endpoint (canonical phrase + both reported paraphrases now resolve to a positive "thanks, this helps improve the assistant" confirmation; both negative-cue controls remain correctly negative).
 
 ---
 

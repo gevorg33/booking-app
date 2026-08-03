@@ -56,6 +56,8 @@ export class BookingSlotResolverService {
         return `${check.employeeName} is not free at ${timeSlot} on ${isoDay} for ${serviceName}.`;
       case 'past_time':
         return `Cannot book ${serviceName} in the past. Choose a future time slot.`;
+      case 'invalid_date':
+        return `Could not understand the date "${isoDay}". Please specify a clear date, e.g. "August 19, 2026".`;
       default:
         return `${check.employeeName} is not available for ${serviceName} at ${timeSlot} on ${isoDay}.`;
     }
@@ -110,6 +112,21 @@ export class BookingSlotResolverService {
     timeSlot: string,
     timeZone = 'UTC',
   ): Promise<SlotAvailabilityCheck> {
+    // e2e-bug.343 — an already-malformed date (e.g. from an upstream
+    // DD/MM-vs-MM/DD misinterpretation elsewhere in the pipeline) must
+    // degrade to a clarification message here, not reach the DB query below
+    // with an Invalid Date and crash with a raw "0NaN-NaN-NaN..." error.
+    if (!parseDateInput(isoDay)) {
+      return {
+        employeeId,
+        employeeName,
+        available: false,
+        hasSchedule: false,
+        openSlots: [],
+        reason: 'invalid_date',
+      };
+    }
+
     const employee = await this.employeeRepo.findOne({
       where: { id: employeeId, businessId, isActive: true },
     });

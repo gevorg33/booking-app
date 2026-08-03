@@ -60,8 +60,16 @@ const READ_CUE = new RegExp(
 
 // e2e-bug.230 — do not treat bare "just" as a booking determiner ("just pay per visit"
 // is a subscription checkout compare, not "what did I just book?").
+// e2e-bug.344 — "this" must not pair with a bare service-type noun
+// (massage/haircut/facial/service) across an intervening temporal-window
+// phrase ("this evening ... for Swedish massage") — that greedy span let any
+// "is X ... this <period> for <service>" availability question get hijacked
+// here. "this" is restricted to the actual booking-container nouns
+// (booking/appointment/visit/reservation); "my"/"upcoming"/"current" keep
+// pairing with the full noun set since they don't collide with temporal
+// phrases the same way.
 const BOOKING_CONTEXT = new RegExp(
-  String.raw`\b(?:my|this|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\bjust\s+(?:booked|book)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|booked\s+with`,
+  String.raw`\b(?:my|upcoming|current)\b.*\b(?:booking|appointment|visit|reservation|massage|haircut|facial|service)\b|\bthis\b.*\b(?:booking|appointment|visit|reservation)\b|\bjust\s+(?:booked|book)\b|\b(?:booking|appointment|visit|reservation)\b.*\b(?:my|this|details?|time|confirmed?)\b|what\s+did\s+i\s+(?:just\s+)?book|what\s+service\s+did\s+i\s+book|which\s+service\s+is\s+my\s+booking|summarize\s+my\s+booking|appointment\s+details?|booking\s+details?|booked\s+with`,
   'iu',
 );
 

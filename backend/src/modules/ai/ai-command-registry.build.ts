@@ -1109,6 +1109,10 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
       'request_client_review',
       'list_reassign_options',
       'reassign_booking_same_day',
+      // e2e-bug.342 — missing from the registry entirely, so
+      // acceptRescueForSurface silently dropped an otherwise-correct rescue.
+      'list_team_unpaid_today',
+      'explain_reviews_inbox',
       'explain_request_review_flow',
       'draft_review_response',
       'open_dashboard_deep_link',

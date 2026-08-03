@@ -1,3 +1,7 @@
+> **SUPERSEDED (2026-08-03) — see [`AI-ROADMAP.md`](./AI-ROADMAP.md).**
+> This file is retained for provenance only. Its plan has been merged into the unified
+> roadmap; do not plan work from this document.
+
 # Regex.MD — From regex command detection → reliable classifier
 
 **Goal (two tracks):**

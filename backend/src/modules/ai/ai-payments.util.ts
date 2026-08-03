@@ -354,7 +354,7 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
     /\b(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(?::\d{2})?\s*(?:am|pm))\b/i.test(
       prompt,
     ) &&
-    !/\b(?:who|which|anyone|anybody|check\s+(?:who|providers?|availability)|providers?\s+(?:for|available|free))\b/i.test(
+    !/\b(?:who|which|anyone|anybody|someone|somebody|everyone|everybody|check\s+(?:who|providers?|availability)|providers?\s+(?:for|available|free))\b/i.test(
       prompt,
     )
   ) {
@@ -371,7 +371,7 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   // "is anybody open … and schedule the next available appointment" still
   // matches check_providers (+ book_nearest) compounds.
   if (
-    /\b(?:is|are)\s+(?!anybody\b|anyone\b|someone\b|everybody\b|everyone\b)[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i.test(
+    /\b(?:is|are)\s+(?!anybody\b|anyone\b|someone\b|somebody\b|everybody\b|everyone\b)[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i.test(
       prompt,
     )
   ) {
@@ -400,14 +400,16 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   return (
     (!/\bpackages?\b/i.test(prompt) &&
       !/\b(membership|subscription)\s+plans?\b/i.test(prompt) &&
-      /\b(who|which|what|anyone|anybody)\b/i.test(prompt) &&
+      /\b(who|which|what|anyone|anybody|someone|somebody|everyone|everybody)\b/i.test(
+        prompt,
+      ) &&
       PROVIDER_AVAILABILITY_WORDS.test(prompt)) ||
     (/\b(?:see|look\s+up|find\s+out)\b/i.test(prompt) &&
       /\bwho\b/i.test(prompt) &&
       PROVIDER_AVAILABILITY_WORDS.test(prompt)) ||
     (/\bwho\s+(?:can|has)\s+(?:take|fit|do|availability)\b/i.test(prompt) &&
       !/\bpackages?\b/i.test(prompt)) ||
-    (/\b(?:anyone|anybody)\b[\s\S]{0,40}\b(?:free|available|open)\b/i.test(
+    (/\b(?:anyone|anybody|someone|somebody|everyone|everybody)\b[\s\S]{0,40}\b(?:free|available|open)\b/i.test(
       prompt,
     ) &&
       !/\bpackages?\b/i.test(prompt)) ||

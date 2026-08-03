@@ -3,7 +3,8 @@ export type SlotUnavailableReason =
   | 'no_schedule'
   | 'service_not_scheduled'
   | 'slot_unavailable'
-  | 'past_time';
+  | 'past_time'
+  | 'invalid_date';
 
 export interface SlotAvailabilityCheck {
   employeeId: string;

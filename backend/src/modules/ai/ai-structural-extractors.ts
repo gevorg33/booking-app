@@ -698,7 +698,10 @@ function matchServiceInPrompt(
         .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, ' ')
         .split(/\s+/)
-        .filter(Boolean);
+        // e2e-bug.340 — an apostrophe-possessive name like "Men's cut" splits
+        // into a lone single-character "s" token, which spuriously matches
+        // almost any prompt word via `token.includes(nt)`.
+        .filter((word) => word.length >= 2);
       const score = clarifyTokens.filter((token) =>
         nameTokens.some((nt) => nt.includes(token) || token.includes(nt)),
       ).length;
