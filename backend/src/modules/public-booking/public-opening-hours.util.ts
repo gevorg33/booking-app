@@ -229,3 +229,23 @@ export function buildPublicOpeningHoursFromTemplates(
     summaryLines: buildOpeningHoursSummaryLines(days),
   };
 }
+
+/**
+ * e2e-bug.227 — customer-facing hours label from the same PublicOpeningHours
+ * the public profile exposes (schedule templates), not settings defaults.
+ */
+export function formatPublicOpeningHoursLabel(
+  openingHours: PublicOpeningHours,
+  weekday?: string | null,
+): string {
+  if (weekday) {
+    const key = weekday.trim().toLowerCase() as PublicOpeningHourDay;
+    const day = openingHours.days.find((entry) => entry.day === key);
+    if (!day || day.closed || day.ranges.length === 0) return 'Closed';
+    return formatRangesLabel(day.ranges);
+  }
+  if (openingHours.summaryLines.length > 0) {
+    return openingHours.summaryLines.join('; ');
+  }
+  return 'Hours not listed yet';
+}

@@ -13,6 +13,11 @@ const PROVIDER_META_INTENTS = new Set(['unknown', 'error', 'security_blocked']);
 const ALIAS_HANDLED_PROVIDER_INTENTS = new Set([
   // Normalized to 'add_retail_to_booking' before the switch runs (ai-cmd-provider-6.6).
   'add_retail_to_my_booking',
+  // Dispatched generically via isAppGuideIntent()/dispatchProviderAppGuideIntent
+  // before the switch runs (ai-guide-1.8.6), not a literal case per id.
+  'explain_app_feature',
+  'guide_user_flow',
+  'explain_current_screen',
 ]);
 
 /** Registered in PROVIDER_EXCLUSIVE_INTENTS with no backing handler anywhere in the

@@ -4,7 +4,7 @@
   "routes": ["/consumer/confirm"],
   "titleKey": "guide.flows.customer.activation.confirm.title",
   "summaryKey": "guide.flows.customer.activation.confirm.summary",
-  "navigateTarget": { "path": "services" },
+  "navigateTarget": { "path": "checkout" },
   "keywords": ["confirm booking", "review details", "checkout", "save confirmation"],
   "steps": [
     {

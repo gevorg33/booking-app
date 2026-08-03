@@ -14,6 +14,7 @@ export default defineConfig({
       ['**/public-locale-cookie.spec.ts', 'happy-dom'],
       ['**/operation-feedback.spec.ts', 'happy-dom'],
       ['**/orchestrix-events.integration.spec.ts', 'happy-dom'],
+      ['**/public-floating-fab-layer.util.spec.ts', 'happy-dom'],
     ],
     include: ['src/lib/**/*.spec.ts'],
     coverage: {

@@ -191,6 +191,24 @@ describe('ai-catalog.util', () => {
       expect(params.categoryName).toBe('Wellness');
     });
 
+    it('e2e-bug.251 — catalog category named X is create_service_category', () => {
+      const prompt = 'Add a new catalog category named QA Nails';
+      expect(isCreateServiceCategoryPrompt(prompt)).toBe(true);
+      expect(
+        rescueCatalogIntent(prompt, 'import_services_from_menu'),
+      ).toEqual({
+        action: 'create_service_category',
+        rescueReason: 'service_category',
+      });
+      const params: Record<string, unknown> = {};
+      enrichServiceCategoryRescueParams(
+        'create_service_category',
+        params,
+        prompt,
+      );
+      expect(params.categoryName).toBe('QA Nails');
+    });
+
     it('detects package and subscription plan prompts', () => {
       expect(isCreatePackagePrompt('Create Spa Day package with massage')).toBe(
         true,

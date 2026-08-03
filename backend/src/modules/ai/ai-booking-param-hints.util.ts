@@ -3,6 +3,7 @@
  */
 import {
   hasExplicitTimeWindow,
+  matchServicesByQuery,
   parseEarliestBookingTimeFromPrompt,
   parseTimeWindow,
 } from './ai-orchestration.helpers.js';
@@ -11,7 +12,10 @@ import {
   parseMultilingualTimeOfDayWindow,
 } from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
-import { extractServiceNameFromPrompt } from './ai-payments.util.js';
+import {
+  extractServiceNameFromPrompt,
+  stripTrailingTimeWindowFromServiceName,
+} from './ai-payments.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import { enrichRankSessionPickFromPrompt } from './ai-rank-session-pick.util.js';
 import { isFirstAvailableBookingPrompt } from './booking-first-available.semantic.util.js';
@@ -21,6 +25,7 @@ import { isRecommendSpecialistsPrompt } from './recommend-specialists.semantic.u
 import { extractServiceFromPrompt } from './ai-structural-extractors.js';
 import { normalizeAvailabilityServiceCategory } from './ai-flexible-availability.util.js';
 import { stripLeadingServiceRankAdjectives } from './ai-service-rank-discovery.util.js';
+import { findServiceLookupSynonymTokenInPrompt } from './ai-service-lookup-synonyms.util.js';
 
 export { isAnyProviderBookingPrompt, isRecommendSpecialistsPrompt };
 
@@ -31,25 +36,85 @@ const PUBLIC_ASSISTANT_SERVICE_ACTIONS = new Set([
   'list_services',
 ]);
 
+/** e2e-bug.260 — scrub LLM-polluted serviceName time windows when extract misses. */
+function scrubPollutedServiceNameParams(
+  params: Record<string, unknown>,
+): Record<string, unknown> {
+  const current =
+    typeof params.serviceName === 'string' ? params.serviceName : null;
+  const scrubbed = stripTrailingTimeWindowFromServiceName(current);
+  if (!scrubbed || !current || scrubbed === current.trim()) {
+    return params;
+  }
+  return { ...params, serviceName: scrubbed };
+}
+
 /** Current prompt service overrides stale session / classifier inheritance (public assistant). */
 export function applyPromptMentionedServiceOverrideToParams(
   prompt: string,
   params: Record<string, unknown>,
   services: Array<{ id: string; name: string }> = [],
 ): Record<string, unknown> {
+  const base = scrubPollutedServiceNameParams(params);
+
+  // e2e-bug.297 — synonym-family browse ("show me facials") must keep a category
+  // filter when many catalog rows match. Fuzzy extractServiceFromPrompt otherwise
+  // pins the first hit (Face Pilling) and wipes the family list.
+  const synonymToken = findServiceLookupSynonymTokenInPrompt(prompt);
+  // e2e-bug.320 — a broad synonym token (e.g. "massage") must not steal a
+  // prompt that already names one specific catalog service verbatim (e.g.
+  // "show me Hot stone massage"); only browse the family when no exact
+  // catalog name is mentioned.
+  const promptLowerForExactCheck = prompt.toLowerCase();
+  const exactCatalogNameMentioned = services.some(
+    (s) =>
+      s.name.length >= 4 &&
+      promptLowerForExactCheck.includes(s.name.toLowerCase()),
+  );
+  if (synonymToken && services.length > 0 && !exactCatalogNameMentioned) {
+    // e2e-bug.323 — plural "cuts" doesn't literal-substring-match singular
+    // catalog names ("Men's cut"/"Women's cut"), so matchServicesByQuery
+    // falls through the synonym chain to "hairstyle" before ever trying the
+    // singular. Seed the family-browse match with "cut" for that one case so
+    // it still prefers literal cut-named catalog rows when present.
+    const familyMatchToken = synonymToken === 'cuts' ? 'cut' : synonymToken;
+    const familyMatches = matchServicesByQuery(services, familyMatchToken);
+    if (familyMatches.length > 1) {
+      const next: Record<string, unknown> = {
+        ...base,
+        serviceNames: null,
+        serviceName: null,
+        serviceCategory: normalizeAvailabilityServiceCategory(
+          familyMatchToken,
+        ),
+      };
+      delete next.serviceId;
+      delete next.serviceRank;
+      delete next.rankedServiceIds;
+      return next;
+    }
+  }
+
   const catalogMatch = services.length
     ? extractServiceFromPrompt(prompt, services)
     : undefined;
   const rawName = catalogMatch?.name ?? extractServiceNameFromPrompt(prompt);
-  if (!rawName) return params;
+  if (!rawName) return base;
 
-  const strippedName = stripLeadingServiceRankAdjectives(rawName);
+  const strippedName =
+    stripLeadingServiceRankAdjectives(
+      stripTrailingTimeWindowFromServiceName(rawName) ?? rawName,
+    ) || rawName;
   const categoryFromPrompt = normalizeAvailabilityServiceCategory(
     strippedName.split(/\s+/)[0] ?? strippedName,
   );
+  const existingServiceId =
+    typeof base.serviceId === 'string' && base.serviceId.trim()
+      ? base.serviceId.trim()
+      : undefined;
 
   const next: Record<string, unknown> = {
-    ...params,
+    ...base,
     serviceNames: null,
   };
   if (catalogMatch) {
@@ -59,11 +124,19 @@ export function applyPromptMentionedServiceOverrideToParams(
   } else if (strippedName.split(/\s+/).filter(Boolean).length === 1) {
     next.serviceName = null;
     next.serviceCategory = categoryFromPrompt;
-    delete next.serviceId;
+    // e2e-bug.229 — never wipe a checkout/session serviceId without a catalog
+    // replacement; named pay_online prompts must keep the selected slot service.
+    if (!existingServiceId) {
+      delete next.serviceId;
+    }
   } else {
     next.serviceName = strippedName;
     next.serviceCategory = null;
-    delete next.serviceId;
+    // e2e-bug.229 — keep existing serviceId when the prompt only re-states the
+    // service name (no catalog match to swap to a different id).
+    if (!existingServiceId) {
+      delete next.serviceId;
+    }
   }
   delete next.serviceRank;
   delete next.rankedServiceIds;
@@ -90,6 +163,20 @@ export function enrichPublicAssistantParamsFromPrompt(
   next = applyPromptMentionedServiceOverrideToParams(prompt, next, services);
 
   let enriched = enrichDiscoveryParamsFromPrompt(next, prompt);
+  // e2e-bug.260 — discovery rank extract can re-pollute with "rated"/"specialists";
+  // re-assert the prompt-mentioned service after discovery enrichment.
+  if (
+    action === 'recommend_specialists' ||
+    action === 'check_availability' ||
+    action === 'book_appointment' ||
+    action === 'list_services'
+  ) {
+    enriched = applyPromptMentionedServiceOverrideToParams(
+      prompt,
+      enriched,
+      services,
+    );
+  }
   if (action === 'book_appointment' && isFirstAvailableBookingPrompt(prompt)) {
     enriched = { ...enriched, bookingFirstAvailable: true };
     delete enriched.timeSlot;

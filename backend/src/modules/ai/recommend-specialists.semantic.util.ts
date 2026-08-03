@@ -10,6 +10,7 @@ import { buildCanonicalPhrasingBank } from './intent-phrasing-bank.util.js';
 import { RECOMMEND_SPECIALISTS_SEMANTIC_PIPE_MARKER } from './recommend-specialists.semantic.fixtures.js';
 import { impliesTeamWideAvailabilityFromSemantic } from './team-wide-availability.semantic.util.js';
 import { isExplainProviderSpecialtyPrompt } from './ai-explain-provider-specialty.util.js';
+import { isProviderRankDiscoveryPrompt } from './ai-service-rank-discovery.util.js';
 
 export { RECOMMEND_SPECIALISTS_SEMANTIC_PIPE_MARKER };
 
@@ -88,5 +89,9 @@ export function impliesRecommendSpecialistsFromSemantic(
 }
 
 export function isRecommendSpecialistsPrompt(prompt: string): boolean {
-  return impliesRecommendSpecialistsFromSemantic(prompt);
+  if (impliesRecommendSpecialistsFromSemantic(prompt)) return true;
+  // e2e-bug.278 — semantic anchors miss short who-recommend + day-part cues;
+  // provider-rank discovery covers those (and excludes plain availability).
+  if (promptImpliesPlainAvailabilityNotRecommend(prompt)) return false;
+  return isProviderRankDiscoveryPrompt(prompt);
 }

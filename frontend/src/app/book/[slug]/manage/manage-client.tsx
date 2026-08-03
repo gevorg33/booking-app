@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
 import { PublicCustomerBookingActions } from '@/components/public-booking/public-customer-booking-actions';
 import { PublicCustomerPackageVisitActions } from '@/components/public-booking/public-customer-package-visit-actions';
+import { AccountRunningLateButton } from '@/components/public-booking/account-running-late-button';
 import {
   getPublicBookingManageContext,
   type PublicBookingManageContext,
@@ -142,6 +143,16 @@ export function ManageBookingClient({ tenant }: { tenant: PublicBusinessProfile 
             {rescheduleNotice && (
               <p className="text-sm text-green-700 mt-3 rounded-lg bg-green-50 px-3 py-2">{rescheduleNotice}</p>
             )}
+
+            <AccountRunningLateButton
+              slug={tenant.slug}
+              bookingId={context.bookingId}
+              status={context.status}
+              startTime={context.startTime}
+              endTime={context.endTime}
+              signedIn={Boolean(customer)}
+              primary={primary}
+            />
 
             {context.packageVisit ? (
               <PublicCustomerPackageVisitActions

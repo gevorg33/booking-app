@@ -1,8 +1,11 @@
 /** prov-exp-3.2 — provider running late / ready now on booking metadata. */
 
-import { BookingStatus } from '../booking/entities/booking.entity.js';
+import type { EntityManager, Repository } from 'typeorm';
 import {
-  buildProviderVisitStatusCustomerSms,
+  Booking,
+  BookingStatus,
+} from '../booking/entities/booking.entity.js';
+import {
   normalizeProviderRunningLateMinutes,
   type ProviderVisitStatusKind,
 } from '../../common/utils/provider-visit-status-notification.util.js';
@@ -149,4 +152,111 @@ export function formatProviderVisitStatusLabel(input: {
   if (input.kind === 'ready_now') return 'Ready now';
   const minutes = normalizeProviderRunningLateMinutes(input.minutesLate);
   return `Running ${minutes}m late`;
+}
+
+/** True when the booking already has the same visit-status kind (and minutes for late). */
+export function isSameProviderVisitStatusClaim(
+  existing: ProviderVisitStatusSnapshot | null,
+  kind: ProviderVisitStatusKind,
+  minutesLate?: number,
+): boolean {
+  if (!existing || existing.kind !== kind) return false;
+  if (kind === 'ready_now') return true;
+  return (
+    normalizeProviderRunningLateMinutes(existing.minutesLate) ===
+    normalizeProviderRunningLateMinutes(minutesLate)
+  );
+}
+
+export type ClaimProviderVisitStatusResult =
+  | {
+      ok: true;
+      booking: Booking;
+      snapshot: ProviderVisitStatusSnapshot;
+      alreadySet: boolean;
+    }
+  | { ok: false; reason: string; code: 'not_found' | 'not_allowed' };
+
+/**
+ * e2e-bug.255 — claim ready_now / running_late under SELECT … FOR UPDATE so
+ * concurrent taps serialize: only the first writer may notify the customer.
+ * Same-kind already set → idempotent success without re-save / re-notify.
+ *
+ * e2e-bug.184 residual: never combine `pessimistic_write` with outer joins of
+ * nullable relations — lock the booking row alone, then load relations after.
+ */
+export async function claimProviderVisitStatus(
+  bookingRepo: Repository<Booking>,
+  input: {
+    bookingId: string;
+    businessId: string;
+    kind: ProviderVisitStatusKind;
+    minutesLate?: number;
+    markedByUserId?: string;
+    markedAt?: Date;
+  },
+): Promise<ClaimProviderVisitStatusResult> {
+  return bookingRepo.manager.transaction(async (manager: EntityManager) => {
+    const booking = await manager.findOne(Booking, {
+      where: { id: input.bookingId, businessId: input.businessId },
+      lock: { mode: 'pessimistic_write' },
+    });
+
+    if (!booking) {
+      return {
+        ok: false,
+        code: 'not_found',
+        reason: 'Booking not found',
+      };
+    }
+
+    const eligibility = buildProviderVisitStatusEligibility(booking);
+    if (!eligibility.allowed) {
+      return {
+        ok: false,
+        code: 'not_allowed',
+        reason:
+          eligibility.reason ?? 'Visit status cannot be updated for this booking',
+      };
+    }
+
+    const existing = readProviderVisitStatus(booking.metadata);
+    if (
+      isSameProviderVisitStatusClaim(existing, input.kind, input.minutesLate)
+    ) {
+      const withRelations = await manager.findOne(Booking, {
+        where: { id: booking.id },
+        relations: { customer: true, service: true, employee: true },
+      });
+      return {
+        ok: true,
+        alreadySet: true,
+        snapshot: existing!,
+        booking: withRelations ?? booking,
+      };
+    }
+
+    const snapshot = buildProviderVisitStatusSnapshot({
+      kind: input.kind,
+      minutesLate: input.minutesLate,
+      markedByUserId: input.markedByUserId,
+      markedAt: input.markedAt,
+    });
+    booking.metadata = applyProviderVisitStatusToMetadata(
+      booking.metadata,
+      snapshot,
+    );
+    const saved = await manager.save(Booking, booking);
+
+    const withRelations = await manager.findOne(Booking, {
+      where: { id: saved.id },
+      relations: { customer: true, service: true, employee: true },
+    });
+    return {
+      ok: true,
+      alreadySet: false,
+      snapshot,
+      booking: withRelations ?? saved,
+    };
+  });
 }

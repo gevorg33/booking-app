@@ -8,6 +8,13 @@ export const PROVIDER_EXPLAIN_DASHBOARD_ONLY_ACTION_PROMPT_SCENARIOS = [
   { id: 'explain-dashboard-only-loyalty-en', prompt: 'Adjust loyalty points', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
   { id: 'explain-dashboard-only-templates-en', prompt: 'Edit message templates', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
   { id: 'explain-dashboard-only-intake-en', prompt: 'Open the full intake answers', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  // e2e-bug.282 — call-client FAQ (was stolen by summarize_client)
+  { id: 'explain-dashboard-only-call-en', prompt: "Why can't I call the client?", surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  { id: 'explain-dashboard-only-call-hy', prompt: 'Ինչու չեմ կարող զանգահարել հաճախորդին', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  { id: 'explain-dashboard-only-call-ru', prompt: 'Почему я не могу позвонить клиенту?', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  { id: 'explain-dashboard-only-call-hy-zang', prompt: 'Ինչու չեմ կարող զանգել հաճախորդին', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  { id: 'explain-dashboard-only-templates-hy', prompt: 'Ինչու չեմ կարող խմբագրել հաղորդագրության ձևանմուշները', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
+  { id: 'explain-dashboard-only-loyalty-hy', prompt: 'Ինչու չեմ կարող կարգավորել հավատարմության միավորները', surface: 'provider' as const, expectedAction: 'explain_dashboard_only_action' },
 ] as const;
 
 export const PROVIDER_EXPLAIN_REASSIGN_LIMIT_PROMPT_SCENARIOS = [

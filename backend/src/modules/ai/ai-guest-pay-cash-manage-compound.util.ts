@@ -4,7 +4,6 @@ import {
 } from './ai-compound-booking-context.util.js';
 import { enrichBookingTimeHintsFromPrompt } from './ai-intent-heuristics.js';
 import { isBookNearestSlotPrompt } from './ai-payments.util.js';
-import { isExplainGuestCheckoutFieldsPrompt } from './ai-explain-guest-checkout-fields.util.js';
 import {
   extractGuestContactFromPrompt,
   parseGetManageLinkFromPrompt,
@@ -51,7 +50,8 @@ function matchGuestPayCashManageScenario(
 export function isGuestPayCashManageCompoundPrompt(prompt: string): boolean {
   if (matchGuestPayCashManageScenario(prompt)) return true;
   const text = prompt.trim();
-  if (isExplainGuestCheckoutFieldsPrompt(text)) return false;
+  // e2e-bug.203 — do not defer to explain_guest_checkout_fields when guest+cash+link
+  // mutate cues are present (named service still belongs to this compound).
   if (isGuestPayCashManagePastBookingPrompt(text)) return false;
   return isGuestPayCashManageCompoundCandidate(text);
 }

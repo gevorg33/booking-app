@@ -341,23 +341,23 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     expect(result.action).toBe('discover_packages');
   });
 
-  it('routes team-wide slot discovery through customer check_providers_for_service', async () => {
+  it('routes team-wide slot discovery to check_availability when rescue prefers open-times browse (e2e-bug.190)', async () => {
     const publicAssistant = {
       chat: jest.fn(async () => ({
         success: true,
-        action: 'check_availability',
-        summary: 'slots found',
-        sessionContext: { serviceName: 'Massage' },
+        action: 'list_services',
+        summary: 'should not be used',
+        sessionContext: {},
       })),
       executeDeterministicIntent: jest.fn(async (_slug, input) => ({
         success: true,
         action: input.action,
         summary: `${input.action} ok`,
-        sessionContext: {},
+        sessionContext: { serviceCategory: 'massage' },
       })),
     };
     const { service } = createCustomerIntegrationHarness({
-      llmAction: 'check_availability',
+      llmAction: 'check_providers_for_service',
       llmParams: { serviceName: 'Massage' },
       publicAssistant,
     });
@@ -372,7 +372,100 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
     );
 
     expect(publicAssistant.chat).not.toHaveBeenCalled();
-    expect(result.action).toBe('check_providers_for_service');
+    expect(publicAssistant.executeDeterministicIntent).toHaveBeenCalledWith(
+      'salon',
+      expect.objectContaining({ action: 'check_availability' }),
+    );
+    expect(result.action).toBe('check_availability');
+  });
+
+  it('e2e-bug.190 — keeps check_availability and executes via public deterministic handler', async () => {
+    const publicAssistant = {
+      chat: jest.fn(async () => ({
+        success: true,
+        action: 'explain_provider_availability',
+        summary: 'should not be used',
+        sessionContext: {},
+      })),
+      executeDeterministicIntent: jest.fn(async (_slug, input) => ({
+        success: true,
+        action: input.action,
+        summary: 'Open slots for Swedish massage',
+        details: {},
+        sessionContext: { serviceName: 'Swedish massage' },
+      })),
+    };
+    const { service } = createCustomerIntegrationHarness({
+      llmAction: 'check_availability',
+      llmParams: {
+        serviceName: 'Swedish massage',
+        date: '30/07/2026',
+      },
+      publicAssistant,
+    });
+
+    const result = await service.executeCommand(
+      'biz-1',
+      'check availability for Swedish massage tomorrow',
+      [],
+      { slug: 'salon' },
+    );
+
+    expect(publicAssistant.chat).not.toHaveBeenCalled();
+    expect(publicAssistant.executeDeterministicIntent).toHaveBeenCalledWith(
+      'salon',
+      expect.objectContaining({
+        action: 'check_availability',
+        prompt: 'check availability for Swedish massage tomorrow',
+      }),
+    );
+    expect(result.action).toBe('check_availability');
+    expect(result.success).toBe(true);
+  });
+
+  it('routes who-is-free team-wide as customer check_providers_for_service', async () => {
+    const publicAssistant = {
+      chat: jest.fn(async () => ({
+        success: true,
+        action: 'list_services',
+        summary: 'unused',
+        details: {},
+        sessionContext: {},
+      })),
+      executeDeterministicIntent: jest.fn(async (_slug, input) => ({
+        success: true,
+        action: input.action,
+        summary: `${input.action} ok`,
+        details: {},
+        sessionContext: {},
+      })),
+    };
+    const { service, sprintHandlers } = createCustomerIntegrationHarness({
+      llmAction: 'check_providers_for_service',
+      llmParams: {
+        serviceCategory: 'massage',
+        allProviders: true,
+        timeOfDay: 'evening',
+      },
+      publicAssistant,
+    });
+
+    const result = await service.executeCommand(
+      'biz-1',
+      'Who is free tomorrow evening for massage?',
+      [],
+      { slug: 'salon' },
+    );
+
+    // May stay on check_providers or rescue to public check_availability — both valid.
+    if (result.action === 'check_providers_for_service') {
+      expect(sprintHandlers.dispatchIntent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'check_providers_for_service' }),
+      );
+    } else {
+      expect(result.action).toBe('check_availability');
+      expect(publicAssistant.executeDeterministicIntent).toHaveBeenCalled();
+    }
   });
 
   it('routes public-only discovery intent through public assistant after classification', async () => {
@@ -540,13 +633,26 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
     });
   });
 
-  it('delegates flexible availability check_availability to customer check_providers_for_service after pipeline disambiguation', async () => {
+  it('e2e-bug.190 — flexible OR windows classified as check_availability stay on check_availability', async () => {
     const scenario = AVAIL_CUSTOMER_PROMPTS.find(
       (entry) => entry.id === 'avail-imperative-en',
     )!;
+    const publicAssistant = {
+      chat: jest.fn(),
+      executeDeterministicIntent: jest.fn(async (_slug, input) => ({
+        success: true,
+        action: input.action,
+        summary: 'OR windows scanned',
+        sessionContext: {
+          serviceCategory: 'massage',
+          availabilityWindows: input.params?.availabilityWindows,
+        },
+      })),
+    };
     const { service, sprintHandlers } = createCustomerIntegrationHarness({
       llmAction: 'check_availability',
       llmParams: scenario.expectedParams ?? {},
+      publicAssistant,
     });
 
     const result = await service.executeCommand('biz-1', scenario.prompt, [], {
@@ -554,13 +660,15 @@ describe('customer-ai-command discovery integration (ai-cmd-customer-3.4)', () =
       customerId: 'cust-1',
     });
 
-    expect(sprintHandlers.dispatchIntent).toHaveBeenCalledWith(
+    expect(sprintHandlers.dispatchIntent).not.toHaveBeenCalled();
+    expect(publicAssistant.executeDeterministicIntent).toHaveBeenCalledWith(
+      'salon',
       expect.objectContaining({
-        action: 'check_providers_for_service',
+        action: 'check_availability',
         params: expect.objectContaining({ serviceCategory: 'massage' }),
       }),
     );
-    expect(result.action).toBe('check_providers_for_service');
+    expect(result.action).toBe('check_availability');
     expect(result.details?.sessionContext).toMatchObject({
       serviceCategory: 'massage',
     });

@@ -26,6 +26,8 @@ const SKIP_URL_PATTERNS: RegExp[] = [
   /\/onboarding\/status\b/i,
   /\/agents\/tasks\b/i,
   /\/ai\/command/i,
+  // e2e-bug.223 — public assistant replies in-chat; HTTP 201 must not toast "Created successfully."
+  /\/assistant(?:\/guide-telemetry)?\b/i,
   /\/notifications\/settings\b/i,
   /\/billing\/plans\b/i,
   /\/me\b/i,
@@ -77,7 +79,19 @@ function feedbackMessages(): Record<FeedbackMessageKeys, string> {
 
 function contextualSuccessMessage(path: string, kind: OperationKind): string | null {
   const m = feedbackMessages();
-  if (kind === 'delete' && /\/cancel/i.test(path)) return m.bookingCancelled;
+  // e2e-bug.216 — guest/public cancel is POST (kind=create) to …/bookings/…/cancel.
+  // Check manage mutations before the `/book` create heuristic — `/bookings` otherwise
+  // matches `/book` and toasts “Your booking is confirmed.”
+  if (/\/cancel\b/i.test(path)) {
+    return m.bookingCancelled;
+  }
+  if (/\/reschedule\b/i.test(path)) {
+    return m.updated;
+  }
+  // e2e-bug.221 — running-late is POST but not a booking create.
+  if (/\/running-late\b/i.test(path)) {
+    return m.updated;
+  }
   if (kind === 'create') {
     if (/\/gift-card/i.test(path)) return m.purchaseCompleted;
     if (/\/book|\/multi-service|\/package/i.test(path)) return m.bookingCreated;

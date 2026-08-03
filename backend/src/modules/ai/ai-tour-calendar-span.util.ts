@@ -1,3 +1,4 @@
+import { normalizeTourWeekAnchorDateKey } from '../../common/utils/tour-calendar.util.js';
 import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.js';
 
 export const TOUR_CALENDAR_SPAN_INTENTS = [
@@ -33,24 +34,29 @@ function hasDashboardReadCue(prompt: string): boolean {
 }
 
 function isCalendarWeekListPrompt(prompt: string): boolean {
+  // e2e-bug.288 / e2e-bug.309 — next/last week tour lists are calendar-week
+  // reads, not span-explain (do not let bare «календар провайдера» steal them).
   const en =
     (/\b(?:this\s+)?calendar\s+week\b/i.test(prompt) ||
-      /\b(this|current)\s+week\b/i.test(prompt) ||
+      /\b(this|current|next|last)\s+week\b/i.test(prompt) ||
       /\bprovider\s+calendar\s+week\b/i.test(prompt)) &&
-    /\b(list|show|summarize|which|what)\b/i.test(prompt) &&
-    /\b(tour\s+departures?|tour\s+bookings?|tours?\s+(?:are\s+)?(?:on|visible|departing))\b/i.test(
+    /\b(list|show|summarize|which|what|any)\b/i.test(prompt) &&
+    /\b(tour\s+departures?|tour\s+bookings?|tours?\s+(?:are\s+)?(?:on|visible|departing)|(?:any\s+)?tours?)\b/i.test(
       prompt,
     );
 
   const hy =
-    /(այս\s+շաբաթ|օրացույցային\s+շաբաթ|\d{4}-\d{2}-\d{2}\s+շաբաթ|պրովայդերի\s+օրացույցում\s+այս\s+շաբաթ)/i.test(
+    // e2e-bug.310 — նախորդ/անցյալ/վերջին last-week synonyms.
+    /(այս\s+շաբաթ|հաջորդ\s+շաբաթ|(?:անցած|անցյալ|նախորդ|վերջին)\s+շաբաթ|օրացույցային\s+շաբաթ|\d{4}-\d{2}-\d{2}\s+շաբաթ|պրովայդերի\s+օրացույցում\s+(?:այս|հաջորդ|անցած|անցյալ|նախորդ|վերջին)\s+շաբաթ)/i.test(
       prompt,
     ) &&
     /(էքսկուրսիա|տուր|մեկնում)/i.test(prompt) &&
-    /(ցուցադրիր|ցուցադրի|(?:^|\s)որ\s+(էքսկուրսիա|տուրեր))/i.test(prompt);
+    /(ցույց|ցուցադրիր|ցուցադրի|(?:^|\s)որ\s+(էքսկուրսիա|տուրեր)|ինչ)/i.test(
+      prompt,
+    );
 
   const ru =
-    /(на\s+этой\s+(?:календарн[а-яё]*\s+)?недел|календарн[а-яё]*\s+недел|недел[а-яё]*\s+\d{4}-\d{2}-\d{2})/i.test(
+    /(?:на\s+)?(?:этой|текущ[а-яё]*|следующ[а-яё]*|прошл[а-яё]*)\s+(?:календарн[а-яё]*\s+)?недел|календарн[а-яё]*\s+недел|недел[а-яё]*\s+\d{4}-\d{2}-\d{2}/i.test(
       prompt,
     ) &&
     /(тур|экскурс|выезд)/i.test(prompt) &&
@@ -231,10 +237,14 @@ export function parseExplainTourCalendarSpanFromPrompt(
     typeof params.serviceName === 'string'
       ? params.serviceName.trim()
       : undefined;
-  const weekStartFromParams =
+  // e2e-bug.270 — never pass "this week" / non-ISO into week builders.
+  const weekStartFromParams = normalizeTourWeekAnchorDateKey(
     typeof params.weekStartDate === 'string'
-      ? params.weekStartDate.trim()
-      : undefined;
+      ? params.weekStartDate
+      : typeof params.date === 'string'
+        ? params.date
+        : undefined,
+  );
   const aspectFromParams =
     typeof params.aspect === 'string' ? params.aspect.trim() : undefined;
 

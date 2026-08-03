@@ -102,7 +102,8 @@ export type CustomerInsightMetric =
   | 'vip'
   | 'top_spenders'
   | 'new_customers'
-  | 'overview';
+  | 'overview'
+  | 'retention';
 
 export interface CustomerInsightRow {
   id: string;
@@ -125,6 +126,12 @@ export interface CustomerInsightsResult {
     atRiskCount: number;
     highNoShowCount: number;
     vipCount: number;
+    /** e2e-bug.137 — customers with 1+ completed visit, the retention-rate denominator. */
+    customersWithCompletedVisitCount: number;
+    /** e2e-bug.137 — customers with 2+ completed visits, the retention-rate numerator. */
+    returningCustomerCount: number;
+    /** e2e-bug.137 — returningCustomerCount / customersWithCompletedVisitCount * 100, rounded. Null when denominator is 0. */
+    retentionRatePercent: number | null;
   };
 }
 
@@ -771,6 +778,23 @@ export class CustomerService {
       };
     });
 
+    // e2e-bug.137 — visit-based repeat-customer rate: of customers with at
+    // least one completed visit, what share came back for another one.
+    const completedCounts = enriched.map(
+      (r) => r.stats.byStatus[BookingStatus.COMPLETED] ?? 0,
+    );
+    const customersWithCompletedVisitCount = completedCounts.filter(
+      (n) => n >= 1,
+    ).length;
+    const returningCustomerCount = completedCounts.filter((n) => n >= 2)
+      .length;
+    const retentionRatePercent =
+      customersWithCompletedVisitCount > 0
+        ? Math.round(
+            (returningCustomerCount / customersWithCompletedVisitCount) * 100,
+          )
+        : null;
+
     const summary = {
       totalCustomers: enriched.length,
       totalNoShows: enriched.reduce((n, r) => n + r.stats.noShowCount, 0),
@@ -784,6 +808,9 @@ export class CustomerService {
       highNoShowCount: enriched.filter((r) => r.segment === 'high_no_show')
         .length,
       vipCount: enriched.filter((r) => r.segment === 'vip').length,
+      customersWithCompletedVisitCount,
+      returningCustomerCount,
+      retentionRatePercent,
     };
 
     const cap = Math.min(Math.max(limit, 1), 20);
@@ -808,6 +835,9 @@ export class CustomerService {
               (b.stats.byStatus[BookingStatus.CANCELLED] ?? 0) -
               (a.stats.byStatus[BookingStatus.CANCELLED] ?? 0),
           );
+        break;
+      case 'retention':
+        rows = [];
         break;
       case 'at_risk':
         rows = enriched.filter((r) => r.segment === 'at_risk');

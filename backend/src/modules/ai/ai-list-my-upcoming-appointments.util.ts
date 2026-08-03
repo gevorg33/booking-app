@@ -3,6 +3,7 @@ import { isExplainTourCalendarSpanPrompt } from './ai-tour-calendar-span.util.js
 import { isListTourCalendarWeekPrompt } from './ai-tour-calendar-week.util.js';
 import { isExplainTourServicesPrompt } from './ai-tour-service.util.js';
 import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
+import { isExplainHomeScreenWidgetPrompt } from './ai-explain-home-screen-widget.util.js';
 import {
   LIST_MY_UPCOMING_APPOINTMENTS_PROMPTS,
   type ListMyUpcomingAppointmentsScope,
@@ -87,6 +88,9 @@ const EXPLAIN_PROVIDER_AVAILABILITY_BLOCK = new RegExp(
 export function isListMyUpcomingAppointmentsPrompt(prompt: string): boolean {
   // e2e-bug.88 — "pay online … for my upcoming … appointment" is pay_online.
   if (isExplicitPayOnlinePrompt(prompt)) return false;
+  // e2e-bug.295 — "Add next appointment to home screen" is OS widget help,
+  // not list_my_upcoming (NEXT_CUE would otherwise steal via "next appointment").
+  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
   if (isExplainTourServicesPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
   if (isListTourCalendarWeekPrompt(prompt)) return false;

@@ -15,6 +15,11 @@ import { isExplainPackageDisplayNamePrompt } from './ai-package-display-name.uti
 import { isExplainCheckoutRecommendationsPrompt } from './ai-checkout-recommendations.util.js';
 import { isExplainRecommendationAnalyticsPrompt } from './ai-recommendation-analytics.util.js';
 import { isExplainRecommendationSetupPrompt } from './ai-recommendation-product.util.js';
+import {
+  hasGuestPayCashManageGuestCue,
+  hasGuestPayCashManageLinkCue,
+  isGuestPayCashManageCompoundCandidate,
+} from './ai-guest-pay-cash-manage-cue.util.js';
 
 export const GUEST_CHECKOUT_FIELDS_INTENTS = [
   'explain_guest_checkout_fields',
@@ -37,7 +42,7 @@ export interface ParsedExplainGuestCheckoutFields {
   aspect: GuestCheckoutFieldsAspect;
 }
 
-export const CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES = `- explain_guest_checkout_fields: READ — explain guest checkout contact fields on the consumer app or public booking page: why name/email/phone are collected, email OR phone rule, signed-in vs guest merge, reminder toggles, and privacy consent checkboxes. Triggers: "Why do you need my email?", "Do I need both email and phone?", "Will my guest booking link after sign-in?". Set aspect when clear (email|phone|name|guest_vs_account|contact_merge|reminders|consent|all). NOT explain_why_sign_in (account required/benefits/history — no field focus), NOT sign_in_after_booking (PostBookingSignInPrompt after confirmation), NOT booking_help (full funnel walkthrough without field focus), NOT explain_data_rights (GDPR export/delete/cookie banner), NOT explain_clinic_booking (symptoms/referral/fasting), NOT explain_clinic_booking_fields (ID/DOB/insurance/intake identity fields), NOT fix_checkout_validation_error (validation error troubleshooting), NOT privacy_export|privacy_delete (mutate), NOT explain_amount_due_now|explain_checkout_total (payment math).`;
+export const CUSTOMER_PUBLIC_EXPLAIN_GUEST_CHECKOUT_FIELDS_CLASSIFIER_RULES = `- explain_guest_checkout_fields: READ — explain guest checkout contact fields on the consumer app or public booking page: why name/email/phone are collected, email OR phone rule, signed-in vs guest merge, reminder toggles, and privacy consent checkboxes. Triggers: "Why do you need my email?", "Do I need both email and phone?", "Will my guest booking link after sign-in?". Set aspect when clear (email|phone|name|guest_vs_account|contact_merge|reminders|consent|all). NOT guest_book_and_manage / guest_pay_cash_manage (book as guest + email manage link, optional pay cash — mutate compounds even when a service is named), NOT explain_why_sign_in (account required/benefits/history — no field focus), NOT sign_in_after_booking (PostBookingSignInPrompt after confirmation), NOT booking_help (full funnel walkthrough without field focus), NOT explain_data_rights (GDPR export/delete/cookie banner), NOT explain_clinic_booking (symptoms/referral/fasting), NOT explain_clinic_booking_fields (ID/DOB/insurance/intake identity fields), NOT fix_checkout_validation_error (validation error troubleshooting), NOT privacy_export|privacy_delete (mutate), NOT explain_amount_due_now|explain_checkout_total (payment math).`;
 
 const READ_CUE = new RegExp(
   String.raw`\b(what|why|how|where|explain|tell|describe|should|do i|does|can i|need|required|optional|mean|means|without|guest|account)\b|ինչ|ինչու|ինչպես|բացատր|պետք|համար\s+է|что|почему|как|объясни|нужно|зачем|можно\s+ли|без\s+аккаунта`,
@@ -159,6 +164,19 @@ export function extractGuestCheckoutFieldsAspectFromPrompt(
   return 'all';
 }
 
+/**
+ * e2e-bug.203 — "Book as guest … and email me the manage link" (optional cash /
+ * named service) is a mutate compound, not a contact-fields FAQ.
+ */
+export function isGuestCheckoutMutateCompoundPrompt(prompt: string): boolean {
+  const text = prompt.trim();
+  if (!text) return false;
+  if (isGuestPayCashManageCompoundCandidate(text)) return true;
+  return (
+    hasGuestPayCashManageGuestCue(text) && hasGuestPayCashManageLinkCue(text)
+  );
+}
+
 export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
   if (isCreateEmployeePrompt(prompt)) return false;
   if (isConfigureTourServicePrompt(prompt)) return false;
@@ -171,6 +189,8 @@ export function isExplainGuestCheckoutFieldsPrompt(prompt: string): boolean {
   if (isExplainRecommendationAnalyticsPrompt(prompt)) return false;
   if (isExplainRecommendationSetupPrompt(prompt)) return false;
   if (isExplainWhySignInPrompt(prompt)) return false;
+  // e2e-bug.203 — guest book+manage / guest pay+cash+manage win over field FAQ.
+  if (isGuestCheckoutMutateCompoundPrompt(prompt)) return false;
   // e2e-bug.93 — provider professional-profile reads are not guest checkout.
   if (
     /\b(?:tell\s+me\s+about|learn(?:\s+more)?\s+about|show\s+me|open|view)\b/i.test(

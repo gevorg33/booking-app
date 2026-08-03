@@ -157,6 +157,63 @@ describe('ai-catalog.logic', () => {
       expect(withPlaceholders.success).toBe(true);
       expect((withPlaceholders.details as any).serviceIds).toHaveLength(2);
     });
+
+    // e2e-bug.312 — deterministic locale on success summary (no LLM-enrich flake).
+    it('returns a deterministic Russian success summary for RU prompts', async () => {
+      const result = await handleCreateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Цвет' },
+        'Добавь категорию каталога с названием Цвет, пожалуйста',
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('Категория «Цвет» успешно создана.');
+    });
+
+    it('returns a deterministic Armenian success summary for HY prompts', async () => {
+      const result = await handleCreateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Գույն' },
+        'Ավելացրու «Գույն» կատալոգի կատեգորիա',
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('Ստեղծվեց «Գույն» կատեգորիան։');
+    });
+
+    it('returns a deterministic English success summary by default', async () => {
+      const result = await handleCreateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Color' },
+        'Add a catalog category named Color',
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('Created category "Color".');
+    });
+
+    it('localizes the placeholder-service variant of the success summary too', async () => {
+      const result = await handleCreateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Цвет', placeholderCount: 2 },
+        'Добавь категорию каталога с названием Цвет и 2 услугами',
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe(
+        'Категория «Цвет» успешно создана, с 2 пробной услугой(ями).',
+      );
+    });
+
+    it('falls back to params.locale when the prompt has no detectable script', async () => {
+      const result = await handleCreateServiceCategoryLogic(
+        buildDeps(),
+        'biz-1',
+        { categoryName: 'Color', locale: 'ru' },
+      );
+      expect(result.success).toBe(true);
+      expect(result.summary).toBe('Категория «Color» успешно создана.');
+    });
   });
 
   describe('handleUpdateServiceCategoryLogic', () => {

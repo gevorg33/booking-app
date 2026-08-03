@@ -1,4 +1,5 @@
 import { applyRelativeDateFromPrompt } from '../../common/utils/date-format.util.js';
+import { stripTrailingWaitlistProviderFromService } from '../../common/utils/customer-waitlist.util.js';
 import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { extractServiceNameFromPrompt } from './ai-payments.util.js';
 import {
@@ -65,7 +66,7 @@ const WAITLIST_SERVICE_TOKEN =
   /\b(massage|haircut|facial|manicure|pedicure|color|colour|trim|wax|blowdry|beard|cut|nails?|highlights?|balayage|keratin|brows?|lashes?|spa|treatment|service|package|facemassage)\b/i;
 
 const WAITLIST_DATE_BOUNDARY =
-  String.raw`(?=\s*(?:,|;|\?|\band\b|\bwith\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bon\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+  String.raw`(?=\s*(?:,|;|\?|\band\b|\bwith\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bon\b|\bopens?\b|\bslot\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
 
 /** Proper-name heuristic for provider-only waitlist phrasing (e2e-bug.112). */
 export function looksLikeWaitlistPersonName(value: string): boolean {
@@ -166,6 +167,26 @@ function extractWaitlistServiceName(
     }
   }
 
+  // e2e-bug.235 — "Notify me if a Swedish massage with Gevorg opens…"
+  const ifService = prompt.match(
+    new RegExp(
+      String.raw`\bif\s+(?:a\s+|an\s+)?([a-z][\w\s'-]{2,40}?)` + WAITLIST_DATE_BOUNDARY,
+      'i',
+    ),
+  );
+  if (ifService) {
+    const name = ifService[1].trim().replace(/[,.]$/, '');
+    if (
+      name &&
+      !looksLikeWaitlistPersonName(name) &&
+      !/^(the|a|an|anything|something|friday|monday|tuesday|wednesday|thursday|saturday|sunday|waitlist|waiting list)$/i.test(
+        name,
+      )
+    ) {
+      return name;
+    }
+  }
+
   const raw = extractServiceNameFromPrompt(prompt)?.trim();
   if (!raw) return undefined;
   if (looksLikeWaitlistPersonName(raw)) return undefined;
@@ -181,7 +202,7 @@ function extractWaitlistServiceName(
   return raw;
 }
 
-/** Drop duplicated provider→serviceName copies (e2e-bug.112). */
+/** Drop duplicated provider→serviceName copies (e2e-bug.112 / e2e-bug.235). */
 export function sanitizeWaitlistPreferenceNames(input: {
   serviceName?: string;
   employeeName?: string;
@@ -199,6 +220,13 @@ export function sanitizeWaitlistPreferenceNames(input: {
     serviceName.toLowerCase() === employeeName.toLowerCase()
   ) {
     serviceName = undefined;
+  }
+  // e2e-bug.235 — classifier may bake "with Gevorg" into serviceName.
+  if (serviceName && employeeName) {
+    serviceName = stripTrailingWaitlistProviderFromService(
+      serviceName,
+      employeeName,
+    );
   }
 
   return {

@@ -133,6 +133,12 @@ export interface AiCommandSessionContext extends Partial<AiPageContext> {
   guideFlowId?: string | null;
   guideStepIndex?: number | null;
   completedSteps?: number[] | null;
+  /** e2e-bug.304 — mid-compound clarify resume token. */
+  compoundResumePlans?: unknown[] | null;
+  compoundResumeSubIntents?: unknown[] | null;
+  compoundStepIndex?: number | null;
+  compoundActions?: string[] | null;
+  compoundConfirmationPrompt?: string | null;
 }
 
 export interface AiGuideSessionState {
@@ -248,6 +254,13 @@ export interface AiCommandDetails {
   guideFlowId?: string | number;
   guideStepIndex?: number;
   completedSteps?: number[];
+  /** e2e-bug.304 */
+  compoundResumePlans?: unknown[];
+  compoundResumeSubIntents?: unknown[];
+  compoundStepIndex?: number;
+  compoundActions?: string[];
+  compoundStep?: string;
+  decomposed?: boolean;
   status?: string;
   plan?: unknown;
 }

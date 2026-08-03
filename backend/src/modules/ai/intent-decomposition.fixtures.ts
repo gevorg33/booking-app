@@ -402,6 +402,19 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     compoundRecipeId: 'cancel_and_rebook',
   },
   {
+    id: 'dashboard_reschedule_then_create_booking',
+    surface: 'dashboard',
+    prompt:
+      "Move Gevorg's appointment to Friday; then book a second massage for Anna",
+    orderedActions: ['reschedule_booking', 'create_booking'],
+    paramChecks: [
+      { stepIndex: 1, key: 'customerName', value: 'Anna' },
+      { stepIndex: 1, key: 'serviceName', value: 'massage' },
+    ],
+    noLlm: true,
+    compoundRecipeId: 'dashboard_operational_compound',
+  },
+  {
     id: 'customer_rebook_and_pay',
     surface: 'customer',
     prompt: 'Rebook my last visit and pay with card',

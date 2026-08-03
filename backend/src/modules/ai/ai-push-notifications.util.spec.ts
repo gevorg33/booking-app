@@ -816,6 +816,27 @@ describe('ai-push-notifications.util', () => {
     });
   });
 
+  describe('e2e-bug.252 — a customer reschedules (-s form)', () => {
+    it('matches every-time / whenever a customer reschedules', () => {
+      expect(
+        isToggleBusinessEmailOnCustomerChangePrompt(
+          'Alert me every time a customer reschedules their appointment',
+        ),
+      ).toBe(true);
+      expect(
+        isToggleBusinessEmailOnCustomerChangePrompt(
+          'Alert me whenever a customer reschedules',
+        ),
+      ).toBe(true);
+      expect(
+        rescuePushNotificationsIntent(
+          'Alert me whenever a customer reschedules',
+          'create_booking',
+        )?.action,
+      ).toBe('toggle_business_email_on_customer_change');
+    });
+  });
+
   describe('e2e-bug.159 — owner cancel alert vs customer notify', () => {
     it.each([
       ...E2E159_OWNER_CANCEL_ALERT_SCENARIOS,

@@ -56,6 +56,29 @@ describe('ai-explain-provider-availability.util (ai-cmd-customer-4.11.3)', () =>
     expect(
       isExplainProviderAvailabilityPrompt('free slots on Monday for Gevorg'),
     ).toBe(false);
+    expect(
+      isExplainProviderAvailabilityPrompt(
+        'availability for Swedish massage tomorrow',
+      ),
+    ).toBe(false);
+  });
+
+  it('e2e-bug.194 — named “availability for” still explains schedule', () => {
+    const prompt =
+      'Explain Gevorg availability for Swedish massage next Tuesday';
+    expect(isExplainProviderAvailabilityPrompt(prompt)).toBe(true);
+    expect(parseExplainProviderAvailabilityFromPrompt(prompt)).toMatchObject({
+      aspect: 'named_schedule',
+      employeeName: 'Gevorg',
+    });
+    expect(
+      enrichExplainProviderAvailabilityParamsFromPrompt({}, prompt),
+    ).toMatchObject({
+      employeeName: 'Gevorg',
+      allProviders: false,
+      aspect: 'named_schedule',
+      serviceName: expect.stringMatching(/swedish/i),
+    });
   });
 
   it('does not steal booking prompts', () => {
@@ -116,5 +139,26 @@ describe('ai-explain-provider-availability.util (ai-cmd-customer-4.11.3)', () =>
         'Who specializes in color on Friday?',
       ),
     ).toBe(false);
+  });
+
+  it('e2e-bug.190 — does not steal open-times check_availability browse', () => {
+    expect(
+      rescueExplainProviderAvailabilityIntent(
+        'check availability for Swedish massage tomorrow',
+        'check_availability',
+      ),
+    ).toBeNull();
+    expect(
+      rescueExplainProviderAvailabilityIntent(
+        'What times are available for Swedish massage tomorrow?',
+        'check_availability',
+      ),
+    ).toBeNull();
+    expect(
+      rescueExplainProviderAvailabilityIntent(
+        'Is Gevorg available for Swedish massage next Tuesday?',
+        'check_availability',
+      ),
+    ).toBeNull();
   });
 });

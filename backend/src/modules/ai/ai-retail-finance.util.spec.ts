@@ -14,6 +14,7 @@ import {
   isListExpensesPrompt,
   isSummarizePlPrompt,
   isCommissionReportPrompt,
+  isListRefundsPrompt,
   isPayoutExportPrompt,
   isCreateCommissionRulePrompt,
   isExportAnalyticsReportPrompt,
@@ -74,6 +75,15 @@ describe('ai-retail-finance.util', () => {
       expect(isCommissionReportPrompt('Staff commissions summary')).toBe(true);
       expect(isCommissionReportPrompt('Summary of commissions')).toBe(true);
       expect(isCommissionReportPrompt('Export commissions CSV')).toBe(false);
+      expect(
+        isListRefundsPrompt('How many refunds have I issued this month?'),
+      ).toBe(true);
+      expect(isListRefundsPrompt('Refund report for last month')).toBe(true);
+      expect(isListRefundsPrompt('List refunds')).toBe(true);
+      expect(isListRefundsPrompt('Export refunds CSV')).toBe(false);
+      expect(
+        isListRefundsPrompt('Refund GIFT1234 because the item arrived damaged'),
+      ).toBe(false);
       expect(isPayoutExportPrompt('Payout export this month')).toBe(true);
       expect(isPayoutExportPrompt('Export payout csv for May')).toBe(true);
       expect(
@@ -424,7 +434,7 @@ describe('ai-retail-finance.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(RETAIL_FINANCE_INTENTS.length).toBe(25);
+      expect(RETAIL_FINANCE_INTENTS.length).toBe(26);
       expect(isRetailFinanceIntent('list_products')).toBe(true);
       expect(isRetailFinanceIntent('not_real')).toBe(false);
       expect(decomposeRetailFinanceCompoundPrompt('')).toEqual([]);

@@ -54,13 +54,16 @@ export function shouldAutoRetryWithPayAtVenue(input: {
   return input.isActivationPath && input.cashAvailable && input.checkoutFailed;
 }
 
+/**
+ * Not gated on isActivationPath — a returning customer whose online payment
+ * fails or stalls needs the same pay-at-venue escape hatch as a first-timer.
+ */
 export function shouldShowPaymentHiccupFallback(input: {
-  isActivationPath: boolean;
   cashAvailable: boolean;
   awaitingPaymentReturn: boolean;
   checkoutFailed: boolean;
 }): boolean {
-  if (!input.isActivationPath || !input.cashAvailable) return false;
+  if (!input.cashAvailable) return false;
   return input.awaitingPaymentReturn || input.checkoutFailed;
 }
 

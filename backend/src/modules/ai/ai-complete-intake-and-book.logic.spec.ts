@@ -115,4 +115,37 @@ describe('ai-complete-intake-and-book.logic (ai-cmd-customer-4.14.2)', () => {
     expect(noLab.success).toBe(false);
     expect(noLab.details?.clarify).toBe(true);
   });
+
+  it('e2e-bug.201 — seeded step accepts pay-bearing intake+lab prompt', async () => {
+    const payPrompt = 'Fill intake and book blood draw, pay online';
+    const blocked = await handleCompleteIntakeAndBookLogic(
+      buildDeps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1' },
+      payPrompt,
+    );
+    expect(blocked.success).toBe(false);
+    expect(String(blocked.summary)).toMatch(/Ask to fill the pre-visit intake/i);
+
+    const seeded = await handleCompleteIntakeAndBookLogic(
+      buildDeps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1', completeIntakeAndBook: true },
+      payPrompt,
+    );
+    expect(seeded.success).toBe(true);
+    expect(seeded.action).toBe('complete_intake_and_book');
+    expect(seeded.details?.serviceId).toBe('svc-lab-1');
+  });
+
+  it('e2e-bug.201 — seeded but non-intake prompt still clarifies', async () => {
+    const result = await handleCompleteIntakeAndBookLogic(
+      buildDeps(),
+      'biz-1',
+      { sessionCustomerId: 'cust-1', completeIntakeAndBook: true },
+      'Pay online for my booking',
+    );
+    expect(result.success).toBe(false);
+    expect(String(result.summary)).toMatch(/Ask to fill the pre-visit intake/i);
+  });
 });

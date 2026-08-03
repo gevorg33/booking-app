@@ -306,6 +306,7 @@ describe('PublicBookingService package same-day block scheduling', () => {
         ['face-plasma', 'face-pilling'],
         '2026-06-02T09:00:00.000Z',
         true,
+        { skipDurationCap: true },
       );
     });
   });
@@ -652,6 +653,29 @@ describe('PublicBookingService package same-day block scheduling', () => {
       ).toHaveBeenCalledWith('biz-1', ['face-plasma', 'face-pilling'], {
         skipDurationCap: true,
       });
+    });
+
+    it('api-bug.2 — getPackageBlockProviders forwards skipDurationCap', async () => {
+      jest
+        .spyOn(harness.service, 'getMultiServiceBlockProviders')
+        .mockResolvedValue({ providers: [] });
+
+      await harness.service.getPackageBlockProviders(
+        'salon',
+        'pkg-1',
+        '2026-06-02T09:00:00.000Z',
+        false,
+      );
+
+      expect(
+        harness.service.getMultiServiceBlockProviders,
+      ).toHaveBeenCalledWith(
+        'salon',
+        ['face-plasma', 'face-pilling'],
+        '2026-06-02T09:00:00.000Z',
+        false,
+        { skipDurationCap: true },
+      );
     });
   });
 });

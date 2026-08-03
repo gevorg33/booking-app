@@ -1,5 +1,8 @@
 import { isExportCommissionsPrompt } from './ai-payments.util.js';
 import { isMarkPaidPrompt } from './ai-booking-depth.util.js';
+import { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
+
+export { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
 
 export const DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS = [
   'create_product',
@@ -25,6 +28,7 @@ export const DASHBOARD_RETAIL_FINANCE_READ_INTENTS = [
   'list_expenses',
   'summarize_pl',
   'commission_report',
+  'list_refunds',
   'summarize_reviews',
   'summarize_adoption_funnel',
 ] as const;
@@ -67,6 +71,7 @@ export function isRetailFinanceIntent(
 }
 
 export function isListServicesCatalogPrompt(prompt: string): boolean {
+  if (isPlainServiceCatalogListPrompt(prompt)) return true;
   return (
     /\b(list|show)\b/i.test(prompt) &&
     /\bservices?\b/i.test(prompt) &&
@@ -197,6 +202,19 @@ export function isCommissionReportPrompt(prompt: string): boolean {
         prompt,
       )) ||
     (/\b(report|summary)\b/i.test(prompt) && /\bcommissions?\b/i.test(prompt))
+  );
+}
+
+/** e2e-bug.167 — dashboard report for refunds issued (bookings/subscriptions/packages). */
+export function isListRefundsPrompt(prompt: string): boolean {
+  if (/\b(export|download|csv)\b/i.test(prompt)) return false;
+  return (
+    /\brefunds?\s+report\b/i.test(prompt) ||
+    /\blist\s+refunds?\b/i.test(prompt) ||
+    (/\brefunds?\b/i.test(prompt) &&
+      /\b(how\s+many|how\s+much|issued|summary|list|show|report)\b/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -830,6 +848,9 @@ export function rescueRetailFinanceIntent(
 
   if (isCommissionReportPrompt(prompt)) {
     return { action: 'commission_report', rescueReason: 'commission_report' };
+  }
+  if (isListRefundsPrompt(prompt)) {
+    return { action: 'list_refunds', rescueReason: 'list_refunds' };
   }
   if (isSummarizeReviewsPrompt(prompt)) {
     return { action: 'summarize_reviews', rescueReason: 'summarize_reviews' };

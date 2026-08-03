@@ -141,11 +141,27 @@ export function parseDateInput(value: string): Date | null {
   }
   const slash = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (slash) {
-    return new Date(`${slash[3]}-${slash[2]}-${slash[1]}T00:00:00.000Z`);
+    let day = Number(slash[1]);
+    let month = Number(slash[2]);
+    // e2e-bug.343 — a "month" > 12 is impossible under the assumed DD/MM
+    // reading; a day-of-month > 12 unambiguously signals MM/DD (US) instead
+    // of an invalid date, so swap rather than crash.
+    if (month > 12 && day <= 12) {
+      [day, month] = [month, day];
+    }
+    const d = new Date(
+      `${slash[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T00:00:00.000Z`,
+    );
+    return Number.isNaN(d.getTime()) ? null : d;
   }
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) {
-    return new Date(`${value}T00:00:00.000Z`);
+    // e2e-bug.343 — an already-malformed pseudo-ISO string (e.g. produced by
+    // an upstream DD/MM misinterpretation elsewhere in the pipeline) must not
+    // leak an Invalid Date object here: Invalid Date is truthy, so callers
+    // using `parseDateInput(x) ?? fallback` never reach their fallback.
+    const d = new Date(`${value}T00:00:00.000Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -156,7 +172,7 @@ export function toIsoDay(value: string, timeZone = 'UTC'): string {
   const relative = resolveRelativeDateKeyword(value, timeZone);
   if (relative) return relative;
   const d = parseDateInput(value);
-  if (!d) return value;
+  if (!d || Number.isNaN(d.getTime())) return value;
   return d.toISOString().split('T')[0];
 }
 
@@ -189,7 +205,15 @@ export function applyRelativeDateFromPrompt(
     );
     return;
   }
-  if (/\btoday\b/i.test(lower) || /\btonight\b/i.test(lower)) {
+  // e2e-bug.296 — "this evening/morning/afternoon" / "later today" are same-day
+  // (parity with tonight). Without this, UTC normalizeDateParams can stamp
+  // yesterday and dropPast empties keys → 14-day recommend fallback.
+  if (
+    /\btoday\b/i.test(lower) ||
+    /\btonight\b/i.test(lower) ||
+    /\bthis\s+(?:morning|afternoon|evening)\b/i.test(lower) ||
+    /\blater\s+today\b/i.test(lower)
+  ) {
     params.date = todayDisplay(tz);
     return;
   }

@@ -5,6 +5,7 @@ import {
   isAiDataMutatingAction,
   mergeSessionContext,
   shouldInvalidateAfterAi,
+  truncateUndoHintIntent,
 } from './ai-command-bar.util';
 
 describe('ai-command-bar.util', () => {
@@ -265,6 +266,25 @@ describe('ai-command-bar.util', () => {
           true,
         ),
       ).toBeNull();
+    });
+  });
+
+  describe('truncateUndoHintIntent', () => {
+    it('returns short intents unchanged', () => {
+      expect(truncateUndoHintIntent('create booking')).toBe('create booking');
+    });
+
+    it('truncates long raw command text with an ellipsis instead of wrapping the hint caption', () => {
+      const longIntent =
+        'create schedule for both Karo Mazmanyan and Mariam Ohanyan for their services for the next 10 days, working hours 9am-6pm with a lunch break from 1pm to 2pm, and give them Sundays off';
+      const result = truncateUndoHintIntent(longIntent);
+      expect(result.length).toBeLessThan(longIntent.length);
+      expect(result.endsWith('…')).toBe(true);
+      expect(longIntent.startsWith(result.slice(0, -1))).toBe(true);
+    });
+
+    it('respects a custom max length', () => {
+      expect(truncateUndoHintIntent('abcdefghij', 5)).toBe('abcde…');
     });
   });
 });

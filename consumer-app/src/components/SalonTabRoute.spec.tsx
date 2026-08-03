@@ -141,4 +141,20 @@ describe('SalonTabRoute (e2e-bug.43)', () => {
     expect(container.textContent).toContain('Find a salon');
     expect(container.textContent).not.toMatch(/Request failed with status code/i);
   });
+
+  it('e2e-bug.4: salon-not-found back control is a native button (not ion-button)', () => {
+    tenantState = {
+      slug: 'not-a-real-salon-xyz',
+      profile: null,
+      loading: false,
+      error: 'Salon not found',
+      fromCache: false,
+    };
+    render('home', '/s/not-a-real-salon-xyz/home');
+    const back = Array.from(container.querySelectorAll('button.consumer-action-button')).find(
+      (el) => /Find a salon/i.test(el.textContent || ''),
+    );
+    expect(back).toBeTruthy();
+    expect(back?.closest('ion-button')).toBeNull();
+  });
 });

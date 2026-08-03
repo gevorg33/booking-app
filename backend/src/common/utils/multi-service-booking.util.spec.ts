@@ -2,6 +2,7 @@ import {
   buildSequentialAppointments,
   calculateMultiServiceTotals,
   employeeQualifiesForServices,
+  expandMultiServiceBlockToSuggestedLines,
   findIncompatibleCategoryPairs,
   findIncompatibleForSelection,
   findIncompatiblePairs,
@@ -11,6 +12,7 @@ import {
   validatePerServiceLines,
 } from './multi-service-booking.util.js';
 import { DEFAULT_MULTI_SERVICE_SETTINGS } from './multi-service-settings.util.js';
+import { API_BUG2_DURATION_CAP_SCENARIOS } from './api-bug2-package-duration-cap.fixtures.js';
 
 const services = [
   {
@@ -207,6 +209,48 @@ describe('multi-service-booking.util', () => {
     expect(result.totals?.blockDurationMinutes).toBeGreaterThan(40);
   });
 
+  describe('api-bug.2 package vs ad-hoc maxDurationMinutes', () => {
+    it.each(API_BUG2_DURATION_CAP_SCENARIOS)(
+      '$id',
+      ({
+        serviceDurations,
+        turnoverBufferMinutes,
+        maxDurationMinutes,
+        skipDurationCap,
+        expectValid,
+        expectErrorIncludes,
+      }) => {
+        const lines = serviceDurations.map((durationMinutes, i) => ({
+          serviceId: `svc-${i}`,
+          durationMinutes,
+          bufferMinutes: 0,
+          price: 10,
+          currency: 'USD',
+          name: `Service ${i}`,
+        }));
+        const settings = {
+          ...DEFAULT_MULTI_SERVICE_SETTINGS,
+          enabled: true,
+          maxDurationMinutes,
+          turnoverBufferMinutes,
+          maxServiceCount: Math.max(5, lines.length),
+        };
+        const result = validateMultiServiceSelection(
+          lines.map((l) => l.serviceId),
+          lines,
+          settings,
+          skipDurationCap ? { skipDurationCap: true } : undefined,
+        );
+        expect(result.valid).toBe(expectValid);
+        if (expectErrorIncludes) {
+          expect(result.errors.join(' ')).toContain(expectErrorIncludes);
+        } else {
+          expect(result.errors).toEqual([]);
+        }
+      },
+    );
+  });
+
   it('builds sequential appointments with turnover between services', () => {
     const lines = buildSequentialAppointments(
       [
@@ -218,6 +262,88 @@ describe('multi-service-booking.util', () => {
     );
     expect(lines[1].startTime.toISOString()).toBe('2026-05-31T10:05:00.000Z');
     expect(lines[1].endTime.toISOString()).toBe('2026-05-31T10:50:00.000Z');
+  });
+
+  describe('expandMultiServiceBlockToSuggestedLines (e2e-bug.217)', () => {
+    it.each([
+      {
+        id: 'swedish-then-neck',
+        services: [
+          {
+            serviceId: 'swedish',
+            name: 'Swedish massage',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+          },
+          {
+            serviceId: 'neck',
+            name: 'Neck Massage',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+          },
+        ],
+        turnover: 5,
+        blockStart: '2026-07-29T10:00:00.000Z',
+        expectedSecondStart: '2026-07-29T11:05:00.000Z',
+      },
+      {
+        id: 'neck-then-swedish',
+        services: [
+          {
+            serviceId: 'neck',
+            name: 'Neck Massage',
+            durationMinutes: 30,
+            bufferMinutes: 0,
+          },
+          {
+            serviceId: 'swedish',
+            name: 'Swedish massage',
+            durationMinutes: 60,
+            bufferMinutes: 0,
+          },
+        ],
+        turnover: 0,
+        blockStart: '2026-07-29T10:00:00.000Z',
+        expectedSecondStart: '2026-07-29T10:30:00.000Z',
+      },
+    ])(
+      'expands block into ordered lines: $id',
+      ({ services, turnover, blockStart, expectedSecondStart }) => {
+        const lines = expandMultiServiceBlockToSuggestedLines(
+          services,
+          {
+            employeeId: 'emp-1',
+            employeeName: 'Gevorg',
+            startTime: blockStart,
+          },
+          turnover,
+        );
+        expect(lines).toHaveLength(2);
+        expect(lines[0]).toMatchObject({
+          serviceId: services[0].serviceId,
+          serviceName: services[0].name,
+          startTime: blockStart,
+          employeeId: 'emp-1',
+          employeeName: 'Gevorg',
+        });
+        expect(lines[1].startTime).toBe(expectedSecondStart);
+        expect(lines[1].employeeId).toBe('emp-1');
+      },
+    );
+
+    it('rejects invalid block start', () => {
+      expect(() =>
+        expandMultiServiceBlockToSuggestedLines(
+          [{ serviceId: 'a', durationMinutes: 30, bufferMinutes: 0 }],
+          {
+            employeeId: 'e',
+            employeeName: 'E',
+            startTime: 'not-a-date',
+          },
+          0,
+        ),
+      ).toThrow(/Invalid block start/i);
+    });
   });
 
   it('checks employee qualification and per-service line validation', () => {

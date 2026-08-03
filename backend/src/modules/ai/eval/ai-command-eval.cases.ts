@@ -371,6 +371,7 @@ import { E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS } from '../ai-e2e131-cross
 import { E2E130_GIFT_CARD_PURCHASE_SCENARIOS } from '../ai-e2e130-gift-card-purchase-vs-multi.fixtures.js';
 import { E2E129_EXPLAIN_MY_SUBSCRIPTION_SCENARIOS } from '../ai-e2e129-explain-my-subscription.fixtures.js';
 import { E2E159_OWNER_CANCEL_ALERT_SCENARIOS } from '../ai-e2e159-owner-cancel-alert.fixtures.js';
+import { E2E252_OWNER_RESCHEDULE_ALERT_SCENARIOS } from '../ai-e2e252-owner-reschedule-alert.fixtures.js';
 import { E2E157_CREATE_PACKAGE_SCENARIOS } from '../ai-e2e157-create-package.fixtures.js';
 import { LIST_SERVICE_RESOURCE_REQUIREMENTS_SCENARIOS } from '../ai-schedule-resources-dashboard-classifier.fixtures.js';
 import { CATALOG_E2E144_DEACTIVATE_SERVICE_SCENARIOS } from '../ai-catalog-dashboard-classifier.fixtures.js';
@@ -422,6 +423,17 @@ const E2E151_CREATE_SERVICE_CATEGORY_SCENARIOS = [
     id: 'e2e151-create-service-category-named',
     prompt: 'Create a service category named Spa',
     categoryName: 'Spa',
+  },
+  // e2e-bug.251 — "catalog category" synonym must also rescue to create.
+  {
+    id: 'e2e251-add-new-catalog-category-named',
+    prompt: 'Add a new catalog category named QA Nails',
+    categoryName: 'QA Nails',
+  },
+  {
+    id: 'e2e251-create-catalog-category-named',
+    prompt: 'Create a catalog category named Spa Treatments',
+    categoryName: 'Spa Treatments',
   },
 ] as const;
 
@@ -2580,6 +2592,24 @@ export const AI_COMMAND_EVAL_E2E159_OWNER_CANCEL_ALERT_CASES: AiCommandEvalCase[
       paramsPartial: { enabled: row.enabled },
     },
   }));
+
+/** e2e-bug.252 — "a customer reschedules" (-s) → same owner email toggle. */
+export const AI_COMMAND_EVAL_E2E252_OWNER_RESCHEDULE_ALERT_CASES: AiCommandEvalCase[] =
+  E2E252_OWNER_RESCHEDULE_ALERT_SCENARIOS.filter((row) => row.expectToggle).map(
+    (row) => ({
+      id: `e2e252-${row.id}`,
+      prompt: row.prompt,
+      locale: 'en' as const,
+      surface: 'dashboard' as const,
+      expect: {
+        rescuedAction: 'toggle_business_email_on_customer_change',
+        rescueReason: 'business_email_toggle',
+        ...(typeof row.enabled === 'boolean'
+          ? { paramsPartial: { enabled: row.enabled } }
+          : {}),
+      },
+    }),
+  );
 
 /** e2e-bug.157 — multi-service package ≠ gift-card bundle. */
 export const AI_COMMAND_EVAL_E2E157_CREATE_PACKAGE_CASES: AiCommandEvalCase[] =
@@ -10964,6 +10994,7 @@ export const AI_COMMAND_EVAL_DETERMINISTIC_CASES: AiCommandEvalCase[] = [
   ...AI_COMMAND_EVAL_E2E146_ROUTING_RESCUE_CASES,
   ...AI_COMMAND_EVAL_E2E137_ROUTING_RESCUE_CASES,
   ...AI_COMMAND_EVAL_E2E159_OWNER_CANCEL_ALERT_CASES,
+  ...AI_COMMAND_EVAL_E2E252_OWNER_RESCHEDULE_ALERT_CASES,
   ...AI_COMMAND_EVAL_E2E157_CREATE_PACKAGE_CASES,
   ...AI_COMMAND_EVAL_E2E154_UNSCOPED_BOOKING_COUNT_CASES,
   ...AI_COMMAND_EVAL_E2E153_UNSCOPED_CUSTOMER_COUNT_CASES,

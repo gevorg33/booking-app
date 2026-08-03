@@ -1,4 +1,4 @@
-import { IonButton, IonDatetime, IonSpinner } from '@ionic/react';
+import { IonDatetime, IonSpinner } from '@ionic/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { PublicBusinessProfile, PublicMultiServiceVisitSummary } from '../lib/types.js';
 import type { ConsumerCopy } from '../lib/copy.js';
@@ -18,6 +18,7 @@ import {
   formatPackageScheduleError,
   isVisitDurationCapError,
 } from '../lib/consumer-network-ux.util.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 const ACTIVE = new Set(['confirmed', 'pending']);
 
@@ -224,24 +225,25 @@ export function ConsumerMultiServiceVisitActions({
       ) : null}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {visit.canRescheduleAll && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
+            aria-expanded={rescheduleOpen}
             onClick={() => setRescheduleOpen((o) => !o)}
           >
             {copy.rescheduleMultiServiceVisit}
-          </IonButton>
+          </ConsumerActionButton>
         )}
         {visit.canCancelAll && (
-          <IonButton
+          <ConsumerActionButton
             size="small"
             fill="outline"
             color="danger"
             disabled={busy === 'cancel'}
             onClick={() => void handleCancel()}
           >
-            {copy.cancelMultiServiceVisit}
-          </IonButton>
+            {busy === 'cancel' ? copy.submitting : copy.cancelMultiServiceVisit}
+          </ConsumerActionButton>
         )}
       </div>
 
@@ -268,21 +270,31 @@ export function ConsumerMultiServiceVisitActions({
               />
               {slotsLoading ? (
                 <IonSpinner className="ion-margin-top" />
+              ) : slots.length === 0 ? (
+                // e2e-bug.313 — explain the empty slot state instead of just
+                // hiding the picker's Confirm behind a mysterious disabled button.
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: 8 }}>
+                  {copy.noSlotsThisDay}
+                </p>
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                  {slots.map((slot) => (
-                    <IonButton
-                      key={slot.startTime}
-                      size="small"
-                      fill={selectedStart === slot.startTime ? 'solid' : 'outline'}
-                      onClick={() => {
-                        setSelectedStart(slot.startTime);
-                        setEmployeeId(slot.employeeId ?? employeeId);
-                      }}
-                    >
-                      {formatScheduleTime(slot.startTime)}
-                    </IonButton>
-                  ))}
+                  {slots.map((slot) => {
+                    const selected = selectedStart === slot.startTime;
+                    return (
+                      <ConsumerActionButton
+                        key={slot.startTime}
+                        size="small"
+                        fill={selected ? 'solid' : 'outline'}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setSelectedStart(slot.startTime);
+                          setEmployeeId(slot.employeeId ?? employeeId);
+                        }}
+                      >
+                        {formatScheduleTime(slot.startTime)}
+                      </ConsumerActionButton>
+                    );
+                  })}
                 </div>
               )}
               {selectedStart && (
@@ -294,14 +306,16 @@ export function ConsumerMultiServiceVisitActions({
                   })}
                 </p>
               )}
-              <IonButton
-                expand="block"
-                className="ion-margin-top"
-                disabled={!selectedStart || busy === 'reschedule'}
-                onClick={() => void handleReschedule()}
-              >
-                {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
-              </IonButton>
+              {selectedStart && (
+                <ConsumerActionButton
+                  expand="block"
+                  className="ion-margin-top"
+                  disabled={busy === 'reschedule'}
+                  onClick={() => void handleReschedule()}
+                >
+                  {busy === 'reschedule' ? copy.submitting : copy.confirmReschedule}
+                </ConsumerActionButton>
+              )}
             </>
           )}
         </div>

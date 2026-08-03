@@ -4,7 +4,9 @@ import {
   buildGiveAiFeedbackSummary,
   parseGiveAiFeedbackFromPrompt,
   resolveGiveAiFeedbackClientAction,
+  resolveGiveAiFeedbackLocale,
 } from './ai-give-ai-feedback.util.js';
+import { t } from '../../common/i18n/messages.js';
 
 function failure(
   action: string,
@@ -34,6 +36,7 @@ export async function handleGiveAiFeedbackLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
+  const locale = resolveGiveAiFeedbackLocale(params);
   const parsed = parseGiveAiFeedbackFromPrompt(
     String(prompt ?? params._prompt ?? ''),
     params,
@@ -41,7 +44,7 @@ export async function handleGiveAiFeedbackLogic(
   if (!parsed) {
     return failure(
       'give_ai_feedback',
-      'Say whether the last answer was helpful or what was wrong (e.g. "That was wrong" or "Wrong date picked").',
+      t(locale, 'assistant.feedbackClarifyWhatWasWrong'),
       { clarify: true },
     );
   }
@@ -49,7 +52,7 @@ export async function handleGiveAiFeedbackLogic(
   if (!parsed.rating) {
     return failure(
       'give_ai_feedback',
-      'Say if the answer was helpful or not (e.g. "That was helpful" or "Not helpful").',
+      t(locale, 'assistant.feedbackClarifyHelpfulOrNot'),
       { clarify: true, aspect: parsed.aspect },
     );
   }
@@ -59,7 +62,7 @@ export async function handleGiveAiFeedbackLogic(
     parsed.rating,
     parsed.reason,
   );
-  const details = buildGiveAiFeedbackDetails(params, parsed);
+  const details = buildGiveAiFeedbackDetails(params, parsed, locale);
   const sessionContext =
     clientAction === 'submitAssistantFeedback'
       ? { assistantFeedbackSubmitted: 'true' }
@@ -67,7 +70,12 @@ export async function handleGiveAiFeedbackLogic(
 
   return success(
     'give_ai_feedback',
-    buildGiveAiFeedbackSummary(parsed.rating, parsed.reason, needsReasonChips),
+    buildGiveAiFeedbackSummary(
+      parsed.rating,
+      parsed.reason,
+      needsReasonChips,
+      locale,
+    ),
     details,
     sessionContext,
   );

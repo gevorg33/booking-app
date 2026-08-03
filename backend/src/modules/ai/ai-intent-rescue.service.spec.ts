@@ -154,6 +154,23 @@ describe('AiIntentRescueService', () => {
   });
 
   it('disambiguates create_booking with nearest slot to first-available booking', () => {
+    // e2e-bug.249 — must stay create_booking (not public book_appointment).
+    const result = rescue.rescue({
+      prompt:
+        'check who is free tomorrow evening for permanent lashes, book the nearest slot',
+      action: 'create_booking',
+      params: { serviceName: 'permanent lashes', date: '2026-06-06' },
+      employees,
+      surface: 'dashboard',
+    });
+    expect(result?.rescued).toBe(true);
+    expect(result?.action).toBe('create_booking');
+    expect(result?.rescueReason).toBe('check_and_book_compound');
+    expect(result?.params.bookingFirstAvailable).toBe(true);
+    expect(result?.params.timeSlot).toBeUndefined();
+  });
+
+  it('e2e-bug.249 keeps create_booking when surface is unset (no public steal)', () => {
     const result = rescue.rescue({
       prompt:
         'check who is free tomorrow evening for permanent lashes, book the nearest slot',
@@ -161,10 +178,9 @@ describe('AiIntentRescueService', () => {
       params: { serviceName: 'permanent lashes', date: '2026-06-06' },
       employees,
     });
-    expect(result?.rescued).toBe(true);
     expect(result?.action).toBe('create_booking');
+    expect(result?.rescueReason).toBe('check_and_book_compound');
     expect(result?.params.bookingFirstAvailable).toBe(true);
-    expect(result?.params.timeSlot).toBeUndefined();
   });
 
   it('disambiguates create_booking misclassified as team availability query', () => {
@@ -527,6 +543,18 @@ describe('AiIntentRescueService', () => {
     },
   );
 
+  it('e2e-bug.251 — catalog category named X → create_service_category (not menu import)', () => {
+    const result = rescue.rescue({
+      prompt: 'Add a new catalog category named QA Nails',
+      action: 'import_services_from_menu',
+      params: { categoryName: 'QA Nails' },
+      employees,
+    });
+    expect(result?.action).toBe('create_service_category');
+    expect(result?.rescueReason).toBe('service_category');
+    expect(result?.params.categoryName).toBe('QA Nails');
+  });
+
   it('e2e-bug.151 — service category called X → create_service_category (not promo)', () => {
     const result = rescue.rescue({
       prompt: 'Add a new service category called Wellness',
@@ -887,6 +915,79 @@ describe('AiIntentRescueService', () => {
         surface: 'provider',
       });
       expect(result?.action).toBe('open_dashboard_deep_link');
+    });
+  });
+
+  describe('e2e-bug.206: incomplete tour group prompt no longer opaquely security_blocked', () => {
+    it('rescues a hallucinated book_tour_nearest_departure with no earliest/nearest cue to explain_tour_booking', () => {
+      const result = rescue.rescue({
+        prompt: 'Wine tour for 6 next Saturday',
+        action: 'book_tour_nearest_departure',
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('explain_tour_booking');
+      expect(result?.rescued).toBe(true);
+      expect(result?.rescueReason).toBe('incomplete_tour_booking_mutate_clarify');
+      expect(result?.params.serviceName).toBe('Wine tour');
+      expect(result?.params.aspect).toBe('all');
+    });
+
+    it('rescues a hallucinated tour_group_checkout with no capacity-gate cue to explain_tour_booking', () => {
+      const result = rescue.rescue({
+        prompt: 'City tour for 8 on 15/08/2026',
+        action: 'tour_group_checkout',
+        params: {},
+        employees,
+      });
+      expect(result?.action).toBe('explain_tour_booking');
+      expect(result?.params.serviceName).toBe('City tour');
+    });
+
+    it('does not fire for an unrelated action even with a tour-shaped prompt', () => {
+      const result = rescue.rescue({
+        prompt: 'Wine tour for 6 next Saturday',
+        action: 'explain_business_hours_and_location',
+        params: {},
+        employees,
+      });
+      expect(result?.action).not.toBe('explain_tour_booking');
+    });
+
+    it('falls through to null (no rescue) when no leading tour name can be extracted', () => {
+      const result = rescue.rescue({
+        prompt: 'book my thing please',
+        action: 'book_tour_nearest_departure',
+        params: {},
+        employees,
+      });
+      expect(result?.action ?? null).not.toBe('explain_tour_booking');
+    });
+  });
+
+  describe('e2e-bug.137 — customer retention rate has no react_agent tool', () => {
+    it('rescues an unknown-classified retention question to summarize_customers, not leave_visit_review', () => {
+      const result = rescue.rescue({
+        prompt: 'What is my customer retention rate?',
+        action: 'unknown',
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('summarize_customers');
+      expect(result?.params.customerMetric).toBe('retention');
+    });
+
+    it('rescues a react_agent fallback the same way', () => {
+      const result = rescue.rescue({
+        prompt: 'How many returning customers do I have?',
+        action: 'react_agent',
+        params: {},
+        employees,
+        surface: 'dashboard',
+      });
+      expect(result?.action).toBe('summarize_customers');
+      expect(result?.params.customerMetric).toBe('retention');
     });
   });
 });

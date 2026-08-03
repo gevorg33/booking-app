@@ -500,6 +500,12 @@ export function ConsumerBookingAssistant({
           type="button"
           className="consumer-ai-fab"
           {...bindDragHandle({ onPress: () => setOpen(true) })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
           style={{
             ...floatingStyle,
             width: 56,

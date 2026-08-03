@@ -1,5 +1,6 @@
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Repository } from 'typeorm';
+import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandResult } from './command-completion.types.js';
 import { parseExplainAnyProviderOptionFromPrompt } from './ai-explain-any-provider-option.util.js';
 import type { AnyProviderOptionAspect } from './ai-explain-any-provider-option.fixtures.js';
@@ -24,13 +25,21 @@ function success(
   return { success: true, action, summary, details: details ?? {} };
 }
 
+function resolveParamsLocale(params: Record<string, unknown> = {}): string {
+  return typeof params.locale === 'string' ? params.locale : 'en';
+}
+
 export function buildExplainAnyProviderOptionSummary(input: {
   aspect: AnyProviderOptionAspect;
   activeProviderCount?: number;
+  locale?: string | null;
 }): string {
+  const locale = resolveLocale(input.locale);
   const teamNote =
     input.activeProviderCount && input.activeProviderCount > 0
-      ? ` This salon has ${input.activeProviderCount} active specialists who can be matched.`
+      ? t(locale, 'assistant.anyProviderTeamNote', {
+          count: String(input.activeProviderCount),
+        })
       : '';
 
   const parts: string[] = [];
@@ -41,19 +50,13 @@ export function buildExplainAnyProviderOptionSummary(input: {
   const includePicker = input.aspect === 'picker' || input.aspect === 'all';
 
   if (includeMeaning) {
-    parts.push(
-      'Any available specialist means you do not pick a named stylist upfront — we match whoever is free for your service and time slot.',
-    );
+    parts.push(t(locale, 'assistant.anyProviderMeaning'));
   }
   if (includeAssignment) {
-    parts.push(
-      'When you leave Any stylist selected, the salon assigns an available specialist when you confirm the booking; their name appears on your confirmation.',
-    );
+    parts.push(t(locale, 'assistant.anyProviderAssignment'));
   }
   if (includePicker) {
-    parts.push(
-      'Tap the specialist row on checkout, then choose Any available specialist at the top of the list, or pick someone by name.',
-    );
+    parts.push(t(locale, 'assistant.anyProviderPicker'));
   }
 
   return `${parts.join(' ')}${teamNote}`.trim();
@@ -65,6 +68,7 @@ export async function handleExplainAnyProviderOptionLogic(
   params: Record<string, unknown> = {},
   prompt = '',
 ): Promise<CommandResult> {
+  const locale = resolveLocale(resolveParamsLocale(params));
   const parsed = parseExplainAnyProviderOptionFromPrompt(
     prompt || String(params._prompt ?? ''),
     params,
@@ -72,7 +76,8 @@ export async function handleExplainAnyProviderOptionLogic(
   if (!parsed) {
     return failure(
       'explain_any_provider_option',
-      'Ask what Any stylist means, whether someone will be assigned, or how to pick any provider on checkout.',
+      // e2e-bug.259 — localize clarify so it is not prepended in English over hy guides.
+      t(locale, 'assistant.anyProviderClarify'),
       { clarify: true, missing: ['aspect'] },
     );
   }
@@ -84,12 +89,13 @@ export async function handleExplainAnyProviderOptionLogic(
   const summary = buildExplainAnyProviderOptionSummary({
     aspect: parsed.aspect,
     activeProviderCount,
+    locale,
   });
 
   return success('explain_any_provider_option', summary, {
     aspect: parsed.aspect,
     activeProviderCount,
-    label: 'Any available specialist',
+    label: t(locale, 'assistant.anyProviderLabel'),
     navigate: {
       path: 'booking',
       query: { focus: 'specialistPicker' },

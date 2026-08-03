@@ -14,7 +14,7 @@ import {
 import {
   enrichFlexibleAvailabilityServiceCategoryFromPrompt,
   hasAvailabilityOrPattern,
-  normalizeAvailabilityServiceCategory,
+  resolveAvailabilityServiceFieldsFromKeyword,
 } from './ai-flexible-availability.util.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
@@ -85,10 +85,15 @@ export function buildFlexibleAvailabilityCompoundSharedParams(
       ),
     );
   if (typeof shared.serviceName === 'string' && !shared.serviceCategory) {
+    // e2e-bug.200 — keep multi-word catalog names on serviceName; only collapse
+    // single-token categories (massage, haircut) into serviceCategory.
+    const fields = resolveAvailabilityServiceFieldsFromKeyword(
+      shared.serviceName,
+    );
     shared = {
       ...shared,
-      serviceCategory: normalizeAvailabilityServiceCategory(shared.serviceName),
-      serviceName: null,
+      serviceName: fields.serviceName,
+      serviceCategory: fields.serviceCategory,
     };
   }
   enrichBookingTimeHintsFromPrompt(bookAction, shared, prompt);
@@ -128,12 +133,13 @@ export function buildFlexibleAvailabilityEvalParams(
   if (surface === 'public') {
     let params = enrichPublicAssistantParamsFromPrompt(prompt, {}, [], action);
     if (typeof params.serviceName === 'string' && !params.serviceCategory) {
+      const fields = resolveAvailabilityServiceFieldsFromKeyword(
+        params.serviceName,
+      );
       params = {
         ...params,
-        serviceCategory: normalizeAvailabilityServiceCategory(
-          params.serviceName,
-        ),
-        serviceName: null,
+        serviceName: fields.serviceName,
+        serviceCategory: fields.serviceCategory,
       };
     }
     params = enrichFlexibleAvailabilityServiceCategoryFromPrompt(

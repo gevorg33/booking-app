@@ -164,6 +164,20 @@ async function resolveService(
   businessId: string,
   params: Record<string, any>,
 ): Promise<Service | undefined> {
+  const resolved = await resolveServiceWithBudgetDetail(
+    deps,
+    businessId,
+    params,
+  );
+  return resolved.service;
+}
+
+/** e2e-bug.200 — distinguish missing service vs budget miss for check_providers. */
+async function resolveServiceWithBudgetDetail(
+  deps: PaymentsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+): Promise<{ service?: Service; noMatchSummary?: string | null }> {
   const services = await deps.serviceRepo.find({
     where: { businessId, isActive: true },
   });
@@ -181,32 +195,45 @@ async function resolveService(
     params.serviceId;
 
   if (hasBudgetFilter) {
-    const { service } = resolveBudgetConstrainedService(catalog, {
-      serviceId: params.serviceId as string | undefined,
-      serviceName: params.serviceName as string | undefined,
-      serviceCategory: params.serviceCategory as string | undefined,
-      maxPrice: params.maxPrice,
-    });
+    const { service, noMatchSummary } = resolveBudgetConstrainedService(
+      catalog,
+      {
+        serviceId: params.serviceId as string | undefined,
+        serviceName: params.serviceName as string | undefined,
+        serviceCategory: params.serviceCategory as string | undefined,
+        maxPrice: params.maxPrice,
+      },
+    );
     if (service) {
-      return services.find((entry) => entry.id === service.id);
+      return {
+        service: services.find((entry) => entry.id === service.id),
+        noMatchSummary: null,
+      };
     }
     if (resolveBudgetMaxPrice(params.maxPrice) != null) {
-      return undefined;
+      return { service: undefined, noMatchSummary };
     }
   }
 
   if (params.serviceId) {
     const found = services.find((entry) => entry.id === params.serviceId);
-    return found || undefined;
+    return { service: found || undefined, noMatchSummary: null };
   }
   const name = (params.serviceName as string | undefined)?.trim();
-  if (name) return resolveByName(services, name);
+  if (name) {
+    return { service: resolveByName(services, name), noMatchSummary: null };
+  }
   if (params.serviceCategory) {
     const matched = resolveServicesFromCatalogParams(catalog, params);
     const first = matched[0];
-    return first ? services.find((entry) => entry.id === first.id) : undefined;
+    return {
+      service: first
+        ? services.find((entry) => entry.id === first.id)
+        : undefined,
+      noMatchSummary: null,
+    };
   }
-  return undefined;
+  return { service: undefined, noMatchSummary: null };
 }
 
 function isOnlinePaymentsEnabled(
@@ -960,14 +987,20 @@ export async function handleCheckProvidersForServiceLogic(
   if (!slug)
     return failure('check_providers_for_service', 'Business not found.');
 
-  const service = await resolveService(deps, businessId, params);
+  const { service, noMatchSummary } = await resolveServiceWithBudgetDetail(
+    deps,
+    businessId,
+    params,
+  );
   if (!service) {
     return failure(
       'check_providers_for_service',
-      'Specify which service to check providers for.',
+      noMatchSummary?.trim() ||
+        'Specify which service to check providers for.',
       {
-        clarify: true,
-        missing: ['serviceName'],
+        clarify: !noMatchSummary,
+        missing: noMatchSummary ? undefined : ['serviceName'],
+        ...(noMatchSummary ? { budgetNoMatch: true } : {}),
       },
     );
   }
@@ -1383,7 +1416,15 @@ export async function handleBuyGiftCardLogic(
     return success(
       action,
       `${quote.label} — total $${quote.total.toFixed(2)} (${deliveryMethod} delivery).`,
-      { quote, catalog: catalog.settings, deliveryMethod },
+      {
+        quote,
+        catalog: catalog.settings,
+        deliveryMethod,
+        navigate: {
+          path: 'gift-cards/checkout' as const,
+          query: { cardType: 'monetary', amount: String(amount), deliveryMethod },
+        },
+      },
     );
   } catch (err: any) {
     return failure(action, err?.message ?? 'Could not quote gift card.');
@@ -1768,7 +1809,14 @@ export async function handleConfirmStripePaymentLogic(
   const slug = await resolveBusinessSlug(deps, businessId);
   if (!slug) return failure('confirm_stripe_payment', 'Business not found.');
 
-  const sessionId = params.sessionId as string | undefined;
+  // e2e-bug.188 — the widget's own assistantContext carries an in-progress
+  // checkout as pendingCheckoutSessionId (ConsumerBookingAssistant.tsx), but
+  // this handler only ever read params.sessionId, so "did my payment go
+  // through?" always failed with "missing session" even with a pending
+  // checkout sitting right there in context.
+  const sessionId = (params.sessionId ?? params.pendingCheckoutSessionId) as
+    | string
+    | undefined;
   if (!sessionId) {
     return failure(
       'confirm_stripe_payment',

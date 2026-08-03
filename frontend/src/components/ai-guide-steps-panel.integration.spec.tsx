@@ -64,17 +64,16 @@ describe('AiGuideStepsPanel integration', () => {
     });
   }
 
-  it('renders summary, numbered steps, and the first step body', async () => {
+  it('renders a header matching the current step, numbered steps, and the first step body', async () => {
     await mountPanel();
 
-    expect(container.textContent).toContain('Set up your weekly schedule.');
-    expect(container.textContent).toContain('Step 1 of 2');
+    expect(container.textContent).toContain('Step 1 of 2: Open Schedule');
     expect(container.textContent).toContain('Open Schedule');
     expect(container.textContent).toContain('Go to Schedule in the sidebar.');
     expect(container.textContent).toContain('Apply template');
   });
 
-  it('advances to the next step', async () => {
+  it('advances to the next step and updates the header to match (e2e-bug — header must not stay frozen)', async () => {
     await mountPanel();
 
     const nextButton = Array.from(container.querySelectorAll('button')).find((button) =>
@@ -84,8 +83,9 @@ describe('AiGuideStepsPanel integration', () => {
       nextButton?.click();
     });
 
-    expect(container.textContent).toContain('Step 2 of 2');
+    expect(container.textContent).toContain('Step 2 of 2: Apply template');
     expect(container.textContent).toContain('Pick a weekday template and apply it.');
+    expect(container.textContent).not.toContain('Step 1 of 2: Open Schedule');
   });
 
   it('opens the in-app destination from the active step', async () => {

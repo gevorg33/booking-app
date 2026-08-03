@@ -19,7 +19,7 @@ export type ExplainSalonProfileIntent =
 export { CUSTOMER_PUBLIC_EXPLAIN_SALON_PROFILE_CLASSIFIER_RULES } from './ai-explain-salon-profile.fixtures.js';
 
 const SALON_PROFILE_CUE = new RegExp(
-  String.raw`\b(?:salon\s+profile|about\s+(?:the\s+)?salon|about\s+(?:this\s+)?(?:salon|place|business)|tell\s+me\s+about\s+(?:this\s+)?(?:salon|place|business|your\s+business)|view\s+salon\s+details|what(?:'s| is)\s+(?:this\s+place|your\s+salon)\s+(?:like|about)|show\s+(?:me\s+)?(?:the\s+)?salon\s+profile|photos?\s+and\s+reviews?|social\s+media\s+links?)\b|(?:պատմիր|սրահ(?:ի|ում)?\s+էջ|մասին\s+սրահ)|(?:расскаж(?:и|ите)\s+об\s+(?:этом\s+)?салон|профил(?:ь|я)\s+салон)`,
+  String.raw`\b(?:salon\s+profile|about\s+(?:the\s+)?salon|about\s+(?:this\s+)?(?:salon|place|business)|tell\s+me\s+about\s+(?:(?:the|this|your)\s+)?(?:salon|place|business|studio|spa)|tell\s+me\s+about\s+your\s+business|view\s+salon\s+details|what(?:'s| is)\s+(?:this\s+place|your\s+salon)\s+(?:like|about)|show\s+(?:me\s+)?(?:the\s+)?salon\s+profile|photos?\s+and\s+reviews?|social\s+media\s+links?)\b|(?:պատմիր|սրահ(?:ի|ում)?\s+էջ|մասին\s+սրահ)|(?:расскаж(?:и|ите)\s+об\s+(?:этом\s+)?салон|профил(?:ь|я)\s+салон)`,
   'iu',
 );
 

@@ -136,20 +136,27 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
     bookingRepo.findOne.mockResolvedValue({ ...bookingRecord });
     bookingRepo.save.mockImplementation(async (row) => row);
     memberRepo.find.mockResolvedValue([{ userId: 'mgr-1' }]);
-    // e2e-bug.74 — check-in claims under transaction + FOR UPDATE.
+    // e2e-bug.74 — check-in claims under transaction + FOR UPDATE (no joins).
     bookingRepo.manager.transaction.mockImplementation(async (cb) => {
       const row = {
         ...bookingRecord,
         checkedInAt: bookingRecord.checkedInAt,
       };
-      const qb: Record<string, unknown> = {};
-      qb.setLock = jest.fn(() => qb);
-      qb.leftJoinAndSelect = jest.fn(() => qb);
-      qb.where = jest.fn(() => qb);
-      qb.andWhere = jest.fn(() => qb);
-      qb.getOne = jest.fn(async () => ({ ...row }));
       const manager = {
-        createQueryBuilder: () => qb,
+        findOne: async (
+          _entity: unknown,
+          opts?: { lock?: { mode?: string }; relations?: unknown },
+        ) => {
+          if (opts?.relations) {
+            return {
+              ...row,
+              customer: bookingRecord.customer,
+              service: bookingRecord.service,
+              employee: bookingRecord.employee,
+            };
+          }
+          return { ...row };
+        },
         save: async (_entity: unknown, saved: typeof row) => {
           Object.assign(row, saved);
           return saved;
@@ -200,17 +207,11 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
       checkedInAt: new Date('2026-06-09T09:50:00.000Z'),
     });
     bookingRepo.manager.transaction.mockImplementation(async (cb) => {
-      const qb: Record<string, unknown> = {};
-      qb.setLock = jest.fn(() => qb);
-      qb.leftJoinAndSelect = jest.fn(() => qb);
-      qb.where = jest.fn(() => qb);
-      qb.andWhere = jest.fn(() => qb);
-      qb.getOne = jest.fn(async () => ({
-        ...bookingRecord,
-        checkedInAt: new Date('2026-06-09T09:50:00.000Z'),
-      }));
       return cb({
-        createQueryBuilder: () => qb,
+        findOne: async () => ({
+          ...bookingRecord,
+          checkedInAt: new Date('2026-06-09T09:50:00.000Z'),
+        }),
         save: jest.fn(),
       });
     });
@@ -244,17 +245,16 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
     bookingRepo.manager.transaction.mockImplementation(async (cb) => {
       await acquire();
       try {
-        const qb: Record<string, unknown> = {};
-        qb.setLock = jest.fn(() => qb);
-        qb.leftJoinAndSelect = jest.fn(() => qb);
-        qb.where = jest.fn(() => qb);
-        qb.andWhere = jest.fn(() => qb);
-        qb.getOne = jest.fn(async () => ({
-          ...bookingRecord,
-          checkedInAt,
-        }));
         return await cb({
-          createQueryBuilder: () => qb,
+          findOne: async (
+            _entity: unknown,
+            opts?: { relations?: unknown },
+          ) => {
+            if (opts?.relations) {
+              return { ...bookingRecord, checkedInAt };
+            }
+            return { ...bookingRecord, checkedInAt };
+          },
           save: async (_entity: unknown, row: { checkedInAt: Date }) => {
             checkedInAt = row.checkedInAt;
             return { ...bookingRecord, checkedInAt };

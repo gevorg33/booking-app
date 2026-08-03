@@ -25,8 +25,14 @@ import {
   type BookingOptimisticPatch,
 } from '../lib/provider-booking-optimistic.util';
 import { isOfflineQueuedResponse } from '../lib/provider-offline-response.util';
-import { formatDateDisplay, formatTimeDisplay, formatTimeRangeDisplay } from '../lib/date-format';
+import {
+  formatDateDisplay,
+  formatTimeDisplay,
+  formatTimeRangeDisplay,
+  getTodayDateKey,
+} from '../lib/date-format';
 import { DatePicker } from './DatePicker';
+import { TimePicker } from './TimePicker';
 import {
   type BookingDetail,
   type BookingStatus,
@@ -97,6 +103,17 @@ function readErrorCode(err: unknown): string | undefined {
 
 function bookingDayISO(iso: string): string {
   return iso.split('T')[0];
+}
+
+function bookingTimeHHmm(iso: string): string {
+  return iso.split('T')[1]?.slice(0, 5) ?? '';
+}
+
+/** The "Reschedule to 4pm" AI chip targets a fixed 16:00 same-day slot — hide it once that's already past. */
+function canOfferReschedule4pmChip(bookingStartTimeIso: string, now: Date): boolean {
+  if (bookingDayISO(bookingStartTimeIso) !== getTodayDateKey()) return true;
+  const nowHHmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return nowHHmm < '16:00';
 }
 
 function toRescheduleISO(dayISO: string, timeHHmm: string): string {
@@ -188,7 +205,7 @@ export default function BookingDetailModal({
     setShowCancel(false);
     setPendingStatus(null);
     setRescheduleDate(bookingDayISO(booking.startTime));
-    setRescheduleTime(formatTimeDisplay(booking.startTime));
+    setRescheduleTime(bookingTimeHHmm(booking.startTime));
     setVersionConflict(false);
     setPastVisitBookingId(null);
   }, [booking]);
@@ -342,7 +359,7 @@ export default function BookingDetailModal({
   const notesChanged = booking ? notes !== (booking.notes ?? '') : false;
   const rescheduleChanged = booking
     ? rescheduleDate !== bookingDayISO(booking.startTime) ||
-      rescheduleTime !== formatTimeDisplay(booking.startTime)
+      rescheduleTime !== bookingTimeHHmm(booking.startTime)
     : false;
   const savedStatus = (booking?.status as BookingStatus) ?? 'confirmed';
   const displayStatus: BookingStatus = showCancel ? 'cancelled' : (pendingStatus ?? status);
@@ -592,16 +609,18 @@ export default function BookingDetailModal({
                   >
                     {t('provider.aiMarkDonePaidChip')}
                   </button>
-                  <button
-                    type="button"
-                    className="ai-assistant-example"
-                    onClick={() => {
-                      onAiPrompt(`Reschedule ${booking.customer?.name ?? 'client'}'s ${booking.service?.name ?? 'appointment'} to 16:00`);
-                      onClose();
-                    }}
-                  >
-                    {t('provider.aiReschedule4pmChip')}
-                  </button>
+                  {canOfferReschedule4pmChip(booking.startTime, new Date()) ? (
+                    <button
+                      type="button"
+                      className="ai-assistant-example"
+                      onClick={() => {
+                        onAiPrompt(`Reschedule ${booking.customer?.name ?? 'client'}'s ${booking.service?.name ?? 'appointment'} to 16:00`);
+                        onClose();
+                      }}
+                    >
+                      {t('provider.aiReschedule4pmChip')}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -615,12 +634,7 @@ export default function BookingDetailModal({
                 </IonItem>
                 <IonItem lines="full">
                   <IonLabel position="stacked">{t('appointments.startTime24h')}</IonLabel>
-                  <input
-                    type="time"
-                    className="native-date-input"
-                    value={rescheduleTime}
-                    onChange={(e) => setRescheduleTime(e.target.value)}
-                  />
+                  <TimePicker value={rescheduleTime} onChange={setRescheduleTime} />
                 </IonItem>
                 {rescheduleChanged && (
                   <IonButton

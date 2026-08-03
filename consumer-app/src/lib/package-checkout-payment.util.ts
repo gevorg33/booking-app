@@ -4,6 +4,12 @@ import type { PackageBookingLine } from './package-booking.js';
 export type PackageCheckoutPaymentMethod = 'online' | 'cash';
 
 const PENDING_KEY = 'consumer_pending_package_checkout_payment';
+// e2e checklist — return-flow reconciliation: without a TTL, an abandoned checkout's
+// storage entry hijacks every future visit to the same package's checkout page (treats
+// it as "returning from Stripe" and tries to confirm a payment session that's long
+// dead), with no expiry ever clearing it. Stripe Checkout Sessions themselves default
+// to a 24h lifetime, so anything older than that can never legitimately be confirmed.
+const PENDING_PACKAGE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 export interface PendingPackageCheckoutPayment {
   slug: string;
@@ -89,6 +95,8 @@ export function loadPendingPackageCheckoutByPackage(
   if (!parsed?.sessionId) return null;
   if (parsed.slug !== slug.trim().toLowerCase()) return null;
   if (parsed.packageId !== packageId) return null;
+  const age = Date.now() - Date.parse(parsed.updatedAt);
+  if (!Number.isFinite(age) || age > PENDING_PACKAGE_MAX_AGE_MS) return null;
   return parsed;
 }
 

@@ -99,6 +99,29 @@ describe('StripeIntegrationService', () => {
     it('returns false when settings are empty', () => {
       expect(service.isConnectReady({})).toBe(false);
     });
+
+    // e2e-bug.10 — Connect gating edge cases (fixture-driven)
+    it.each([
+      {
+        id: 'ready-with-account-id',
+        settings: {
+          integrations: { stripe: { connectAccountId: 'acct_1Tmz2M81m04mcCIP' } },
+        },
+        expected: true,
+      },
+      {
+        id: 'whitespace-account-id-treated-as-missing',
+        settings: { integrations: { stripe: { connectAccountId: '   ' } } },
+        expected: false,
+      },
+      {
+        id: 'missing-integrations-object',
+        settings: { integrations: {} },
+        expected: false,
+      },
+    ])('e2e-bug.10 $id → $expected', ({ settings, expected }) => {
+      expect(service.isConnectReady(settings)).toBe(expected);
+    });
   });
 
   describe('resolveConnectAccountId', () => {

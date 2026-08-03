@@ -1,8 +1,9 @@
 import { isCreatePromoCodePrompt } from './ai-create-promo-code.util.js';
 import { extractPromoCodeFromPrompt } from './ai-marketing-growth.util.js';
 import { isConfigureOpenaiIntegrationPrompt } from './ai-openai-integration.util.js';
+import { isClaimReferralCodePrompt } from './ai-rewards-and-referral-claim.util.js';
 
-export const CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES = `- apply_promo_code_checkout: MUTATE — apply a named promo/discount code to the current checkout session (sets session promoCode for checkout UI). Triggers: apply code SAVE10 at checkout, use promo WELCOME, redeem discount code SPRING15, enter coupon at checkout. Requires promoCode when named in prompt. Validates code via checkout rules and stores promoCode on session. NOT promo_code_help (how/why/where explain or validate-only), NOT create_promo_code (salon admin), NOT apply_gift_card_code (gift card), NOT list_services with maxPrice+budget (catalog filter), NOT refer_a_friend (referral program).`;
+export const CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES = `- apply_promo_code_checkout: MUTATE — apply a named promo/discount code to the current checkout session (sets session promoCode for checkout UI). Triggers: apply code SAVE10 at checkout, use promo WELCOME, redeem discount code SPRING15, enter coupon at checkout. Requires promoCode when named in prompt. Validates code via checkout rules and stores promoCode on session. NOT promo_code_help (how/why/where explain or validate-only), NOT create_promo_code (salon admin), NOT apply_gift_card_code (gift card), NOT claim_referral_code (redeem/apply/claim + referral|invite code — "Redeem referral code FRIEND10"), NOT list_services with maxPrice+budget (catalog filter), NOT refer_a_friend (referral program).`;
 
 export type ApplyPromoCodeCheckoutPromptFixture = {
   id: string;
@@ -197,11 +198,14 @@ const PROMO_HELP_READ_CUE =
   /\b(how|why|where|explain|help|validate|check|is\s+[A-Z0-9_-]{3,}\s+valid|didn'?t|wasn'?t|not\s+working|still\s+full|isn'?t)\b/i;
 
 const APPLY_PROMO_CODE_STOP_WORDS =
-  /^(promo|discount|coupon|code|checkout|here|there|now|today|please|too|at|on|my|the|this|that)$/i;
+  /^(promo|discount|coupon|code|checkout|here|there|now|today|please|too|at|on|my|the|this|that|referral|invite|friend|friends)$/i;
 
 export function isApplyPromoCodeCheckoutPrompt(prompt: string): boolean {
   if (isConfigureOpenaiIntegrationPrompt(prompt)) return false;
+  // e2e-bug.232 — redeem/apply + referral|invite code is claim_referral_code.
+  if (isClaimReferralCodePrompt(prompt)) return false;
   if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
+  if (/\b(?:referral|invite)\s*codes?\b/i.test(prompt)) return false;
   if (/\bgift\s*card\b/i.test(prompt) || /\bGCM-|\bGCB-|\bGCS-/i.test(prompt)) {
     return false;
   }

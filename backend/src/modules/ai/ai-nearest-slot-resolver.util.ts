@@ -3,18 +3,63 @@ import {
   promptMentionsMultilingualTomorrow,
 } from './ai-check-and-book-multilingual.util.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
-import {
-  notBeforeTimeFromWindow,
-  resolveTomorrowDateKey,
-} from './ai-payments.util.js';
+import { notBeforeTimeFromWindow } from './ai-payments.util.js';
 import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
 import type { TimeOfDayWindow } from './ai-operations.util.js';
-import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import {
+  formatTimeDisplay,
+  getTodayDateKey,
+  toIsoDay,
+} from '../../common/utils/date-format.util.js';
+import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import {
   pickEarliestSlotAcrossWindows,
   scanWindowsForSlots,
   type AvailabilityWindowScanQuery,
 } from './ai-flexible-availability.util.js';
+
+const ISO_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * e2e-bug.268 — first-available / nearest scans must never start before today
+ * in the business timezone. Past or non-ISO date fragments fall back to today.
+ */
+export function clampFirstAvailableStartIsoDay(
+  requestedDate: string | null | undefined,
+  timeZone: string,
+): string {
+  const todayKey = getTodayDateKey(timeZone);
+  if (requestedDate == null || String(requestedDate).trim() === '') {
+    return todayKey;
+  }
+  const iso = toIsoDay(String(requestedDate).trim(), timeZone);
+  if (!ISO_DAY_RE.test(iso)) return todayKey;
+  return iso < todayKey ? todayKey : iso;
+}
+
+/** Drop past / non-ISO calendar days from a first-available window. */
+export function dropPastFirstAvailableDateKeys(
+  dateKeys: readonly string[],
+  timeZone: string,
+): string[] {
+  const todayKey = getTodayDateKey(timeZone);
+  const out: string[] = [];
+  for (const raw of dateKeys) {
+    const iso = ISO_DAY_RE.test(raw) ? raw : toIsoDay(raw, timeZone);
+    if (!ISO_DAY_RE.test(iso)) continue;
+    if (iso < todayKey) continue;
+    out.push(iso);
+  }
+  return out;
+}
+
+export function isFutureOrTodayIsoDay(
+  isoDay: string,
+  timeZone: string,
+): boolean {
+  if (!ISO_DAY_RE.test(isoDay)) return false;
+  return isoDay >= getTodayDateKey(timeZone);
+}
 
 /** Unified query for PublicBookingService.findNearestBookableSlot (ai-cmd-h2.3). */
 export interface NearestBookableSlotQuery {
@@ -62,13 +107,16 @@ export function resolveNearestBookableSlotNotBeforeTime(
 export function resolveNearestBookableSlotStartDateKey(
   params: Record<string, unknown>,
   prompt = '',
+  timeZone = 'UTC',
 ): string | null {
-  return (
+  const raw =
     (params.date as string | undefined) ??
     (/\btomorrow\b/i.test(prompt) || promptMentionsMultilingualTomorrow(prompt)
-      ? resolveTomorrowDateKey()
-      : null)
-  );
+      ? addDaysToDateKey(getTodayDateKey(timeZone), 1, timeZone)
+      : null);
+  if (raw == null) return null;
+  // e2e-bug.268 — never hand a past calendar day to nearest-slot scanners.
+  return clampFirstAvailableStartIsoDay(raw, timeZone);
 }
 
 export function resolveNearestBookableSlotTimeOfDay(
@@ -88,11 +136,16 @@ export function buildNearestBookableSlotQuery(
   params: Record<string, unknown>,
   prompt = '',
   namedEmployeeId?: string | null,
+  timeZone = 'UTC',
 ): NearestBookableSlotQuery {
   return {
     employeeId: resolveNearestBookableSlotEmployeeId(params, namedEmployeeId),
     notBeforeTime: resolveNearestBookableSlotNotBeforeTime(params, prompt),
-    startDateKey: resolveNearestBookableSlotStartDateKey(params, prompt),
+    startDateKey: resolveNearestBookableSlotStartDateKey(
+      params,
+      prompt,
+      timeZone,
+    ),
     timeOfDay: resolveNearestBookableSlotTimeOfDay(params, prompt),
   };
 }
@@ -103,13 +156,20 @@ export function buildNearestAvailabilityWindowQueries(
   prompt: string,
   timeZone: string,
 ): NearestAvailabilityWindowQuery[] {
-  const baseQuery = buildNearestBookableSlotQuery(params, prompt);
+  const baseQuery = buildNearestBookableSlotQuery(
+    params,
+    prompt,
+    undefined,
+    timeZone,
+  );
   const windows = resolvePublicAvailabilityWindows(params, prompt, timeZone);
 
   if (windows.length === 0) {
     return [
       {
-        dateKeys: baseQuery.startDateKey ? [baseQuery.startDateKey] : [],
+        dateKeys: baseQuery.startDateKey
+          ? dropPastFirstAvailableDateKeys([baseQuery.startDateKey], timeZone)
+          : [],
         timeOfDay: (baseQuery.timeOfDay as TimeOfDayWindow | null) ?? null,
         notBeforeTime: baseQuery.notBeforeTime,
       },
@@ -117,7 +177,7 @@ export function buildNearestAvailabilityWindowQueries(
   }
 
   return windows.map((window) => ({
-    dateKeys: window.dateKeys,
+    dateKeys: dropPastFirstAvailableDateKeys(window.dateKeys, timeZone),
     timeOfDay: window.timeOfDay ?? null,
     notBeforeTime: window.timeFrom ?? baseQuery.notBeforeTime,
   }));

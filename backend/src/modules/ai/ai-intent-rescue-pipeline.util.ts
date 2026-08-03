@@ -8,6 +8,7 @@ import {
   enrichRescueResultWithSemanticParamHints,
 } from './semantic-rescue-param-hints.util.js';
 import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
+import { isPublicOnlyAssistantAction } from './ai-public-only-assistant-actions.js';
 
 /** pipe-1.5.1 — domain-first rescue orchestration (semantic is pipeline-only). */
 export const RESCUE_PIPELINE_PIPE_MARKER = RESCUE_PIPELINE_BOUNDARY_MARKER;
@@ -72,6 +73,9 @@ export function buildRescuePipelineContext(
  * falling through to the real customer/public intent.
  *
  * Public booking shares most customer self-service intents; accept either surface.
+ * e2e-bug.189 — customer gateway also delegates PUBLIC_ONLY discovery intents
+ * (`list_providers`, `recommend_specialists`, …) into PublicBookingAssistantService,
+ * so those public-registry actions must remain rescueable on surface=customer.
  */
 export function acceptRescueForSurface(
   result: IntentRescueResult | null,
@@ -91,6 +95,9 @@ export function acceptRescueForSurface(
     surface === 'public' &&
     isIntentAllowedOnSurface(result.action, 'customer')
   ) {
+    return result;
+  }
+  if (surface === 'customer' && isPublicOnlyAssistantAction(result.action)) {
     return result;
   }
   return null;

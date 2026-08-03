@@ -37,6 +37,12 @@ import { handleUpdateServiceDurationBufferLogic } from './ai-service-duration-bu
 import { handleConfigureServiceFeaturedLogic } from './ai-configure-service-featured.logic.js';
 import { handleBulkAssignServicesCategoryLogic } from './ai-bulk-assign-services-category.logic.js';
 import { handleConfigurePackageOnlinePaymentLogic } from './ai-configure-package-online-payment.logic.js';
+import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
+import { detectSemanticPromptLocale } from './intent-anchor.seed.util.js';
 
 export interface CatalogLogicDeps {
   businessRepo: Repository<Business>;
@@ -101,11 +107,26 @@ async function resolveCatalogNotifyFields(
   );
 }
 
+/** Prefer prompt script (hy/ru), then params.locale — e2e-bug.312. */
+export function resolveCreateServiceCategoryLocale(
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): AppLocale {
+  const text = String(prompt ?? params._prompt ?? '');
+  const detected = detectSemanticPromptLocale(text);
+  if (detected === 'hy' || detected === 'ru') return detected;
+  return resolveLocale(
+    typeof params.locale === 'string' ? params.locale : null,
+  );
+}
+
 export async function handleCreateServiceCategoryLogic(
   deps: CatalogLogicDeps,
   businessId: string,
   params: Record<string, any>,
+  prompt?: string,
 ): Promise<CommandResult> {
+  const locale = resolveCreateServiceCategoryLocale(params, prompt);
   const categoryName = (params.categoryName as string | undefined)?.trim();
   if (!categoryName) {
     return failure(
@@ -154,8 +175,11 @@ export async function handleCreateServiceCategoryLogic(
   return success(
     'create_service_category',
     placeholderCount
-      ? `Created category "${categoryName}" with ${createdServices.length} placeholder service(s).`
-      : `Created category "${categoryName}".`,
+      ? t(locale, 'assistant.catalogCategoryCreatedWithServices', {
+          categoryName,
+          count: createdServices.length,
+        })
+      : t(locale, 'assistant.catalogCategoryCreated', { categoryName }),
     {
       categoryId: created.id,
       categoryName: created.name,
@@ -239,16 +263,27 @@ export async function handleBulkCreateCatalogLogic(
   params: Record<string, any>,
   prompt: string,
 ): Promise<CommandResult> {
+  // e2e-bug.347 — the classifier routinely fills `categoryName` but leaves
+  // `services` empty. The old `params.categoryName ? … : parse…` shape made
+  // that branch terminal, so the prompt was never parsed and the handler
+  // clarified ("Provide category and service lines") even though the service
+  // lines were spelled out verbatim. Parse the prompt up front and use it to
+  // backfill whichever half the classifier left missing.
+  const parsedDraft =
+    parseBulkCatalogFromPrompt(prompt) ??
+    parseBulkCatalogWithCountFromPrompt(prompt);
+  const paramServices = (params.services ?? []) as CatalogServiceDraft[];
   const draft: CatalogCategoryDraft | null =
     params.catalogDraft ??
     (params.categoryName
       ? {
           categoryName: params.categoryName,
-          services: (params.services ?? []) as CatalogServiceDraft[],
+          services: paramServices.length
+            ? paramServices
+            : (parsedDraft?.services ?? []),
           localizedNames: params.localizedNames,
         }
-      : (parseBulkCatalogFromPrompt(prompt) ??
-        parseBulkCatalogWithCountFromPrompt(prompt)));
+      : parsedDraft);
 
   if (!draft?.categoryName || !draft.services?.length) {
     return failure(
@@ -1190,6 +1225,7 @@ export async function handleCatalogCompoundLogic(
           deps,
           businessId,
           stepParams,
+          step.segment ?? prompt,
         );
         break;
       case 'create_package':

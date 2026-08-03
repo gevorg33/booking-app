@@ -16,6 +16,7 @@ import {
   hasWaitlistTag,
   readCustomerWaitlistRequest,
   removeWaitlistTag,
+  stripTrailingWaitlistProviderFromService,
   type CustomerWaitlistRequest,
 } from '../../common/utils/customer-waitlist.util.js';
 import type { PublicJoinWaitlistDto } from './dto/public-customer-waitlist.dto.js';
@@ -145,6 +146,13 @@ export class PublicCustomerWaitlistService {
       !serviceId
     ) {
       serviceName = undefined;
+    }
+    // e2e-bug.235 — drop trailing " with <provider>" baked into free-text serviceName.
+    if (serviceName && employeeName && !serviceId) {
+      serviceName = stripTrailingWaitlistProviderFromService(
+        serviceName,
+        employeeName,
+      );
     }
 
     return {

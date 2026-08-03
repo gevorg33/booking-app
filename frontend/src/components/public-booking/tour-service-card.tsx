@@ -7,6 +7,7 @@ import {
   isPublicTourService,
   tourPriceLabel,
 } from '@/lib/tour-service';
+import { ServicePrepaymentBadge } from '@/components/public-booking/service-prepayment-badge';
 import { useI18n } from '@/i18n';
 
 interface TourServiceCardProps {
@@ -60,6 +61,10 @@ export function TourServiceCard({
       <div className="flex-1 min-w-0 p-4 flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-medium text-gray-900">{service.name}</p>
+          <ServicePrepaymentBadge
+            service={service}
+            businessCurrency={businessCurrency}
+          />
           {service.description && (
             <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
           )}

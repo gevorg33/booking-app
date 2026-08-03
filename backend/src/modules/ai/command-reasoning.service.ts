@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 import type { CommandResult } from './command-completion.types.js';
+import { isAiDateGroundedBookingAction } from './ai-date-label.util.js';
 
 @Injectable()
 export class CommandReasoningService {
@@ -35,6 +36,16 @@ export class CommandReasoningService {
       return result;
     }
 
+    // e2e-bug.285 — booking success summaries carry grounded startTimes; LLM
+    // rewrite misread DD/MM (01/08/2026) as US "January 8".
+    // e2e-bug.289 — tour calendar week HY/RU deterministic summaries must not
+    // be rewritten back to English.
+    // e2e-bug.311 — explain_clinic_services HY/RU empty summaries must stay
+    // localized (enrich flaked English on some prompts).
+    if (isAiDateGroundedBookingAction(result.action)) {
+      return result;
+    }
+
     if (!(await this.openAi.isAvailableForBusiness(businessId))) {
       return result;
     }
@@ -55,7 +66,8 @@ Return JSON: { "summary": "1-2 clear sentences for the user", "reasoning": "1 se
 Keep summaries factual — do not invent counts or actions not in the input.
 Never invent usage limits, quotas, or "exceeded" claims from unrelated counts.
 When provider availability is present, mention provider names and open times directly.
-Never tell the user to open a separate "provider list" or UI panel — the app renders providers inline.`,
+Never tell the user to open a separate "provider list" or UI panel — the app renders providers inline.
+Dates in Current summary use day-first order (DD/MM/YYYY or "1 August 2026"). Never reinterpret slash dates as US MM/DD.`,
         `User command: ${prompt}
 Action: ${result.action}
 Current summary: ${result.summary}

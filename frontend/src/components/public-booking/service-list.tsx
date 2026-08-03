@@ -10,6 +10,7 @@ import { formatDuration, formatPrice, type PublicService } from '@/lib/public-ap
 import { formatClinicServiceTypeBadge, isPublicClinicService } from '@/lib/clinic-service';
 import { isPublicTourService } from '@/lib/tour-service';
 import { TourServiceCard } from '@/components/public-booking/tour-service-card';
+import { ServicePrepaymentBadge } from '@/components/public-booking/service-prepayment-badge';
 import { FixedActionBar } from '@/components/public-booking/fixed-action-bar';
 import { useRouter } from 'next/navigation';
 import { bookPath } from '@/lib/tenant-host';
@@ -156,6 +157,10 @@ export function ServiceList({
                         {t('public.subscribeAndSave')}
                       </span>
                     )}
+                    <ServicePrepaymentBadge
+                      service={service}
+                      businessCurrency={businessCurrency}
+                    />
                     {service.description && (
                       <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
                     )}
@@ -203,6 +208,11 @@ export function ServiceList({
                 ),
               })}
             </p>
+            <ServicePrepaymentBadge
+              service={selected}
+              businessCurrency={businessCurrency}
+              className="mt-2"
+            />
             {selected.hasSubscriptionPlans && (
               <p className="text-sm text-emerald-700 mt-1 font-medium">
                 {t('public.subscriptionPlansAtCheckout')}

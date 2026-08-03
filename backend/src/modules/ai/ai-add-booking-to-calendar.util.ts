@@ -4,6 +4,7 @@ import { isExplainTourBookingRecordPrompt } from './ai-tour-booking-record.util.
 import { isSignInAfterBookingPrompt } from './ai-sign-in-after-booking.util.js';
 import { isRequestClientReviewPrompt } from './ai-provider-exp-2.util.js';
 import { hasSubscriptionCheckoutCompareCue } from './ai-explain-subscription-vs-one-time.util.js';
+import { isExplainHomeScreenWidgetPrompt } from './ai-explain-home-screen-widget.util.js';
 import type { AddBookingToCalendarFormat } from './ai-add-booking-to-calendar.fixtures.js';
 
 export const ADD_BOOKING_TO_CALENDAR_INTENTS = [
@@ -19,10 +20,11 @@ export interface ParsedAddBookingToCalendar {
   serviceName?: string;
 }
 
-export const CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES = `- add_booking_to_calendar: READ — return calendar links for the visitor's current or most recent booking: Google Calendar deep link, Outlook compose link, and downloadable .ics URL when supported. Triggers: "Add to my calendar", "Send me an ICS", "Put my booking in Google Calendar", "Save my appointment to calendar". Set format when clear (google|outlook|ics|all). Uses session bookingId when present; otherwise next matching upcoming visit for signed-in customers. NOT confirm_my_booking_details (summary only), NOT get_manage_link|share_my_booking (manage/share links only), NOT list_my_appointments, NOT cancel_my_booking|reschedule_my_booking, NOT explain_subscription_vs_one_time (subscribe vs pay-per-visit / "should I get the subscription or just pay per visit?" — bare "get"+"visit" is not calendar).`;
+export const CUSTOMER_PUBLIC_ADD_BOOKING_TO_CALENDAR_CLASSIFIER_RULES = `- add_booking_to_calendar: READ — return calendar links for the visitor's current or most recent booking: Google Calendar deep link, Outlook compose link, and downloadable .ics URL when supported. Triggers: "Add to my calendar", "Send me an ICS", "Put my booking in Google Calendar", "Save my appointment to calendar". Set format when clear (google|outlook|ics|all). Uses session bookingId when present; otherwise next matching upcoming visit for signed-in customers. NOT confirm_my_booking_details (summary only), NOT get_manage_link|share_my_booking (manage/share links only), NOT list_my_appointments, NOT cancel_my_booking|reschedule_my_booking, NOT check_availability|check_providers_for_service ("is anybody open tomorrow… for massage", "who is free…") — bare "open" is not calendar, NOT explain_subscription_vs_one_time (subscribe vs pay-per-visit / "should I get the subscription or just pay per visit?" — bare "get"+"visit" is not calendar).`;
 
+/** Calendar-add verbs / artifacts — not bare "open" (e2e-bug.307). */
 const CALENDAR_CUE = new RegExp(
-  String.raw`\b(?:add|save|put|create|export|download|send|get|open|calendar|ics|invite|event)\b|օրացույց|календар|ics|google\s+calendar|outlook`,
+  String.raw`\b(?:add|save|put|create|export|download|send|get|calendar|ics|invite|event)\b|\bopen\s+(?:my\s+)?(?:calendar|ics|invite|event)\b|օրացույց|календар|ics|google\s+calendar|outlook`,
   'iu',
 );
 
@@ -47,6 +49,42 @@ const BLOCK_TOPIC = new RegExp(
   String.raw`\b(?:list\s+my|show\s+all|all\s+my|cancel|reschedule|manage\s+link|share\s+my\s+booking|hide\s+appointments|what\s+time|summarize|confirm\s+my\s+booking|who\s+is\s+my\s+appointment)\b|ցուցակ|отмен|перенес|когда\s+моя\s+запись|подтверди\s+детали`,
   'iu',
 );
+
+/**
+ * e2e-bug.307 — provider availability checks ("is anybody open…", "who is free…")
+ * must never match add_booking_to_calendar (bare "open" + tomorrow…massage).
+ */
+export function isProviderAvailabilityOpenCheckPrompt(prompt: string): boolean {
+  if (
+    /\b(?:is|are)\s+(?:anybody|anyone|someone|somebody|everybody|everyone)\s+(?:open|free|available)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (/\bwho(?:'s|\s+is)\s+(?:open|free|available)\b/i.test(prompt)) {
+    return true;
+  }
+  if (/\bsee\s+who\s+is\s+(?:open|free|available)\b/i.test(prompt)) {
+    return true;
+  }
+  // Named provider open/free availability (still not calendar)
+  if (
+    /\b(?:is|are)\s+[A-Z][\p{L}'-]+(?:\s+[A-Z][\p{L}'-]+)?\s+(?:open|free|available)\b/u.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:open\s+slots?|what\s+times?\b|check\s+availability|who\s+is\s+free)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export function isAddBookingToCalendarIntent(
   action: string,
@@ -87,9 +125,14 @@ export function isAddBookingToCalendarPrompt(prompt: string): boolean {
   if (isShareMyBookingPrompt(prompt)) return false;
   if (isSignInAfterBookingPrompt(prompt)) return false;
   if (isRequestClientReviewPrompt(prompt)) return false;
+  // e2e-bug.295 — "Add … appointment to home screen" is OS widget help, not
+  // calendar (CALENDAR_CUE matches bare "add" + BOOKING_CONTEXT "appointment").
+  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
   // e2e-bug.79 — "should I get the subscription or just pay per visit?" matched
   // bare get + just…visit and stole before explain_subscription_vs_one_time.
   if (hasSubscriptionCheckoutCompareCue(prompt)) return false;
+  // e2e-bug.307 — "is anybody open tomorrow… for massage" ≠ add to calendar.
+  if (isProviderAvailabilityOpenCheckPrompt(prompt)) return false;
   if (BLOCK_TOPIC.test(prompt)) return false;
 
   if (!CALENDAR_CUE.test(prompt)) return false;

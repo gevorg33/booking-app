@@ -20,8 +20,8 @@ import { getGoogleIdToken, isGoogleSignInAvailable } from '../services/google-au
 import { enableNativePush } from '../services/native-push';
 import { canAccessProviderApp } from '../lib/provider-access';
 import {
+  finishProviderSession,
   getLoginTenantHint,
-  savePreferredBusinessSlug,
   unwrapAuthResult,
   type AuthResult,
 } from '../lib/auth-session';
@@ -51,20 +51,14 @@ export default function LoginPage() {
   }, [hydrated, history, isAuthenticated]);
 
   const finishLogin = (result: AuthResult) => {
-    if (!canAccessProviderApp(result.employee, result.business?.membershipRole)) {
-      setError(t('provider.accessDenied'));
-      return;
-    }
-    if (!result.token || !result.business) {
-      setError(t('provider.loginFailedRetry'));
-      return;
-    }
-    setAuth(result.user, result.business, result.token, {
-      businesses: result.businesses,
-      employee: result.employee,
+    const ok = finishProviderSession(result, {
+      canAccess: canAccessProviderApp,
+      setAuth,
+      onAccessDenied: () => setError(t('provider.accessDenied')),
+      onMissingSession: () => setError(t('provider.loginFailedRetry')),
     });
-    savePreferredBusinessSlug(result.business.slug);
-    void enableNativePush(result.business.id);
+    if (!ok) return;
+    void enableNativePush(result.business!.id);
     history.replace('/tabs/today');
   };
 

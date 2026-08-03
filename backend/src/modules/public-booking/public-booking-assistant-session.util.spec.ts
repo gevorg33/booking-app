@@ -67,6 +67,36 @@ describe('public-booking-assistant-session.util (ai-cmd-customer-gap-4)', () => 
     expect(merged.serviceRank).toBeUndefined();
   });
 
+  it('e2e-bug.229: pay_online restores checkout serviceId + slot when prompt names service', () => {
+    const merged = mergePublicAssistantSessionParams(
+      { serviceName: 'Swedish massage' },
+      {
+        serviceId: 'svc-swedish',
+        employeeId: 'emp-anna',
+        startTime: '2026-07-30T14:00:00.000Z',
+        serviceName: 'Swedish massage',
+      },
+      'pay_online',
+    );
+    expect(merged.serviceId).toBe('svc-swedish');
+    expect(merged.employeeId).toBe('emp-anna');
+    expect(merged.startTime).toBe('2026-07-30T14:00:00.000Z');
+    expect(merged.serviceName).toBe('Swedish massage');
+  });
+
+  it('e2e-bug.229: book_nearest still skips stale serviceId when serviceName set', () => {
+    const merged = mergePublicAssistantSessionParams(
+      { serviceName: 'Swedish massage' },
+      {
+        serviceId: 'svc-swedish',
+        employeeId: 'emp-anna',
+        startTime: '2026-07-30T14:00:00.000Z',
+      },
+      'book_nearest_slot',
+    );
+    expect(merged.serviceId).toBeUndefined();
+  });
+
   it('merges guide multiturn session fields from prior turn', () => {
     const merged = mergePublicAssistantSessionParams(
       {},

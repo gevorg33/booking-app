@@ -1,5 +1,8 @@
 /** ai-cmd-provider-5.24.3 — provider mirror of the customer `give_ai_feedback` action (ai-give-ai-feedback.util.ts). */
 
+import { resolveLocale, t } from '../../common/i18n/messages.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
+
 export type ProviderGiveAiFeedbackAspect =
   | 'negative'
   | 'positive'
@@ -37,11 +40,84 @@ export const PROVIDER_ASSISTANT_FEEDBACK_REASON_OPTIONS = [
   },
 ] as const;
 
+/** e2e-bug.325 — localized chip/summary copy for give_provider_ai_feedback (mirrors ai-give-ai-feedback.util.ts's e2e-bug.299 fix). */
+export function resolveGiveProviderAiFeedbackLocale(
+  localeOrParams?: string | Record<string, unknown>,
+): AppLocale {
+  if (typeof localeOrParams === 'string') {
+    return resolveLocale(localeOrParams);
+  }
+  if (localeOrParams && typeof localeOrParams === 'object') {
+    const fromParams =
+      typeof localeOrParams.locale === 'string'
+        ? localeOrParams.locale
+        : undefined;
+    return resolveLocale(fromParams);
+  }
+  return resolveLocale(undefined);
+}
+
+export function localizedProviderFeedbackUpLabel(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.providerFeedbackUpLabel');
+}
+
+export function localizedProviderFeedbackDownLabel(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.providerFeedbackDownLabel');
+}
+
+export function localizedProviderFeedbackThanks(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.providerFeedbackThanks');
+}
+
+export function localizedProviderFeedbackReasonOptions(
+  locale?: string,
+): Array<{ id: string; label: string }> {
+  const loc = resolveLocale(locale);
+  return [
+    {
+      id: 'wrong_action',
+      label: t(loc, 'assistant.providerFeedbackReasonWrongAction'),
+    },
+    {
+      id: 'wrong_date',
+      label: t(loc, 'assistant.providerFeedbackReasonWrongDate'),
+    },
+    {
+      id: 'wrong_client',
+      label: t(loc, 'assistant.providerFeedbackReasonWrongClient'),
+    },
+    {
+      id: 'wrong_service',
+      label: t(loc, 'assistant.providerFeedbackReasonWrongService'),
+    },
+    {
+      id: 'did_not_understand',
+      label: t(loc, 'assistant.providerFeedbackReasonDidNotUnderstand'),
+    },
+  ];
+}
+
+// e2e-bug.293 — UI chip labels "Thumbs up" / "Thumbs down" (+ emoji).
 const POSITIVE_CUE =
-  /\b(that\s+was\s+helpful|helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped)\b/i;
+  /\b(that\s+was\s+helpful|(?<!\bnot\s)helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped|thumbs?\s*-?\s*up)\b|👍/iu;
 
 const NEGATIVE_CUE =
-  /\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|not\s+what\s+i\s+(?:meant|wanted))\b/i;
+  /\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|not\s+what\s+i\s+(?:meant|wanted)|(?:was\s+)?not\s+my\s+intent|wasn'?t\s+my\s+intent|thumbs?\s*-?\s*down)\b|👎/iu;
+
+/**
+ * e2e-bug.300 — shorthand vote; whole-prompt only (mirror customer/public).
+ * e2e-bug.326 — allow a short "thanks"/"thx"/"ty" wrapper on either side and
+ * the fullwidth ＋1/－1 variants (mirror customer/public).
+ */
+const VOTE_WRAPPER = String.raw`(?:thanks?|thx|ty)`;
+const PLUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:\+\s*1|＋\s*1|plus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
+const MINUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:-\s*1|－\s*1|minus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
 
 const WRONG_DATE_CUE = /\bwrong\s+date|wrong\s+day|picked\s+the\s+wrong\s+date\b/i;
 
@@ -53,7 +129,7 @@ const WRONG_CLIENT_CUE =
 const WRONG_ACTION_CUE = /\bwrong\s+action\b/i;
 
 const DID_NOT_UNDERSTAND_CUE =
-  /\b(did(?:n't| not)\s+understand|didn't\s+get\s+that|misunderstood\s+me|wasn'?t\s+my\s+intent|not\s+what\s+i\s+meant)\b/i;
+  /\b(did(?:n't| not)\s+understand|didn't\s+get\s+that|misunderstood\s+me|wasn'?t\s+my\s+intent|was\s+not\s+my\s+intent|not\s+my\s+intent|not\s+what\s+i\s+meant)\b/i;
 
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
@@ -89,8 +165,19 @@ export function parseGiveProviderAiFeedbackRating(
 ): ProviderGiveAiFeedbackRating | undefined {
   const fromParams = readString(params.feedbackRating);
   if (fromParams === 'up' || fromParams === 'down') return fromParams;
-  if (POSITIVE_CUE.test(prompt)) return 'up';
-  if (reason || NEGATIVE_CUE.test(prompt)) return 'down';
+  // Negatives first — bare "helpful" must not steal "Not helpful" (e2e-bug.243)
+  // e2e-bug.300 — anchored -1 / +1.
+  if (
+    reason ||
+    MINUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'down';
+  }
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+    return 'up';
+  }
   return undefined;
 }
 
@@ -112,8 +199,16 @@ export function parseGiveProviderAiFeedbackAspect(
   if (reason) return 'reason_given';
   if (rating === 'up') return 'positive';
   if (rating === 'down') return 'negative';
-  if (POSITIVE_CUE.test(prompt)) return 'positive';
-  if (NEGATIVE_CUE.test(prompt)) return 'negative';
+  if (
+    MINUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'negative';
+  }
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+    return 'positive';
+  }
   return 'generic';
 }
 
@@ -130,10 +225,16 @@ export function isGiveProviderAiFeedbackPrompt(prompt: string): boolean {
   if (/^wrong\s+service\b/i.test(text)) return true;
   if (/^wrong\s+action\b/i.test(text)) return true;
   if (/^that\s+wasn'?t\s+my\s+intent\b/i.test(text)) return true;
+  if (/^that\s+was\s+not\s+my\s+intent\b/i.test(text)) return true;
+  if (/^not\s+my\s+intent\b/i.test(text)) return true;
   if (/^not\s+helpful\b/i.test(text)) return true;
   if (/^bad\s+answer\b/i.test(text)) return true;
   if (/^that\s+was\s+helpful\b/i.test(text)) return true;
   if (/^good\s+answer\b/i.test(text)) return true;
+  // e2e-bug.300 — shorthand +1 / -1 (whole prompt only).
+  if (PLUS_ONE_FEEDBACK_PROMPT.test(text) || MINUS_ONE_FEEDBACK_PROMPT.test(text)) {
+    return true;
+  }
 
   return (
     POSITIVE_CUE.test(text) ||
@@ -167,12 +268,22 @@ export function parseGiveProviderAiFeedbackFromPrompt(
 export function rescueGiveProviderAiFeedbackIntent(
   prompt: string,
   action: string,
-): { action: 'give_provider_ai_feedback'; rescueReason: string } | null {
+): {
+  action: 'give_provider_ai_feedback';
+  rescueReason: string;
+  params: Record<string, unknown>;
+} | null {
   if (action === 'give_provider_ai_feedback') return null;
-  if (!isGiveProviderAiFeedbackPrompt(prompt)) return null;
+  const parsed = parseGiveProviderAiFeedbackFromPrompt(prompt);
+  if (!parsed) return null;
   return {
     action: 'give_provider_ai_feedback',
     rescueReason: 'give_provider_ai_feedback',
+    params: {
+      ...(parsed.rating ? { feedbackRating: parsed.rating } : {}),
+      ...(parsed.reason ? { feedbackReason: parsed.reason } : {}),
+      aspect: parsed.aspect,
+    },
   };
 }
 
@@ -180,13 +291,15 @@ export function buildGiveProviderAiFeedbackSummary(
   rating: ProviderGiveAiFeedbackRating | undefined,
   reason?: ProviderGiveAiFeedbackReason,
   needsReasonChips = false,
+  locale?: string,
 ): string {
-  if (rating === 'up') return PROVIDER_FEEDBACK_THANKS;
-  if (reason) return PROVIDER_FEEDBACK_THANKS;
+  const loc = resolveLocale(locale);
+  if (rating === 'up') return t(loc, 'assistant.providerFeedbackThanks');
+  if (reason) return t(loc, 'assistant.providerFeedbackThanks');
   if (needsReasonChips) {
-    return `${PROVIDER_FEEDBACK_DOWN_LABEL} — choose a reason so we can improve the assistant.`;
+    return t(loc, 'assistant.providerFeedbackDownChooseReason');
   }
-  return PROVIDER_FEEDBACK_THANKS;
+  return t(loc, 'assistant.providerFeedbackThanks');
 }
 
 export function resolveGiveProviderAiFeedbackClientAction(
@@ -205,6 +318,7 @@ export function buildGiveProviderAiFeedbackDetails(
     rating?: ProviderGiveAiFeedbackRating;
     reason?: ProviderGiveAiFeedbackReason;
   },
+  locale?: string,
 ): Record<string, unknown> {
   const rating = parsed.rating;
   const reason = parsed.reason;
@@ -214,17 +328,16 @@ export function buildGiveProviderAiFeedbackDetails(
     reason,
   );
   const lastAction = readString(params.lastAction);
+  const loc = resolveGiveProviderAiFeedbackLocale(locale ?? params);
 
   return {
     aspect: parsed.aspect,
     ...(rating ? { feedbackRating: rating } : {}),
     ...(reason ? { feedbackReason: reason } : {}),
-    feedbackUpLabel: PROVIDER_FEEDBACK_UP_LABEL,
-    feedbackDownLabel: PROVIDER_FEEDBACK_DOWN_LABEL,
-    feedbackThanks: PROVIDER_FEEDBACK_THANKS,
-    feedbackReasonOptions: PROVIDER_ASSISTANT_FEEDBACK_REASON_OPTIONS.map(
-      (option) => ({ ...option }),
-    ),
+    feedbackUpLabel: localizedProviderFeedbackUpLabel(loc),
+    feedbackDownLabel: localizedProviderFeedbackDownLabel(loc),
+    feedbackThanks: localizedProviderFeedbackThanks(loc),
+    feedbackReasonOptions: localizedProviderFeedbackReasonOptions(loc),
     ...(needsReasonChips ? { showReasonChips: true } : {}),
     clientAction,
     assistantFeedback: true,
@@ -235,12 +348,14 @@ export function buildGiveProviderAiFeedbackDetails(
 export function handleGiveProviderAiFeedback(
   params: Record<string, unknown> = {},
   prompt?: string,
+  locale?: string,
 ): {
   success: boolean;
   action: 'give_provider_ai_feedback';
   summary: string;
   details: Record<string, unknown>;
 } {
+  const loc = resolveGiveProviderAiFeedbackLocale(locale ?? params);
   const parsed = parseGiveProviderAiFeedbackFromPrompt(
     String(prompt ?? params._prompt ?? ''),
     params,
@@ -249,8 +364,7 @@ export function handleGiveProviderAiFeedback(
     return {
       success: false,
       action: 'give_provider_ai_feedback',
-      summary:
-        'Say whether the last answer was helpful or what was wrong (e.g. "Wrong client picked" or "That wasn\'t my intent").',
+      summary: t(loc, 'assistant.providerFeedbackClarifyWhatWasWrong'),
       details: { clarify: true },
     };
   }
@@ -259,13 +373,13 @@ export function handleGiveProviderAiFeedback(
     return {
       success: false,
       action: 'give_provider_ai_feedback',
-      summary: 'Say if the answer was helpful or not (e.g. "That was helpful" or "Not helpful").',
+      summary: t(loc, 'assistant.providerFeedbackClarifyHelpfulOrNot'),
       details: { clarify: true, aspect: parsed.aspect },
     };
   }
 
   const needsReasonChips = parsed.rating === 'down' && !parsed.reason;
-  const details = buildGiveProviderAiFeedbackDetails(params, parsed);
+  const details = buildGiveProviderAiFeedbackDetails(params, parsed, loc);
 
   return {
     success: true,
@@ -274,6 +388,7 @@ export function handleGiveProviderAiFeedback(
       parsed.rating,
       parsed.reason,
       needsReasonChips,
+      loc,
     ),
     details,
   };

@@ -14,6 +14,7 @@ import type { AiBusinessTaxService } from './ai-business-tax.service.js';
 import type { AiBusinessComplianceService } from './ai-business-compliance.service.js';
 import type { AiBusinessLanguagesService } from './ai-business-languages.service.js';
 import type { AiBusinessDateFormatService } from './ai-business-date-format.service.js';
+import { enrichServiceCategoryRescueParams } from './ai-catalog.util.js';
 import { enrichDeactivateServiceCategoryScopeParamsFromPrompt } from './ai-deactivate-service-category-scope.util.js';
 import { parseUpdateServiceDurationBufferFromPrompt } from './ai-service-duration-buffer.util.js';
 import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
@@ -103,8 +104,20 @@ export async function dispatchDashboardCoreIntent(
   }
 
   switch (action) {
-    case 'create_service_category':
-      return deps.catalog.handleCreateServiceCategory(businessId, params);
+    case 'create_service_category': {
+      // e2e-bug.271 — prefer full prompt name over short classifier categoryName.
+      const categoryParams = { ...params };
+      enrichServiceCategoryRescueParams(
+        'create_service_category',
+        categoryParams,
+        effectivePrompt,
+      );
+      return deps.catalog.handleCreateServiceCategory(
+        businessId,
+        categoryParams,
+        effectivePrompt,
+      );
+    }
     case 'update_service_category':
       return deps.catalog.handleUpdateServiceCategory(businessId, params);
     case 'delete_service_category':

@@ -15,9 +15,18 @@ export const CUSTOMER_APP_GUIDE_RESCUE_SCENARIOS: readonly CustomerAppGuideRescu
       id: 'consumer-tabs',
       intent: 'explain_app_feature',
       samplePrompt: 'What is on the Home tab vs Services?',
+      // e2e-bug.276 — reclaim Home/Services/Account tab tours from widget /
+      // compare_services steals (locale:hy EN prompts often misclassify).
       prompt:
-        /\b(?:(?:home|services|account)\s+tab|what(?:'s|\s+is)\s+on\s+(?:the\s+)?(?:home|services|account)\s+tab|consumer\s+app\s+tabs?|bottom\s+tabs?)\b/i,
-      fromActions: ['unknown', 'list_my_appointments', 'how_to_download_app'],
+        /\b(?:(?:how\s+(?:do\s+i|to)\s+use|walk\s+me\s+through|what(?:'s|\s+is)\s+on)\s+(?:the\s+)?(?:home|services|account)\s+tab|(?:home|services|account)\s+tab|consumer\s+app\s+tabs?|bottom\s+tabs?)\b/i,
+      fromActions: [
+        'unknown',
+        'list_my_appointments',
+        'list_my_upcoming_appointments',
+        'how_to_download_app',
+        'explain_home_screen_widget',
+        'compare_services',
+      ],
     },
     {
       id: 'consumer-profile',

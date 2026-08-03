@@ -90,7 +90,7 @@ and extract structured parameters. Return a JSON object with:
     "staffMetric": "busiest | most_revenue | most_bookings | overview | null — for summarize_staff",
     "assignmentLookup": "providers_for_service | services_for_provider | null — for lookup_service_assignment",
     "limit": number or null — max rows to list (default 5),
-    "topicId": "string or null — optional stable product guide corpus id (dashboard.core.schedule, dashboard.ai.command-bar, …) for explain_app_feature / guide_user_flow / explain_current_screen",
+    "topicId": "string or null — for explain_app_feature / guide_user_flow / explain_current_screen. Leave this null in almost all cases; the app auto-detects the correct guide topic from the user's own wording. Only set it when the user is clearly continuing an ALREADY-OPEN guide (e.g. \"next step\", \"go back\") — never guess a topic id for a new question, and never reuse a topic id from an earlier turn just because it was used before",
     "status": "completed | in_progress | no_show | confirmed | pending | cancelled | null — for update_bookings",
     "paymentStatus": "paid | pending | refunded | not_applicable | null — for update_bookings",
     "allAppointments": boolean or null — true when user says all/every/any appointment(s) for the day (do NOT set serviceName/serviceNames)

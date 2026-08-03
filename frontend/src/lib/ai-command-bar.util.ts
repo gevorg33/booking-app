@@ -113,6 +113,17 @@ const MUTATION_ACTION_PREFIXES = [
 
 const EXACT_MUTATING_ACTIONS = new Set(['holiday_mode', 'compound_intent']);
 
+const UNDO_HINT_INTENT_MAX_LENGTH = 60;
+
+/** Command bar hint caption is a single small line — long raw intents must not wrap it into a paragraph. */
+export function truncateUndoHintIntent(
+  intent: string,
+  maxLength: number = UNDO_HINT_INTENT_MAX_LENGTH,
+): string {
+  if (intent.length <= maxLength) return intent;
+  return `${intent.slice(0, maxLength).trimEnd()}…`;
+}
+
 export function isAiDataMutatingAction(action: string): boolean {
   if (NON_MUTATING_ACTIONS.has(action)) return false;
   if (EXACT_MUTATING_ACTIONS.has(action)) return true;
@@ -173,6 +184,23 @@ export function extractSessionContext(result: {
       .map((entry) => Number(entry))
       .filter((entry) => Number.isInteger(entry) && entry >= 0);
   }
+  // e2e-bug.304 — preserve compound resume fields for clarify follow-up.
+  if (Array.isArray(details?.compoundResumePlans)) {
+    ctx.compoundResumePlans = details.compoundResumePlans;
+  }
+  if (Array.isArray(details?.compoundResumeSubIntents)) {
+    ctx.compoundResumeSubIntents = details.compoundResumeSubIntents;
+  }
+  if (details?.compoundStepIndex != null) {
+    const index = Number(details.compoundStepIndex);
+    if (Number.isInteger(index) && index >= 0) ctx.compoundStepIndex = index;
+  }
+  if (Array.isArray(details?.compoundActions)) {
+    ctx.compoundActions = details.compoundActions.map(String);
+  }
+  if (typeof details?.confirmationPrompt === 'string' && details.confirmationPrompt.trim()) {
+    ctx.compoundConfirmationPrompt = details.confirmationPrompt.trim();
+  }
   return ctx;
 }
 
@@ -203,6 +231,16 @@ export function mergeSessionContext(
     guideStepIndex:
       next.guideStepIndex != null ? next.guideStepIndex : prev.guideStepIndex,
     completedSteps: next.completedSteps ?? prev.completedSteps,
+    compoundResumePlans: next.compoundResumePlans ?? prev.compoundResumePlans,
+    compoundResumeSubIntents:
+      next.compoundResumeSubIntents ?? prev.compoundResumeSubIntents,
+    compoundStepIndex:
+      next.compoundStepIndex != null
+        ? next.compoundStepIndex
+        : prev.compoundStepIndex,
+    compoundActions: next.compoundActions ?? prev.compoundActions,
+    compoundConfirmationPrompt:
+      next.compoundConfirmationPrompt ?? prev.compoundConfirmationPrompt,
   };
 }
 

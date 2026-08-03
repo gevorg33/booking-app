@@ -3,6 +3,8 @@ import {
   CUSTOMER_PUBLIC_CUSTOMER_WAITLIST_CLASSIFIER_RULES,
   CUSTOMER_WAITLIST_RESCUE_SCENARIOS,
   E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS,
+  E2E235_WAITLIST_PROMPT_SCENARIOS,
+  E2E235_WAITLIST_SUMMARY_SCENARIOS,
   JOIN_WAITLIST_PROMPTS,
 } from './ai-customer-waitlist.fixtures.js';
 import { CUSTOMER_WAITLIST_MULTILINGUAL_SCENARIOS } from './ai-customer-waitlist-multilingual.fixtures.js';
@@ -163,7 +165,32 @@ describe('ai-customer-waitlist.util (ai-cmd-customer-4.4.7)', () => {
         }),
       );
       expect(summary).not.toContain(`${employeeName} with ${employeeName}`);
-      expect(summary).toContain(`with ${employeeName}`);
+      expect(summary).not.toContain(`with ${employeeName} with`);
+      expect(summary).toContain(employeeName);
+      // e2e-bug.235 — provider-only summaries omit leading "with".
+      if (fromClassifier.serviceName) {
+        expect(summary).toContain(`with ${employeeName}`);
+      } else {
+        expect(summary).not.toMatch(
+          new RegExp(
+            `opens for with ${employeeName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+          ),
+        );
+        expect(summary).toContain(`opens for ${employeeName}`);
+      }
+
+      // When the prompt also names a real service, summary keeps service + one "with".
+      if (serviceName) {
+        const withService = buildJoinWaitlistSuccessSummary(
+          buildCustomerWaitlistRequest({
+            serviceName,
+            employeeName,
+            date: '18/07/2026',
+          }),
+        );
+        expect(withService).toContain(`${serviceName} with ${employeeName}`);
+        expect(withService).not.toContain(`with ${employeeName} with`);
+      }
     },
   );
 
@@ -185,6 +212,86 @@ describe('ai-customer-waitlist.util (ai-cmd-customer-4.4.7)', () => {
           date: '18/07/2026',
         }),
       ),
-    ).toBe('with Gevorg Gasparyan on 18/07/2026');
+    ).toBe('Gevorg Gasparyan on 18/07/2026');
   });
+
+  it.each(
+    E2E235_WAITLIST_SUMMARY_SCENARIOS.filter(
+      (s) =>
+        !!s.employeeName &&
+        !!s.serviceName &&
+        s.serviceName.toLowerCase().includes(' with '),
+    ),
+  )(
+    'e2e-bug.235 sanitize strips baked-in provider ($id)',
+    ({ serviceName, employeeName, expectedSummary, date, forbidden }) => {
+      const sanitized = sanitizeWaitlistPreferenceNames({
+        serviceName: serviceName!,
+        employeeName: employeeName!,
+      });
+      expect(sanitized.serviceName?.toLowerCase()).not.toContain(' with ');
+      expect(sanitized.employeeName).toBe(employeeName);
+      const summary = formatCustomerWaitlistPreferenceSummary(
+        buildCustomerWaitlistRequest({
+          ...sanitized,
+          date,
+        }),
+      );
+      expect(summary).toBe(expectedSummary);
+      for (const bad of forbidden) {
+        expect(summary).not.toContain(bad);
+      }
+    },
+  );
+
+  it('e2e-bug.235 enrich recovers Swedish + short Gevorg', () => {
+    const enriched = enrichJoinWaitlistParamsFromPrompt(
+      {
+        serviceName: 'Swedish massage with Gevorg',
+        employeeName: 'Gevorg',
+      },
+      'put me on the waitlist for Swedish massage with Gevorg tomorrow',
+    );
+    expect(enriched.serviceName).toBe('Swedish massage');
+    expect(enriched.employeeName).toBe('Gevorg');
+    const summary = buildJoinWaitlistSuccessSummary(
+      buildCustomerWaitlistRequest({
+        serviceName: String(enriched.serviceName),
+        employeeName: String(enriched.employeeName),
+        date: '29/07/2026',
+      }),
+    );
+    expect(summary).toContain('Swedish massage with Gevorg on 29/07/2026');
+    expect(summary).not.toContain('with Gevorg with Gevorg');
+  });
+
+  it.each(E2E235_WAITLIST_PROMPT_SCENARIOS)(
+    'e2e-bug.235 prompt parse + summary ($id)',
+    ({
+      prompt,
+      serviceName,
+      employeeName,
+      summaryIncludes,
+      forbidden,
+    }) => {
+      const parsed = parseJoinWaitlistFromPrompt(prompt);
+      expect(parsed).not.toBeNull();
+      if (serviceName) expect(parsed?.serviceName).toBe(serviceName);
+      else expect(parsed?.serviceName).toBeUndefined();
+      if (employeeName) expect(parsed?.employeeName).toBe(employeeName);
+      const summary = buildJoinWaitlistSuccessSummary(
+        buildCustomerWaitlistRequest({
+          ...(parsed?.serviceName ? { serviceName: parsed.serviceName } : {}),
+          ...(parsed?.employeeName
+            ? { employeeName: parsed.employeeName }
+            : {}),
+          date: '29/07/2026',
+        }),
+      );
+      expect(summary).toContain(summaryIncludes);
+      for (const bad of forbidden) {
+        expect(summary).not.toContain(bad);
+      }
+    },
+  );
 });

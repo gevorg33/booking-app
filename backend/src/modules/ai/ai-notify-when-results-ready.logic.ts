@@ -8,6 +8,7 @@ import {
 import {
   assembleNotifyWhenResultsReadySummary,
   buildNotifyWhenResultsReadyNavigate,
+  isNotifyWhenResultsReadyPrompt,
   parseNotifyWhenResultsReadyFromPrompt,
 } from './ai-notify-when-results-ready.util.js';
 
@@ -37,7 +38,19 @@ export async function handleNotifyWhenResultsReadyLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
-  const effectivePrompt = String(prompt ?? params._prompt ?? '');
+  // e2e-bug.198 — prefer a step-segment `_prompt` that itself matches notify,
+  // so full "Book X and notify me…" compounds do not self-block via BOOK_COMPOUND_BLOCK.
+  const stepPrompt =
+    typeof params._prompt === 'string' ? params._prompt.trim() : '';
+  const fullPrompt = String(prompt ?? '').trim();
+  const effectivePrompt =
+    (stepPrompt && isNotifyWhenResultsReadyPrompt(stepPrompt)
+      ? stepPrompt
+      : null) ??
+    (fullPrompt && isNotifyWhenResultsReadyPrompt(fullPrompt)
+      ? fullPrompt
+      : null) ??
+    (stepPrompt || fullPrompt);
 
   const business = await deps.businessRepo.findOne({
     where: { id: businessId },

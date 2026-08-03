@@ -305,4 +305,97 @@ describe('PublicBookingService bookMultiService same_visit', () => {
       }),
     ).rejects.toThrow('Online payment is required for this booking');
   });
+
+  describe('suggestMultiServicePerServiceLines (e2e-bug.217)', () => {
+    it('expands suggest-block into lines when block succeeds', async () => {
+      jest.spyOn(service, 'suggestMultiServiceBlock').mockResolvedValue({
+        employeeId: 'emp-1',
+        employeeName: 'Gevorg',
+        dateKey: '2026-07-29',
+        startTime: '2026-07-29T10:00:00.000Z',
+      });
+      jest
+        .spyOn(service, 'findNearestBookableSlot')
+        .mockResolvedValue(null);
+
+      const result = await service.suggestMultiServicePerServiceLines(
+        'salon',
+        ['face-plasma', 'face-pilling'],
+      );
+
+      expect(service.suggestMultiServiceBlock).toHaveBeenCalledWith('salon', [
+        'face-plasma',
+        'face-pilling',
+      ]);
+      expect(service.findNearestBookableSlot).not.toHaveBeenCalled();
+      expect(result.lines).toEqual([
+        {
+          serviceId: 'face-plasma',
+          serviceName: 'Face Plasma',
+          startTime: '2026-07-29T10:00:00.000Z',
+          employeeId: 'emp-1',
+          employeeName: 'Gevorg',
+        },
+        {
+          serviceId: 'face-pilling',
+          serviceName: 'Face Pilling',
+          startTime: '2026-07-29T10:50:00.000Z',
+          employeeId: 'emp-1',
+          employeeName: 'Gevorg',
+        },
+      ]);
+    });
+
+    it('falls back to nearest-slot chain when block search fails', async () => {
+      jest
+        .spyOn(service, 'suggestMultiServiceBlock')
+        .mockRejectedValue(
+          new BadRequestException('No available block found for the selected services'),
+        );
+      jest
+        .spyOn(service, 'findNearestBookableSlot')
+        .mockResolvedValueOnce({
+          startTime: '2026-07-30T09:00:00.000Z',
+          employeeId: 'emp-a',
+          employeeName: 'Ann',
+        } as any)
+        .mockResolvedValueOnce({
+          startTime: '2026-07-30T10:00:00.000Z',
+          employeeId: 'emp-b',
+          employeeName: 'Bob',
+        } as any);
+      (service as any).serviceRepo.findOne
+        .mockResolvedValueOnce({
+          id: 'face-plasma',
+          name: 'Face Plasma',
+          durationMinutes: 45,
+          bufferMinutes: 0,
+        })
+        .mockResolvedValueOnce({
+          id: 'face-pilling',
+          name: 'Face Pilling',
+          durationMinutes: 60,
+          bufferMinutes: 0,
+        });
+
+      const result = await service.suggestMultiServicePerServiceLines(
+        'salon',
+        ['face-plasma', 'face-pilling'],
+      );
+
+      expect(result.lines).toHaveLength(2);
+      expect(result.lines[0].employeeId).toBe('emp-a');
+      expect(result.lines[1].employeeId).toBe('emp-b');
+      expect(service.findNearestBookableSlot).toHaveBeenCalledTimes(2);
+      // Second search must start after first service + turnover (not at first start).
+      expect(service.findNearestBookableSlot).toHaveBeenNthCalledWith(
+        2,
+        'salon',
+        expect.objectContaining({
+          serviceId: 'face-pilling',
+          notBeforeTime: '2026-07-30T09:50:00.000Z',
+        }),
+      );
+    });
+  });
 });

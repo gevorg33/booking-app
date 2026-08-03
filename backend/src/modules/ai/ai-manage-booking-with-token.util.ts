@@ -25,13 +25,30 @@ export function isManageBookingWithTokenIntent(
   ).includes(action);
 }
 
-/** Pulls bookingId/token out of a pasted manage link (e.g. .../manage?bookingId=x&token=y). */
+/**
+ * e2e-bug.102 — a customer who types their bookingId/token as plain labelled
+ * text (no URL to paste — copied from an email body, read aloud, etc.) must
+ * be recognized the same way a pasted manage-link URL already is. Anchored to
+ * the real shapes (`generateBookingManageToken` = 48-char hex; bookingId =
+ * UUID) so this can't false-positive on ordinary words.
+ */
+const FREE_TEXT_BOOKING_ID_PATTERN =
+  /\bbooking[\s_-]*id\b\s*(?:is|[:=])?\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i;
+const FREE_TEXT_MANAGE_TOKEN_PATTERN =
+  /\b(?:manage[\s_-]*)?token\b\s*(?:is|[:=])?\s*([0-9a-f]{16,64})\b/i;
+
+/** Pulls bookingId/token out of a pasted manage link (e.g. .../manage?bookingId=x&token=y)
+ *  or plain labelled text ("the booking id is ... and the token is ..."). */
 export function extractManageLinkCredentialsFromPrompt(prompt: string): {
   bookingId?: string;
   manageToken?: string;
 } {
-  const bookingId = prompt.match(/[?&]bookingId=([a-z0-9-]+)/i)?.[1];
-  const manageToken = prompt.match(/[?&]token=([a-z0-9-]+)/i)?.[1];
+  const bookingId =
+    prompt.match(/[?&]bookingId=([a-z0-9-]+)/i)?.[1] ??
+    prompt.match(FREE_TEXT_BOOKING_ID_PATTERN)?.[1];
+  const manageToken =
+    prompt.match(/[?&]token=([a-z0-9-]+)/i)?.[1] ??
+    prompt.match(FREE_TEXT_MANAGE_TOKEN_PATTERN)?.[1];
   return {
     ...(bookingId ? { bookingId } : {}),
     ...(manageToken ? { manageToken } : {}),

@@ -1,6 +1,10 @@
 /** Shared service catalog price filter + sort helpers (budget-1.1, rank-1.1, discover-1.1). */
 
 import type { ServiceTier } from '../../common/utils/service-rank-metadata.util.js';
+import {
+  expandServiceLookupQueries,
+  normalizeServiceLookup,
+} from './ai-service-lookup-synonyms.util.js';
 
 export type ServiceRank = 'highest_price' | 'lowest_price' | 'most_popular';
 
@@ -239,12 +243,20 @@ function filterServicesByCategory<T extends ServiceCatalogPriceEntry>(
   serviceCategory: string | null | undefined,
 ): T[] {
   if (!serviceCategory?.trim()) return [...services];
-  const needle = serviceCategory.trim().toLowerCase();
-  return services.filter(
-    (service) =>
-      (service.serviceCategory ?? '').toLowerCase().includes(needle) ||
-      (service.name ?? '').toLowerCase().includes(needle),
+  // e2e-bug.199 — haircut ↔ hairstyle (and peers) so rank/budget re-filter
+  // does not drop services already synonym-matched upstream.
+  const needles = expandServiceLookupQueries(serviceCategory.trim()).map((q) =>
+    normalizeServiceLookup(q),
   );
+  return services.filter((service) => {
+    const catNorm = normalizeServiceLookup(service.serviceCategory ?? '');
+    const nameNorm = normalizeServiceLookup(service.name ?? '');
+    return needles.some(
+      (needle) =>
+        needle.length >= 3 &&
+        (catNorm.includes(needle) || nameNorm.includes(needle)),
+    );
+  });
 }
 
 export function resolveServiceDiscoveryLimit(value: unknown): number | null {

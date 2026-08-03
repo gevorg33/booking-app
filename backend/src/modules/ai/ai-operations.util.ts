@@ -145,6 +145,25 @@ export function isImportServicesFromMenuPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.251 — "Add a new catalog category named X" is create_service_category.
+  // Bare "catalog" in "catalog category" must not steal the menu/OCR import rescue.
+  const hasMenuImportSignal =
+    /\b(?:menu|photo|image|ocr)\b/i.test(prompt) ||
+    /\bfrom\s+(?:the\s+)?menu\b/i.test(prompt) ||
+    /\bscan\s+(?:the\s+)?menu\b/i.test(prompt) ||
+    /\bimport\b.+\b(?:from\s+)?(?:the\s+)?catalog\b/i.test(prompt);
+  if (
+    /\b(?:service|catalog)\s+category\b/i.test(prompt) &&
+    !hasMenuImportSignal
+  ) {
+    return false;
+  }
+  if (
+    /\b(?:add|create)\s+(?:a\s+)?(?:new\s+)?category\b/i.test(prompt) &&
+    !hasMenuImportSignal
+  ) {
+    return false;
+  }
   return (
     /\b(import|add|create)\b.+\b(?:menu|catalog|photo|image|ocr)\b/i.test(
       prompt,

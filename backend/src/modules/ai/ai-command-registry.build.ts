@@ -281,6 +281,20 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'mark_running_late',
   'mark_ready_now',
   'mark_visit_complete',
+  // e2e-bug.240–247 — must be registry-allowed or acceptRescueForSurface drops rescue
+  'mark_visit_in_progress',
+  'mark_multi_service_step_done',
+  'confirm_pending_booking',
+  'give_provider_ai_feedback',
+  'explain_booking_status_badge',
+  'explain_floor_status',
+  'explain_calendar_utilization_bands',
+  'explain_block_vs_time_off',
+  'explain_offline_suggestions',
+  'explain_accessibility_settings',
+  'explain_dashboard_only_action',
+  'explain_reassign_limit',
+  'explain_time_off_approval',
   'suggest_cancel_note',
   'request_client_review',
   'list_reassign_options',
@@ -473,8 +487,13 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     mutateIntents: [...PATIENT_CLINICAL_MUTATIONS_MUTATE_INTENTS],
   },
   {
+    // provider-mobile also dispatches these generically (ai-guide-1.8.6,
+    // dispatchProviderAppGuideIntent) — the registry surface list must include
+    // 'provider' or the intent-rescue pipeline's acceptRescueForSurface guard
+    // (e2e-bug.77) silently discards a correct guide_user_flow/explain_*
+    // rescue on that surface.
     intents: [...APP_GUIDE_INTENTS],
-    surfaces: ['dashboard', 'customer', 'public'],
+    surfaces: ['dashboard', 'customer', 'public', 'provider'],
     apiModule: 'ai-command',
     handler: 'AiProductGuideService',
     sprint: 'productGuide',
@@ -1090,6 +1109,10 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
       'request_client_review',
       'list_reassign_options',
       'reassign_booking_same_day',
+      // e2e-bug.342 — missing from the registry entirely, so
+      // acceptRescueForSurface silently dropped an otherwise-correct rescue.
+      'list_team_unpaid_today',
+      'explain_reviews_inbox',
       'explain_request_review_flow',
       'draft_review_response',
       'open_dashboard_deep_link',
@@ -1809,6 +1832,10 @@ const LEGACY_CORE_BINDINGS: Array<{
       'collect_cash_confirm',
       'update_provider_profile',
       'mark_visit_complete',
+      'mark_visit_in_progress',
+      'mark_multi_service_step_done',
+      'confirm_pending_booking',
+      'give_provider_ai_feedback',
     ],
   },
   {
@@ -3059,7 +3086,7 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
     },
     {
       id: 'public_assistant_compound',
-      surfaces: ['public'],
+      surfaces: ['public', 'customer'],
       handler: 'PublicBookingAssistantService.executeCommand',
       decomposeUtil: 'decomposePublicAssistantCompoundPrompt',
       llmDecompose: false,
@@ -3069,6 +3096,8 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'List providers and check availability',
         'Discover packages and recommend specialists',
         'Book appointment and show business info',
+        'Find services under $50 and list providers',
+        'List providers and walk me through booking',
       ],
       sprint: 'platform',
     },

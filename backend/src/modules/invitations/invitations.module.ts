@@ -11,6 +11,7 @@ import {
 } from './invitations.controller.js';
 import { BusinessModule } from '../business/business.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     ]),
     BusinessModule,
     NotificationsModule,
+    AuthModule,
   ],
   controllers: [InvitationsController, PublicInvitationsController],
   providers: [InvitationsService],

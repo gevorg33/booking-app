@@ -189,4 +189,119 @@ describe('ReviewsService', () => {
       });
     });
   });
+
+  describe('e2e-bug.118 — submitPublic() shares the same token/status guard as getPublicContext()', () => {
+    beforeEach(() => {
+      businessRepo.findOne.mockResolvedValue({ id: 'biz-1', slug: 'salon' });
+    });
+
+    const bookingId = '22222222-2222-4222-8222-222222222222';
+
+    it('wrong token on submitPublic() returns generic invalid-link, not status', async () => {
+      bookingRepo.findOne.mockResolvedValue({
+        id: bookingId,
+        businessId: 'biz-1',
+        status: BookingStatus.CONFIRMED,
+        metadata: { reviewToken: 'real-token' },
+      });
+
+      await expect(
+        service.submitPublic('salon', {
+          bookingId,
+          token: 'wrong-token',
+          rating: 5,
+        } as any),
+      ).rejects.toThrow('Invalid or expired review link');
+    });
+
+    it('rejects submitPublic() for a non-completed booking, correct token', async () => {
+      bookingRepo.findOne.mockResolvedValue({
+        id: bookingId,
+        businessId: 'biz-1',
+        status: BookingStatus.CONFIRMED,
+        metadata: { reviewToken: 'real-token' },
+      });
+
+      await expect(
+        service.submitPublic('salon', {
+          bookingId,
+          token: 'real-token',
+          rating: 5,
+        } as any),
+      ).rejects.toThrow(
+        'Reviews are available after your appointment is completed',
+      );
+      expect(reviewRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects submitPublic() when the booking metadata already has a submitted review', async () => {
+      bookingRepo.findOne.mockResolvedValue({
+        id: bookingId,
+        businessId: 'biz-1',
+        status: BookingStatus.COMPLETED,
+        metadata: {
+          reviewToken: 'real-token',
+          reviewSubmittedAt: '2026-07-01T00:00:00.000Z',
+        },
+      });
+
+      await expect(
+        service.submitPublic('salon', {
+          bookingId,
+          token: 'real-token',
+          rating: 5,
+        } as any),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(reviewRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects submitPublic() when a Review row already exists for the booking', async () => {
+      bookingRepo.findOne.mockResolvedValue({
+        id: bookingId,
+        businessId: 'biz-1',
+        status: BookingStatus.COMPLETED,
+        metadata: { reviewToken: 'real-token' },
+      });
+      reviewRepo.findOne.mockResolvedValue({ id: 'existing-review' });
+
+      await expect(
+        service.submitPublic('salon', {
+          bookingId,
+          token: 'real-token',
+          rating: 5,
+        } as any),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('accepts submitPublic() on a completed booking, correct token, no prior review', async () => {
+      const booking = {
+        id: bookingId,
+        businessId: 'biz-1',
+        employeeId: 'emp-1',
+        customerId: 'cust-1',
+        status: BookingStatus.COMPLETED,
+        metadata: { reviewToken: 'real-token' },
+        customer: { name: 'Pat' },
+      };
+      bookingRepo.findOne.mockResolvedValue(booking);
+      reviewRepo.findOne.mockResolvedValue(null);
+
+      const review = await service.submitPublic('salon', {
+        bookingId,
+        token: 'real-token',
+        rating: 5,
+        comment: 'Loved it',
+      } as any);
+
+      expect(review.id).toBe('rev-1');
+      expect(bookingRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            reviewToken: 'real-token',
+            reviewSubmittedAt: expect.any(String),
+          }),
+        }),
+      );
+    });
+  });
 });

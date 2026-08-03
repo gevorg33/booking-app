@@ -23,6 +23,9 @@ import {
 } from '../lib/phone-format';
 import { useI18n } from '../i18n';
 import { buildProviderInviteGuideEntryPath } from '../lib/provider-guide-entry.util';
+import { useAuthStore } from '../services/auth-store';
+import { canAccessProviderApp } from '../lib/provider-access';
+import { finishProviderSession, unwrapAuthResult } from '../lib/auth-session';
 
 interface InviteInfo {
   email: string;
@@ -38,6 +41,7 @@ export default function AcceptInvitePage() {
   const { t } = useI18n();
   const history = useHistory();
   const location = useLocation();
+  const setAuth = useAuthStore((s) => s.setAuth);
   const token = new URLSearchParams(location.search).get('token') ?? '';
 
   const [invite, setInvite] = useState<InviteInfo | null>(null);
@@ -92,14 +96,25 @@ export default function AcceptInvitePage() {
     }
 
     try {
-      await api.post(`/invitations/${token}/accept`, {
+      const { data } = await api.post(`/invitations/${token}/accept`, {
         firstName: form.firstName,
         lastName: form.lastName,
         password: form.password || undefined,
         phone,
       });
+      // e2e-bug.172 — establish the new employee's own session directly
+      // instead of redirecting to /login, where a session already active
+      // on this device (shared kiosk, second tab) would silently win.
+      const result = unwrapAuthResult(data);
+      const ok = finishProviderSession(result, {
+        canAccess: canAccessProviderApp,
+        setAuth,
+        onAccessDenied: () => setSubmitError(t('provider.accessDenied')),
+        onMissingSession: () => setSubmitError(t('provider.inviteSetupFailed')),
+      });
+      if (!ok) return;
       setSuccess(true);
-      setTimeout(() => history.replace('/login'), 2000);
+      history.replace('/tabs/today');
     } catch (err: unknown) {
       const ax = err as { response?: { data?: { message?: string } } };
       setSubmitError(ax.response?.data?.message || t('provider.inviteSetupFailed'));

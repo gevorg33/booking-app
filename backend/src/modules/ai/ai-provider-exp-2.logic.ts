@@ -158,6 +158,7 @@ export async function handleMyStatsLogic(
   userId: string,
   params: Record<string, unknown>,
   prompt?: string,
+  context?: Record<string, unknown>,
 ): Promise<CommandResult> {
   const period = inferMyStatsPeriodFromPrompt(prompt ?? '', params);
   const scope = inferMyStatsScopeFromPrompt(prompt ?? '', params);
@@ -168,10 +169,14 @@ export async function handleMyStatsLogic(
   });
   const business = await deps.businessService.findOne(businessId);
   const settings = (business?.settings ?? {}) as Record<string, unknown>;
+  const locale =
+    typeof context?.locale === 'string' ? context.locale : undefined;
 
-  return success('my_stats', formatProviderMyStatsSummary(stats, settings), {
-    ...stats,
-  });
+  return success(
+    'my_stats',
+    formatProviderMyStatsSummary(stats, settings, locale, prompt),
+    { ...stats },
+  );
 }
 
 function reviewsInboxDateRange(
@@ -822,7 +827,7 @@ export async function dispatchProviderExp2Intent(
 ): Promise<CommandResult | null> {
   switch (action) {
     case 'my_stats':
-      return handleMyStatsLogic(deps, businessId, userId, params, prompt);
+      return handleMyStatsLogic(deps, businessId, userId, params, prompt, context);
     case 'team_floor_status':
       return handleTeamFloorStatusLogic(deps, businessId, userId);
     case 'list_team_unpaid_today':

@@ -49,6 +49,9 @@ export const SHARED_BOOKING_CONTEXT_KEYS = [
   'maxPrice',
   'serviceRank',
   'serviceId',
+  // e2e-bug.229 — preserve selected checkout slot across compound / session merges.
+  'employeeId',
+  'startTime',
   'paxCount',
   'availabilityWindows',
   'chosenAvailabilityWindow',

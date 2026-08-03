@@ -13,7 +13,9 @@ export const E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS = [
     id: 'e2e101-most-expensive-styling-service',
     prompt: 'Which is your most expensive styling service?',
     expectedRank: 'highest_price' as const,
-    expectedCategory: 'styling',
+    // e2e-bug.101 — "styling" now aliases to "haircut" (like cut/cuts/trim)
+    // so it actually matches a catalog that only lists "hairstyle".
+    expectedCategory: 'haircut',
   },
   {
     id: 'e2e101-most-premium-facial',

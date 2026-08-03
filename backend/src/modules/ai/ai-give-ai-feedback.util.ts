@@ -8,13 +8,15 @@ import type {
 import { isExplainVoiceInputPrompt } from './ai-explain-voice-input.util.js';
 import { isSpeakAssistantReplyPrompt } from './ai-speak-assistant-reply.util.js';
 import { resolveLastAssistantReply } from './ai-speak-assistant-reply.util.js';
+import { resolveLocale, t } from '../../common/i18n/messages.js';
+import type { AppLocale } from '../../common/i18n/messages.js';
 
 export { CUSTOMER_PUBLIC_GIVE_AI_FEEDBACK_CLASSIFIER_RULES };
 
-/** Matches consumer/public `feedbackUp`. */
+/** Matches consumer/public `feedbackUp` (EN default; prefer localized helpers). */
 export const FEEDBACK_UP_LABEL = 'Helpful';
 
-/** Matches consumer/public `feedbackDown`. */
+/** Matches consumer/public `feedbackDown` (EN default; prefer localized helpers). */
 export const FEEDBACK_DOWN_LABEL = 'Not helpful';
 
 export const FEEDBACK_THANKS = 'Thanks — this helps improve the assistant.';
@@ -37,19 +39,110 @@ export const ASSISTANT_FEEDBACK_REASON_OPTIONS = [
   },
 ] as const;
 
+/** e2e-bug.299 — localized chip/summary copy for give_ai_feedback. */
+export function resolveGiveAiFeedbackLocale(
+  localeOrParams?: string | Record<string, unknown>,
+): AppLocale {
+  if (typeof localeOrParams === 'string') {
+    return resolveLocale(localeOrParams);
+  }
+  if (localeOrParams && typeof localeOrParams === 'object') {
+    const fromParams =
+      typeof localeOrParams.locale === 'string'
+        ? localeOrParams.locale
+        : undefined;
+    return resolveLocale(fromParams);
+  }
+  return resolveLocale(undefined);
+}
+
+export function localizedFeedbackUpLabel(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.feedbackUpLabel');
+}
+
+export function localizedFeedbackDownLabel(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.feedbackDownLabel');
+}
+
+export function localizedFeedbackThanks(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.feedbackThanks');
+}
+
+export function localizedFeedbackReasonOptions(locale?: string): Array<{
+  id: string;
+  label: string;
+}> {
+  const loc = resolveLocale(locale);
+  return [
+    { id: 'wrong_action', label: t(loc, 'assistant.feedbackReasonWrongAction') },
+    { id: 'wrong_date', label: t(loc, 'assistant.feedbackReasonWrongDate') },
+    {
+      id: 'wrong_person',
+      label: t(loc, 'assistant.feedbackReasonWrongPerson'),
+    },
+    {
+      id: 'wrong_service',
+      label: t(loc, 'assistant.feedbackReasonWrongService'),
+    },
+    {
+      id: 'did_not_understand',
+      label: t(loc, 'assistant.feedbackReasonDidNotUnderstand'),
+    },
+  ];
+}
+
+export function localizedFeedbackReasonSkipLabel(locale?: string): string {
+  return t(resolveLocale(locale), 'assistant.feedbackReasonSkip');
+}
+
 export const GIVE_AI_FEEDBACK_INTENTS = ['give_ai_feedback'] as const;
 
 export type GiveAiFeedbackIntent = (typeof GIVE_AI_FEEDBACK_INTENTS)[number];
 
+// e2e-bug.265 — bare `helpful` must not match inside "Not helpful"
+// (same hardening as provider e2e-bug.243).
+// e2e-bug.293 — UI chip labels "Thumbs up" / "Thumbs down" (+ emoji).
 const POSITIVE_CUE = new RegExp(
-  String.raw`\b(that\s+was\s+helpful|helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped)\b|օգտակար\s+եր|полезно|спасибо.{0,12}помог`,
+  // e2e-bug.341 — the Armenian alternative must use Է (Eh, U+0537), not the
+  // visually-similar Ե (Yech, U+0565); "էր" is the real word for "was", so
+  // the typo'd "եր" never matched any real occurrence of "օգտակար էր".
+  String.raw`\b(that\s+was\s+helpful|(?<!\bnot\s)helpful|good\s+answer|great\s+answer|correct\s+answer|that\s+worked|thanks\s+that\s+helped|thumbs?\s*-?\s*up)\b|👍|օգտակար\s+էր|(?<!\bне\s)полезно|спасибо.{0,12}помог`,
   'iu',
 );
 
+// e2e-bug.324 — Armenian native "not helpful" ("օգտակար չէ" / past "օգտակար
+// չէր") must rescue the same as "սխալ էր"; the POSITIVE_CUE "օգտակար եր"
+// alternative doesn't overlap since it requires "եր" directly after
+// "օգտակար", not "չէ(ր)".
 const NEGATIVE_CUE = new RegExp(
-  String.raw`\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect)\b|սխալ|не\s+полез|неправильн|неверно`,
+  String.raw`\b(that\s+was\s+wrong|wrong|incorrect|not\s+helpful|bad\s+answer|mistake|that\s+is\s+wrong|answer\s+was\s+incorrect|thumbs?\s*-?\s*down)\b|👎|սխալ|օգտակար\s+չէ(?:ր)?|ոչ\s+օգտակար|не\s+полез|неправильн|неверно`,
   'iu',
 );
+
+/**
+ * e2e-bug.300 — shorthand vote "+1" / "-1". Whole-prompt only so booking math
+ * ("party of +1", "1+1", "+10 guests") is not stolen.
+ * e2e-bug.326 — allow a short "thanks"/"thx"/"ty" wrapper on either side
+ * (`"+1 thanks"`, `"thanks +1"`) and the fullwidth `＋1`/`－1` variants,
+ * while staying whole-prompt-anchored so booking math is still excluded.
+ */
+const VOTE_WRAPPER = String.raw`(?:thanks?|thx|ty)`;
+const PLUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:\+\s*1|＋\s*1|plus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
+const MINUS_ONE_FEEDBACK_PROMPT = new RegExp(
+  String.raw`^(?:${VOTE_WRAPPER}[\s,!.]*)?(?:-\s*1|－\s*1|minus\s*(?:one|1))(?:[\s,!.]*${VOTE_WRAPPER})?[\s!.]*$`,
+  'iu',
+);
+
+export function isPlusOneFeedbackPrompt(prompt: string): boolean {
+  return PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim());
+}
+
+export function isMinusOneFeedbackPrompt(prompt: string): boolean {
+  return MINUS_ONE_FEEDBACK_PROMPT.test(prompt.trim());
+}
 
 const WRONG_DATE_CUE = new RegExp(
   String.raw`\bwrong\s+date|wrong\s+day|picked\s+the\s+wrong\s+date\b|սխալ\s+ամսաթիվ|неверная\s+дата|не\s+та\s+дата`,
@@ -121,8 +214,17 @@ export function parseGiveAiFeedbackRating(
 ): GiveAiFeedbackRating | undefined {
   const fromParams = readString(params.feedbackRating);
   if (fromParams === 'up' || fromParams === 'down') return fromParams;
-  if (POSITIVE_CUE.test(prompt)) return 'up';
-  if (reason || NEGATIVE_CUE.test(prompt)) return 'down';
+  // Negatives first — bare "helpful" must not steal "Not helpful" (e2e-bug.265)
+  // e2e-bug.300 — anchored -1 before +1.
+  if (
+    reason ||
+    isMinusOneFeedbackPrompt(prompt) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'down';
+  }
+  if (isPlusOneFeedbackPrompt(prompt) || POSITIVE_CUE.test(prompt)) return 'up';
   return undefined;
 }
 
@@ -150,8 +252,16 @@ export function parseGiveAiFeedbackAspect(
   if (reason) return 'reason_given';
   if (rating === 'up') return 'positive';
   if (rating === 'down') return 'negative';
-  if (POSITIVE_CUE.test(prompt)) return 'positive';
-  if (NEGATIVE_CUE.test(prompt)) return 'negative';
+  if (
+    isMinusOneFeedbackPrompt(prompt) ||
+    NEGATIVE_CUE.test(prompt) ||
+    /\bnot\s+helpful\b/i.test(prompt)
+  ) {
+    return 'negative';
+  }
+  if (isPlusOneFeedbackPrompt(prompt) || POSITIVE_CUE.test(prompt)) {
+    return 'positive';
+  }
   return 'generic';
 }
 
@@ -180,6 +290,13 @@ export function isGiveAiFeedbackPrompt(prompt: string): boolean {
   if (/^bad\s+answer\b/i.test(text)) return true;
   if (/^that\s+was\s+helpful\b/i.test(text)) return true;
   if (/^good\s+answer\b/i.test(text)) return true;
+  // e2e-bug.293 — chip-label synonyms (also covered by POSITIVE/NEGATIVE_CUE).
+  if (/^thumbs?\s*-?\s*up\b/i.test(text) || text === '👍') return true;
+  if (/^thumbs?\s*-?\s*down\b/i.test(text) || text === '👎') return true;
+  // e2e-bug.300 — shorthand +1 / -1 (whole prompt only).
+  if (isPlusOneFeedbackPrompt(text) || isMinusOneFeedbackPrompt(text)) {
+    return true;
+  }
   if (/^you\s+picked\s+the\s+wrong\s+stylist\b/i.test(text)) return true;
   if (/\bbooking\s+answer\s+was\s+incorrect\b/i.test(text)) return true;
 
@@ -228,13 +345,15 @@ export function buildGiveAiFeedbackSummary(
   rating: GiveAiFeedbackRating | undefined,
   reason?: GiveAiFeedbackReason,
   needsReasonChips = false,
+  locale?: string,
 ): string {
-  if (rating === 'up') return FEEDBACK_THANKS;
-  if (reason) return FEEDBACK_THANKS;
+  const loc = resolveLocale(locale);
+  if (rating === 'up') return t(loc, 'assistant.feedbackThanks');
+  if (reason) return t(loc, 'assistant.feedbackThanks');
   if (needsReasonChips) {
-    return `${FEEDBACK_DOWN_LABEL} — choose a reason so we can improve the assistant.`;
+    return t(loc, 'assistant.feedbackDownChooseReason');
   }
-  return FEEDBACK_THANKS;
+  return t(loc, 'assistant.feedbackThanks');
 }
 
 export function resolveGiveAiFeedbackClientAction(
@@ -253,6 +372,7 @@ export function buildGiveAiFeedbackDetails(
     rating?: GiveAiFeedbackRating;
     reason?: GiveAiFeedbackReason;
   },
+  locale?: string,
 ): Record<string, unknown> {
   const rating = parsed.rating;
   const reason = parsed.reason;
@@ -260,18 +380,17 @@ export function buildGiveAiFeedbackDetails(
   const clientAction = resolveGiveAiFeedbackClientAction(rating, reason);
   const lastAssistantReply = resolveLastAssistantReply(params);
   const lastAction = readString(params.lastAction);
+  const loc = resolveGiveAiFeedbackLocale(locale ?? params);
 
   return {
     aspect: parsed.aspect,
     ...(rating ? { feedbackRating: rating } : {}),
     ...(reason ? { feedbackReason: reason } : {}),
-    feedbackUpLabel: FEEDBACK_UP_LABEL,
-    feedbackDownLabel: FEEDBACK_DOWN_LABEL,
-    feedbackThanks: FEEDBACK_THANKS,
-    feedbackReasonSkipLabel: FEEDBACK_REASON_SKIP,
-    feedbackReasonOptions: ASSISTANT_FEEDBACK_REASON_OPTIONS.map((option) => ({
-      ...option,
-    })),
+    feedbackUpLabel: localizedFeedbackUpLabel(loc),
+    feedbackDownLabel: localizedFeedbackDownLabel(loc),
+    feedbackThanks: localizedFeedbackThanks(loc),
+    feedbackReasonSkipLabel: localizedFeedbackReasonSkipLabel(loc),
+    feedbackReasonOptions: localizedFeedbackReasonOptions(loc),
     ...(needsReasonChips ? { showReasonChips: true } : {}),
     clientAction,
     assistantFeedback: true,

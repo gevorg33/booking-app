@@ -1,5 +1,9 @@
-import { Repository } from 'typeorm';
-import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
+import { Between, Repository } from 'typeorm';
+import {
+  Booking,
+  BookingStatus,
+  PaymentStatus,
+} from '../booking/entities/booking.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Product } from '../inventory/entities/inventory.entity.js';
 import { Service } from '../service/entities/service.entity.js';
@@ -13,7 +17,10 @@ import type { CommissionsService } from '../commissions/commissions.service.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { CommandResult } from './command-completion.types.js';
-import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
+import {
+  extractDateRangeFromPrompt,
+  resolveDateRange as resolveFullDateRange,
+} from './ai-orchestration.helpers.js';
 import {
   decomposeRetailFinanceCompoundPrompt,
   extractBookingIdFromPrompt,
@@ -1014,6 +1021,82 @@ export async function handleCommissionReportLogic(
     return failure(
       'commission_report',
       err?.message ?? 'Could not build commission report.',
+    );
+  }
+}
+
+/**
+ * e2e-bug.167 — dashboard report for refunds issued. No dedicated
+ * refund-amount or refunded-at field exists on Booking (see
+ * BookingRefundService — only `metadata.stripeRefundId` + `paymentStatus`
+ * are written), so this is a best-effort thin wrapper: `updatedAt` stands in
+ * for "when refunded" (imprecise if the booking was touched again after),
+ * and the refund amount falls back through `metadata.pricing.amountDue` →
+ * `metadata.amountPaid` → the service's list price. Scoped to booking
+ * refunds only for v1 — subscription/package refunds (metadata.stripeRefundId
+ * on CustomerSubscription/PackagePurchase) are not yet included.
+ */
+export async function handleListRefundsLogic(
+  deps: RetailFinanceLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+): Promise<CommandResult> {
+  const range = resolveFullDateRange(
+    { _timeZone: params._timeZone as string | undefined },
+    prompt ?? (params._prompt as string) ?? '',
+  );
+  const start = range ? new Date(`${range.start}T00:00:00.000Z`) : new Date(0);
+  const end = range ? new Date(`${range.end}T23:59:59.999Z`) : new Date();
+
+  try {
+    const bookings = await deps.bookingRepo.find({
+      where: {
+        businessId,
+        paymentStatus: PaymentStatus.REFUNDED,
+        updatedAt: Between(start, end),
+      },
+      relations: { customer: true, service: true },
+      order: { updatedAt: 'DESC' },
+      take: 100,
+    });
+
+    const refunds = bookings.map((b) => {
+      const metadata = (b.metadata ?? {}) as Record<string, any>;
+      const amount = Number(
+        metadata.pricing?.amountDue ??
+          metadata.amountPaid ??
+          b.service?.price ??
+          0,
+      );
+      return {
+        bookingId: b.id,
+        customerName: b.customer?.name,
+        serviceName: b.service?.name,
+        amount,
+        stripeRefundId: metadata.stripeRefundId as string | undefined,
+        refundedAround: b.updatedAt,
+      };
+    });
+    const totalRefunded = refunds.reduce((sum, r) => sum + r.amount, 0);
+
+    return success(
+      'list_refunds',
+      refunds.length
+        ? `${refunds.length} refund(s) — $${totalRefunded.toFixed(2)} total.`
+        : 'No refunds in this window.',
+      {
+        count: refunds.length,
+        totalRefunded,
+        from: range?.start,
+        to: range?.end,
+        refunds,
+      },
+    );
+  } catch (err: any) {
+    return failure(
+      'list_refunds',
+      err?.message ?? 'Could not build the refund report.',
     );
   }
 }

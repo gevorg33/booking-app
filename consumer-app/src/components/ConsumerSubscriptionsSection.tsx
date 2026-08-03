@@ -1,4 +1,4 @@
-import { IonButton, IonIcon, IonSpinner } from '@ionic/react';
+import { IonIcon, IonSpinner } from '@ionic/react';
 import { chevronDownOutline, chevronUpOutline } from 'ionicons/icons';
 import { useEffect, useRef, useState } from 'react';
 import { useHistory } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { formatDateDisplay } from '../lib/date-format.js';
 import { formatSubscriptionUsageLine } from '../lib/subscription-account.util.js';
 import type { PublicCustomerSubscription } from '../lib/types.js';
 import { cancelCustomerSubscription, fetchMySubscriptionUsage } from '../services/public-api.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 
 export function ConsumerSubscriptionsSection({
   slug,
@@ -34,6 +35,7 @@ export function ConsumerSubscriptionsSection({
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelErrorId, setCancelErrorId] = useState<string | null>(null);
   const [cancelNoticeId, setCancelNoticeId] = useState<string | null>(null);
+  const [cancelNoticeText, setCancelNoticeText] = useState<string | null>(null);
   const didAutoExpandRef = useRef(false);
 
   async function handleCancel(sub: PublicCustomerSubscription) {
@@ -41,10 +43,23 @@ export function ConsumerSubscriptionsSection({
     setCancellingId(sub.id);
     setCancelErrorId(null);
     setCancelNoticeId(null);
+    setCancelNoticeText(null);
     try {
       const result = await cancelCustomerSubscription(slug, sub.id);
+      // e2e-bug.187 — refundStatus was fetched from the backend but only
+      // ever checked for 'refunded'; 'ineligible' (already-used-a-visit,
+      // permanent even after a later credit restore) and 'failed' were
+      // silently swallowed, so a customer whose refund didn't happen saw
+      // no explanation at all.
       if (result.refundStatus === 'refunded') {
         setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelRefunded);
+      } else if (result.refundStatus === 'failed') {
+        setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelRefundFailed);
+      } else if (result.refundStatus === 'ineligible') {
+        setCancelNoticeId(sub.id);
+        setCancelNoticeText(copy.subscriptionsCancelIneligible);
       }
       onCancelled?.();
     } catch (err: unknown) {
@@ -132,22 +147,22 @@ export function ConsumerSubscriptionsSection({
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
               {sub.status === 'active' && sub.appointmentsRemaining > 0 && serviceId ? (
-                <IonButton
+                <ConsumerActionButton
                   fill="clear"
                   size="small"
-                  style={{ '--color': primary, margin: 0, height: 32 }}
+                  color={primary}
                   onClick={() =>
                     history.push(buildSalonPath(slug, `/book/${serviceId}`))
                   }
                 >
                   {copy.subscriptionsBookNext}
-                </IonButton>
+                </ConsumerActionButton>
               ) : null}
-              <IonButton
+              <ConsumerActionButton
                 fill="clear"
                 size="small"
                 color="medium"
-                style={{ margin: 0, height: 32 }}
+                aria-expanded={expanded}
                 onClick={() => void toggleUsage(sub)}
               >
                 {copy.subscriptionsUsageHistory}
@@ -155,18 +170,17 @@ export function ConsumerSubscriptionsSection({
                   slot="end"
                   icon={expanded ? chevronUpOutline : chevronDownOutline}
                 />
-              </IonButton>
+              </ConsumerActionButton>
               {isUnused ? (
-                <IonButton
+                <ConsumerActionButton
                   fill="outline"
                   size="small"
                   color="danger"
-                  style={{ margin: 0, height: 32 }}
                   disabled={cancellingId === sub.id}
                   onClick={() => void handleCancel(sub)}
                 >
                   {cancellingId === sub.id ? copy.submitting : copy.subscriptionsCancel}
-                </IonButton>
+                </ConsumerActionButton>
               ) : null}
             </div>
 
@@ -175,9 +189,15 @@ export function ConsumerSubscriptionsSection({
                 {copy.subscriptionsCancelFailed}
               </p>
             ) : null}
-            {cancelNoticeId === sub.id ? (
-              <p style={{ color: '#2563eb', fontSize: '0.875rem', margin: '8px 0 0' }}>
-                {copy.subscriptionsCancelRefunded}
+            {cancelNoticeId === sub.id && cancelNoticeText ? (
+              <p
+                style={{
+                  color: cancelNoticeText === copy.subscriptionsCancelRefundFailed ? '#dc2626' : '#2563eb',
+                  fontSize: '0.875rem',
+                  margin: '8px 0 0',
+                }}
+              >
+                {cancelNoticeText}
               </p>
             ) : null}
 

@@ -791,6 +791,33 @@ describe('customer-ai-command.logic', () => {
     );
   });
 
+  it('e2e-bug.229: pay_online keeps checkout serviceId when prompt names service', async () => {
+    const deps = buildDeps();
+    await dispatchCustomerIntent(
+      deps,
+      'biz-1',
+      'pay_online',
+      { serviceName: 'Swedish massage booking' },
+      {
+        ...session,
+        serviceId: 'svc-swedish',
+        employeeId: 'emp-anna',
+        startTime: '2026-07-30T14:00:00.000Z',
+        prompt: 'pay online for my Swedish massage booking',
+      },
+    );
+    expect(deps.calls['s30.pay_online']).toHaveBeenCalledWith(
+      'biz-1',
+      expect.objectContaining({
+        serviceId: 'svc-swedish',
+        employeeId: 'emp-anna',
+        startTime: '2026-07-30T14:00:00.000Z',
+        serviceName: 'Swedish massage booking',
+      }),
+      'pay online for my Swedish massage booking',
+    );
+  });
+
   it('passes prompt to reschedule_my_booking handler', async () => {
     const deps = buildDeps();
     await dispatchCustomerIntent(

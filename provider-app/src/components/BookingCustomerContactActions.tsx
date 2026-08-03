@@ -1,4 +1,6 @@
-import { IonButton, useIonActionSheet } from '@ionic/react';
+import type { CSSProperties } from 'react';
+import { IonButton, IonIcon, useIonActionSheet } from '@ionic/react';
+import { callOutline, chatbubbleOutline, logoWhatsapp } from 'ionicons/icons';
 import {
   buildCustomerSmsLink,
   buildCustomerSmsLinkWithBody,
@@ -111,28 +113,52 @@ export default function BookingCustomerContactActions({
         {callEnabled ? (
           <IonButton
             expand="block"
-            fill="outline"
+            fill="clear"
+            color="tertiary"
+            aria-label={t('provider.customerContactCall')}
+            title={t('provider.customerContactCall')}
             onClick={() => handleContact('call')}
           >
-            {t('provider.customerContactCall')}
+            <IonIcon
+              icon={callOutline}
+              slot="icon-only"
+              aria-hidden="true"
+              style={{ fontSize: '28px' }}
+            />
           </IonButton>
         ) : null}
         {smsEnabled ? (
           <IonButton
             expand="block"
-            fill="outline"
+            fill="clear"
+            color="primary"
+            aria-label={t('provider.customerContactSms')}
+            title={t('provider.customerContactSms')}
             onClick={() => handleContact('sms')}
           >
-            {t('provider.customerContactSms')}
+            <IonIcon
+              icon={chatbubbleOutline}
+              slot="icon-only"
+              aria-hidden="true"
+              style={{ fontSize: '28px' }}
+            />
           </IonButton>
         ) : null}
         {whatsappEnabled ? (
           <IonButton
             expand="block"
-            fill="outline"
+            fill="clear"
+            style={{ '--color': '#25D366' } as CSSProperties}
+            aria-label={t('provider.customerContactWhatsApp')}
+            title={t('provider.customerContactWhatsApp')}
             onClick={() => handleContact('whatsapp')}
           >
-            {t('provider.customerContactWhatsApp')}
+            <IonIcon
+              icon={logoWhatsapp}
+              slot="icon-only"
+              aria-hidden="true"
+              style={{ fontSize: '28px' }}
+            />
           </IonButton>
         ) : null}
       </div>

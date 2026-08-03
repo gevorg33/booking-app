@@ -164,6 +164,40 @@ describe('ai-clinic-lab-booking.logic', () => {
     );
   });
 
+  it('e2e-bug.202 — fails when named panel matches no pending request', async () => {
+    const deps = buildDeps();
+    const result = await handleBookLabCollectionLogic(
+      deps,
+      'biz-1',
+      {
+        sessionCustomerId: 'cust-1',
+        bookingFirstAvailable: true,
+        testName: 'unicorn-panel-xyzzy',
+      },
+      'Book lab draw earliest slot for unicorn-panel-xyzzy',
+    );
+    expect(result.success).toBe(false);
+    expect(result.action).toBe('book_lab_collection');
+    expect(String(result.summary)).toMatch(/couldn't find.*unicorn-panel-xyzzy/i);
+    expect(result.details?.requestedTestName).toBe('unicorn-panel-xyzzy');
+  });
+
+  it('e2e-bug.202 — named CBC still resolves pending request', async () => {
+    const deps = buildDeps();
+    const result = await handleBookLabCollectionLogic(
+      deps,
+      'biz-1',
+      {
+        sessionCustomerId: 'cust-1',
+        bookingFirstAvailable: true,
+        testName: 'CBC',
+      },
+      'Book lab draw earliest slot for CBC',
+    );
+    expect(result.success).toBe(true);
+    expect(result.details?.bookUrl).toContain('bookingFirstAvailable=1');
+  });
+
   it('lists pending requests for nearest compound step one', async () => {
     const deps = buildDeps();
     const result = await handleListMyLabBookingRequestsLogic(

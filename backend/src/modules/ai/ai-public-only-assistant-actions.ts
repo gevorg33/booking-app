@@ -26,3 +26,9 @@ export const PUBLIC_ONLY_ASSISTANT_ACTIONS = [
 
 export type PublicOnlyAssistantAction =
   (typeof PUBLIC_ONLY_ASSISTANT_ACTIONS)[number];
+
+export function isPublicOnlyAssistantAction(
+  action: string,
+): action is PublicOnlyAssistantAction {
+  return (PUBLIC_ONLY_ASSISTANT_ACTIONS as readonly string[]).includes(action);
+}

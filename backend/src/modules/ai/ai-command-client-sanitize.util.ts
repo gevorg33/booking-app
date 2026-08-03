@@ -23,9 +23,14 @@ export const INTERNAL_COMMAND_DETAIL_KEYS = [
   'reactFallback',
   'understandTrace',
   'parsed',
+  'reasoning',
+  'pipelineStage',
   '_availableEmployees',
   '_availableServices',
 ] as const;
+
+/** Param-bag detail fields that mix real business params with internal `_`-prefixed hints. */
+const PARAM_BAG_DETAIL_KEYS = new Set(['params', 'partialParams', 'enrichedParams']);
 
 const INTERNAL_DETAIL_KEY_SET = new Set<string>(INTERNAL_COMMAND_DETAIL_KEYS);
 
@@ -72,12 +77,12 @@ export function sanitizeCommandDetailsForClient(
       continue;
     }
     if (
-      key === 'params' &&
+      PARAM_BAG_DETAIL_KEYS.has(key) &&
       value &&
       typeof value === 'object' &&
       !Array.isArray(value)
     ) {
-      next.params = stripUnderscoreKeys(value as Record<string, unknown>);
+      next[key] = stripUnderscoreKeys(value as Record<string, unknown>);
       continue;
     }
     next[key] = value;

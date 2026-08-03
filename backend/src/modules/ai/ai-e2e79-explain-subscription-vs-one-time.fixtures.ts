@@ -1,6 +1,8 @@
 /**
  * e2e-bug.79 — explain_subscription_vs_one_time was unreachable via the three
  * live customer phrasings (calendar / compare_services / usage_history steals).
+ * e2e-bug.230 extended stealer list with confirm_my_booking_details +
+ * choose_payment_method.
  */
 export const E2E79_LIVE_SCENARIOS = [
   {
@@ -11,6 +13,8 @@ export const E2E79_LIVE_SCENARIOS = [
       'add_booking_to_calendar',
       'compare_services',
       'subscription_usage_history',
+      'confirm_my_booking_details',
+      'choose_payment_method',
       'unknown',
     ] as const,
   },
@@ -23,6 +27,8 @@ export const E2E79_LIVE_SCENARIOS = [
       'compare_services',
       'add_booking_to_calendar',
       'subscription_usage_history',
+      'confirm_my_booking_details',
+      'choose_payment_method',
       'unknown',
     ] as const,
   },
@@ -35,6 +41,8 @@ export const E2E79_LIVE_SCENARIOS = [
       'subscription_usage_history',
       'compare_services',
       'add_booking_to_calendar',
+      'confirm_my_booking_details',
+      'choose_payment_method',
       'unknown',
     ] as const,
   },

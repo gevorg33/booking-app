@@ -146,9 +146,8 @@ import {
   resolveProviderBookingFloorStatus,
 } from './provider-booking-check-in.util.js';
 import {
-  applyProviderVisitStatusToMetadata,
   buildProviderVisitStatusEligibility,
-  buildProviderVisitStatusSnapshot,
+  claimProviderVisitStatus,
   readProviderVisitStatus,
   type ProviderVisitStatusKind,
 } from './provider-booking-visit-status.util.js';
@@ -1322,11 +1321,23 @@ export class ProviderMobileService {
       take: 500,
     });
 
-    const byDay = new Map<string, { available: number; booked: number }>();
+    const byDay = new Map<
+      string,
+      { available: number; availableMinutes: number; booked: number }
+    >();
     for (const slot of slots) {
       const day = slot.startTime.toISOString().slice(0, 10);
-      const entry = byDay.get(day) ?? { available: 0, booked: 0 };
-      if (slot.status === 'available') entry.available += 1;
+      const entry = byDay.get(day) ?? {
+        available: 0,
+        availableMinutes: 0,
+        booked: 0,
+      };
+      if (slot.status === 'available') {
+        entry.available += 1;
+        entry.availableMinutes += Math.round(
+          (slot.endTime.getTime() - slot.startTime.getTime()) / 60_000,
+        );
+      }
       if (slot.status === 'booked') entry.booked += 1;
       byDay.set(day, entry);
     }
@@ -1700,42 +1711,42 @@ export class ProviderMobileService {
     kind: ProviderVisitStatusKind,
     minutesLate?: number,
   ) {
-    const booking = await this.getAccessibleBooking(
-      businessId,
-      userId,
-      bookingId,
-    );
-    const eligibility = buildProviderVisitStatusEligibility(booking);
-    if (!eligibility.allowed) {
-      throw new BadRequestException(
-        eligibility.reason ?? 'Visit status cannot be updated for this booking',
-      );
-    }
+    // Access check first (provider scope); claim serializes the write (e2e-bug.255).
+    await this.getAccessibleBooking(businessId, userId, bookingId);
 
-    const snapshot = buildProviderVisitStatusSnapshot({
+    const claimed = await claimProviderVisitStatus(this.bookingRepo, {
+      bookingId,
+      businessId,
       kind,
       minutesLate,
       markedByUserId: userId,
     });
-    booking.metadata = applyProviderVisitStatusToMetadata(
-      booking.metadata,
-      snapshot,
-    );
-    const saved = await this.bookingRepo.save(booking);
+    if (!claimed.ok) {
+      if (claimed.code === 'not_found') {
+        throw new NotFoundException(claimed.reason);
+      }
+      throw new BadRequestException(claimed.reason);
+    }
 
-    const business = await this.businessService.findOne(businessId);
-    const settings = (business?.settings ?? {}) as Record<string, unknown>;
+    const saved = claimed.booking;
+    const snapshot = claimed.snapshot;
     let notifications: { smsSent: boolean; pushSent: boolean } | null = null;
-    if (providerMobileNotifyCustomerOnVisitStatus(settings)) {
-      notifications =
-        await this.notificationsService.sendProviderVisitStatusToCustomer(
-          saved.id,
-          {
-            kind,
-            minutesLate: snapshot.minutesLate,
-            providerName: saved.employee?.name ?? 'Provider',
-          },
-        );
+
+    // Idempotent same-kind claim: do not re-notify (duplicate SMS/push TOCTOU).
+    if (!claimed.alreadySet) {
+      const business = await this.businessService.findOne(businessId);
+      const settings = (business?.settings ?? {}) as Record<string, unknown>;
+      if (providerMobileNotifyCustomerOnVisitStatus(settings)) {
+        notifications =
+          await this.notificationsService.sendProviderVisitStatusToCustomer(
+            saved.id,
+            {
+              kind,
+              minutesLate: snapshot.minutesLate,
+              providerName: saved.employee?.name ?? 'Provider',
+            },
+          );
+      }
     }
 
     return {

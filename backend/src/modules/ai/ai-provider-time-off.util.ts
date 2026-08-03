@@ -91,6 +91,13 @@ export function isCancelTimeOffRequestPrompt(prompt: string): boolean {
 export function isListMyTimeOffRequestsPrompt(prompt: string): boolean {
   if (isCancelTimeOffRequestPrompt(prompt)) return false;
   const normalized = prompt.toLowerCase();
+  // e2e-bug.247 — "who approves my time off?" is the FAQ explainer, not a status list.
+  if (
+    /\bwho\s+(?:approves|reviews)\b/i.test(normalized) ||
+    /\bpending\s+manager\s+approval\b/i.test(normalized)
+  ) {
+    return false;
+  }
   if (
     /my\s+time\s*off|did\s+my\s+(?:vacation|pto)|time\s*off\s+status|vacation\s+get\s+approved|pending\s+(?:pto|time\s*off)|my\s+(?:pending\s+)?(?:pto|time\s*off)\s+requests?/.test(
       normalized,

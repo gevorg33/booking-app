@@ -117,6 +117,13 @@ const ru: MessageTree = {
       sun: 'Вс',
     },
   },
+  timePicker: {
+    openPicker: 'Открыть выбор времени',
+    placeholder: 'Выберите время',
+    hourLabel: 'Час',
+    minuteLabel: 'Минута',
+    done: 'Готово',
+  },
   feedback: {
     creating: 'Сохранение…',
     updating: 'Сохранение…',
@@ -513,6 +520,7 @@ const ru: MessageTree = {
     giftCardCreationTab: 'Создание карты',
     giftCardDeliveryTab: 'Доставка',
     giftCardQueueEmpty: 'В этой очереди нет заказов.',
+    giftCardManagerOnly: 'Выполнение заказов на подарочные карты доступно только владельцам, администраторам и менеджерам бизнеса.',
     giftCardMarkReady: 'Карта готова',
     giftCardAcceptPickup: 'Принять самовывоз',
     giftCardMarkDelivered: 'Отметить доставленным',
@@ -2023,6 +2031,18 @@ const ru: MessageTree = {
     followUs: 'Мы в соцсетях',
     location: 'Местоположение',
     hours: 'Часы работы',
+    // e2e-bug.207 — home landing hours + category teaser
+    serviceCategories: 'Категории услуг',
+    seeProfile: 'Профиль',
+    homeLandingTeaserLabel: 'Часы работы и категории услуг',
+    // e2e-bug.208 — full catalog browse on /services
+    allServiceCategories: 'Все',
+    servicesCatalogTitle: 'Наши услуги',
+    servicesCatalogHint: 'Просмотрите полный каталог, затем выберите дату и время.',
+    // e2e-bug.209 — prepayment / deposit on service cards
+    serviceDepositBadge: 'Депозит {amount}',
+    servicePayOnlineBadge: 'Оплата онлайн',
+    servicePayOnlineAmountBadge: 'Оплата онлайн {amount}',
     selectProviderInfo: 'О специалисте',
     submitReviewWithGoogle: 'Отправить отзыв через Google',
     reviewGoogleHint: 'Войдите через Google, чтобы подтвердить визит перед публикацией.',
@@ -2289,6 +2309,12 @@ const ru: MessageTree = {
     bookingStatusCancelled: 'Отменена',
     bookingStatusConfirmed: 'Подтверждена',
     leaveReview: 'Оставить отзыв',
+    runningLate: 'Я опаздываю',
+    runningLateHint: 'Сообщите салону, на сколько минут вы опаздываете.',
+    runningLateMinutes: '{minutes} мин',
+    confirmRunningLate: 'Уведомить салон',
+    runningLateSuccess: 'Готово — мы сообщили салону, что вы опаздываете примерно на {minutes} мин.',
+    runningLateFailed: 'Не удалось уведомить салон',
     reviewSignedInHint: 'Отзыв будет привязан к вашему аккаунту.',
   },
   settings: {

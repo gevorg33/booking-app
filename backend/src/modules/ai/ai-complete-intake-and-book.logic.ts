@@ -5,6 +5,7 @@ import {
   buildCompleteIntakeAndBookNavigate,
   formatCompleteIntakeAndBookSummary,
   isCompleteIntakeAndBookCompoundPrompt,
+  isCompleteIntakeAndBookCorePrompt,
   parseCompleteIntakeAndBookFromPrompt,
   resolveIntakeBookLabService,
 } from './ai-complete-intake-and-book.util.js';
@@ -41,6 +42,14 @@ function resolveSessionCustomerId(
       : undefined;
 }
 
+/** Compound step seed from intake_lab_book_pay / complete_intake_and_book decompose. */
+function isSeededCompleteIntakeAndBookStep(
+  params: Record<string, unknown>,
+): boolean {
+  const value = params.completeIntakeAndBook;
+  return value === true || value === '1' || value === 1 || value === 'true';
+}
+
 export async function handleCompleteIntakeAndBookLogic(
   deps: ClinicBookingLogicDeps,
   businessId: string,
@@ -50,11 +59,18 @@ export async function handleCompleteIntakeAndBookLogic(
   const textPrompt = prompt || String(params._prompt ?? '');
 
   if (textPrompt && !isCompleteIntakeAndBookCompoundPrompt(textPrompt)) {
-    return failure(
-      'complete_intake_and_book',
-      'Ask to fill the pre-visit intake and book a lab test (e.g. "Fill intake and book blood draw").',
-      { clarify: true },
-    );
+    // e2e-bug.201 — intake_lab_book_pay intentionally fails
+    // isCompleteIntakeAndBookCompoundPrompt when a payment cue is present so the
+    // prompt routes to that compound. Step 1 still runs this handler with
+    // completeIntakeAndBook seeded — accept core intake+lab book prompts.
+    const seeded = isSeededCompleteIntakeAndBookStep(params);
+    if (!(seeded && isCompleteIntakeAndBookCorePrompt(textPrompt))) {
+      return failure(
+        'complete_intake_and_book',
+        'Ask to fill the pre-visit intake and book a lab test (e.g. "Fill intake and book blood draw").',
+        { clarify: true },
+      );
+    }
   }
 
   const customerId = resolveSessionCustomerId(params);

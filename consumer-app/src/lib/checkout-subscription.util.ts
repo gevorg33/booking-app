@@ -64,11 +64,7 @@ export function requiresCheckoutOnlinePayment(input: {
   if (input.amountDue <= 0) return false;
   if (input.paymentMethod === 'cash') return false;
   const dueNow = prepaymentDue(input.service);
-  return (
-    input.purchaseType === 'subscription' ||
-    input.service.prepaymentMode === 'full' ||
-    (input.service.prepaymentMode === 'deposit' && dueNow > 0)
-  );
+  return input.purchaseType === 'subscription' || dueNow > 0;
 }
 
 export function showCheckoutCashOption(input: {
@@ -83,9 +79,8 @@ export function showCheckoutCashOption(input: {
     input.profile.acceptCashPayments === true &&
     input.purchaseType === 'one-time' &&
     !input.usingSubscriptionCredit &&
-    input.service.prepaymentMode !== 'full' &&
     input.amountDue > 0 &&
-    !(dueNow > 0 && input.service.prepaymentMode === 'deposit')
+    dueNow <= 0
   );
 }
 

@@ -302,7 +302,7 @@ export async function cancelCustomerSubscription(
   subscriptionId: string,
 ): Promise<{
   subscription: import('../lib/types.js').PublicCustomerSubscription;
-  refundStatus?: string;
+  refundStatus?: 'refunded' | 'already_refunded' | 'skipped' | 'failed' | 'ineligible';
 }> {
   const { data } = await http.post(
     `/public/${slug}/me/subscriptions/${subscriptionId}/cancel`,
@@ -364,10 +364,19 @@ export async function dismissMyClinicPatientAlert(
   return unwrap<{ dismissed: boolean; id: string }>(data);
 }
 
+export type PublicBookingRefundStatus =
+  | 'refunded'
+  | 'already_refunded'
+  | 'skipped'
+  | 'failed';
+
 export async function cancelCustomerBooking(
   slug: string,
   bookingId: string,
-): Promise<{ booking: { id: string; status: string } }> {
+): Promise<{
+  booking: { id: string; status: string };
+  refundStatus?: PublicBookingRefundStatus;
+}> {
   const { data } = await http.post(
     `/public/${slug}/me/bookings/${bookingId}/cancel`,
     {},
@@ -380,7 +389,10 @@ export async function cancelBookingWithToken(
   slug: string,
   bookingId: string,
   token: string,
-): Promise<{ booking: { id: string; status: string } }> {
+): Promise<{
+  booking: { id: string; status: string };
+  refundStatus?: PublicBookingRefundStatus;
+}> {
   const { data } = await http.post(`/public/${slug}/bookings/manage/cancel`, {
     bookingId,
     token,
@@ -428,7 +440,10 @@ export async function fetchBookingManageContext(
 export async function cancelCustomerPackageVisit(
   slug: string,
   bookingId: string,
-): Promise<{ bookings: Array<{ id: string; status: string }> }> {
+): Promise<{
+  bookings: Array<{ id: string; status: string }>;
+  refundStatus?: 'refunded' | 'already_refunded' | 'skipped' | 'failed';
+}> {
   const { data } = await http.post(
     `/public/${slug}/me/bookings/${bookingId}/package/cancel`,
     {},
@@ -441,7 +456,10 @@ export async function cancelPackageVisitWithToken(
   slug: string,
   bookingId: string,
   token: string,
-): Promise<{ bookings: Array<{ id: string; status: string }> }> {
+): Promise<{
+  bookings: Array<{ id: string; status: string }>;
+  refundStatus?: 'refunded' | 'already_refunded' | 'skipped' | 'failed';
+}> {
   const { data } = await http.post(`/public/${slug}/bookings/manage/package/cancel`, {
     bookingId,
     token,
@@ -562,6 +580,35 @@ export async function fetchPackageBlockSlots(slug: string, packageId: string, da
     `/public/${slug}/packages/${packageId}/block-slots?date=${encodeURIComponent(date)}`,
   );
   return unwrap<{ slots: PublicSlot[] }>(data);
+}
+
+export type PublicPackageBookableDates = {
+  from: string;
+  to: string;
+  packageId: string;
+  dates: string[];
+};
+
+export async function fetchPackageBookableDates(
+  slug: string,
+  packageId: string,
+  from: string,
+  to: string,
+): Promise<PublicPackageBookableDates> {
+  const params = new URLSearchParams({
+    from: from.slice(0, 10),
+    to: to.slice(0, 10),
+  });
+  const { data } = await http.get(
+    `/public/${slug}/packages/${packageId}/bookable-dates?${params.toString()}`,
+  );
+  const body = unwrap<PublicPackageBookableDates>(data);
+  return {
+    from: body.from ?? from.slice(0, 10),
+    to: body.to ?? to.slice(0, 10),
+    packageId: body.packageId ?? packageId,
+    dates: body.dates ?? [],
+  };
 }
 
 export async function recordCheckoutRecommendationEvent(
@@ -1032,7 +1079,7 @@ export async function createPublicGiftCardCheckout(
     { ...body, ...checkoutClientReturnFields() },
     publicConfig(slug),
   );
-  return unwrap<{ url: string; sessionId: string; amount: number; currency: string }>(data);
+  return unwrap<{ url: string; sessionId: string; draftId: string; total: number }>(data);
 }
 
 export async function purchasePublicGiftCard(

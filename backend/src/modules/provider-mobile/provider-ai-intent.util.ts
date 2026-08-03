@@ -54,14 +54,15 @@ export function rescueProviderAiIntent(prompt: string, action: string): string {
   ) {
     return 'mark_no_shows';
   }
+  // Multi-service per-leg before whole-visit complete (e2e-bug.241)
+  if (isMarkMultiServiceStepDonePrompt(prompt)) {
+    return 'mark_multi_service_step_done';
+  }
   if (isMarkVisitCompletePrompt(prompt)) {
     return 'mark_visit_complete';
   }
   if (isMarkVisitInProgressPrompt(prompt)) {
     return 'mark_visit_in_progress';
-  }
-  if (isMarkMultiServiceStepDonePrompt(prompt)) {
-    return 'mark_multi_service_step_done';
   }
   if (isSearchPatientPrompt(prompt)) {
     return 'search_patient';

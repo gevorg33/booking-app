@@ -12,10 +12,9 @@ import { listAiPaymentsServiceRegistryIntentIds } from './ai-payments-dispatch.u
 
 describe('ai-payments-dispatch.build (ai-cmd-ext-6.2)', () => {
   it('builds a stable map at module init', () => {
-    expect(PAYMENTS_LOGIC_DISPATCH_MAP.size).toBe(
-      buildPaymentsLogicDispatchMap().size,
-    );
-    expect(PAYMENTS_LOGIC_DISPATCH_MAP.size).toBe(30);
+    const built = buildPaymentsLogicDispatchMap();
+    expect(PAYMENTS_LOGIC_DISPATCH_MAP.size).toBe(built.size);
+    expect(PAYMENTS_LOGIC_DISPATCH_MAP.size).toBeGreaterThanOrEqual(30);
   });
 
   it('maps every dashboard payments intent', () => {

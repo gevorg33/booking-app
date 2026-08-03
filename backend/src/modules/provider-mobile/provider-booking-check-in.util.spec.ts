@@ -24,16 +24,21 @@ function mockClaimBookingRepo(booking: Record<string, unknown> | null) {
       return row;
     },
   );
-  const getOne = jest.fn().mockResolvedValue(booking);
-  const qb = {
-    setLock: jest.fn().mockReturnThis(),
-    leftJoinAndSelect: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    getOne,
-  };
+  const findOne = jest.fn(
+    async (entity: unknown, opts?: { lock?: { mode?: string }; relations?: unknown }) => {
+      if (opts?.relations && booking) {
+        return {
+          ...booking,
+          customer: { name: 'Jane' },
+          service: { name: 'Haircut' },
+          employee: { name: 'Gevorg' },
+        };
+      }
+      return booking ? { ...booking } : null;
+    },
+  );
   const manager = {
-    createQueryBuilder: jest.fn().mockReturnValue(qb),
+    findOne,
     save,
   };
   const bookingRepo = {
@@ -43,7 +48,7 @@ function mockClaimBookingRepo(booking: Record<string, unknown> | null) {
       ),
     },
   };
-  return { bookingRepo, manager, qb, save, getOne };
+  return { bookingRepo, manager, findOne, save };
 }
 
 describe('provider-booking-check-in.util (prov-exp-3.1)', () => {
@@ -117,7 +122,7 @@ describe('provider-booking-check-in.util (prov-exp-3.1)', () => {
       status: BookingStatus.CONFIRMED,
       checkedInAt: null as Date | null,
     };
-    const { bookingRepo, qb, save } = mockClaimBookingRepo(booking);
+    const { bookingRepo, findOne, save } = mockClaimBookingRepo(booking);
 
     const result = await claimProviderBookingCheckIn(bookingRepo as any, {
       bookingId: 'bk-1',
@@ -131,7 +136,15 @@ describe('provider-booking-check-in.util (prov-exp-3.1)', () => {
         '2026-06-09T10:05:00.000Z',
       );
     }
-    expect(qb.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(findOne).toHaveBeenCalledWith(
+      Booking,
+      expect.objectContaining({
+        where: { id: 'bk-1', businessId: 'biz-1' },
+        lock: { mode: 'pessimistic_write' },
+      }),
+    );
+    // e2e-bug.184 residual — lock call must not request relations
+    expect(findOne.mock.calls[0]?.[1]).not.toHaveProperty('relations');
     expect(save).toHaveBeenCalledWith(Booking, expect.objectContaining({
       id: 'bk-1',
       checkedInAt: expect.any(Date),
@@ -193,19 +206,29 @@ describe('provider-booking-check-in.util (prov-exp-3.1)', () => {
         transaction: jest.fn(async (cb: (m: unknown) => Promise<unknown>) => {
           await acquire();
           try {
-            const qb: Record<string, unknown> = {};
-            qb.setLock = jest.fn(() => qb);
-            qb.leftJoinAndSelect = jest.fn(() => qb);
-            qb.where = jest.fn(() => qb);
-            qb.andWhere = jest.fn(() => qb);
-            qb.getOne = jest.fn(async () => ({
-              id: booking.id,
-              businessId: booking.businessId,
-              status: booking.status,
-              checkedInAt: booking.checkedInAt,
-            }));
             const manager = {
-              createQueryBuilder: () => qb,
+              findOne: async (
+                _entity: unknown,
+                opts?: { lock?: { mode?: string }; relations?: unknown },
+              ) => {
+                if (opts?.relations) {
+                  return {
+                    id: booking.id,
+                    businessId: booking.businessId,
+                    status: booking.status,
+                    checkedInAt: booking.checkedInAt,
+                    customer: { name: 'Jane' },
+                    service: { name: 'Haircut' },
+                    employee: { name: 'Gevorg' },
+                  };
+                }
+                return {
+                  id: booking.id,
+                  businessId: booking.businessId,
+                  status: booking.status,
+                  checkedInAt: booking.checkedInAt,
+                };
+              },
               save: async (
                 _entity: unknown,
                 row: {

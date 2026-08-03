@@ -127,8 +127,9 @@ export type CustomerOwnedBookingMatchInput = {
 };
 
 function extractCancelTargetServiceName(prompt: string): string | null {
+  // Allow Title Case service names ("Swedish massage") — e2e-bug.237.
   const namedVisit = prompt.match(
-    /\bcancel\s+(?:my\s+|the\s+|an?\s+)?([a-z][\w\s'-]{2,40}?)\s+(?:appointment|booking|visit|reservation)\b/i,
+    /\bcancel\s+(?:my\s+|the\s+|an?\s+)?([\p{L}][\p{L}\w\s'-]{2,40}?)\s+(?:appointment|booking|visit|reservation)\b/iu,
   )?.[1];
   if (namedVisit) {
     const trimmed = namedVisit.trim().replace(/^tomorrow'?s\s+/i, '');
@@ -141,6 +142,17 @@ function extractCancelTargetServiceName(prompt: string): string | null {
     return knownService;
   }
   return extractServiceNameFromPrompt(prompt);
+}
+
+/** e2e-bug.237 — "rebook for next Friday" is a destination, not a cancel filter day. */
+function isDatedCancelAndRebookCue(prompt: string): boolean {
+  return (
+    /\bcancel\b/i.test(prompt) &&
+    /\brebook\b/i.test(prompt) &&
+    /\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+      prompt,
+    )
+  );
 }
 
 export function enrichCancelMyBookingParamsFromPrompt(
@@ -164,6 +176,15 @@ export function enrichCancelMyBookingParamsFromPrompt(
     next.serviceName = serviceName.replace(/^tomorrow'?s\s+/i, '').trim();
   } else {
     delete next.serviceName;
+  }
+  // e2e-bug.237 — never treat the rebook target day as the visit-to-cancel filter.
+  if (isDatedCancelAndRebookCue(prompt)) {
+    delete next.date;
+    delete next.dateFrom;
+    delete next.dateTo;
+    delete next.timeSlot;
+    delete next.fromDate;
+    delete next.fromTimeSlot;
   }
   return next;
 }

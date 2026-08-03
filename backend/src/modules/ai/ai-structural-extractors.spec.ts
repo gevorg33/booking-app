@@ -113,6 +113,30 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
         ).serviceRank,
       ).toBeUndefined();
     });
+
+    it('e2e-bug.229: keeps checkout serviceId when named pay_online has no catalog', () => {
+      const next = applyPromptMentionedServiceOverrideToParams(
+        'pay online for my Swedish massage booking',
+        {
+          serviceId: 'svc-swedish',
+          employeeId: 'emp-1',
+          startTime: '2026-07-30T14:00:00.000Z',
+        },
+      );
+      expect(next.serviceId).toBe('svc-swedish');
+      expect(next.serviceName).toMatch(/swedish massage/i);
+      expect(next.employeeId).toBe('emp-1');
+      expect(next.startTime).toBe('2026-07-30T14:00:00.000Z');
+    });
+
+    it('e2e-bug.229: still clears serviceId when prompt names a service with no existing id', () => {
+      const next = applyPromptMentionedServiceOverrideToParams(
+        'pay online for my Swedish massage booking',
+        {},
+      );
+      expect(next.serviceId).toBeUndefined();
+      expect(next.serviceName).toMatch(/swedish massage/i);
+    });
   });
 
   describe('enrichPublicAssistantParamsFromPrompt', () => {
@@ -135,6 +159,7 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
         ),
       ).toEqual({
         serviceName: 'hairstyle',
+        serviceId: 'h1',
         serviceCategory: null,
         serviceNames: null,
         date: '10/06/2026',
@@ -151,8 +176,9 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
           'check_availability',
         ),
       ).toMatchObject({
-        serviceName: 'haircut',
-        serviceCategory: null,
+        // Single-token unknown names become a category filter (not a literal name).
+        serviceName: null,
+        serviceCategory: 'haircut',
         date: 'tomorrow',
         timeOfDay: 'afternoon',
       });
@@ -373,7 +399,7 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       { id: 'c2', name: 'Jujo' },
     ];
     const prompt =
-      "Move Gevorg's appointment on June 15 to June 16th nearest free time";
+      "Move Gevorg's appointment on June 15 2027 to June 16 2027 nearest free time";
 
     it('treats Gevorg as provider, not customer', () => {
       expect(
@@ -385,8 +411,25 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
     });
 
     it('parses source and destination month-day dates', () => {
-      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('15/06/2026');
-      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('16/06/2026');
+      expect(extractRescheduleSourceDate(prompt, 'UTC')).toBe('15/06/2027');
+      expect(extractRescheduleTargetDate(prompt, 'UTC')).toBe('16/06/2027');
+    });
+  });
+
+  describe('e2e-bug.237 dated cancel+rebook source/target split', () => {
+    const prompts = [
+      'cancel my Swedish massage booking and rebook it for next Friday instead',
+      'cancel my swedish massage booking and rebook it for next Friday instead',
+      'cancel my facemassage booking and rebook it for next Friday instead',
+    ] as const;
+
+    it.each(prompts)('does not treat rebook Friday as fromDate: %s', (p) => {
+      expect(extractRescheduleSourceDate(p, 'UTC')).toBeNull();
+      expect(extractRescheduleTargetDate(p, 'UTC')).toBeTruthy();
+      const params: Record<string, unknown> = {};
+      resolveRescheduleParams(params, p, 'UTC');
+      expect(params.fromDate).toBeUndefined();
+      expect(params.date).toBeTruthy();
     });
   });
 

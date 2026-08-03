@@ -68,10 +68,10 @@ export function extractCancelSegmentFromCompoundPrompt(prompt: string): string {
  * not cancel→book-nearest. Keep nearest compound and dated cancel+rebook disjoint.
  */
 export function isDatedCancelAndRebookPrompt(prompt: string): boolean {
+  // e2e-bug.237 — also voice-short "cancel … rebook next Friday" (no for/on/to).
   return (
     /\bcancel\b/i.test(prompt) &&
     /\brebook\b/i.test(prompt) &&
-    /\b(?:for|on|to)\b/i.test(prompt) &&
     /\b(?:tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
       prompt,
     )

@@ -5,7 +5,7 @@
   "titleKey": "guide.flows.provider.todayCalendar.title",
   "summaryKey": "guide.flows.provider.todayCalendar.summary",
   "navigateTarget": { "path": "/tabs/today" },
-  "keywords": ["today", "calendar", "schedule tab", "appointments"],
+  "keywords": ["today", "calendar", "schedule tab", "appointments", "home tab", "today tab"],
   "steps": [
     {
       "titleKey": "guide.flows.common.step1",

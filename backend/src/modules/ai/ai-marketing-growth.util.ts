@@ -213,7 +213,19 @@ export function isPromoCodeHelpPrompt(prompt: string): boolean {
   if (isApplyPromoCodeCheckoutPrompt(prompt)) return false;
   if (isCreatePromoCodePrompt(prompt)) return false;
   if (/\brefer\s+a\s+friend\b/i.test(prompt)) return false;
+  // e2e-bug.232 — apply/use/redeem + referral|invite code is claim_referral_code, not promo help.
+  // Inline cue (avoid importing claim util → marketing circular via apply-promo).
+  if (
+    /\b(?:referral|invite)\s*codes?\b/i.test(prompt) ||
+    /\b(?:redeem|claim|apply|use|enter)\b[\s\S]{0,40}\b(?:referral|invite|friend(?:'s)?)\s*code\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   if (/\bgift\s*card\b/i.test(prompt)) return false;
+  // e2e-bug.256 — GCM-/GCB-/GCS- checkout apply is apply_gift_card_code, not promo help.
+  if (/\bGCM-|\bGCB-|\bGCS-/i.test(prompt)) return false;
   if (
     /\bunder\s+\$?\d+/i.test(prompt) &&
     /\bcode\s+[A-Z0-9_-]{3,}\b/i.test(prompt) &&

@@ -93,6 +93,55 @@ const ASSISTANT_UNKNOWN_INTENT_KEYS = [
   'assistant.unknownIntentDashboard',
 ] as const;
 
+/** e2e-bug.239 — empty/blocked prompt action:error */
+const ASSISTANT_REQUEST_ERROR_KEYS = ['assistant.requestError'] as const;
+
+/** e2e-bug.259 / e2e-bug.274 — localized clarify + support handoff chrome */
+const ASSISTANT_E2E259_KEYS = [
+  'assistant.guideStillStuck',
+  'assistant.guideSupportTicketSubject',
+  'assistant.guideSupportTicketBodyHeader',
+  'assistant.guideSupportTicketBodyFooter',
+  'assistant.anyProviderClarify',
+  'assistant.anyProviderMeaning',
+  'assistant.confirmBookingAnonClarify',
+  'assistant.confirmBookingManageLinkClarify',
+  // e2e-bug.276
+  'assistant.homeScreenWidgetClarify',
+  // e2e-bug.299
+  'assistant.feedbackUpLabel',
+  'assistant.feedbackDownLabel',
+  'assistant.feedbackThanks',
+  'assistant.feedbackReasonWrongAction',
+  'assistant.feedbackReasonWrongDate',
+  'assistant.feedbackReasonWrongPerson',
+  'assistant.feedbackReasonWrongService',
+  'assistant.feedbackReasonDidNotUnderstand',
+  'assistant.feedbackReasonSkip',
+  'assistant.feedbackDownChooseReason',
+  'assistant.feedbackClarifyWhatWasWrong',
+  'assistant.feedbackClarifyHelpfulOrNot',
+  // e2e-bug.301
+  'assistant.dashboardHandoffTemplate',
+  'assistant.dashboardHandoffFallback',
+  'assistant.dashboardHandoffActionTapCall',
+  'assistant.dashboardHandoffReasonTapCall',
+  'assistant.dashboardHandoffActionIntake',
+  'assistant.dashboardHandoffReasonIntake',
+  'assistant.dashboardHandoffActionReview',
+  'assistant.dashboardHandoffReasonReview',
+  'assistant.dashboardHandoffActionTemplates',
+  'assistant.dashboardHandoffReasonTemplates',
+  'assistant.dashboardHandoffActionLoyalty',
+  'assistant.dashboardHandoffReasonLoyalty',
+  'assistant.dashboardHandoffActionLocale',
+  'assistant.dashboardHandoffReasonLocale',
+  'assistant.dashboardHandoffActionTimeOff',
+  'assistant.dashboardHandoffReasonTimeOff',
+  // e2e-bug.302
+  'assistant.guideTopicMissClarify',
+] as const;
+
 describe('backend i18n messages', () => {
   it('resolves hy and ru locales', () => {
     expect(resolveLocale('hy')).toBe('hy');
@@ -213,6 +262,70 @@ describe('backend i18n messages', () => {
       if (locale !== 'en') {
         expect(t(locale, 'assistant.unknownIntentCustomer')).not.toBe(
           t('en', 'assistant.unknownIntentCustomer'),
+        );
+      }
+    },
+  );
+
+  it.each(SUPPORTED_LOCALES)(
+    'defines assistant requestError key for %s (e2e-bug.239)',
+    (locale) => {
+      for (const key of ASSISTANT_REQUEST_ERROR_KEYS) {
+        const value = t(locale, key);
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(0);
+      }
+      if (locale !== 'en') {
+        expect(t(locale, 'assistant.requestError')).not.toBe(
+          t('en', 'assistant.requestError'),
+        );
+      }
+    },
+  );
+
+  it.each(SUPPORTED_LOCALES)(
+    'defines e2e-bug.259/274 assistant clarify + handoff keys for %s',
+    (locale) => {
+      for (const key of ASSISTANT_E2E259_KEYS) {
+        const value = t(locale, key, { topic: '', surface: 'public', count: '2' });
+        expect(value).not.toBe(key);
+        expect(value.trim().length).toBeGreaterThan(0);
+      }
+      if (locale !== 'en') {
+        expect(t(locale, 'assistant.guideStillStuck')).not.toBe(
+          t('en', 'assistant.guideStillStuck'),
+        );
+        expect(t(locale, 'assistant.anyProviderClarify')).not.toBe(
+          t('en', 'assistant.anyProviderClarify'),
+        );
+        expect(t(locale, 'assistant.confirmBookingAnonClarify')).not.toBe(
+          t('en', 'assistant.confirmBookingAnonClarify'),
+        );
+        // No mixed-script leftover like frontend's old "Դեռ stuck?".
+        expect(t(locale, 'assistant.guideStillStuck')).not.toMatch(/stuck/i);
+        // e2e-bug.299 — feedback chips must not stay English under hy/ru.
+        expect(t(locale, 'assistant.feedbackUpLabel')).not.toBe(
+          t('en', 'assistant.feedbackUpLabel'),
+        );
+        expect(t(locale, 'assistant.feedbackDownLabel')).not.toBe(
+          t('en', 'assistant.feedbackDownLabel'),
+        );
+        expect(t(locale, 'assistant.feedbackDownChooseReason')).not.toMatch(
+          /Not helpful/i,
+        );
+        // e2e-bug.301 — dashboard handoff template must not stay English under hy/ru.
+        expect(t(locale, 'assistant.dashboardHandoffTemplate')).not.toBe(
+          t('en', 'assistant.dashboardHandoffTemplate'),
+        );
+        expect(t(locale, 'assistant.dashboardHandoffActionTapCall')).not.toBe(
+          t('en', 'assistant.dashboardHandoffActionTapCall'),
+        );
+        // e2e-bug.302 — guide topic-miss clarify must not stay English under hy/ru.
+        expect(t(locale, 'assistant.guideTopicMissClarify')).not.toBe(
+          t('en', 'assistant.guideTopicMissClarify'),
+        );
+        expect(t(locale, 'assistant.guideTopicMissClarify')).not.toMatch(
+          /could not match that to a guide topic/i,
         );
       }
     },

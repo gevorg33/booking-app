@@ -49,6 +49,17 @@ describe('ai-operations.util', () => {
       isImportServicesFromMenuPrompt('Import services from the menu photo'),
     ).toBe(true);
     expect(isImportServicesFromMenuPrompt('scan the menu')).toBe(true);
+    // e2e-bug.251 — catalog category create ≠ menu import.
+    expect(
+      isImportServicesFromMenuPrompt(
+        'Add a new catalog category named QA Nails',
+      ),
+    ).toBe(false);
+    expect(
+      isImportServicesFromMenuPrompt(
+        'Create a catalog category named Spa Treatments',
+      ),
+    ).toBe(false);
     expect(
       isPricingAdjustmentPrompt('Raise all massage prices 10% from June 1'),
     ).toBe(true);

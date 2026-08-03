@@ -484,7 +484,11 @@ export function GiftCardCheckoutClient({
           </section>
         )}
 
-        <div className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4">
+        <div
+          data-public-sticky-cta
+          data-testid="public-sticky-cta"
+          className="fixed bottom-0 inset-x-0 bg-white border-t border-gray-100 p-4"
+        >
           <div className="max-w-lg mx-auto">
             <button
               type="submit"

@@ -84,4 +84,21 @@ describe('ai-product-guide-rescue.util (ai-guide-1.6.3)', () => {
       }
     }
   });
+
+  it('e2e-bug.195 — customer surface rescues booking funnel over Home tour', () => {
+    const rescued = rescueProductGuideIntent(
+      'How do I book an appointment step by step?',
+      'explain_app_feature',
+      { surface: 'customer' },
+    );
+    expect(rescued).toEqual({
+      action: 'booking_help',
+      rescueReason: 'public_booking_help',
+    });
+    expect(
+      rescueProductGuideIntent('How do I use the Home tab?', 'explain_app_feature', {
+        surface: 'customer',
+      }).action,
+    ).toBe('explain_app_feature');
+  });
 });

@@ -4,6 +4,7 @@ import {
   INVALID_GUIDE_SUPPORT_SNAPSHOTS,
   expectedSnapshotForScenario,
 } from './guide-support-handoff.fixtures.js';
+import { resolveLocale, t } from '../../../common/i18n/messages.js';
 import {
   buildGuideSupportHandoff,
   buildGuideSupportSnapshot,
@@ -34,12 +35,22 @@ describe('guide-support-handoff.util (ai-guide-1.7.2)', () => {
     'buildGuideSupportHandoff for $id uses create_support_ticket',
     (scenario) => {
       const handoff = buildGuideSupportHandoff(scenario.context);
+      const locale = resolveLocale(scenario.context.locale);
       expect(handoff.action).toBe('create_support_ticket');
-      expect(handoff.label).toBe('Still stuck?');
+      // e2e-bug.259 — label follows snapshot locale (Still stuck? / hy / ru).
+      expect(handoff.label).toBe(t(locale, 'assistant.guideStillStuck'));
       expect(handoff.snapshot).toEqual(expectedSnapshotForScenario(scenario));
       expect(handoff.ticket.tags).toContain('product-guide');
       expect(handoff.ticket.tags).toContain(
         `guide-${scenario.context.surface}`,
+      );
+      expect(handoff.ticket.subject).toBe(
+        t(locale, 'assistant.guideSupportTicketSubject', {
+          topic: scenario.context.topicId
+            ? ` — ${scenario.context.topicId}`
+            : '',
+          surface: scenario.context.surface,
+        }),
       );
     },
   );

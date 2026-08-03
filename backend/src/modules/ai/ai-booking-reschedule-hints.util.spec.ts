@@ -50,8 +50,9 @@ describe('ai-booking-reschedule-hints.util (ai-cmd-h3.1)', () => {
 
   it('treats possessive provider as employee on reschedule nearest-free', () => {
     const params: Record<string, unknown> = {};
+    // Year-qualified dates — bare "June 15" rolls to next year after mid-year.
     const prompt =
-      "Move Gevorg's appointment on June 15 to June 16th nearest free time";
+      "Move Gevorg's appointment on June 15 2027 to June 16th 2027 nearest free time";
     applyRescheduleBookingPromptHints(
       params,
       prompt,
@@ -63,8 +64,8 @@ describe('ai-booking-reschedule-hints.util (ai-cmd-h3.1)', () => {
     expect(params.employeeId).toBe('e1');
     expect(params.customerName).toBeNull();
     expect(params.bookingFirstAvailable).toBe(true);
-    expect(params.date).toBe('16/06/2026');
-    expect(params.fromDate).toBe('15/06/2026');
+    expect(params.date).toBe('16/06/2027');
+    expect(params.fromDate).toBe('15/06/2027');
   });
 
   it('re-applies hints after rescue action flip via dispatcher', () => {

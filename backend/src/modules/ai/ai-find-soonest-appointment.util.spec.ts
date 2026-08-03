@@ -82,6 +82,25 @@ describe('ai-find-soonest-appointment.util (ai-cmd-customer-4.1.3)', () => {
     ).toBe(false);
   });
 
+  // e2e-bug.248 — move/reschedule + nearest free time is not find_soonest READ.
+  it('rejects reschedule-of-existing move/nearest phrasing', () => {
+    expect(
+      isFindSoonestAppointmentPrompt(
+        "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      ),
+    ).toBe(false);
+    expect(
+      isFindSoonestAppointmentPrompt(
+        'Reschedule Anna appointment to the soonest free slot tomorrow',
+      ),
+    ).toBe(false);
+    expect(
+      isFindSoonestAppointmentPrompt(
+        'Move to June 11 nearest free time for Maria',
+      ),
+    ).toBe(false);
+  });
+
   it('maps fixtures to passing eval golden cases', () => {
     expect(
       FIND_SOONEST_APPOINTMENT_PROMPTS.filter(

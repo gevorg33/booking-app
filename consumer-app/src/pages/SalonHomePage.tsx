@@ -6,7 +6,6 @@ import {
   IonIcon,
   IonTitle,
   IonToolbar,
-  IonBadge,
 } from '@ionic/react';
 import { bookmark, bookmarkOutline } from 'ionicons/icons';
 import { useEffect, useState } from 'react';
@@ -19,6 +18,7 @@ import type { PublicBusinessProfile } from '../lib/types.js';
 import { buildSalonPath } from '../lib/deep-link.js';
 import { pushConsumerRoute } from '../lib/consumer-ion-navigation.util.js';
 import { formatCopy } from '../lib/copy.js';
+import { ConsumerActionButton } from '../components/ConsumerActionButton.js';
 import { ConsumerLanguagePicker } from '../components/ConsumerLanguagePicker.js';
 import { ConsumerPatientAlertsBanner } from '../components/ConsumerPatientAlertsBanner.js';
 import { useConsumerCopy } from '../hooks/use-consumer-copy.js';
@@ -140,31 +140,31 @@ export default function SalonHomePage({
           onBook={goBook}
         />
 
-        <IonButton
+        {/* e2e-bug.4 — native buttons (IonButton hosts read as generic without shadow pierce) */}
+        <ConsumerActionButton
           expand="block"
-          color="primary"
-          className="consumer-brand-solid-button"
+          color={profile.branding.primaryColor || '#7c3aed'}
           onClick={goBook}
         >
           {copy.bookAppointment}
-        </IonButton>
+        </ConsumerActionButton>
         {profile.giftCardsPurchaseEnabled ? (
-          <IonButton
+          <ConsumerActionButton
             expand="block"
             fill="outline"
-            color="primary"
-            className="ion-margin-top consumer-brand-outline-button"
+            color={profile.branding.primaryColor || '#7c3aed'}
+            className="ion-margin-top"
             onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
           >
             {copy.giftCardBuyGiftCard}
-          </IonButton>
+          </ConsumerActionButton>
         ) : null}
         {showClinicAlerts ? (
-          <IonButton
+          <ConsumerActionButton
             expand="block"
             fill="outline"
-            color="primary"
-            className="ion-margin-top consumer-brand-outline-button"
+            color={profile.branding.primaryColor || '#7c3aed'}
+            className="ion-margin-top"
             onClick={() => history.push(buildSalonPath(slug, '/lab-to-book'))}
           >
             {pendingLabCount > 0
@@ -173,30 +173,43 @@ export default function SalonHomePage({
                 })
               : copy.homeLabToBookShortcut}
             {pendingLabCount > 0 ? (
-              <IonBadge color="danger" slot="end" style={{ marginInlineStart: 8 }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  marginInlineStart: 8,
+                  minWidth: 1.25,
+                  padding: '0 6px',
+                  borderRadius: 999,
+                  background: '#dc2626',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  lineHeight: '1.25rem',
+                }}
+              >
                 {pendingLabCount}
-              </IonBadge>
+              </span>
             ) : null}
-          </IonButton>
+          </ConsumerActionButton>
         ) : null}
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="outline"
-          color="primary"
-          className="ion-margin-top consumer-brand-outline-button"
+          color={profile.branding.primaryColor || '#7c3aed'}
+          className="ion-margin-top"
           onClick={() => history.push(buildSalonPath(slug, '/profile'))}
         >
           {copy.profileViewDetails}
-        </IonButton>
-        <IonButton
+        </ConsumerActionButton>
+        <ConsumerActionButton
           expand="block"
           fill="outline"
-          color="primary"
-          className="ion-margin-top consumer-brand-outline-button"
+          color={profile.branding.primaryColor || '#7c3aed'}
+          className="ion-margin-top"
           onClick={() => history.push(buildSalonPath(slug, '/account'))}
         >
           {copy.myAccountAction}
-        </IonButton>
+        </ConsumerActionButton>
 
         <ConsumerGrowthLinks profile={profile} copy={copy} />
       </IonContent>

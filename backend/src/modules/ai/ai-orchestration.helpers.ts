@@ -417,11 +417,21 @@ export function fuzzyMatchByName<T extends { name: string }>(
 }
 
 /** Collapse spaces/punctuation so "face massage" matches catalog "facemassage". */
-export function normalizeServiceLookup(text: string): string {
-  return text.toLowerCase().replace(/[\s_-]+/g, '');
-}
+export {
+  expandServiceLookupQueries,
+  normalizeServiceLookup,
+} from './ai-service-lookup-synonyms.util.js';
+import {
+  expandServiceLookupQueries,
+  normalizeServiceLookup,
+} from './ai-service-lookup-synonyms.util.js';
 
-export function fuzzyMatchServiceByName<T extends { name: string }>(
+/**
+ * e2e-bug.199 — customers say "haircut" but many salon catalogs only list
+ * "hairstyle". Synonym groups live in ai-service-lookup-synonyms.util.ts.
+ */
+
+function fuzzyMatchServiceByNameCore<T extends { name: string }>(
   items: T[],
   name: string,
 ): T | undefined {
@@ -459,6 +469,20 @@ export function fuzzyMatchServiceByName<T extends { name: string }>(
   );
 }
 
+export function fuzzyMatchServiceByName<T extends { name: string }>(
+  items: T[],
+  name: string,
+): T | undefined {
+  const primary = fuzzyMatchServiceByNameCore(items, name);
+  if (primary) return primary;
+
+  for (const alias of expandServiceLookupQueries(name).slice(1)) {
+    const hit = fuzzyMatchServiceByNameCore(items, alias);
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
 /** Exact catalog name match for create-service dedup — no fuzzy substring matching. */
 export function findServiceByExactName<T extends { name: string }>(
   items: T[],
@@ -491,8 +515,24 @@ export function stripServiceRoleNoise(query: string): string {
 /**
  * Match one or many catalog services from a customer query.
  * Broad tokens like "massage" return every service whose name contains that token.
+ * e2e-bug.199 — also tries synonym aliases (haircut ↔ hairstyle) when the primary
+ * query finds nothing.
  */
 export function matchServicesByQuery<T extends { id: string; name: string }>(
+  items: T[],
+  query: string,
+): T[] {
+  const cleaned = stripServiceRoleNoise(query);
+  if (!cleaned) return [];
+
+  for (const candidate of expandServiceLookupQueries(cleaned)) {
+    const matched = matchServicesByQueryCore(items, candidate);
+    if (matched.length > 0) return matched;
+  }
+  return [];
+}
+
+function matchServicesByQueryCore<T extends { id: string; name: string }>(
   items: T[],
   query: string,
 ): T[] {
@@ -528,7 +568,7 @@ export function matchServicesByQuery<T extends { id: string; name: string }>(
     }
   }
 
-  const exact = fuzzyMatchServiceByName(items, cleaned);
+  const exact = fuzzyMatchServiceByNameCore(items, cleaned);
   if (exact) return [exact];
 
   if (tokenMatches.length > 0) {
@@ -650,6 +690,7 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
     serviceCategory?: string | null;
     serviceName?: string | null;
     serviceNames?: string[] | null;
+    serviceId?: string | null;
   },
 ): T[] {
   if (Array.isArray(params.serviceNames) && params.serviceNames.length) {
@@ -666,6 +707,20 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
     if (matched.length) return matched;
   }
 
+  // e2e-bug.321 — an already-resolved exact serviceId pin (a single-service
+  // match, not a category browse) must not be re-expanded via fuzzy name
+  // matching below, which can spuriously pull in an unrelated catalog row
+  // whose normalized name happens to contain the pinned name as a substring
+  // (e.g. "Women's cut" contains "Men's cut" — wo|men's cut).
+  if (
+    !params.serviceCategory &&
+    typeof params.serviceId === 'string' &&
+    params.serviceId.trim()
+  ) {
+    const exact = catalog.find((item) => item.id === params.serviceId);
+    if (exact) return [exact];
+  }
+
   const keyword = params.serviceCategory ?? params.serviceName;
   if (keyword) {
     const byServiceTypeName = matchServicesByQuery(catalog, String(keyword));
@@ -680,6 +735,8 @@ export function resolveServicesFromCatalogParams<T extends CatalogServiceRow>(
  * e2e-bug.143 — LLM sometimes stuffs pronouns into serviceCategory
  * ("What services do I offer?" → serviceCategory="i"). Reject those before
  * filtering the catalog.
+ * e2e-bug.226 — also reject multi-word filler copied from list phrasing
+ * ("what services do you offer?" → serviceName="you offer").
  */
 const LIST_SERVICES_FILTER_STOPWORDS = new Set([
   'i',
@@ -704,21 +761,69 @@ const LIST_SERVICES_FILTER_STOPWORDS = new Set([
   'offer',
   'offers',
   'offering',
+  'offerings',
+  'provide',
+  'provides',
+  'providing',
   'all',
   'any',
   'some',
   'what',
   'which',
+  'service',
+  'services',
+  'option',
+  'options',
+  'menu',
+  'catalog',
+  'available',
 ]);
+
+/** Trailing clause the classifier often copies from "what … do you offer?" */
+const LIST_SERVICES_TRAILING_FILLER =
+  /\s+(?:(?:do\s+)?you\s+(?:offer|have|provide)|we\s+offer|i\s+offer|are\s+available)\s*$/i;
 
 export function sanitizeListServicesFilterValue(
   value: string | null | undefined,
 ): string | null {
   if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
+  let trimmed = value.trim();
   if (!trimmed) return null;
   if (trimmed.length < 2) return null;
-  if (LIST_SERVICES_FILTER_STOPWORDS.has(trimmed.toLowerCase())) return null;
+
+  // e2e-bug.193 / e2e-bug.226 — bare or trailing list-phrasing fillers
+  if (
+    /^(?:(?:do\s+)?you\s+(?:offer|have|provide)|we\s+offer|i\s+offer|are\s+available)$/i.test(
+      trimmed,
+    )
+  ) {
+    return null;
+  }
+  // e2e-bug.226 — "massage you offer" → "massage"; bare "you offer" → empty
+  trimmed = trimmed.replace(LIST_SERVICES_TRAILING_FILLER, '').trim();
+  if (!trimmed || trimmed.length < 2) return null;
+
+  // e2e-bug.238 — book-half cues ("soonest"/"nearest"/"next available") are not catalog filters.
+  // Inline (do not import ai-payments.util — circular via intent-heuristics).
+  if (
+    /^(?:the|a|an|slot|time|appointment|appointments|opening|openings|available|free|open|next|first|soonest|nearest|upcoming|earliest|next\s+available|first\s+available|soonest\s+available|nearest\s+available|earliest\s+available)$/i.test(
+      trimmed,
+    )
+  ) {
+    return null;
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (LIST_SERVICES_FILTER_STOPWORDS.has(lower)) return null;
+
+  const tokens = lower.split(/\s+/).filter(Boolean);
+  if (
+    tokens.length > 1 &&
+    tokens.every((token) => LIST_SERVICES_FILTER_STOPWORDS.has(token))
+  ) {
+    return null;
+  }
+
   return trimmed;
 }
 
@@ -734,6 +839,11 @@ export function extractServiceTypeKeywordFromListPrompt(
     /\bdo\s+you\s+offer\s+([a-z][\w\s-]{1,40}?)\s+services?\b/i,
     /\bdo\s+you\s+offer\s+([a-z][\w\s-]{1,40}?)(?:\s*\?|$)/i,
     /\blist\s+(?:all\s+)?([a-z][\w\s-]{1,30}?)\s+(?:service\s+)?types?\b/i,
+    // e2e-bug.238 — "Show me evening massage options under $100 then book…"
+    /\b(?:show|list)\s+(?:me\s+)?(?:(?:morning|afternoon|evening)\s+)?([a-z][\w-]{2,30})\s+options?\b/i,
+    // e2e-bug.297 / e2e-bug.298 — short show/list category nouns
+    /\b(?:show|list)\s+(?:me\s+)?(facials?|haircuts?|hairstyles?|massages?|trims?|cuts?)\b/i,
+    /\blist\s+([a-z][\w-]{2,30})\s+under\b/i,
     /\b(?:recommend|suggest)\s+(?:me\s+)?(?:some\s+)?([a-z][\w\s-]{1,40}?)\s+services?\b/i,
     /\bi\s+want\s+(?:a|an|the)\s+([a-z][\w\s-]{1,30}?)(?=\s*(?:tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun|,|$))/i,
   ];
@@ -805,7 +915,9 @@ export function enrichListServicesParamsFromPrompt(
 
   const keyword = extractServiceTypeKeywordFromListPrompt(prompt);
   if (!keyword) return cleaned;
-  return { ...cleaned, serviceCategory: keyword };
+  const sanitizedKeyword = sanitizeListServicesFilterValue(keyword);
+  if (!sanitizedKeyword) return cleaned;
+  return { ...cleaned, serviceCategory: sanitizedKeyword };
 }
 
 /** Only persist service filters that resolve against the live catalog (public assistant session). */
@@ -1946,9 +2058,20 @@ export function resolvePublicAvailabilityWindows(
     Array.isArray(params.availabilityWindows) &&
     params.availabilityWindows.length > 0;
   const normalizedWindows = normalizeAvailabilityWindows(params);
+  // e2e-bug.296 — inherit top-level date onto dateless windows so a classifier
+  // availabilityWindows:[{timeOfDay}] does not expand to a 14-day scan when
+  // enrichment already stamped date=today/tonight on params.
+  const windowsWithInheritedDate =
+    typeof params.date === 'string' && params.date.trim()
+      ? normalizedWindows.map((window) =>
+          window.date || window.weekdays?.length
+            ? window
+            : { ...window, date: params.date as string },
+        )
+      : normalizedWindows;
 
-  if (hasExplicitWindows && normalizedWindows.length > 0) {
-    return normalizedWindows
+  if (hasExplicitWindows && windowsWithInheritedDate.length > 0) {
+    return windowsWithInheritedDate
       .map((window) =>
         toResolvedPublicAvailabilityWindow(
           window,
@@ -1964,12 +2087,12 @@ export function resolvePublicAvailabilityWindows(
   }
 
   if (
-    normalizedWindows.length === 1 &&
-    (normalizedWindows[0]?.weekdays?.length ||
-      normalizedWindows[0]?.date ||
-      normalizedWindows[0]?.timeOfDay)
+    windowsWithInheritedDate.length === 1 &&
+    (windowsWithInheritedDate[0]?.weekdays?.length ||
+      windowsWithInheritedDate[0]?.date ||
+      windowsWithInheritedDate[0]?.timeOfDay)
   ) {
-    const window = normalizedWindows[0];
+    const window = windowsWithInheritedDate[0];
     const dateKeys = resolveDateKeysForAvailabilityWindow(
       window,
       timeZone,

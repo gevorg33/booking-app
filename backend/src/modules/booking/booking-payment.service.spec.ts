@@ -12,6 +12,7 @@ describe('BookingPaymentService', () => {
     save: jest.fn(),
     create: jest.fn(),
     findOne: jest.fn(),
+    update: jest.fn().mockResolvedValue({ affected: 1 }),
   };
   const serviceRepo = { findOne: jest.fn(), find: jest.fn() };
   const businessRepo = { findOne: jest.fn() };
@@ -388,7 +389,7 @@ describe('BookingPaymentService', () => {
       );
     });
 
-    it('falls back to service price when prepayment is zero', async () => {
+    it('e2e-bug.222 — pay-at-visit (none) keeps catalog servicePrice and zero online prepayment', async () => {
       await service.resolveCheckoutPricing(
         'biz-1',
         { ...baseService, prepaymentMode: PrepaymentMode.NONE } as any,
@@ -401,7 +402,33 @@ describe('BookingPaymentService', () => {
 
       expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
         expect.objectContaining({
-          prepaymentAmount: 120,
+          servicePrice: 120,
+          prepaymentAmount: 0,
+          serviceLineItems: [{ serviceId: 'svc-1', amount: 120 }],
+        }),
+      );
+    });
+
+    it('e2e-bug.222 — deposit mode still charges deposit online, not full catalog', async () => {
+      await service.resolveCheckoutPricing(
+        'biz-1',
+        {
+          ...baseService,
+          prepaymentMode: PrepaymentMode.DEPOSIT,
+          depositAmount: 25,
+          price: 120,
+        } as any,
+        {
+          serviceId: 'svc-1',
+          startTime: new Date().toISOString(),
+          customer: { name: 'Jane' },
+        },
+      );
+
+      expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          servicePrice: 120,
+          prepaymentAmount: 25,
         }),
       );
     });
@@ -938,6 +965,38 @@ describe('BookingPaymentService', () => {
       expect(message).not.toMatch(/sk_test_|acct_/i);
     });
 
+    // e2e-bug.122 — a real Stripe SDK error is an object with extra fields
+    // (type/code/statusCode/raw), not a plain Error; the safe-message wrapper
+    // must not depend on the thrown value's shape.
+    it('returns the safe message even when Stripe throws a StripeInvalidRequestError-shaped object', async () => {
+      const stripeStyleError = Object.assign(
+        new Error(
+          "No such checkout.session: 'cs_test_fake' for account acct_test_qa_e2e_fake, key sk_test_51Xxxgkn8",
+        ),
+        {
+          type: 'StripeInvalidRequestError',
+          code: 'resource_missing',
+          statusCode: 404,
+          raw: { message: 'raw stripe payload with acct_ and sk_test_ text' },
+        },
+      );
+      stripeSessionsRetrieve.mockRejectedValueOnce(stripeStyleError);
+
+      let caught: unknown;
+      try {
+        await service.confirmCheckoutSession('salon', 'sess_1');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(BadRequestException);
+      const message = String(
+        ((caught as BadRequestException).getResponse() as { message?: string })
+          .message ?? '',
+      );
+      expect(message).toBe(SAFE_ONLINE_PAYMENT_UNAVAILABLE_MESSAGE);
+      expect(message).not.toMatch(/sk_test_|acct_|resource_missing/i);
+    });
+
     it('throws when connect account is missing', async () => {
       stripeIntegrationService.resolveConnectAccountId.mockReturnValue(null);
       await expect(
@@ -1007,6 +1066,33 @@ describe('BookingPaymentService', () => {
 
       expect(result).toEqual({ alreadyCompleted: true });
       expect(publicBookingService.createBooking).not.toHaveBeenCalled();
+    });
+
+    it('e2e-bug.182 — loses the atomic claim race to a concurrent confirm and does not double-fulfill', async () => {
+      stripeSessionsRetrieve.mockResolvedValue({
+        id: 'sess_1',
+        status: 'complete',
+        payment_status: 'paid',
+        metadata: {
+          type: 'booking_payment',
+          slug: 'salon',
+          draftId: 'draft-1',
+        },
+      });
+      draftRepo.findOne.mockResolvedValue({
+        id: 'draft-1',
+        status: 'pending',
+        payload: { serviceId: 'svc-1' },
+      });
+      // Another concurrent confirm-payment request already flipped the row
+      // to 'completed' between this request's findOne and its update.
+      draftRepo.update.mockResolvedValueOnce({ affected: 0 });
+
+      const result = await service.confirmCheckoutSession('salon', 'sess_1');
+
+      expect(result).toEqual({ alreadyCompleted: true });
+      expect(publicBookingService.createBooking).not.toHaveBeenCalled();
+      expect(draftRepo.save).not.toHaveBeenCalled();
     });
 
     it('throws when business is missing during fulfillment', async () => {

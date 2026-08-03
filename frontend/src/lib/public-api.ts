@@ -988,12 +988,7 @@ export function confirmPublicBookingPayment(slug: string, sessionId: string) {
 }
 
 export interface PublicAssistantNavigate {
-  path:
-    | 'professionals'
-    | 'provider_profile'
-    | 'services'
-    | 'checkout'
-    | 'multi/checkout';
+  path: string;
   query: Record<string, string>;
 }
 
@@ -1021,6 +1016,8 @@ export function sendPublicAssistantMessage(
   return publicFetch<PublicAssistantResponse>(`/public/${slug}/assistant`, {
     method: 'POST',
     body: JSON.stringify(body),
+    // e2e-bug.223 — chat surfaces outcome in-bubble; never toast create-success
+    skipOperationFeedback: true,
   });
 }
 
@@ -1033,6 +1030,7 @@ export function ingestPublicGuideTelemetryEvents(
     {
       method: 'POST',
       body: JSON.stringify({ events }),
+      skipOperationFeedback: true,
     },
   );
 }
@@ -1107,6 +1105,18 @@ export interface PublicReviewContext {
 export function getPublicReviewContext(slug: string, bookingId: string, token: string) {
   const q = new URLSearchParams({ bookingId, token });
   return publicFetch<PublicReviewContext>(`/public/${slug}/reviews/context?${q.toString()}`);
+}
+
+/** e2e-bug.215 — signed-in session helper that mints/returns the post-visit review token. */
+export interface PublicCustomerReviewSession extends PublicReviewContext {
+  bookingId: string;
+  token: string;
+}
+
+export function getPublicCustomerReviewSession(slug: string, bookingId: string) {
+  return publicFetch<PublicCustomerReviewSession>(
+    `/public/${slug}/me/bookings/${bookingId}/review`,
+  );
 }
 
 export function submitPublicReview(
@@ -1425,6 +1435,27 @@ export function cancelPublicCustomerBooking(slug: string, bookingId: string) {
     `/public/${slug}/me/bookings/${bookingId}/cancel`,
     { method: 'POST' },
   );
+}
+
+/** e2e-bug.221 — signed-in customer tells the salon they are running late. */
+export function notifyPublicCustomerBookingRunningLate(
+  slug: string,
+  bookingId: string,
+  minutesLate?: number,
+) {
+  return publicFetch<{
+    bookingId: string;
+    minutesLate: number;
+    notifiedAt: string;
+    staffNotified: boolean;
+  }>(`/public/${slug}/me/bookings/${bookingId}/running-late`, {
+    method: 'POST',
+    body: JSON.stringify(
+      minutesLate != null ? { minutesLate } : {},
+    ),
+    // Inline success in AccountRunningLateButton; avoid generic create toast.
+    skipOperationFeedback: true,
+  });
 }
 
 export function cancelPublicBookingWithToken(slug: string, bookingId: string, token: string) {

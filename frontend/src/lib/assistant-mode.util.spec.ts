@@ -4,19 +4,20 @@ import {
   withAssistantModeContext,
 } from './assistant-mode.util';
 
-describe('assistant-mode.util (ai-guide-1.0.3)', () => {
-  it('returns guide only when guide chip is active', () => {
+describe('assistant-mode.util (ai-guide-1.0.3 / e2e-bug.233)', () => {
+  it('returns guide when Help chip is on, act when off (never omit)', () => {
     expect(resolveAssistantModePayload(true)).toBe('guide');
-    expect(resolveAssistantModePayload(false)).toBeUndefined();
+    expect(resolveAssistantModePayload(false)).toBe('act');
   });
 
-  it('merges assistantMode into request context when guide chip is active', () => {
+  it('always merges assistantMode into request context', () => {
     expect(withAssistantModeContext({ screen: 'checkout' }, true)).toEqual({
       screen: 'checkout',
       assistantMode: 'guide',
     });
     expect(withAssistantModeContext({ screen: 'checkout' }, false)).toEqual({
       screen: 'checkout',
+      assistantMode: 'act',
     });
   });
 });

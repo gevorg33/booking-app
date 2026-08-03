@@ -449,8 +449,11 @@ export function isToggleBusinessEmailOnCustomerChangePrompt(
     return false;
   }
 
+  // e2e-bug.252 — third-person "-s" must work for reschedule the same way
+  // e2e-bug.159 already handled for cancel (`a customer cancels`).
+  // Bare `reschedule\b` cannot match "reschedules" (no boundary before the s).
   const customerChangeCue =
-    /\b(customer\s+(?:cancel|reschedule|change)|booking\s+change|when\s+customers?\s+(?:cancel|reschedule)|a\s+customer\s+cancels?|customers?\s+cancel|customers?\s+reschedule)\b/i.test(
+    /\b(?:customer\s+(?:cancels?|reschedules?|changes?)|booking\s+change|when\s+customers?\s+(?:cancels?|reschedules?)|a\s+customer\s+(?:cancels?|reschedules?)|customers?\s+(?:cancels?|reschedules?))\b/i.test(
       prompt,
     );
   const ownerAlertCue =
@@ -474,6 +477,9 @@ export function isEnableNotificationsPrompt(prompt: string): boolean {
     isAppointmentReminderPreferencesPrompt(prompt)
   )
     return false;
+  // e2e-bug.252 — owner "email alerts when a customer cancels/reschedules"
+  // is toggle_business_email_on_customer_change, not generic enable_notifications.
+  if (isToggleBusinessEmailOnCustomerChangePrompt(prompt)) return false;
   if (/\border\s+status\b/i.test(prompt) || /\bgift\s+card\b/i.test(prompt))
     return false;
   if (
@@ -836,16 +842,18 @@ export function rescuePushNotificationsIntent(
       rescueReason: 'reminder_prefs',
     };
   }
-  if (isEnableNotificationsPrompt(prompt)) {
-    return {
-      action: 'enable_notifications',
-      rescueReason: 'enable_notifications',
-    };
-  }
+  // e2e-bug.252 — owner cancel/reschedule email alert is more specific than
+  // generic enable_notifications ("Turn off email alerts when a customer…").
   if (isToggleBusinessEmailOnCustomerChangePrompt(prompt)) {
     return {
       action: 'toggle_business_email_on_customer_change',
       rescueReason: 'business_email_toggle',
+    };
+  }
+  if (isEnableNotificationsPrompt(prompt)) {
+    return {
+      action: 'enable_notifications',
+      rescueReason: 'enable_notifications',
     };
   }
   if (isNotificationHistoryPrompt(prompt)) {
@@ -995,9 +1003,6 @@ export function classifyPushNotificationsSegment(
       segment: text,
     };
   }
-  if (isEnableNotificationsPrompt(text)) {
-    return { action: 'enable_notifications', params: base, segment: text };
-  }
   if (isToggleBusinessEmailOnCustomerChangePrompt(text)) {
     const businessEmailToggle =
       extractBusinessEmailOnCustomerChangeToggleFromPrompt(text);
@@ -1009,6 +1014,9 @@ export function classifyPushNotificationsSegment(
       },
       segment: text,
     };
+  }
+  if (isEnableNotificationsPrompt(text)) {
+    return { action: 'enable_notifications', params: base, segment: text };
   }
   if (isNotificationHistoryPrompt(text)) {
     return { action: 'notification_history', params: base, segment: text };

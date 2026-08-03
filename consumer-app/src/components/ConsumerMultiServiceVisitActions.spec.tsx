@@ -101,7 +101,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
             />,
           );
         });
-        const cancelBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
+        const cancelBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) =>
           (el.textContent ?? '').includes(CONSUMER_COPY_EN.cancelMultiServiceVisit),
         );
         expect(cancelBtn).toBeTruthy();
@@ -157,7 +159,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
             />,
           );
         });
-        const rescheduleBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
+        const rescheduleBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) =>
           (el.textContent ?? '').includes(CONSUMER_COPY_EN.rescheduleMultiServiceVisit),
         );
         expect(rescheduleBtn).toBeTruthy();
@@ -167,9 +171,9 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 40));
         });
-        const confirmBtn = Array.from(container.querySelectorAll('ion-button')).find((el) =>
-          (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule),
-        );
+        const confirmBtn = Array.from(
+          container.querySelectorAll('button.consumer-action-button'),
+        ).find((el) => (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule));
         expect(confirmBtn).toBeTruthy();
         await act(async () => {
           confirmBtn!.dispatchEvent(new CustomEvent('click', { bubbles: true }));
@@ -188,5 +192,69 @@ describe('ConsumerMultiServiceVisitActions (e2e-bug.34)', () => {
     },
   ])('$id', async ({ run }) => {
     await run();
+  });
+});
+
+describe('ConsumerMultiServiceVisitActions empty-slots reschedule panel (e2e-bug.313)', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.restoreAllMocks();
+  });
+
+  function findConfirmButton() {
+    return Array.from(container.querySelectorAll('button.consumer-action-button')).find((el) =>
+      (el.textContent ?? '').includes(CONSUMER_COPY_EN.confirmReschedule),
+    );
+  }
+
+  it('hides Confirm and shows the no-slots message when the suggested day has zero slots', async () => {
+    vi.spyOn(publicApi, 'suggestPublicMultiServiceBlock').mockRejectedValue(
+      new Error('No available block found for the selected services'),
+    );
+    vi.spyOn(publicApi, 'getPublicMultiServiceBlockSlots').mockResolvedValue({
+      date: '',
+      serviceIds: ['svc-1', 'svc-2'],
+      totalDurationMinutes: 0,
+      slots: [],
+    });
+
+    await act(async () => {
+      root.render(
+        <ConsumerMultiServiceVisitActions
+          slug="demo"
+          tenant={tenant}
+          anchorBookingId="b1"
+          visit={visit}
+          authed
+          copy={CONSUMER_COPY_EN}
+          onUpdated={() => undefined}
+        />,
+      );
+    });
+    const rescheduleBtn = Array.from(
+      container.querySelectorAll('button.consumer-action-button'),
+    ).find((el) => (el.textContent ?? '').includes(CONSUMER_COPY_EN.rescheduleMultiServiceVisit));
+    expect(rescheduleBtn).toBeTruthy();
+    await act(async () => {
+      rescheduleBtn!.dispatchEvent(new CustomEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    });
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(CONSUMER_COPY_EN.noSlotsThisDay);
+    });
+    expect(findConfirmButton()).toBeUndefined();
   });
 });

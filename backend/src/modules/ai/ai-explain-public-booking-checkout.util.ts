@@ -152,9 +152,13 @@ function hasCheckoutPaymentInteractionContext(prompt: string): boolean {
     return true;
   }
 
+  // e2e-bug.231 — do not count the "card" inside "gift card" as a second payment
+  // method (otherwise every gift-card balance ask looks like multi-method checkout).
+  const withoutGiftCardPhrase = prompt.replace(/\bgift\s*cards?\b/gi, ' ');
   const methodHits = [
     /\bcash\b/i.test(prompt),
-    /\b(?:online|stripe|card)\b/i.test(prompt),
+    /\b(?:online|stripe)\b/i.test(prompt) ||
+      /\bcard\b/i.test(withoutGiftCardPhrase),
     /\bgift\s*card/i.test(prompt),
   ].filter(Boolean).length;
 

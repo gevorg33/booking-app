@@ -104,6 +104,36 @@ describe('checkout-subscription.util', () => {
     ).toBe(true);
   });
 
+  // e2e-bug.180 — onlinePaymentEnabled is computed server-side as
+  // (business Stripe Connect ready) && (prepaymentMode !== 'none'), so a
+  // service can report prepaymentMode: 'full'/'deposit' while
+  // onlinePaymentEnabled is false (e.g. Stripe disconnected). The old checks
+  // read prepaymentMode directly instead of the already-gated prepaymentDue(),
+  // which forced an online-only checkout for a business that can't actually
+  // take online payment, while also hiding cash — a dead end.
+  it('does not require online payment for a full-prepayment service when onlinePaymentEnabled is false', () => {
+    expect(
+      requiresCheckoutOnlinePayment({
+        amountDue: 120,
+        paymentMethod: 'online',
+        purchaseType: 'one-time',
+        service: { ...service, onlinePaymentEnabled: false, prepaymentMode: 'full' },
+      }),
+    ).toBe(false);
+  });
+
+  it('allows cash for a full-prepayment service when onlinePaymentEnabled is false', () => {
+    expect(
+      showCheckoutCashOption({
+        profile: { acceptCashPayments: true },
+        purchaseType: 'one-time',
+        usingSubscriptionCredit: false,
+        amountDue: 120,
+        service: { ...service, onlinePaymentEnabled: false, prepaymentMode: 'full' },
+      }),
+    ).toBe(true);
+  });
+
   it('shows subscription checkout options when plans or active credit exist', () => {
     expect(
       shouldShowSubscriptionCheckoutOptions({

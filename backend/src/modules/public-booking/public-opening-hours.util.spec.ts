@@ -1,6 +1,7 @@
 import {
   buildOpeningHoursSummaryLines,
   buildPublicOpeningHoursFromTemplates,
+  formatPublicOpeningHoursLabel,
 } from './public-opening-hours.util.js';
 
 describe('public-opening-hours.util (e2e-bug.50)', () => {
@@ -130,5 +131,39 @@ describe('public-opening-hours.util (e2e-bug.50)', () => {
         { day: 'wednesday', closed: true, ranges: [] },
       ]),
     ).toEqual(['Mon–Tue 09:00–17:00', 'Wed Closed']);
+  });
+
+  describe('formatPublicOpeningHoursLabel (e2e-bug.227)', () => {
+    const hours = buildPublicOpeningHoursFromTemplates([
+      {
+        isActive: true,
+        periods: [
+          {
+            type: 'service_block',
+            startTime: '09:00',
+            endTime: '18:00',
+            isActiveOnMonday: true,
+            isActiveOnTuesday: true,
+            isActiveOnWednesday: true,
+            isActiveOnThursday: true,
+            isActiveOnFriday: true,
+            isActiveOnSaturday: true,
+          },
+        ],
+      },
+    ])!;
+
+    it('joins summary lines for the weekly label', () => {
+      expect(formatPublicOpeningHoursLabel(hours)).toBe(
+        'Mon–Sat 09:00–18:00; Sun Closed',
+      );
+    });
+
+    it('returns the named weekday range or Closed', () => {
+      expect(formatPublicOpeningHoursLabel(hours, 'saturday')).toBe(
+        '09:00–18:00',
+      );
+      expect(formatPublicOpeningHoursLabel(hours, 'Sunday')).toBe('Closed');
+    });
   });
 });

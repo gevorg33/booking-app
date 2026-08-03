@@ -63,6 +63,7 @@ import {
 } from './dto/public-customer-package-visit.dto.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
 import { PublicAssistantDto } from './dto/public-assistant.dto.js';
+import { buildPublicAssistantGatewayContext } from './public-assistant-inbound-context.util.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { SubmitPublicReviewDto } from '../reviews/dto/submit-public-review.dto.js';
 import { SubmitProviderPortalReviewDto } from '../reviews/dto/submit-provider-portal-review.dto.js';
@@ -266,6 +267,20 @@ export class PublicBookingController {
       slug,
       packageId,
       query.date,
+    );
+  }
+
+  @Get('packages/:packageId/bookable-dates')
+  getPackageBookableDates(
+    @Param('slug') slug: string,
+    @Param('packageId', ParseUUIDPipe) packageId: string,
+    @Query() query: GetServiceBookableDatesQueryDto,
+  ) {
+    return this.publicBookingService.getPackageBookableDates(
+      slug,
+      packageId,
+      query.from,
+      query.to,
     );
   }
 
@@ -626,13 +641,14 @@ export class PublicBookingController {
       userId: user?.customerId,
       membershipRole: 'client',
       history: dto.history,
-      context: {
+      // e2e-bug.261 / e2e-bug.96 — never let dto.context overwrite JWT identity.
+      context: buildPublicAssistantGatewayContext({
         slug,
         locale: dto.locale,
-        customerId: user?.customerId,
-        userEmail: user?.email ?? undefined,
-        ...dto.context,
-      },
+        dtoContext: dto.context,
+        authCustomerId: user?.customerId,
+        authEmail: user?.email,
+      }),
       assistantMode: dto.assistantMode,
     });
     return commandResultToPublicAssistantResult(
@@ -732,8 +748,15 @@ export class PublicBookingController {
 
   @Get('auth/me')
   @UseGuards(PublicCustomerAuthGuard)
-  getAuthMe(@CurrentUser() user: PublicCustomerRequestUser) {
-    return this.publicCustomerAuthService.getProfile(user.customer);
+  getAuthMe(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    // e2e-bug.218 — profile from path business + customerId (not JWT business alone)
+    return this.publicCustomerAuthService.getProfileForSlug(
+      slug,
+      user.customerId,
+    );
   }
 
   @Get('me/bookings')
@@ -1371,18 +1394,36 @@ export class PublicBookingController {
 
   @Get('me/data')
   @UseGuards(PublicCustomerAuthGuard)
-  exportMyData(@CurrentUser() user: PublicCustomerRequestUser) {
+  async exportMyData(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    // e2e-bug.218 — export under path business only (never JWT home-tenant alone)
+    const { businessId } =
+      await this.publicCustomerAuthService.resolveCustomerForSlug(
+        slug,
+        user.customerId,
+      );
     return this.customerPrivacyService.exportCustomerData(
-      user.businessId,
+      businessId,
       user.customerId,
     );
   }
 
   @Delete('me/data')
   @UseGuards(PublicCustomerAuthGuard)
-  deleteMyData(@CurrentUser() user: PublicCustomerRequestUser) {
+  async deleteMyData(
+    @Param('slug') slug: string,
+    @CurrentUser() user: PublicCustomerRequestUser,
+  ) {
+    // e2e-bug.218 — delete under path business only (never JWT home-tenant alone)
+    const { businessId } =
+      await this.publicCustomerAuthService.resolveCustomerForSlug(
+        slug,
+        user.customerId,
+      );
     return this.customerPrivacyService.deleteCustomerData(
-      user.businessId,
+      businessId,
       user.customerId,
     );
   }

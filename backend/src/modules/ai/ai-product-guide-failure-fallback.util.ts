@@ -155,7 +155,17 @@ export function resolvePostFailureGuideSnippet(
     ? matchSimilarAppGuideTopicFromPrompt(input.prompt, input.surface)
     : undefined;
   const routeTopicId = resolveGuideFlowRoutePrimaryTopic(input.route);
+  // e2e-bug.331 — on the public booking funnel, a specific step route
+  // (services/professionals/checkout) is a stronger signal than a generic
+  // prompt-similarity match against the whole-funnel overview topic; a vague
+  // "help me with this page" prompt shouldn't bump the visitor from
+  // /book/checkout back to the funnel's step-1 overview.
+  const routeIsSpecificPublicFunnelStep =
+    input.surface === 'public' &&
+    routeTopicId != null &&
+    routeTopicId !== 'public-booking-funnel';
   const topicId =
+    (routeIsSpecificPublicFunnelStep ? routeTopicId : undefined) ??
     scoredTopicId ??
     (isWeakDefaultGuideFallbackRoute(input.route, input.surface)
       ? undefined

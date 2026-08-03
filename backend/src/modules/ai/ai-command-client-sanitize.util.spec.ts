@@ -80,6 +80,41 @@ describe('ai-command-client-sanitize.util (e2e-bug.135)', () => {
     expect(details.confidence).toBeUndefined();
   });
 
+  it('e2e-bug.135 re-verification: strips reasoning/pipelineStage and internal hints nested inside partialParams/enrichedParams', () => {
+    const details = sanitizeCommandDetailsForClient({
+      needsClarification: true,
+      missing: [{ field: 'date' }],
+      reasoning: 'The user is asking for a summary of their day.',
+      pipelineStage: 'clarify',
+      partialParams: {
+        allProviders: false,
+        _structuralEnrichHints: { dateRange: false },
+        _timeZone: 'Asia/Yerevan',
+      },
+      enrichedParams: {
+        templateId: 'tpl-1',
+        templateName: 'Standard Mon-Fri',
+        _availableEmployees: 'Gevorg, Karo, Jujo, Mariam',
+        _availableServices: 'Swedish massage, Deep tissue massage',
+      },
+    });
+
+    expect(details).toEqual({
+      needsClarification: true,
+      missing: [{ field: 'date' }],
+      partialParams: { allProviders: false },
+      enrichedParams: { templateId: 'tpl-1', templateName: 'Standard Mon-Fri' },
+    });
+    expect(details.reasoning).toBeUndefined();
+    expect(details.pipelineStage).toBeUndefined();
+    expect(
+      (details.partialParams as Record<string, unknown>)._structuralEnrichHints,
+    ).toBeUndefined();
+    expect(
+      (details.enrichedParams as Record<string, unknown>)._availableEmployees,
+    ).toBeUndefined();
+  });
+
   it('sanitizeSessionContextForClient drops underscore internals', () => {
     expect(
       sanitizeSessionContextForClient({

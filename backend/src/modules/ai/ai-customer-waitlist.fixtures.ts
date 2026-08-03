@@ -39,6 +39,104 @@ export const E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS = [
   },
 ] as const;
 
+/**
+ * e2e-bug.235 — confirmation must not say "with Gevorg with Gevorg" or
+ * "waitlist for with Gevorg" (provider-only leading "with").
+ */
+export const E2E235_WAITLIST_SUMMARY_SCENARIOS = [
+  {
+    id: 'e2e235-swedish-with-gevorg-short',
+    serviceName: 'Swedish massage with Gevorg',
+    employeeName: 'Gevorg',
+    date: '29/07/2026',
+    expectedSummary: 'Swedish massage with Gevorg on 29/07/2026',
+    forbidden: ['with Gevorg with Gevorg'],
+  },
+  {
+    id: 'e2e235-swedish-with-gevorg-full',
+    serviceName: 'Swedish massage with Gevorg Gasparyan',
+    employeeName: 'Gevorg Gasparyan',
+    date: '29/07/2026',
+    expectedSummary: 'Swedish massage with Gevorg Gasparyan on 29/07/2026',
+    forbidden: ['with Gevorg Gasparyan with Gevorg'],
+  },
+  {
+    id: 'e2e235-swedish-with-first-vs-full',
+    serviceName: 'Swedish massage with Gevorg',
+    employeeName: 'Gevorg Gasparyan',
+    date: '29/07/2026',
+    expectedSummary: 'Swedish massage with Gevorg Gasparyan on 29/07/2026',
+    forbidden: ['with Gevorg with Gevorg'],
+  },
+  {
+    id: 'e2e235-clean-service-plus-provider',
+    serviceName: 'Swedish massage',
+    employeeName: 'Gevorg',
+    date: '29/07/2026',
+    expectedSummary: 'Swedish massage with Gevorg on 29/07/2026',
+    forbidden: ['with Gevorg with Gevorg'],
+  },
+  {
+    id: 'e2e235-provider-only-no-leading-with',
+    serviceName: undefined,
+    employeeName: 'Gevorg Gasparyan',
+    date: '29/07/2026',
+    expectedSummary: 'Gevorg Gasparyan on 29/07/2026',
+    forbidden: ['for with ', 'with Gevorg Gasparyan with'],
+  },
+  {
+    id: 'e2e235-provider-equals-service',
+    serviceName: 'Gevorg Gasparyan',
+    employeeName: 'Gevorg Gasparyan',
+    date: '29/07/2026',
+    expectedSummary: 'Gevorg Gasparyan on 29/07/2026',
+    forbidden: ['Gevorg Gasparyan with Gevorg', 'with Gevorg Gasparyan with'],
+  },
+  {
+    id: 'e2e235-service-only',
+    serviceName: 'Swedish massage',
+    employeeName: undefined,
+    date: '29/07/2026',
+    expectedSummary: 'Swedish massage on 29/07/2026',
+    forbidden: [' with with '],
+  },
+  {
+    id: 'e2e235-massage-with-anna-short',
+    serviceName: 'massage with Anna',
+    employeeName: 'Anna',
+    date: '01/08/2026',
+    expectedSummary: 'massage with Anna on 01/08/2026',
+    forbidden: ['with Anna with Anna'],
+  },
+] as const;
+
+/** e2e-bug.235 — NL prompts that must parse + summarize without duplicate "with". */
+export const E2E235_WAITLIST_PROMPT_SCENARIOS = [
+  {
+    id: 'e2e235-prompt-swedish-with-gevorg',
+    prompt: 'put me on the waitlist for Swedish massage with Gevorg tomorrow',
+    serviceName: 'Swedish massage',
+    employeeName: 'Gevorg',
+    summaryIncludes: 'Swedish massage with Gevorg',
+    forbidden: ['with Gevorg with Gevorg'],
+  },
+  {
+    id: 'e2e235-prompt-notify-if-opens',
+    prompt: 'Notify me if a Swedish massage with Gevorg opens tomorrow',
+    serviceName: 'Swedish massage',
+    employeeName: 'Gevorg',
+    summaryIncludes: 'Swedish massage with Gevorg',
+    forbidden: ['with Gevorg with Gevorg', 'opens for on '],
+  },
+  {
+    id: 'e2e235-prompt-provider-only',
+    prompt: 'put me on the waitlist for Gevorg Gasparyan tomorrow',
+    employeeName: 'Gevorg Gasparyan',
+    summaryIncludes: 'Gevorg Gasparyan',
+    forbidden: ['opens for with ', 'for with Gevorg'],
+  },
+] as const;
+
 export const CUSTOMER_PUBLIC_CUSTOMER_WAITLIST_CLASSIFIER_RULES = `- join_waitlist: MUTATE — logged-in customer asks to be notified when a slot opens ("Notify me if something opens Friday", "Put me on the waitlist for massage"). Set serviceName, date/dateFrom/dateTo, timeSlot, timeOfDay, employeeName when mentioned. Provider-only prompts ("put me on the waitlist for Gevorg Gasparyan tomorrow") set employeeName only — never copy the provider into serviceName (e2e-bug.112). Uses POST /me/waitlist. Requires sign-in. NOT offer_waitlist_slot|list_waitlist_entries (staff dashboard), NOT suggest_waitlist_for_gap|coordinate_waitlist_offer (provider staff), NOT check_availability (browse open times without waitlist join cue), NOT book_appointment.
 - check_waitlist_status: READ — logged-in customer asks whether they are already on the waitlist ("Am I on the waitlist?", "What's my waitlist status?"). Uses GET /me/waitlist. Requires sign-in. NOT list_waitlist_entries (staff CRM list).`;
 

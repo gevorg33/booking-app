@@ -40,6 +40,7 @@ import {
   stripServiceRoleNoise,
   resolvePublicAssistantSessionServiceFields,
 } from '../ai/ai-orchestration.helpers.js';
+import { normalizeAvailabilityServiceCategory } from '../ai/ai-flexible-availability.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import {
   readBusinessPrivacySettings,
@@ -47,6 +48,7 @@ import {
 } from '../../common/utils/business-compliance.util.js';
 import { readTenantAppInstallSettings } from '../../common/utils/tenant-app-install-settings.util.js';
 import { buildNoNearestSlotMessage } from '../ai/ai-booking-slot-messages.util.js';
+import { formatDateForAiLabel } from '../ai/ai-date-label.util.js';
 import {
   attachCheckProvidersHandoff,
   buildCheckProvidersHandoffFromResult,
@@ -57,6 +59,7 @@ import {
   applyChosenAvailabilityWindowToParams,
   buildNearestAvailabilityWindowQueries,
   buildNearestBookableSlotQuery,
+  resolveNearestBookableSlotNotBeforeTime,
 } from '../ai/ai-nearest-slot-resolver.util.js';
 import { AiBusinessDateFormatService } from '../ai/ai-business-date-format.service.js';
 import { AiBusinessHoursLocationService } from '../ai/ai-explain-business-hours-and-location.service.js';
@@ -115,6 +118,7 @@ import type { ClassifiedIntent } from '../ai/ai-command-routing.util.js';
 import type { CommandResult } from '../ai/command-completion.types.js';
 import type { PipelineUnderstandResult } from '../ai/command-understanding.types.js';
 import { enrichPublicAssistantParamsFromPrompt } from '../ai/ai-intent-heuristics.js';
+import { enrichBookAppointmentParamsFromPrompt } from '../ai/ai-book-appointment-params.util.js';
 import {
   enrichFindServicesUnderBudgetParamsFromPrompt,
   parseFindServicesUnderBudgetFromPrompt,
@@ -175,6 +179,10 @@ import { rescueRecoverLostManageLinkIntent } from '../ai/ai-recover-lost-manage-
 import { rescueFixCheckoutValidationErrorIntent } from '../ai/ai-fix-checkout-validation-error.util.js';
 import { rescueConfirmMyBookingDetailsIntent } from '../ai/ai-confirm-my-booking-details.util.js';
 import {
+  enrichExplainSubscriptionVsOneTimeParamsFromPrompt,
+  rescueExplainSubscriptionVsOneTimeIntent,
+} from '../ai/ai-explain-subscription-vs-one-time.util.js';
+import {
   enrichLeaveVisitReviewParamsFromPrompt,
   rescueLeaveVisitReviewIntent,
 } from '../ai/ai-leave-visit-review.util.js';
@@ -232,6 +240,10 @@ import {
 import { rescueMultiServiceCustomerPublicIntent } from '../ai/ai-multi-service-customer-public.util.js';
 import { isPublicMultiServiceCompoundPrompt } from '../ai/ai-multi-service-customer-public.util.js';
 import { rescueApplyPromoCodeCheckoutIntent } from '../ai/ai-apply-promo-code-checkout.util.js';
+import {
+  enrichClaimReferralCodeParamsFromPrompt,
+  rescueClaimReferralCodeIntent,
+} from '../ai/ai-rewards-and-referral-claim.util.js';
 import { enrichApplyPromoCodeCheckoutParamsFromPrompt } from '../ai/ai-apply-promo-code-checkout.util.js';
 import { rescuePromoCodeHelpCustomerPublicIntent } from '../ai/ai-promo-code-help-customer-public.util.js';
 import { rescueHowToDownloadAppCustomerPublicIntent } from '../ai/ai-how-to-download-app-customer-public.util.js';
@@ -500,6 +512,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     });
 
     if (understood.status === 'blocked') {
+      // e2e-bug.280 — cheap deterministic feedback rescues must still run when
+      // the understand pipeline blocked (null classify + unknown-phase miss).
+      if (rescueGiveAiFeedbackIntent(prompt, 'unknown')) {
+        // e2e-bug.299 — thread request locale into feedback chip/summary copy.
+        return this.handleGiveAiFeedback(business.id, {}, prompt, locale);
+      }
       return {
         success: false,
         action: 'unknown',
@@ -563,6 +581,19 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     if (addBookingToCalendarRescue) {
       parsed.action = addBookingToCalendarRescue.action;
       rescueReason = addBookingToCalendarRescue.rescueReason;
+    }
+
+    // e2e-bug.230 / e2e-bug.79 — before confirm_my_booking_details steals
+    // "subscription or just pay per visit".
+    const explainSubscriptionVsOneTimeRescue =
+      rescueExplainSubscriptionVsOneTimeIntent(prompt, parsed.action);
+    if (explainSubscriptionVsOneTimeRescue) {
+      parsed.action = explainSubscriptionVsOneTimeRescue.action;
+      rescueReason = explainSubscriptionVsOneTimeRescue.rescueReason;
+      parsed.params = enrichExplainSubscriptionVsOneTimeParamsFromPrompt(
+        parsed.params ?? {},
+        prompt,
+      );
     }
 
     const checkoutTaxRescue = rescueCheckoutTaxIntent(prompt, parsed.action);
@@ -934,6 +965,20 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       rescueReason = multiServiceRescue.rescueReason;
     }
 
+    // e2e-bug.232 — before apply_promo_code_checkout steals redeem/apply referral.
+    const claimReferralRescue = rescueClaimReferralCodeIntent(
+      prompt,
+      parsed.action,
+    );
+    if (claimReferralRescue) {
+      parsed.action = claimReferralRescue.action;
+      rescueReason = claimReferralRescue.rescueReason;
+      parsed.params = enrichClaimReferralCodeParamsFromPrompt(
+        prompt,
+        parsed.params ?? {},
+      );
+    }
+
     const applyPromoCheckoutRescue = rescueApplyPromoCodeCheckoutIntent(
       prompt,
       parsed.action,
@@ -1030,6 +1075,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       services.map((s) => ({ id: s.id, name: s.name })),
       parsed.action,
     );
+    if (parsed.action === 'book_appointment') {
+      parsed.params = enrichBookAppointmentParamsFromPrompt(
+        prompt,
+        parsed.params ?? {},
+      );
+    }
     if (session?.history?.length && parsed.action === 'speak_assistant_reply') {
       parsed.params = {
         ...parsed.params,
@@ -1042,7 +1093,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         conversationHistory: session.history,
       };
     }
-    this.normalizeDateParams(parsed.params, todayKey);
+    this.normalizeDateParams(parsed.params, todayKey, tz);
 
     this.logger.log(
       `Public assistant action="${parsed.action}" — ${parsed.reasoning}`,
@@ -1144,6 +1195,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           services,
           locale,
           tz,
+          prompt,
         );
         break;
       case 'business_info':
@@ -1247,6 +1299,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           business.id,
           parsed.params ?? {},
           prompt,
+          locale,
         );
         break;
       case 'explain_rtl_layout':
@@ -1381,7 +1434,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       case 'explain_any_provider_option':
         result = await this.handleExplainAnyProviderOption(
           business.id,
-          parsed.params ?? {},
+          // e2e-bug.259 — thread locale so clarify/summary are not English-only.
+          { ...(parsed.params ?? {}), locale },
           prompt,
         );
         break;
@@ -1674,9 +1728,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
               orchestratedSession.bookingId ?? parsed.params?.bookingId,
             manageToken:
               orchestratedSession.manageToken ?? parsed.params?.manageToken,
-            sessionCustomerId:
-              orchestratedSession.customerId ??
-              parsed.params?.sessionCustomerId,
+            sessionCustomerId: orchestratedSession.customerId,
             locale,
           },
           prompt,
@@ -1689,9 +1741,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             ...parsed.params,
             bookingId:
               orchestratedSession.bookingId ?? parsed.params?.bookingId,
-            sessionCustomerId:
-              orchestratedSession.customerId ??
-              parsed.params?.sessionCustomerId,
+            sessionCustomerId: orchestratedSession.customerId,
             locale,
           },
           prompt,
@@ -2181,7 +2231,10 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       (employee
         ? `Services with ${employee.name}:`
         : serviceQuery
-          ? `Our ${stripServiceRoleNoise(String(serviceQuery))} service types:`
+          ? // e2e-bug.322 — normalize raw classifier tokens (e.g. "trim") to
+            // their catalog family label ("haircut") instead of echoing the
+            // literal prompt word back in the header.
+            `Our ${normalizeAvailabilityServiceCategory(stripServiceRoleNoise(String(serviceQuery)))} service types:`
           : params.maxTotalPrice != null
             ? `Service combos within your budget:`
             : params.maxPrice != null
@@ -2309,7 +2362,13 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       orchestratedSession,
       input.action,
     );
-    this.normalizeDateParams(mergedParams, todayKey);
+    if (input.action === 'book_appointment') {
+      Object.assign(
+        mergedParams,
+        enrichBookAppointmentParamsFromPrompt(input.prompt, mergedParams),
+      );
+    }
+    this.normalizeDateParams(mergedParams, todayKey, tz);
 
     const raw = await this.dispatchCompoundStepAction(
       input.action,
@@ -2358,7 +2417,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       { ...orchestratedSession },
       {
         runStep: async (action, params, segment) => {
-          const enriched = enrichPublicAssistantParamsFromPrompt(
+          const enrichedBase = enrichPublicAssistantParamsFromPrompt(
             segment,
             params,
             services.map((service) => ({
@@ -2367,7 +2426,11 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             })),
             action,
           );
-          this.normalizeDateParams(enriched, todayKey);
+          const enriched =
+            action === 'book_appointment'
+              ? enrichBookAppointmentParamsFromPrompt(segment, enrichedBase)
+              : enrichedBase;
+          this.normalizeDateParams(enriched, todayKey, tz);
           const raw = await this.dispatchCompoundStepAction(
             action,
             enriched,
@@ -2459,6 +2522,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           services,
           locale,
           tz,
+          prompt,
         );
       case 'business_info':
         return this.handleBusinessInfo(business);
@@ -2470,6 +2534,48 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
           services,
           locale,
           prompt,
+        );
+      // e2e-bug.196 — PUBLIC_ONLY actions must work on compound / deterministic path
+      case 'find_services_under_budget':
+        return this.handleFindServicesUnderBudget(
+          slug,
+          enrichFindServicesUnderBudgetParamsFromPrompt(params, prompt),
+          employees,
+          locale,
+          prompt,
+        );
+      case 'find_evening_weekend_slots':
+        return this.handleFindEveningWeekendSlots(
+          slug,
+          enrichFindEveningWeekendSlotsParamsFromPrompt(params, prompt),
+          employees,
+          services,
+          locale,
+          tz,
+          prompt,
+        );
+      case 'booking_help':
+        return this.handleBookingHelp(businessId, prompt, locale, session);
+      case 'preview_multi_service_cart':
+        return this.handlePreviewMultiServiceCart(
+          businessId,
+          params,
+          prompt,
+          session,
+        );
+      case 'list_public_promotions':
+        return this.handleListPublicPromotions(slug);
+      case 'list_provider_reviews':
+        return this.handleListProviderReviews(businessId, {
+          ...params,
+          slug,
+        });
+      case 'suggest_package_block':
+        return this.handleSuggestPackageBlock(
+          businessId,
+          params,
+          prompt,
+          session,
         );
       case 'book_multi_service':
         return this.handleBookMultiService(businessId, params, prompt, {});
@@ -2635,6 +2741,25 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
       ...new Set(availabilityWindows.flatMap((window) => window.dateKeys)),
     ];
     if (allDateKeys.length === 0) {
+      const namedProvider =
+        typeof params.employeeName === 'string'
+          ? params.employeeName.trim()
+          : '';
+      // e2e-bug.93 — keep named specialist in day clarify (don't drop to generic).
+      if (namedProvider && matchedServices.length === 0) {
+        return {
+          success: true,
+          action: 'check_availability',
+          summary: t(locale, 'assistant.availabilityNeedsDayForProvider', {
+            name: namedProvider,
+          }),
+          details: {
+            clarify: true,
+            missing: ['date'],
+            employeeName: namedProvider,
+          },
+        };
+      }
       return {
         success: true,
         action: 'check_availability',
@@ -2646,6 +2771,9 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
               ),
             })
           : t(locale, 'assistant.availabilityNeedsDayOrService'),
+        ...(namedProvider
+          ? { details: { employeeName: namedProvider, clarify: true } }
+          : {}),
       };
     }
 
@@ -2815,7 +2943,8 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         providerLabel,
         daysLabel:
           dayCount === 1
-            ? formatDateDisplay(allDateKeys[0], locale)
+            ? // e2e-bug.345 — no-slot day label: no DD/MM slash (sibling of Fixed 285/306/332).
+              formatDateForAiLabel(allDateKeys[0], locale)
             : String(dayCount),
         maxPrice: params.maxPrice,
       });
@@ -2896,6 +3025,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     services: Service[],
     locale: AppLocale,
     tz: string,
+    prompt?: string,
   ): Promise<PublicAssistantResult> {
     const employeeRole =
       typeof params.employeeRole === 'string' ? params.employeeRole : undefined;
@@ -2969,7 +3099,7 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         );
     const multiService = filteredServices.length > 1;
 
-    let dateKeys = resolvePublicAvailabilityDateKeys(params, undefined, tz);
+    let dateKeys = resolvePublicAvailabilityDateKeys(params, prompt, tz);
     if (dateKeys.length === 0) {
       const todayKey = getDateKeyInTimezone(new Date(), tz);
       dateKeys = Array.from(
@@ -2986,7 +3116,12 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
             ? filteredServices.map((service) => service.id)
             : undefined,
         dateKeys,
-        notBeforeTime: params.timeFrom ?? null,
+        // e2e-bug.318 — honor timeOfDay ("this evening"/"tonight" → 17:00+),
+        // not just an explicit timeFrom, when picking sample slot times.
+        notBeforeTime: resolveNearestBookableSlotNotBeforeTime(
+          params,
+          prompt ?? '',
+        ),
         limit: 5,
         employeeRole: employeeRole ?? null,
       },
@@ -3647,10 +3782,16 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     businessId: string,
     params: Record<string, unknown>,
     prompt: string,
+    requestLocale?: string,
   ): Promise<PublicAssistantResult> {
+    // e2e-bug.299 — locale is request context, not a classifier entity.
+    const locale =
+      (typeof params.locale === 'string' && params.locale.trim()
+        ? params.locale.trim()
+        : undefined) ?? requestLocale;
     const result = await this.giveAiFeedback.handleGiveAiFeedback(
       businessId,
-      { ...params, _prompt: prompt },
+      { ...params, _prompt: prompt, ...(locale ? { locale } : {}) },
       prompt,
     );
     return commandResultToPublicAssistantResult(result);
@@ -3680,13 +3821,21 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     prompt: string,
     session: Record<string, unknown>,
   ): Promise<PublicAssistantResult> {
+    const pick = (...values: unknown[]): string | undefined => {
+      for (const value of values) {
+        if (typeof value === 'string' && value.trim()) return value.trim();
+      }
+      return undefined;
+    };
     const mergedParams = {
       ...params,
-      serviceId: params.serviceId ?? session.serviceId,
-      employeeId: params.employeeId ?? session.employeeId,
-      startTime: params.startTime ?? session.startTime,
+      // e2e-bug.229 — treat empty-string classifier params as missing so checkout
+      // page context (serviceId/employeeId/startTime) wins.
+      serviceId: pick(params.serviceId, session.serviceId),
+      employeeId: pick(params.employeeId, session.employeeId),
+      startTime: pick(params.startTime, session.startTime),
       cartServiceIds: params.cartServiceIds ?? session.cartServiceIds,
-      packageId: params.packageId ?? session.packageId,
+      packageId: pick(params.packageId, session.packageId),
       _prompt: prompt,
     };
     const result = await this.payments.handlePayOnline(
@@ -5479,15 +5628,33 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
   private normalizeDateParams(
     params: Record<string, any>,
     fallbackDateKey: string,
+    timeZone?: string,
   ) {
+    // e2e-bug.296 — resolve "today"/"tonight" in the business TZ, not UTC default
+    // (UTC can be previous calendar day and dropPast then empties dateKeys).
+    const tz = timeZone ?? 'UTC';
     if (params.date) {
-      params.date = toIsoDay(params.date) ?? fallbackDateKey;
+      params.date = toIsoDay(params.date, tz) ?? fallbackDateKey;
     }
     if (params.dateFrom) {
-      params.dateFrom = toIsoDay(params.dateFrom) ?? params.dateFrom;
+      params.dateFrom = toIsoDay(params.dateFrom, tz) ?? params.dateFrom;
     }
     if (params.dateTo) {
-      params.dateTo = toIsoDay(params.dateTo) ?? params.dateTo;
+      params.dateTo = toIsoDay(params.dateTo, tz) ?? params.dateTo;
+    }
+    if (Array.isArray(params.availabilityWindows)) {
+      params.availabilityWindows = params.availabilityWindows.map(
+        (entry: Record<string, unknown>) => {
+          if (!entry || typeof entry !== 'object') return entry;
+          if (typeof entry.date === 'string' && entry.date.trim()) {
+            return {
+              ...entry,
+              date: toIsoDay(entry.date, tz) ?? entry.date,
+            };
+          }
+          return entry;
+        },
+      );
     }
   }
 

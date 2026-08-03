@@ -11,7 +11,10 @@ import {
   mergeProviderMobileGuideContext,
   readProviderMobileRouteTab,
 } from './ai-provider-guide-context.util.js';
-import { mapPublicBookingGuideRoute } from './ai-public-booking-guide.util.js';
+import {
+  mapPublicBookingGuideRoute,
+  parseBookingPathToGuideRoute,
+} from './ai-public-booking-guide.util.js';
 import {
   mapCustomerMobileGuideRoute,
   parseCustomerPathToGuideRoute,
@@ -139,18 +142,48 @@ export function resolveRoleProfileFromSession(
   return mapAccessTierToRoleProfile(tier);
 }
 
+/**
+ * e2e-bug.331 — the public web booking funnel is dispatched through the
+ * shared 'customer' AI gateway pipeline, so `explain_current_screen` /
+ * `guide_user_flow` there see surface='customer'. Its bare `/book/...`
+ * screens (services/professionals/checkout) are never real customer-app
+ * routes — the native app always uses `/s/book...` or `/consumer/book...` —
+ * so this pattern unambiguously identifies a public-funnel screen even
+ * though the outer surface says 'customer'.
+ */
+function isPublicBookingFunnelScreen(screen: string | undefined): boolean {
+  return !!screen && /^\/book(\/|$|\?)/i.test(screen);
+}
+
 export function resolveProductGuideSessionContext(
   session?: { context?: Record<string, unknown> },
   surfaceHint?: CommandSurface | GuideFlowSurface,
 ): ProductGuideSessionContext {
   const pageCtx = mergeProviderMobileGuideContext(session?.context);
-  const surface = resolveGuideFlowSurface(
+  let surface = resolveGuideFlowSurface(
     surfaceHint,
     readString(pageCtx?.route),
   );
 
+  // e2e-bug.331 — callers (e.g. dispatchCustomerAppGuideIntent) sometimes
+  // pre-compute `route` via the customer-app mapper (which collapses every
+  // `/book/...` screen into the generic `/s/book` bucket) before calling
+  // here, so the screen check must run and win regardless of whether
+  // `route` is already populated.
+  const screen =
+    readString(pageCtx?.screen) ??
+    readString(pageCtx?.pathname) ??
+    readString(pageCtx?.path);
+  const correctedToPublic =
+    surface === 'customer' && isPublicBookingFunnelScreen(screen);
+  if (correctedToPublic) {
+    surface = 'public';
+  }
+
   let route = readString(pageCtx?.route);
-  if (!route) {
+  if (correctedToPublic) {
+    route = parseBookingPathToGuideRoute(screen!) ?? route;
+  } else if (!route) {
     if (surface === 'public') route = mapPublicBookingGuideRoute(pageCtx);
     else if (surface === 'provider')
       route = mapProviderMobileGuideRoute(pageCtx);

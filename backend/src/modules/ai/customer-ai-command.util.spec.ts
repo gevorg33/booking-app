@@ -76,6 +76,94 @@ describe('customer-ai-command.util', () => {
     });
   });
 
+  it('forwards clientAction so consumer-app client-side handlers can fire', () => {
+    const mapped = commandResultToPublicAssistantResult({
+      success: true,
+      action: 'explain_push_permission',
+      summary: 'Opening notification settings.',
+      details: {
+        clientAction: 'openConsumerNotificationSettings',
+        aspect: 'open_settings',
+      },
+    });
+    expect(mapped.details).toEqual({
+      clientAction: 'openConsumerNotificationSettings',
+    });
+  });
+
+  it('forwards give_ai_feedback details so submitAssistantFeedback can record real feedback', () => {
+    const mapped = commandResultToPublicAssistantResult({
+      success: true,
+      action: 'give_ai_feedback',
+      summary: 'Thanks — this helps improve the assistant.',
+      details: {
+        aspect: 'rate_answer',
+        feedbackRating: 'up',
+        feedbackReason: 'wrong_date',
+        lastAssistantReply: 'Booked for 4pm.',
+        lastAction: 'reschedule_booking',
+        feedbackUpLabel: 'Helpful',
+        feedbackDownLabel: 'Not helpful',
+        feedbackThanks: 'Thanks — this helps improve the assistant.',
+        feedbackReasonSkipLabel: 'Skip',
+        feedbackReasonOptions: [{ id: 'wrong_date', label: 'Wrong date' }],
+        clientAction: 'submitAssistantFeedback',
+        assistantFeedback: true,
+      },
+    });
+    // e2e-bug.281 — chip/label fields must reach the public client, not only rating.
+    expect(mapped.details).toEqual({
+      clientAction: 'submitAssistantFeedback',
+      feedbackRating: 'up',
+      feedbackReason: 'wrong_date',
+      lastAssistantReply: 'Booked for 4pm.',
+      lastAction: 'reschedule_booking',
+      aspect: 'rate_answer',
+      assistantFeedback: true,
+      feedbackUpLabel: 'Helpful',
+      feedbackDownLabel: 'Not helpful',
+      feedbackThanks: 'Thanks — this helps improve the assistant.',
+      feedbackReasonSkipLabel: 'Skip',
+      feedbackReasonOptions: [{ id: 'wrong_date', label: 'Wrong date' }],
+    });
+  });
+
+  it('forwards showReasonChips for down-rated give_ai_feedback (e2e-bug.281)', () => {
+    const mapped = commandResultToPublicAssistantResult({
+      success: true,
+      action: 'give_ai_feedback',
+      summary: 'Not helpful — choose a reason so we can improve the assistant.',
+      details: {
+        aspect: 'rate_answer',
+        feedbackRating: 'down',
+        showReasonChips: true,
+        feedbackUpLabel: 'Helpful',
+        feedbackDownLabel: 'Not helpful',
+        feedbackReasonOptions: [
+          { id: 'wrong_action', label: 'Wrong action' },
+          { id: 'wrong_date', label: 'Wrong date' },
+        ],
+        clientAction: 'openAssistantFeedback',
+        assistantFeedback: true,
+        secretInternal: 'must-strip',
+      },
+    });
+    expect(mapped.details).toEqual({
+      clientAction: 'openAssistantFeedback',
+      feedbackRating: 'down',
+      showReasonChips: true,
+      aspect: 'rate_answer',
+      assistantFeedback: true,
+      feedbackUpLabel: 'Helpful',
+      feedbackDownLabel: 'Not helpful',
+      feedbackReasonOptions: [
+        { id: 'wrong_action', label: 'Wrong action' },
+        { id: 'wrong_date', label: 'Wrong date' },
+      ],
+    });
+    expect(mapped.details).not.toHaveProperty('secretInternal');
+  });
+
   it('converts between public assistant and command results', () => {
     const command = publicAssistantResultToCommandResult({
       success: true,
@@ -93,7 +181,29 @@ describe('customer-ai-command.util', () => {
       sessionContext: { serviceName: 'Massage' },
       navigate: { path: 'checkout', query: { serviceId: 's1' } },
       bookingId: 'book-1',
+      guide: undefined,
     });
+  });
+
+  it('e2e-bug.277 — public→command convert preserves booking_help guide', () => {
+    const guide = {
+      topicId: 'public-booking-funnel',
+      summary: 'Step 1 of 3: Pick a service',
+      steps: [{ title: 'Pick a service', body: 'Browse services.' }],
+      supportHandoff: {
+        action: 'create_support_ticket' as const,
+        label: 'Still stuck?',
+      },
+    };
+    const command = publicAssistantResultToCommandResult({
+      success: true,
+      action: 'booking_help',
+      summary: 'Step 1 of 3: Pick a service',
+      guide,
+      navigate: { path: 'services' },
+    });
+    expect(command.guide).toEqual(guide);
+    expect(commandResultToPublicAssistantResult(command).guide).toEqual(guide);
   });
 
   it('maps command results with missing details to public assistant shape', () => {
@@ -179,6 +289,7 @@ describe('customer-ai-command.util', () => {
     expect(schema).toContain('discover_packages');
     expect(schema).toContain('buy|purchase|order|get');
     expect(schema).toContain('list_providers');
+    expect(schema).toContain('Who are your providers?');
     expect(schema).toContain('unknown');
     expect(schema).toContain('check_providers_for_service');
     expect(schema).toContain('book_nearest_slot');

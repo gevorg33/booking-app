@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   E2E87_CLEAN_HY_GUIDE_SAMPLES,
+  E2E87_CLEAN_WORSE_VARIANT_REPLACEMENTS,
   E2E87_CORRUPTED_HY_GUIDE_SAMPLES,
+  E2E87_LIVE_HY_GUIDE_PROMPTS,
 } from './ai-e2e87-hy-guide-mixed-script.fixtures.js';
 import { resolveGuideCorpusI18nKey } from './guide/ai-guide-corpus-i18n.util.js';
 import { TOP_CUSTOMER_PUBLIC_GUIDE_FLOWS } from './guide/guide-flow-customer-public-i18n.fixtures.js';
@@ -21,11 +23,16 @@ import {
 describe('e2e-bug.87 hy guide mixed-script QA gate', () => {
   it.each(E2E87_CORRUPTED_HY_GUIDE_SAMPLES)(
     '$id: detector rejects corruption ($reason)',
-    ({ text }) => {
+    ({ id, text }) => {
       expect(guideFlowHyTextHasMixedScriptCorruption(text)).toBe(true);
       expect(guideFlowHyTextIsClean(text)).toBe(false);
-      // Coarse "has Armenian" alone is insufficient — these still match it.
-      expect(guideFlowLocaleHasScript('hy', text)).toBe(true);
+      // Coarse "has Armenian" alone is insufficient for mixed-script samples.
+      // Full-Latin-only samples have no Armenian at all (worse variant).
+      if (id !== 'e2e87-full-latin-translit-step') {
+        expect(guideFlowLocaleHasScript('hy', text)).toBe(true);
+      } else {
+        expect(guideFlowLocaleHasScript('hy', text)).toBe(false);
+      }
     },
   );
 
@@ -36,6 +43,34 @@ describe('e2e-bug.87 hy guide mixed-script QA gate', () => {
       expect(guideFlowHyTextIsClean(text)).toBe(true);
     },
   );
+
+  it.each(E2E87_CLEAN_WORSE_VARIANT_REPLACEMENTS)(
+    '$id: worse-variant replacement is clean Armenian',
+    ({ text }) => {
+      expect(guideFlowHyTextHasMixedScriptCorruption(text)).toBe(false);
+      expect(guideFlowHyTextIsClean(text)).toBe(true);
+    },
+  );
+
+  it('live prompt fixture covers 2-step and 3-step guide flows', () => {
+    expect(E2E87_LIVE_HY_GUIDE_PROMPTS.length).toBeGreaterThanOrEqual(6);
+    expect(
+      E2E87_LIVE_HY_GUIDE_PROMPTS.some((p) => p.minSteps === 2),
+    ).toBe(true);
+    expect(
+      E2E87_LIVE_HY_GUIDE_PROMPTS.some((p) => (p.minSteps ?? 0) >= 3),
+    ).toBe(true);
+  });
+
+  it('canonical hy bookingFlow step1 matches clean any-provider replacement', () => {
+    const hy = loadCustomerPublicGuideI18nJson('hy');
+    expect(resolveNestedGuideFlowValue(hy, 'customer.bookingFlow.step1')).toBe(
+      'Ընտրեք մասնագետ կամ «Ցանկացած ազատ մասնագետ»։',
+    );
+    expect(resolveNestedGuideFlowValue(hy, 'customer.bookingFlow.title')).toBe(
+      'Ամրագրել այց',
+    );
+  });
 
   it('canonical hy JSON has zero mixed-script findings across all flow fields', () => {
     expect(listCustomerPublicGuideHyCorruptionFindings()).toEqual([]);

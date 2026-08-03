@@ -1,11 +1,19 @@
 /**
  * e2e-bug.100 — public_assistant_compound registry examplePrompts must
  * deterministically decompose into 2+ public steps (not steal to single intents).
+ * e2e-bug.196 — also covers previously-dead PUBLIC_ONLY compound steps.
  */
 export type PublicAssistantCompoundShape =
   | 'list_providers_check_availability'
   | 'discover_packages_recommend_specialists'
-  | 'book_appointment_business_info';
+  | 'book_appointment_business_info'
+  | 'find_services_under_budget_list_providers'
+  | 'find_evening_weekend_slots_list_providers'
+  | 'list_providers_booking_help'
+  | 'list_services_preview_multi_service_cart'
+  | 'list_providers_list_public_promotions'
+  | 'list_providers_list_provider_reviews'
+  | 'list_services_suggest_package_block';
 
 export type PublicAssistantCompoundFixture = {
   id: string;
@@ -64,6 +72,56 @@ export const PUBLIC_ASSISTANT_COMPOUND_PROMPTS: PublicAssistantCompoundFixture[]
       surface: 'public',
       shape: 'book_appointment_business_info',
       orderedActions: ['book_appointment', 'business_info'],
+    },
+    // e2e-bug.196 — previously dead PUBLIC_ONLY compound steps
+    {
+      id: 'e2e196-find-services-under-budget-list-providers',
+      prompt: 'Find services under $50 and list providers',
+      surface: 'public',
+      shape: 'find_services_under_budget_list_providers',
+      orderedActions: ['find_services_under_budget', 'list_providers'],
+    },
+    {
+      id: 'e2e196-find-evening-weekend-slots-list-providers',
+      prompt: 'Find evening weekend slots and list providers',
+      surface: 'public',
+      shape: 'find_evening_weekend_slots_list_providers',
+      orderedActions: ['find_evening_weekend_slots', 'list_providers'],
+    },
+    {
+      id: 'e2e196-list-providers-booking-help',
+      prompt: 'List providers and walk me through booking',
+      surface: 'public',
+      shape: 'list_providers_booking_help',
+      orderedActions: ['list_providers', 'booking_help'],
+    },
+    {
+      id: 'e2e196-list-services-preview-multi-service-cart',
+      prompt: 'List services and preview multi service cart',
+      surface: 'public',
+      shape: 'list_services_preview_multi_service_cart',
+      orderedActions: ['list_services', 'preview_multi_service_cart'],
+    },
+    {
+      id: 'e2e196-list-providers-list-public-promotions',
+      prompt: 'List providers and list public promotions',
+      surface: 'public',
+      shape: 'list_providers_list_public_promotions',
+      orderedActions: ['list_providers', 'list_public_promotions'],
+    },
+    {
+      id: 'e2e196-list-providers-list-provider-reviews',
+      prompt: 'List providers and list provider reviews',
+      surface: 'public',
+      shape: 'list_providers_list_provider_reviews',
+      orderedActions: ['list_providers', 'list_provider_reviews'],
+    },
+    {
+      id: 'e2e196-list-services-suggest-package-block',
+      prompt: 'List services and suggest package block',
+      surface: 'public',
+      shape: 'list_services_suggest_package_block',
+      orderedActions: ['list_services', 'suggest_package_block'],
     },
   ];
 

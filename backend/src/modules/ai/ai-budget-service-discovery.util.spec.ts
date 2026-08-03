@@ -46,6 +46,7 @@ import {
   isBudgetWithPromoPrompt,
   isBudgetAdministrativeOrExplainContext,
   isBudgetGiftCardMisroute,
+  isBudgetDepositQuestion,
   rescueBudgetServiceDiscoveryIntent,
   resolveBudgetCompoundSteps,
   resolveBudgetMisrouteAction,
@@ -230,6 +231,14 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
         expect(publicAction).toBe('explain_checkout_currency');
         return;
       }
+      // e2e-bug.231 — gift-card apply/check stay on gift-card intents on public.
+      if (
+        expectedAction === 'apply_gift_card_code' ||
+        expectedAction === 'check_gift_card_balance'
+      ) {
+        expect(publicAction).toBe(expectedAction);
+        return;
+      }
       expect(publicAction).toBe('booking_help');
       expect(id).toBeTruthy();
     },
@@ -283,6 +292,37 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     expect(
       rescueBudgetServiceDiscoveryIntent(prompt, 'unknown', 'dashboard'),
     ).toBeNull();
+  });
+
+  describe('isBudgetDepositQuestion excludes forfeiture-shaped prompts (e2e-bug.113/210)', () => {
+    it.each([
+      'why do I have to pay a deposit to book?',
+      'Do I lose my deposit if I cancel?',
+      'explain the deposit forfeiture policy if I cancel late',
+    ])('%s is not a budget currency-comparison question', (prompt) => {
+      expect(isBudgetDepositQuestion(prompt)).toBe(false);
+      expect(resolveBudgetMisrouteAction(prompt)).not.toBe(
+        'explain_checkout_currency',
+      );
+    });
+
+    it('still treats a genuine currency-comparison deposit question as budget-misrouted', () => {
+      const prompt = 'Is the $50 deposit enough for highlights?';
+      expect(isBudgetDepositQuestion(prompt)).toBe(true);
+      expect(resolveBudgetMisrouteAction(prompt)).toBe(
+        'explain_checkout_currency',
+      );
+    });
+
+    it('rescueBudgetServiceDiscoveryIntent no longer steals deposit-forfeiture prompts from later rescues', () => {
+      const prompt = 'why do I have to pay a deposit to book?';
+      expect(
+        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_checkout_currency', 'customer'),
+      ).toBeNull();
+      expect(
+        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_why_stripe_required', 'customer'),
+      ).toBeNull();
+    });
   });
 
   it.each(
@@ -470,6 +510,24 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     });
   });
 
+  it('e2e-bug.231 budget does not steal code-balance or claim prompts', () => {
+    const howMuchLeft = 'How much is left on gift card code GCM-E5B7056C84?';
+    expect(isBudgetGiftCardMisroute(howMuchLeft)).toBe(false);
+    expect(resolveBudgetMisrouteAction(howMuchLeft)).toBe(
+      'check_gift_card_balance',
+    );
+    expect(
+      rescueBudgetServiceDiscoveryIntent(
+        howMuchLeft,
+        'apply_gift_card_code',
+        'customer',
+      )?.action,
+    ).toBe('check_gift_card_balance');
+    expect(
+      isBudgetGiftCardMisroute('Add gift card GCM-E5B7056C84 to my account'),
+    ).toBe(false);
+  });
+
   it.each(BUDGET_DISAMBIGUATION_SCENARIOS)(
     'shouldExtractBudgetMaxPrice false for disambiguation $id',
     ({ prompt }) => {
@@ -521,6 +579,11 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
       expect(rescued?.rescueReason).toBe(misroute);
       if (expectedAction === 'explain_checkout_currency') {
         expect(rescued?.action).toBe('explain_checkout_currency');
+      } else if (
+        expectedAction === 'apply_gift_card_code' ||
+        expectedAction === 'check_gift_card_balance'
+      ) {
+        expect(rescued?.action).toBe(expectedAction);
       } else {
         expect(rescued?.action).toBe('booking_help');
       }

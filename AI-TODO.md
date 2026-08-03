@@ -1,3 +1,7 @@
+> **SUPERSEDED (2026-08-03) — see [`AI-ROADMAP.md`](./AI-ROADMAP.md).**
+> This file is retained for provenance only. Its plan has been merged into the unified
+> roadmap; do not plan work from this document.
+
 # AI-TODO — Semantic Intent Matching Plan
 
 **Date**: 2026-07-19

@@ -470,6 +470,31 @@ export async function handleBookLabCollectionLogic(
     );
   }
 
+  // e2e-bug.202 — named panel/order that matches nothing must abort the compound
+  // (do not soft-succeed with a generic handoff).
+  if (parsed.testName && requests.length === 0) {
+    return failure(
+      'book_lab_collection',
+      `I couldn't find a lab panel or pending collection request matching "${parsed.testName}".`,
+      {
+        clarify: true,
+        missing: ['testName'],
+        requestedTestName: parsed.testName,
+      },
+    );
+  }
+  if (parsed.orderId && requests.length === 0) {
+    return failure(
+      'book_lab_collection',
+      `I couldn't find a pending lab collection request for order "${parsed.orderId}".`,
+      {
+        clarify: true,
+        missing: ['orderId'],
+        requestedOrderId: parsed.orderId,
+      },
+    );
+  }
+
   const primary = requests[0] ?? null;
   const bookingFirstAvailable = params.bookingFirstAvailable === true;
   const bookUrl = primary?.bookUrl

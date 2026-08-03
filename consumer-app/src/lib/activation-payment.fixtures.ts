@@ -54,6 +54,36 @@ export const ACTIVATION_PAYMENT_METHOD_SCENARIOS = [
     input: { isActivationPath: true, cashAvailable: false, currentMethod: 'online' as const },
     expectMethod: 'online' as const,
   },
+  {
+    id: 'activation-pay-at-venue-variant-defaults-cash',
+    input: {
+      isActivationPath: true,
+      cashAvailable: true,
+      currentMethod: 'online' as const,
+      paymentTiming: 'pay_at_venue_default' as const,
+    },
+    expectMethod: 'cash' as const,
+  },
+  {
+    id: 'activation-online-first-variant-keeps-online',
+    input: {
+      isActivationPath: true,
+      cashAvailable: true,
+      currentMethod: 'online' as const,
+      paymentTiming: 'online_first' as const,
+    },
+    expectMethod: 'online' as const,
+  },
+  {
+    id: 'activation-online-first-variant-does-not-force-online',
+    input: {
+      isActivationPath: true,
+      cashAvailable: true,
+      currentMethod: 'cash' as const,
+      paymentTiming: 'online_first' as const,
+    },
+    expectMethod: 'cash' as const,
+  },
 ] as const;
 
 export const ACTIVATION_PAYMENT_FALLBACK_SCENARIOS = [
@@ -80,7 +110,10 @@ export const ACTIVATION_PAYMENT_FALLBACK_SCENARIOS = [
     expectShowFallback: true,
   },
   {
-    id: 'returning-no-fallback',
+    // Fallback banner isn't gated on isActivationPath — a returning customer
+    // whose payment stalls gets the same pay-at-venue escape hatch. Auto-retry
+    // (silently switching payment method without asking) stays activation-only.
+    id: 'returning-shows-fallback-but-no-auto-retry',
     input: {
       isActivationPath: false,
       cashAvailable: true,
@@ -88,7 +121,7 @@ export const ACTIVATION_PAYMENT_FALLBACK_SCENARIOS = [
       awaitingPaymentReturn: true,
     },
     expectAutoRetry: false,
-    expectShowFallback: false,
+    expectShowFallback: true,
   },
   {
     id: 'no-cash-no-fallback',

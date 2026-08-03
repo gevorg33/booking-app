@@ -13,6 +13,12 @@ import {
   type ClinicServiceType,
 } from '../../common/utils/clinic-service.util.js';
 import {
+  resolveLocale,
+  t,
+  type AppLocale,
+} from '../../common/i18n/messages.js';
+import { detectSemanticPromptLocale } from './intent-anchor.seed.util.js';
+import {
   parseApplyClinicPlaybookFromPrompt,
   parseConfigureClinicServiceFromPrompt,
   parseExplainClinicServicesFromPrompt,
@@ -43,6 +49,19 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
+}
+
+/** Prefer prompt script (hy/ru), then params.locale — e2e-bug.311. */
+export function resolveExplainClinicServicesLocale(
+  params: Record<string, unknown> = {},
+  prompt?: string,
+): AppLocale {
+  const text = String(prompt ?? params._prompt ?? '');
+  const detected = detectSemanticPromptLocale(text);
+  if (detected === 'hy' || detected === 'ru') return detected;
+  return resolveLocale(
+    typeof params.locale === 'string' ? params.locale : null,
+  );
 }
 
 function resolveServiceByName<T extends { id: string; name: string }>(
@@ -200,24 +219,36 @@ function buildCatalogStats(
   };
 }
 
-function formatFastingServices(services: ClinicServiceSummary[]): string {
+function formatFastingServices(
+  services: ClinicServiceSummary[],
+  locale: AppLocale,
+): string {
   const fasting = services.filter(
     (service) => service.serviceType === 'lab_test' && service.requiresFasting,
   );
-  if (fasting.length === 0) return 'No lab tests require fasting.';
-  return `Fasting required: ${fasting.map((service) => service.name).join(', ')}.`;
+  if (fasting.length === 0) {
+    return t(locale, 'assistant.clinicServicesFastingNone');
+  }
+  return t(locale, 'assistant.clinicServicesFastingList', {
+    names: fasting.map((service) => service.name).join(', '),
+  });
 }
 
-function buildExplainClinicServicesSummary(
+export function buildExplainClinicServicesSummary(
   parsed: ParsedExplainClinicServices,
   services: ClinicServiceSummary[],
   stats: ClinicCatalogStats,
+  locale: AppLocale = 'en',
 ): string {
-  const filterNote = parsed.serviceName ? ` for "${parsed.serviceName}"` : '';
+  const filterNote = parsed.serviceName
+    ? t(locale, 'assistant.clinicServicesEmptyFilterNote', {
+        service: parsed.serviceName,
+      })
+    : '';
   const parts: string[] = [];
 
   if (services.length === 0) {
-    parts.push(`No clinic catalog services found${filterNote}.`);
+    parts.push(t(locale, 'assistant.clinicServicesEmpty', { filterNote }));
     return parts.join(' ');
   }
 
@@ -239,17 +270,35 @@ function buildExplainClinicServicesSummary(
     return parts.join(' ');
   }
 
+  const unclassifiedNote =
+    stats.unclassified > 0
+      ? t(locale, 'assistant.clinicServicesUnclassifiedNote', {
+          count: stats.unclassified,
+        })
+      : '';
+
   parts.push(
-    `${stats.total} clinic service${stats.total === 1 ? '' : 's'}${filterNote}: ${stats.consultation} consultation, ${stats.labTest} lab test, ${stats.procedure} procedure${stats.unclassified ? `, ${stats.unclassified} unclassified` : ''}.`,
+    t(locale, 'assistant.clinicServicesStats', {
+      total: stats.total,
+      filterNote,
+      consultation: stats.consultation,
+      labTest: stats.labTest,
+      procedure: stats.procedure,
+      unclassifiedNote,
+    }),
   );
 
   if (stats.departments.length > 0) {
     parts.push(
-      `Departments: ${stats.departments.map((dept) => `${dept.name} (${dept.count})`).join(', ')}.`,
+      t(locale, 'assistant.clinicServicesDepartments', {
+        departments: stats.departments
+          .map((dept) => `${dept.name} (${dept.count})`)
+          .join(', '),
+      }),
     );
   }
 
-  parts.push(formatFastingServices(services));
+  parts.push(formatFastingServices(services, locale));
 
   return parts.join(' ');
 }
@@ -260,6 +309,7 @@ export async function handleExplainClinicServicesLogic(
   params: Record<string, unknown> = {},
   prompt?: string,
 ): Promise<CommandResult> {
+  const locale = resolveExplainClinicServicesLocale(params, prompt);
   const parsed = parseExplainClinicServicesFromPrompt(
     String(prompt ?? params._prompt ?? ''),
     params,
@@ -267,8 +317,8 @@ export async function handleExplainClinicServicesLogic(
   if (!parsed) {
     return failure(
       'explain_clinic_services',
-      'Ask about clinic catalog services (e.g. "Explain our clinic services and department counts" or "Which lab tests require fasting?").',
-      { clarify: true },
+      t(locale, 'assistant.clinicServicesClarify'),
+      { clarify: true, locale },
     );
   }
 
@@ -307,6 +357,7 @@ export async function handleExplainClinicServicesLogic(
     parsed,
     clinicServices,
     stats,
+    locale,
   );
 
   return success('explain_clinic_services', summary, {
@@ -314,6 +365,7 @@ export async function handleExplainClinicServicesLogic(
     services: clinicServices,
     serviceName: parsed.serviceName ?? null,
     serviceId: parsed.serviceId ?? null,
+    locale,
   });
 }
 

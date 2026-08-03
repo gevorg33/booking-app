@@ -7,11 +7,13 @@ import { GUIDE_FLOW_RANK_SCENARIOS } from './guide-flow.fixtures.js';
 import { listAllGuideFlowPlaybookDefs } from './guide-flow.loader.js';
 import {
   buildGuideResponseFromFlowPlaybook,
+  humanizeGuideStepTitle,
   listAllGuideFlowI18nKeys,
   pickBestGuideFlowPlaybook,
   resolveGuideFlowPlaybook,
 } from './guide-flow.corpus.util.js';
 import { isGuideCorpusMatchConfident } from '../ai-product-guide-ranking.util.js';
+import { buildGuideResponseForMultiTurnStep } from '../ai-product-guide-multiturn.util.js';
 
 describe('guide-flow.corpus.util (ai-guide-1.1.2)', () => {
   it('resolves every flow i18n key in EN/HY/RU snapshot catalogs', () => {
@@ -52,6 +54,69 @@ describe('guide-flow.corpus.util (ai-guide-1.1.2)', () => {
       expect(best?.topicId).toBe(expectedTopicId);
       expect(best?.score).toBeGreaterThanOrEqual(minScore);
       expect(isGuideCorpusMatchConfident(best!.score)).toBe(true);
+    },
+  );
+
+  // e2e-bug.275 — placeholder common.stepN titles must not leak into summaries.
+  it.each([
+    {
+      id: 'en-from-clause',
+      title: 'Step 1',
+      body: 'Pick a service from the public booking page.',
+      expected: 'Pick a service',
+    },
+    {
+      id: 'hy-short-body',
+      title: 'Քայլ 1',
+      body: 'Ընտրեք ծառայություն հանրային ամրագրման էջից։',
+      expected: 'Ընտրեք ծառայություն',
+    },
+    {
+      id: 'ru-short-body',
+      title: 'Шаг 1',
+      body: 'Выберите услугу на странице онлайн-записи.',
+      expected: 'Выберите услугу',
+    },
+    {
+      id: 'keeps-real-title',
+      title: 'Select Service',
+      body: 'Pick a service from the public booking page.',
+      expected: 'Select Service',
+    },
+  ])('humanizeGuideStepTitle: $id', ({ title, body, expected }) => {
+    expect(humanizeGuideStepTitle(title, body)).toBe(expected);
+  });
+
+  it.each(['en', 'hy', 'ru'] as const)(
+    'public-booking-funnel step titles are not placeholders (%s)',
+    (locale) => {
+      const messages = getFrontendGuideCorpusMessages(locale);
+      const playbook = listAllGuideFlowPlaybookDefs().find(
+        (row) => row.topicId === 'public-booking-funnel',
+      );
+      expect(playbook).toBeTruthy();
+      const resolved = resolveGuideFlowPlaybook(playbook!, messages);
+      const guide = buildGuideResponseFromFlowPlaybook(resolved);
+      const stepped = buildGuideResponseForMultiTurnStep(
+        guide,
+        {
+          guideFlowId: 'public-booking-funnel',
+          guideStepIndex: 0,
+          completedSteps: [],
+        },
+        locale,
+      );
+      for (const step of guide.steps) {
+        expect(step.title).not.toMatch(/^(?:Step|Քայլ|Шаг)\s*\d+\s*$/iu);
+      }
+      expect(stepped.summary).not.toMatch(/: (?:Step|Քայլ|Шаг)\s*\d+\s*$/u);
+      expect(stepped.summary).toMatch(
+        locale === 'hy'
+          ? /^Քայլ 1\/3:/
+          : locale === 'ru'
+            ? /^Шаг 1 из 3:/
+            : /^Step 1 of 3:/,
+      );
     },
   );
 });

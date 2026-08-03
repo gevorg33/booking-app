@@ -61,6 +61,33 @@ describe('e2e-bug.101 service rank high-end vocabulary', () => {
     );
   });
 
+  it('aliases bare "style"/"styles"/"styling" to "haircut" for both rank directions (e2e-bug.101)', () => {
+    expect(
+      extractServiceRankServiceCategoryFromPrompt(
+        'What is the cheapest styling?',
+      ),
+    ).toBe('haircut');
+    expect(
+      extractServiceRankServiceCategoryFromPrompt(
+        'Show me the most premium style',
+      ),
+    ).toBe('haircut');
+    expect(
+      extractServiceRankServiceCategoryFromPrompt(
+        "What's the cheapest styles?",
+      ),
+    ).toBe('haircut');
+    // trim still aliases to haircut; bare "cut" stays unaliased as of
+    // e2e-bug.323 (prefers literal "* cut" catalog rows like Men's cut over
+    // the hairstyle synonym, still falls back to haircut/hairstyle otherwise).
+    expect(
+      extractServiceRankServiceCategoryFromPrompt("What's the cheapest cut?"),
+    ).toBe('cut');
+    expect(
+      extractServiceRankServiceCategoryFromPrompt('most expensive trim'),
+    ).toBe('haircut');
+  });
+
   it('override path does not keep most expensive as serviceName', () => {
     const next = applyPromptMentionedServiceOverrideToParams(
       'Book the most expensive massage tomorrow, nearest slot',

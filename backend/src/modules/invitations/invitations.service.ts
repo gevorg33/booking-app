@@ -17,6 +17,7 @@ import { User, UserRole } from '../user/entities/user.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { EmailService } from '../notifications/email.service.js';
 import { TenantMemberContactService } from '../business/tenant-member-contact.service.js';
+import { AuthService } from '../auth/auth.service.js';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto.js';
 import {
   inferDefaultPhoneCountryCode,
@@ -35,6 +36,7 @@ export class InvitationsService {
     @InjectRepository(Employee) private employeeRepo: Repository<Employee>,
     private emailService: EmailService,
     private tenantContactService: TenantMemberContactService,
+    private authService: AuthService,
   ) {}
 
   async list(businessId: string): Promise<BusinessInvitation[]> {
@@ -292,19 +294,13 @@ export class InvitationsService {
     invite.acceptedAt = new Date();
     await this.inviteRepo.save(invite);
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
-      business: {
-        id: invite.business.id,
-        name: invite.business.name,
-        slug: invite.business.slug,
-      },
-    };
+    // e2e-bug.172 — issue a real session for the account just created/linked
+    // (mirrors AuthService.login) so the client can sign the new employee in
+    // directly, instead of redirecting to /login where an already-active
+    // session on the device (shared kiosk, second tab) would silently win.
+    return this.authService.issueSessionForUser(user, {
+      businessId: invite.businessId,
+    });
   }
 
   private async expirePendingInvites(

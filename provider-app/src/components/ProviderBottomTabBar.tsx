@@ -17,10 +17,12 @@ import type { ProviderTabId } from '../lib/provider-tab-route.util';
 export function ProviderBottomTabBar({
   activeTab,
   showLabCollection,
+  showGiftCards,
   onOpenTab,
 }: {
   activeTab: ProviderTabId;
   showLabCollection: boolean;
+  showGiftCards: boolean;
   onOpenTab: (tab: ProviderTabId) => void;
 }) {
   const { t } = useI18n();
@@ -65,7 +67,8 @@ export function ProviderBottomTabBar({
         tabBtn('clinic-tasks', listOutline, t('provider.navClinicTasks'))}
       {showLabCollection &&
         tabBtn('patients', peopleOutline, t('provider.navPatients'))}
-      {tabBtn('gift-cards', giftOutline, t('provider.navGiftCards'))}
+      {showGiftCards &&
+        tabBtn('gift-cards', giftOutline, t('provider.navGiftCards'))}
       {tabBtn('calendar', calendarClearOutline, t('provider.navCalendar'))}
       {tabBtn('schedule', calendarOutline, t('provider.navSchedule'))}
       {tabBtn('profile', personOutline, t('provider.navProfile'))}

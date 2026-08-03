@@ -11,8 +11,15 @@ import {
   resolveGiveProviderAiFeedbackClientAction,
 } from './ai-provider-give-ai-feedback.util.js';
 import { PROVIDER_GIVE_AI_FEEDBACK_PROMPTS } from './ai-provider-give-ai-feedback.fixtures.js';
+import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
 
-describe('ai-provider-give-ai-feedback.util', () => {
+describe('ai-provider-give-ai-feedback.util (e2e-bug.243 / ai-cmd-provider-5.24.3)', () => {
+  it('registers give_provider_ai_feedback on provider surface', () => {
+    expect(
+      isIntentAllowedOnSurface('give_provider_ai_feedback', 'provider'),
+    ).toBe(true);
+  });
+
   it('exports copy labels', () => {
     expect(PROVIDER_FEEDBACK_UP_LABEL).toBe('Helpful');
     expect(PROVIDER_FEEDBACK_DOWN_LABEL).toBe('Not helpful');
@@ -24,13 +31,26 @@ describe('ai-provider-give-ai-feedback.util', () => {
   )('detects provider AI feedback prompt for $id', (_id, row) => {
     expect(isGiveProviderAiFeedbackPrompt(row.prompt)).toBe(true);
     expect(parseGiveProviderAiFeedbackFromPrompt(row.prompt)).toEqual({
-      aspect: expect.any(String),
-      rating: expect.any(String),
+      aspect: row.aspect ?? expect.any(String),
+      rating: row.rating ?? expect.any(String),
       ...(row.reason ? { reason: row.reason } : {}),
     });
-    expect(rescueGiveProviderAiFeedbackIntent(row.prompt, 'unknown')).toEqual({
-      action: 'give_provider_ai_feedback',
-      rescueReason: 'give_provider_ai_feedback',
+    expect(rescueGiveProviderAiFeedbackIntent(row.prompt, 'unknown')).toEqual(
+      expect.objectContaining({
+        action: 'give_provider_ai_feedback',
+        rescueReason: 'give_provider_ai_feedback',
+        params: expect.objectContaining({
+          ...(row.rating ? { feedbackRating: row.rating } : {}),
+          ...(row.reason ? { feedbackReason: row.reason } : {}),
+        }),
+      }),
+    );
+  });
+
+  it('rates Not helpful as down, not up', () => {
+    expect(parseGiveProviderAiFeedbackFromPrompt('Not helpful')).toEqual({
+      aspect: 'negative',
+      rating: 'down',
     });
   });
 

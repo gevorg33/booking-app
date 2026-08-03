@@ -1,5 +1,4 @@
 import {
-  IonButton,
   IonContent,
   IonHeader,
   IonIcon,
@@ -71,7 +70,8 @@ function statusLabel(status: string, copy: ConsumerCopy): string {
   }
 }
 
-function BookingCard({
+/** Exported for e2e-bug.253 light-DOM CTA unit coverage. */
+export function BookingCard({
   booking,
   slug,
   businessName,
@@ -135,7 +135,7 @@ function BookingCard({
         <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>{statusLabel(booking.status, copy)}</span>
       </div>
       {booking.canReview && onReview ? (
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="outline"
           size="small"
@@ -143,22 +143,22 @@ function BookingCard({
           onClick={() => onReview(booking)}
         >
           {copy.postBookingTenantReviewAction}
-        </IonButton>
+        </ConsumerActionButton>
       ) : null}
       {canRebookBooking(booking) && onRebook ? (
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="outline"
           size="small"
           style={{ marginTop: 8 }}
           onClick={() => onRebook(booking)}
         >
-          <IonIcon slot="start" icon={repeatOutline} />
+          <IonIcon icon={repeatOutline} aria-hidden="true" />
           {copy.growthRebookAction}
-        </IonButton>
+        </ConsumerActionButton>
       ) : null}
       {canShare ? (
-        <IonButton
+        <ConsumerActionButton
           expand="block"
           fill="clear"
           size="small"
@@ -166,9 +166,9 @@ function BookingCard({
           disabled={sharing}
           onClick={() => void onShareBooking()}
         >
-          <IonIcon slot="start" icon={shareOutline} />
+          <IonIcon icon={shareOutline} aria-hidden="true" />
           {copy.growthShareBookingAction}
-        </IonButton>
+        </ConsumerActionButton>
       ) : null}
       <ConsumerBookingActions
         booking={booking}
@@ -520,14 +520,14 @@ export default function AccountPage({
             )}
 
             {profile.giftCardsPurchaseEnabled ? (
-              <IonButton
+              <ConsumerActionButton
                 expand="block"
                 fill="outline"
                 className="ion-margin-top"
                 onClick={() => history.push(buildSalonPath(slug, '/gift-cards'))}
               >
                 {copy.giftCardBuyGiftCard}
-              </IonButton>
+              </ConsumerActionButton>
             ) : null}
 
             {showClinicAlerts ? (

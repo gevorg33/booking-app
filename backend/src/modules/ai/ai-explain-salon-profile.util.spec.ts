@@ -53,6 +53,23 @@ describe('ai-explain-salon-profile.util (ai-cmd-customer-4.20.5)', () => {
     expect(isExplainSalonProfilePrompt('Directions to the salon')).toBe(false);
   });
 
+  // e2e-bug.191 — tell-me-about this/the business must win over specialty.
+  it.each([
+    'Tell me about this salon',
+    'Tell me about this business',
+    'Tell me about this business / salon info',
+    'Tell me about the salon',
+    'Tell me about your business',
+  ])('detects salon/business about prompt: %s', (prompt) => {
+    expect(isExplainSalonProfilePrompt(prompt)).toBe(true);
+    expect(
+      rescueExplainSalonProfileIntent(prompt, 'explain_provider_specialty'),
+    ).toEqual({
+      action: 'explain_salon_profile',
+      rescueReason: 'salon_profile',
+    });
+  });
+
   it('returns null rescue when already classified correctly', () => {
     expect(
       rescueExplainSalonProfileIntent(

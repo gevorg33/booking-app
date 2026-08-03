@@ -97,6 +97,9 @@ export const CONSUMER_COPY_EN: ConsumerCopy = {
   cancelBooking: 'Cancel appointment',
   cancelBookingConfirm: 'Cancel this appointment?',
   cancelBookingFailed: 'Could not cancel appointment',
+  cancelBookingRefunded: 'Your payment has been refunded.',
+  cancelBookingRefundFailed:
+    "Your appointment was cancelled, but we couldn't process your refund automatically. Please contact the business for help.",
   rescheduleBooking: 'Reschedule',
   pickNewTime: 'Pick a new time',
   loadingSlots: 'Loading times…',
@@ -197,6 +200,7 @@ export const CONSUMER_COPY_EN: ConsumerCopy = {
   checkoutGiftCardDiscount: 'Gift card',
   checkoutLoyaltyDiscount: 'Loyalty points',
   checkoutFreeAfterDiscounts: 'Total',
+  checkoutDepositNotice: 'This is a deposit — the remaining {amount} is due at your visit.',
   checkoutHowToBook: 'How would you like to book?',
   checkoutUseSubscription: 'Use subscription',
   checkoutAppointmentsLeft: 'appointments left',
@@ -504,6 +508,8 @@ export const CONSUMER_COPY_EN: ConsumerCopy = {
     'Pay at your visit — online payment is optional for your first booking.',
   activationPaymentHiccupMessage:
     'Online payment did not complete. You can still confirm and pay at the salon.',
+  checkoutPaymentPendingRetryMessage:
+    "We couldn't confirm your payment yet. If you completed checkout, please wait a moment and try again.",
   activationPayAtVenueFallbackAction: 'Confirm and pay at visit instead',
   activationPayAtVenueSelected: 'Pay at visit selected — confirm below to complete your booking.',
   activationConfirmBooking: 'Confirm booking',
@@ -735,6 +741,8 @@ export const CONSUMER_COPY_EN: ConsumerCopy = {
   subscriptionsCancelConfirm: 'Cancel this subscription? This cannot be undone.',
   subscriptionsCancelFailed: 'Could not cancel subscription',
   subscriptionsCancelRefunded: 'Subscription cancelled — we refunded your payment to your original payment method.',
+  subscriptionsCancelRefundFailed: 'Subscription cancelled, but the automatic refund didn’t go through — please contact the salon about your refund.',
+  subscriptionsCancelIneligible: 'Subscription cancelled. Since you’ve already used a visit on this membership, it isn’t eligible for a refund.',
   subscriptionsUsageHistory: 'Usage history',
   subscriptionsNoUsage: 'No usage recorded yet.',
   subscriptionUsagePurchase: 'Plan purchased',
@@ -766,6 +774,9 @@ export const CONSUMER_COPY_HY: ConsumerCopy = {
   cancelBooking: 'Չեղարկել ամրագրումը',
   cancelBookingConfirm: 'Չեղարկել այս հանդիպումը՞։ Սա չի կարող հետարկվել։',
   cancelBookingFailed: 'Չհաջողվեց չեղարկել հանդիպումը',
+  cancelBookingRefunded: 'Ձեր վճարումը վերադարձվել է։',
+  cancelBookingRefundFailed:
+    'Ձեր հանդիպումը չեղարկվել է, սակայն մենք չկարողացանք ավտոմատ վերադարձնել գումարը։ Խնդրում ենք կապվել բիզնեսի հետ։',
   rescheduleBooking: 'Փոխել ժամանակը',
   pickNewTime: 'Ընտրեք նոր ամսաթիվ և ժամ',
   loadingSlots: 'Բեռնվում են հասանելի ժամերը…',
@@ -871,6 +882,7 @@ export const CONSUMER_COPY_HY: ConsumerCopy = {
   checkoutGiftCardDiscount: 'Նվեր քարտ',
   checkoutLoyaltyDiscount: 'Հավատարմության միավորներ',
   checkoutFreeAfterDiscounts: 'Ընդամենը',
+  checkoutDepositNotice: 'Սա կանխավճար է․ մնացած {amount}-ը վճարվում է այցի ժամանակ։',
   checkoutHowToBook: 'Ինչպե՞ս ցանկանում եք ամրագրել',
   checkoutUseSubscription: 'Օգտագործել բաժանորդագրությունը',
   checkoutAppointmentsLeft: 'այցելություն մնաց',
@@ -1184,6 +1196,8 @@ export const CONSUMER_COPY_HY: ConsumerCopy = {
     'Վճարեք այցի ժամանակ — առցանց վճարումը պարտադիր չէ ձեր առաջին ամրագրման համար։',
   activationPaymentHiccupMessage:
     'Առցանց վճարումը չի ավարտվել։ Դուք դեռ կարող եք հաստատել և վճարել սրահում։',
+  checkoutPaymentPendingRetryMessage:
+    'Դեռ չհաջողվեց հաստատել ձեր վճարումը։ Եթե ավարտել եք վճարումը, փորձեք կրկին մի փոքր սպասելուց հետո։',
   activationPayAtVenueFallbackAction: 'Հաստատել և վճարել այցի ժամանակ',
   activationPayAtVenueSelected:
     'Ընտրված է «վճարել այցի ժամանակ» — հաստատեք ստորև՝ ամրագրումն ավարտելու համար։',
@@ -1416,6 +1430,8 @@ export const CONSUMER_COPY_HY: ConsumerCopy = {
   subscriptionsCancelConfirm: 'Չեղարկե՞լ այս բաժանորդագրությունը։ Սա չի կարող հետարկվել։',
   subscriptionsCancelFailed: 'Չհաջողվեց չեղարկել բաժանորդագրությունը',
   subscriptionsCancelRefunded: 'Բաժանորդագրությունը չեղարկվեց — մենք վերադարձրինք գումարը ձեր սկզբնական վճարման եղանակով։',
+  subscriptionsCancelRefundFailed: 'Բաժանորդագրությունը չեղարկվեց, բայց ավտոմատ վերադարձը չկատարվեց․ խնդրում ենք կապվել սրահի հետ վերադարձի հարցով։',
+  subscriptionsCancelIneligible: 'Բաժանորդագրությունը չեղարկվեց։ Քանի որ դուք արդեն օգտագործել եք այս բաժանորդագրության մի այց, այն վերադարձի իրավունք չունի։',
   subscriptionsUsageHistory: 'Օգտագործման պատմություն',
   subscriptionsNoUsage: 'Դեռ գրառումներ չկան։',
   subscriptionUsagePurchase: 'Պլանը գնված է',
@@ -1447,6 +1463,9 @@ export const CONSUMER_COPY_RU: ConsumerCopy = {
   cancelBooking: 'Отменить запись',
   cancelBookingConfirm: 'Отменить эту запись? Это нельзя отменить.',
   cancelBookingFailed: 'Не удалось отменить запись',
+  cancelBookingRefunded: 'Ваш платёж был возвращён.',
+  cancelBookingRefundFailed:
+    'Ваша запись отменена, но нам не удалось автоматически оформить возврат средств. Пожалуйста, свяжитесь с бизнесом.',
   rescheduleBooking: 'Перенести',
   pickNewTime: 'Выберите новую дату и время',
   loadingSlots: 'Загрузка доступного времени…',
@@ -1552,6 +1571,7 @@ export const CONSUMER_COPY_RU: ConsumerCopy = {
   checkoutGiftCardDiscount: 'Подарочная карта',
   checkoutLoyaltyDiscount: 'Бонусные баллы',
   checkoutFreeAfterDiscounts: 'Итого',
+  checkoutDepositNotice: 'Это предоплата — оставшиеся {amount} нужно оплатить при визите.',
   checkoutHowToBook: 'Как вы хотите записаться?',
   checkoutUseSubscription: 'Использовать абонемент',
   checkoutAppointmentsLeft: 'визитов осталось',
@@ -1865,6 +1885,8 @@ export const CONSUMER_COPY_RU: ConsumerCopy = {
     'Оплата на месте — для первой записи онлайн-оплата необязательна.',
   activationPaymentHiccupMessage:
     'Онлайн-оплата не завершилась. Вы всё равно можете подтвердить запись и оплатить в салоне.',
+  checkoutPaymentPendingRetryMessage:
+    'Пока не удалось подтвердить оплату. Если вы завершили оплату, подождите немного и попробуйте снова.',
   activationPayAtVenueFallbackAction: 'Подтвердить и оплатить на месте',
   activationPayAtVenueSelected:
     'Выбрана оплата на месте — подтвердите ниже, чтобы завершить запись.',
@@ -2098,6 +2120,8 @@ export const CONSUMER_COPY_RU: ConsumerCopy = {
   subscriptionsCancelConfirm: 'Отменить этот абонемент? Это нельзя отменить.',
   subscriptionsCancelFailed: 'Не удалось отменить абонемент',
   subscriptionsCancelRefunded: 'Абонемент отменён — мы вернули оплату на исходный способ оплаты.',
+  subscriptionsCancelRefundFailed: 'Абонемент отменён, но автоматический возврат не прошёл — пожалуйста, свяжитесь с салоном по поводу возврата.',
+  subscriptionsCancelIneligible: 'Абонемент отменён. Поскольку вы уже использовали визит по этому абонементу, возврат средств недоступен.',
   subscriptionsUsageHistory: 'История использования',
   subscriptionsNoUsage: 'Использований пока нет.',
   subscriptionUsagePurchase: 'План куплен',

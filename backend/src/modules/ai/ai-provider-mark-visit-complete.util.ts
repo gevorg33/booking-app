@@ -15,6 +15,10 @@ export function isMarkVisitCompletePrompt(prompt: string): boolean {
   if (/\b(no[\s-]?show|in[\s-]?progress|running late)\b/.test(lower)) {
     return false;
   }
+  // e2e-bug.241 — per-leg multi-service prompts must not steal into whole-visit complete
+  if (/\bstep\s+\d+\b/.test(lower) || /\bleg\b/.test(lower)) {
+    return false;
+  }
 
   if (
     /\b(?:mark\s+(?:this\s+)?(?:as\s+)?done|mark\s+(?:this\s+|the\s+)?(?:visit|appointment)\s+(?:as\s+)?complete(?:d)?|finish(?:\s+up)?\s+this\s+appointment|wrap\s+up\s+(?:this\s+visit|[\w'.-]+'s\s+visit)|(?:i'?m\s+)?done\s+with\s+(?:this|my)\s+client|done\s+with\s+[\w'.-]+'s\s+appointment|(?:we'?re\s+)?all\s+done(?:\s+here)?,?\s+mark\s+it\s+complete)\b/i.test(

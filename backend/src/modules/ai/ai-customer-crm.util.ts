@@ -16,6 +16,7 @@ import { rescueClaimGiftCardBalanceIntent } from './ai-claim-gift-card-balance.u
 import { hasSubscriptionCheckoutCompareCue } from './ai-explain-subscription-vs-one-time.util.js';
 import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
 import { isProtectedFromCrmListSteal } from './ai-crm-list-steal-guard.util.js';
+import { isExplainHomeScreenWidgetPrompt } from './ai-explain-home-screen-widget.util.js';
 
 export const DASHBOARD_CRM_MUTATE_INTENTS = [
   'extend_subscription',
@@ -248,6 +249,8 @@ export function isMyProfilePrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.232 — "Attach referral code SAVE20 to my account" is claim_referral_code.
+  if (/\b(?:referral|invite)\s*codes?\b/i.test(prompt)) return false;
   return (
     /\bmy\b/i.test(prompt) && /\b(profile|account|details)\b/i.test(prompt)
   );
@@ -265,6 +268,9 @@ export function isMyAppointmentsPrompt(prompt: string): boolean {
   ) {
     return false;
   }
+  // e2e-bug.295 — "Add my next appointment to the home screen" is OS widget help
+  // ("my" + "appointment" would otherwise match this list cue).
+  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
   // e2e-bug.75 — pre-visit/intake ("my" + "visit" across hyphen), calendar, confirm.
   if (
     /\bpre[\s-]?visit\b/i.test(prompt) ||
@@ -388,6 +394,14 @@ export function isMyGiftCardsPrompt(prompt: string): boolean {
 }
 
 export function isGiftCardBalancePrompt(prompt: string): boolean {
+  // e2e-bug.231 — anonymous / by-code balance lookup is check_gift_card_balance.
+  if (
+    /\b(GCM-|GCB-|GCS-)\b/i.test(prompt) ||
+    /\bby\s+code\b/i.test(prompt) ||
+    /\bgift\s*card\s+code\b/i.test(prompt)
+  ) {
+    return false;
+  }
   return (
     /\b(gift\s*card)\b/i.test(prompt) &&
     /\b(balance|remaining|left)\b/i.test(prompt)
@@ -571,6 +585,15 @@ export function isDiscoverSubscriptionPlansPrompt(prompt: string): boolean {
 }
 
 export function isDiscoverGiftCardProductsPrompt(prompt: string): boolean {
+  // e2e-bug.231 — named-code balance lookups are check_gift_card_balance.
+  if (
+    /\b(GCM-|GCB-|GCS-)\b/i.test(prompt) ||
+    /\bby\s+code\b/i.test(prompt) ||
+    /\bgift\s*card\s+code\b/i.test(prompt)
+  ) {
+    return false;
+  }
+  if (/\b(balance|remaining|left|value)\b/i.test(prompt)) return false;
   return (
     /\b(what|which|show|list|discover|available|buy)\b/i.test(prompt) &&
     /\b(gift\s*cards?|presets?|bundles?)\b/i.test(prompt) &&
@@ -718,6 +741,16 @@ export function rescueCustomerCrmIntent(
       action: 'gift_card_redemption_history',
       rescueReason: 'gift_card_redemption',
     };
+  // e2e-bug.231 — only protect real by-code lookups; wallet "my gift card balance"
+  // misclassified as check_gift_card_balance must still remap to gift_card_balance.
+  if (
+    action === 'check_gift_card_balance' &&
+    (/\b(GCM-|GCB-|GCS-)\b/i.test(prompt) ||
+      /\bby\s+code\b/i.test(prompt) ||
+      /\bgift\s*card\s+code\b/i.test(prompt))
+  ) {
+    return null;
+  }
   if (isGiftCardBalancePrompt(prompt))
     return { action: 'gift_card_balance', rescueReason: 'gift_card_balance' };
   const explainSubscription = rescueExplainMySubscriptionIntent(prompt, action);
@@ -743,12 +776,15 @@ export function rescueCustomerCrmIntent(
     }
     return { action: 'my_appointments', rescueReason: 'my_appointments' };
   }
+  // e2e-bug.232 — never clobber a correct claim_referral_code into my_profile.
+  if (action === 'claim_referral_code') return null;
   if (isMyProfilePrompt(prompt))
     return { action: 'my_profile', rescueReason: 'my_profile' };
 
   if (
     isDiscoverGiftCardProductsPrompt(prompt) &&
-    action !== 'configure_gift_card_products'
+    action !== 'configure_gift_card_products' &&
+    action !== 'check_gift_card_balance'
   ) {
     return {
       action: 'discover_gift_card_products',

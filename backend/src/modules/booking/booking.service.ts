@@ -1194,10 +1194,16 @@ export class BookingService {
     // writer cannot silently overwrite cancellationReason / paymentStatus.
     const { cancelled, didCancel } = await this.dataSource.transaction(
       async (manager) => {
+        // e2e-bug.184 — Postgres rejects `FOR UPDATE` combined with a LEFT
+        // JOIN to a nullable-side relation ("FOR UPDATE cannot be applied to
+        // the nullable side of an outer join", live-reproduced on a real
+        // booking cancel). None of the logic below reads the loaded
+        // employee/service/customer relation objects — only scalar FK
+        // columns already present on the entity — so the relations were
+        // both unnecessary and the actual cause of the crash.
         const locked = await manager.findOne(Booking, {
           where: { id },
           lock: { mode: 'pessimistic_write' },
-          relations: { employee: true, service: true, customer: true },
         });
         if (!locked) throw new NotFoundException('Booking not found');
         this.assertExpectedUpdatedAt(locked, expectedUpdatedAt);
@@ -2065,6 +2071,22 @@ export class BookingService {
       throw new BadRequestException(
         'The full service duration does not fit within the available schedule. ' +
           'Choose an earlier start time so the appointment ends within the service period.',
+      );
+    }
+
+    // e2e-bug.262 — micro-slot capacity can still look open while an active
+    // employee booking overlaps the window (create already 409s). Align list /
+    // preview validation with create's employee overlap rule.
+    const hasActiveBooking = await this.hasActiveBookingOverlap(
+      businessId,
+      employeeId,
+      startTime,
+      endTime,
+      excludeBookingIds,
+    );
+    if (hasActiveBooking) {
+      throw new ConflictException(
+        'All time slots in the requested window are already fully booked.',
       );
     }
   }

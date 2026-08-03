@@ -49,6 +49,24 @@ describe('ai-public-booking-guide.util (ai-guide-1.5.1 / 1.5.3)', () => {
     },
   );
 
+  it('e2e-bug.195 — rescues booking funnel from explain_app_feature', () => {
+    expect(
+      rescuePublicBookingHelpIntent(
+        'How do I book an appointment step by step?',
+        'explain_app_feature',
+      ),
+    ).toBe('booking_help');
+    expect(
+      rescuePublicBookingHelpIntent('walk me through booking', 'guide_user_flow'),
+    ).toBe('booking_help');
+    expect(
+      rescuePublicBookingHelpIntent(
+        'How do I use the Home tab step by step?',
+        'explain_app_feature',
+      ),
+    ).toBe('explain_app_feature');
+  });
+
   it('preserves already-classified booking_help', () => {
     expect(rescuePublicBookingHelpIntent('anything', 'booking_help')).toBe(
       'booking_help',

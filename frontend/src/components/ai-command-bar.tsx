@@ -29,6 +29,7 @@ import {
   findLastUndoableMessageId,
   mergeSessionContext,
   shouldInvalidateAfterAi,
+  truncateUndoHintIntent,
   type AiCommandSessionContext,
 } from '@/lib/ai-command-bar.util';
 import { buildDashboardNavigateUrl } from '@/lib/compliance-dashboard-nav';
@@ -1043,9 +1044,9 @@ export function AiCommandBar({ variant = 'dashboard', onboardingStep = 'type' }:
                 <Send className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-[10px] text-gray-600 mt-1.5 px-1">
+            <p className="text-[10px] text-gray-600 mt-1.5 px-1" title={undoPreview?.intent}>
               {undoPreview?.undoable
-                ? `${t('ai.undoLatestHint')}: ${undoPreview.intent}`
+                ? `${t('ai.undoLatestHint')}: ${truncateUndoHintIntent(undoPreview.intent)}`
                 : t('ai.voiceHint')}
               {`, ${t('ai.escToClose')}`}
             </p>

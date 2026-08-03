@@ -37,6 +37,16 @@ import {
   sumMultiServicePrice,
   uniqueMultiServiceIds,
 } from '@/lib/multi-service-booking';
+import {
+  resolvePublicCheckoutAmountDue,
+  resolvePublicCheckoutCartTotal,
+  resolvePublicCheckoutStickyDisplay,
+} from '@/lib/public-checkout-quote.util';
+import {
+  isWhatsappRemindersPhoneRequired,
+  resolveDefaultPublicCheckoutWhatsappReminders,
+  resolveWhatsappRemindersAfterPhonePrefill,
+} from '@/lib/public-checkout-whatsapp.util';
 import { getErrorMessage } from '@/lib/error-message';
 
 interface MultiServiceCheckoutClientProps {
@@ -125,7 +135,8 @@ export function MultiServiceCheckoutClient({
     consent: false,
     marketingOptIn: false,
     emailReminders: true,
-    whatsappReminders: true,
+    // e2e-bug.212 — guests without a phone must not start with WhatsApp ON
+    whatsappReminders: resolveDefaultPublicCheckoutWhatsappReminders(),
     reminderHoursBefore: reminderOptions?.defaultHours ?? null,
   });
   const [promoCode, setPromoCode] = useState('');
@@ -227,7 +238,9 @@ export function MultiServiceCheckoutClient({
     turnover,
   ]);
 
-  const confirmedTotal = quote?.amountDue ?? subtotal;
+  // e2e-bug.213 — cart Total is catalog `servicePrice`; `amountDue` is online-due only.
+  const cartTotal = resolvePublicCheckoutCartTotal(quote, subtotal);
+  const confirmedTotal = cartTotal;
 
   useEffect(() => {
     void getPublicProviders(slug)
@@ -240,12 +253,20 @@ export function MultiServiceCheckoutClient({
   useEffect(() => {
     if (authLoading || !customer) return;
     queueMicrotask(() =>
-      setForm((prev) => ({
-        ...prev,
-        name: prev.name || customer.name,
-        email: prev.email || customer.email || '',
-        phone: prev.phone || customer.phone || undefined,
-      })),
+      setForm((prev) => {
+        const nextPhone = prev.phone || customer.phone || undefined;
+        return {
+          ...prev,
+          name: prev.name || customer.name,
+          email: prev.email || customer.email || '',
+          phone: nextPhone,
+          whatsappReminders: resolveWhatsappRemindersAfterPhonePrefill({
+            previousPhone: prev.phone,
+            nextPhone,
+            previousWhatsappReminders: prev.whatsappReminders,
+          }),
+        };
+      }),
     );
   }, [authLoading, customer]);
 
@@ -320,9 +341,14 @@ export function MultiServiceCheckoutClient({
     })();
   }, [paymentSessionId, slug, t]);
 
-  const amountDue = quote?.amountDue ?? subtotal;
-  const checkoutSubtotal = quote?.subtotal ?? subtotal;
+  const amountDue = resolvePublicCheckoutAmountDue(quote, subtotal);
+  const checkoutSubtotal = cartTotal;
   const hasDiscounts = (quote?.totalDiscount ?? 0) > 0;
+  const stickyDisplay = resolvePublicCheckoutStickyDisplay({
+    cartTotal,
+    amountDue,
+    hasDiscounts,
+  });
   const requiresPayment = tenant.onlinePaymentsEnabled && amountDue > 0;
   const promoApplied =
     !!appliedPromo &&
@@ -400,7 +426,7 @@ export function MultiServiceCheckoutClient({
       setError(t('public.phoneInvalid'));
       return;
     }
-    if (form.whatsappReminders && !fullPhone()) {
+    if (isWhatsappRemindersPhoneRequired(form.whatsappReminders, fullPhone())) {
       setError(t('public.whatsappPhoneRequired'));
       return;
     }
@@ -497,10 +523,15 @@ export function MultiServiceCheckoutClient({
 
             <div className="flex justify-between mt-4 pt-4 border-t border-gray-100">
               <span className="font-semibold text-gray-900">
-                {confirmedTotal <= 0 && hasDiscounts ? t('public.freeAfterDiscounts') : t('public.total')}
+                {confirmedTotal <= 0 && hasDiscounts
+                  ? t('public.freeAfterDiscounts')
+                  : t('public.total')}
               </span>
               <span className="font-semibold text-gray-900">
-                {formatPrice(confirmedTotal, currency)}
+                {formatPrice(
+                  confirmedTotal <= 0 && hasDiscounts ? 0 : confirmedTotal,
+                  currency,
+                )}
               </span>
             </div>
           </section>
@@ -603,6 +634,11 @@ export function MultiServiceCheckoutClient({
                 {formatPrice(checkoutSubtotal, currency)}
               </span>
             </div>
+            {quote && amountDue > 0 && amountDue + 0.005 < checkoutSubtotal && !hasDiscounts && (
+              <p className="text-sm text-violet-700 mt-2">
+                {t('public.totalDue')}: {formatPrice(amountDue, currency)}
+              </p>
+            )}
             {quote && hasDiscounts && (
               <div className="mt-3 space-y-1 text-sm">
                 {quote.promoDiscount > 0 && (
@@ -624,7 +660,9 @@ export function MultiServiceCheckoutClient({
                   </div>
                 )}
                 <div className="flex justify-between font-semibold text-gray-900 pt-1">
-                  <span>{amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}</span>
+                  <span>
+                    {amountDue <= 0 ? t('public.freeAfterDiscounts') : t('public.totalDue')}
+                  </span>
                   <span>{formatPrice(amountDue, currency)}</span>
                 </div>
               </div>
@@ -760,12 +798,14 @@ export function MultiServiceCheckoutClient({
                 primaryColor={primary}
                 label={t('public.emailRemindersCheckout')}
               />
-              <ToggleChoice
-                checked={form.whatsappReminders}
-                onChange={(whatsappReminders) => setForm({ ...form, whatsappReminders })}
-                primaryColor={primary}
-                label={t('public.whatsappReminders')}
-              />
+              <div data-testid="checkout-whatsapp-reminders">
+                <ToggleChoice
+                  checked={form.whatsappReminders}
+                  onChange={(whatsappReminders) => setForm({ ...form, whatsappReminders })}
+                  primaryColor={primary}
+                  label={t('public.whatsappReminders')}
+                />
+              </div>
               <ToggleChoice
                 checked={form.consent}
                 onChange={(consent) => setForm({ ...form, consent })}
@@ -783,13 +823,23 @@ export function MultiServiceCheckoutClient({
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
-          <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
+          <div
+            data-public-sticky-cta
+            data-testid="public-sticky-cta"
+            className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_24px_rgba(0,0,0,0.06)]"
+          >
             <div className="max-w-lg mx-auto">
               <div className="flex justify-between text-sm mb-3">
                 <span className="text-gray-500">
-                  {amountDue <= 0 && hasDiscounts ? t('public.freeAfterDiscounts') : t('public.totalDue')}
+                  {stickyDisplay.kind === 'free_after_discounts'
+                    ? t('public.freeAfterDiscounts')
+                    : stickyDisplay.kind === 'due_now'
+                      ? t('public.totalDue')
+                      : t('public.total')}
                 </span>
-                <span className="font-semibold text-gray-900">{formatPrice(amountDue, currency)}</span>
+                <span className="font-semibold text-gray-900">
+                  {formatPrice(stickyDisplay.amount, currency)}
+                </span>
               </div>
               <button
                 type="submit"

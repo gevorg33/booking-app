@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, In } from 'typeorm';
+import { Repository, Between, In, MoreThan } from 'typeorm';
 import { BusinessService } from '../business/business.service.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service, PrepaymentMode } from '../service/entities/service.entity.js';
@@ -95,6 +95,17 @@ import { slotOverlapsTimeWindow } from '../ai/ai-operations.util.js';
 import { employeeRoleMatchesHint } from '../ai/ai-employee-role-rank.util.js';
 import type { NearestAvailabilityWindowQuery } from '../ai/ai-nearest-slot-resolver.util.js';
 import { findNearestBookableSlotAcrossWindowsWithFinder } from '../ai/ai-nearest-slot-resolver.util.js';
+import {
+  buildMicroSlotsForServiceBlock,
+  diagnoseAssignedProvidersUnscheduled,
+  extractServiceBlockPatterns,
+  indexProjectedMicroSlotStartTimes,
+  listFutureSameWeekdayDateKeys,
+  projectPatternsOntoDateKeys,
+  projectedStartTimesKey,
+  startTimeMatchesProjection,
+  type E2e254EmptyReason,
+} from './e2e254-assigned-provider-hours.util.js';
 import { resolveLocale, type AppLocale } from '../../common/i18n/messages.js';
 import {
   extractPublicProfileLocalesFromSettings,
@@ -131,6 +142,7 @@ import {
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import {
   buildSequentialAppointments,
+  expandMultiServiceBlockToSuggestedLines,
   employeeQualifiesForServices,
   normalizeMultiServiceIds,
   validatePerServiceLines,
@@ -168,6 +180,7 @@ import {
 import { extractServiceRankMetadata } from '../../common/utils/service-rank-metadata.util.js';
 import { loadServiceBookingCounts90d } from '../../common/utils/service-booking-popularity.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { resolveAssignedProviderHourRollForwardAllowed } from '../../common/utils/assigned-provider-hour-rollforward.util.js';
 
 export interface PublicBranding {
   logoUrl?: string;
@@ -1092,20 +1105,27 @@ export class PublicBookingService {
     if (!service) throw new NotFoundException('Service not found');
 
     const tz = this.resolveWallClockTimezone(business);
-    let employees = await this.employeeRepo.find({
-      where: { businessId: business.id, isActive: true },
-      order: { name: 'ASC' },
-    });
+    let employees = await this.listEmployeesForService(business.id, service);
 
-    employees = employees.filter((employee) => {
-      if (!employee.serviceIds?.length) return true;
-      return employee.serviceIds.includes(service.id);
-    });
+    // e2e-bug.273 — project hours in-memory only on public GET (no schedule persist)
+    const projected = await this.loadAssignedProviderHourProjections(
+      business.id,
+      service,
+      employees,
+      date,
+      date,
+    );
 
     const slotMap = new Map<string, PublicServiceDaySlot>();
 
     for (const employee of employees) {
-      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, date);
+      const { times: rawSlots, fromProjection } =
+        await this.getEmployeeStartTimesWithProjection(
+          business.id,
+          employee,
+          date,
+          projected,
+        );
       const upcoming = rawSlots.filter((startTime) =>
         isWallClockSlotBookable(
           date,
@@ -1114,12 +1134,14 @@ export class PublicBookingService {
           options?.notBeforeTime ?? null,
         ),
       );
-      const bookable = await this.filterStartTimesWithService(
-        business.id,
-        employee,
-        upcoming,
-        service,
-      );
+      const bookable = fromProjection
+        ? upcoming
+        : await this.filterStartTimesWithService(
+            business.id,
+            employee,
+            upcoming,
+            service,
+          );
 
       for (const startTime of bookable) {
         const key = startTime.toISOString();
@@ -1179,6 +1201,7 @@ export class PublicBookingService {
     serviceId: string;
     serviceName: string;
     dates: string[];
+    emptyReason?: E2e254EmptyReason;
   }> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
@@ -1203,6 +1226,17 @@ export class PublicBookingService {
     }
 
     const employees = await this.listEmployeesForService(business.id, service);
+
+    // e2e-bug.273 — ephemeral projection only (no scheduling_periods/slots writes on GET).
+    // e2e-bug.254 bookability preserved via in-memory pattern projection.
+    const projected = await this.loadAssignedProviderHourProjections(
+      business.id,
+      service,
+      employees,
+      fromKey,
+      toKey,
+    );
+
     const dates: string[] = [];
 
     for (const dateKey of dateKeys) {
@@ -1212,11 +1246,32 @@ export class PublicBookingService {
           service,
           employees,
           dateKey,
+          undefined,
+          projected,
         )
       ) {
         dates.push(dateKey);
       }
     }
+
+    let assignedWithFutureSlots = 0;
+    for (const employee of employees) {
+      const future = await this.slotRepo.count({
+        where: {
+          businessId: business.id,
+          employeeId: employee.id,
+          status: SlotStatus.AVAILABLE,
+          startTime: MoreThan(new Date()),
+        },
+      });
+      if (future > 0) assignedWithFutureSlots += 1;
+    }
+
+    const emptyReason = diagnoseAssignedProvidersUnscheduled({
+      assignedEmployeeCount: employees.length,
+      assignedWithFutureSlots,
+      datesFound: dates.length,
+    });
 
     return {
       from: fromKey,
@@ -1224,6 +1279,251 @@ export class PublicBookingService {
       serviceId: service.id,
       serviceName: service.name,
       dates,
+      ...(emptyReason ? { emptyReason } : {}),
+    };
+  }
+
+  /**
+   * e2e-bug.254 / e2e-bug.273 — Plan roll-forward of past SERVICE_BLOCK patterns
+   * onto future same-weekdays. Public GET uses this as an ephemeral overlay;
+   * booking POST materializes via {@link materializeAssignedProvidersUpcomingHours}.
+   */
+  private async planAssignedProvidersUpcomingHours(
+    businessId: string,
+    service: Service,
+    employees: Employee[],
+    fromKey: string,
+    toKey: string,
+  ): Promise<
+    Array<{
+      employeeId: string;
+      dateKey: string;
+      periodsToSave: Array<Partial<SchedulingPeriod>>;
+      slotsToSave: Array<Partial<SchedulingSlot>>;
+    }>
+  > {
+    if (employees.length === 0) return [];
+    const now = new Date();
+    const todayKey = now.toISOString().slice(0, 10);
+    const plans: Array<{
+      employeeId: string;
+      dateKey: string;
+      periodsToSave: Array<Partial<SchedulingPeriod>>;
+      slotsToSave: Array<Partial<SchedulingSlot>>;
+    }> = [];
+
+    for (const employee of employees) {
+      const futureSlots = await this.slotRepo.count({
+        where: {
+          businessId,
+          employeeId: employee.id,
+          status: SlotStatus.AVAILABLE,
+          startTime: MoreThan(now),
+        },
+      });
+      if (futureSlots > 0) continue;
+
+      const recentPeriods = await this.schedulingPeriodRepo.find({
+        where: {
+          businessId,
+          employeeId: employee.id,
+          type: TemplatePeriodType.SERVICE_BLOCK,
+        },
+        order: { startTime: 'DESC' },
+        take: 40,
+      });
+      const allowing = recentPeriods.filter((p) =>
+        !p.serviceIds?.length ? true : p.serviceIds.includes(service.id),
+      );
+      if (allowing.length === 0) continue;
+
+      const latestDayKey = allowing[0].startTime.toISOString().slice(0, 10);
+      const latestDayPeriods = allowing.filter(
+        (p) => p.startTime.toISOString().slice(0, 10) === latestDayKey,
+      );
+      const patterns = extractServiceBlockPatterns(
+        latestDayPeriods.map((p) => ({
+          type: p.type,
+          startTime: p.startTime,
+          endTime: p.endTime,
+          serviceIds: p.serviceIds,
+          maxAppointmentCount: p.maxAppointmentCount,
+        })),
+        service.id,
+      );
+      if (patterns.length === 0) continue;
+
+      const weekday = patterns[0].utcDayOfWeek;
+      const dateKeys = listFutureSameWeekdayDateKeys(
+        weekday,
+        fromKey,
+        toKey,
+        todayKey,
+      );
+      const projectedDays = projectPatternsOntoDateKeys(patterns, dateKeys);
+
+      for (const day of projectedDays) {
+        const { start: dayStart, end: dayEnd } = getUtcBoundsForDateKey(
+          day.dateKey,
+          'UTC',
+        );
+        const existing = await this.slotRepo.count({
+          where: {
+            businessId,
+            employeeId: employee.id,
+            startTime: Between(dayStart, dayEnd),
+          },
+        });
+        if (existing > 0) continue;
+
+        const periodsToSave = day.patterns.map((pattern) => ({
+          businessId,
+          employeeId: employee.id,
+          startTime: pattern.startTime,
+          endTime: pattern.endTime,
+          type: TemplatePeriodType.SERVICE_BLOCK,
+          serviceIds: pattern.serviceIds,
+          maxAppointmentCount: pattern.maxAppointmentCount,
+          templateId: null,
+        }));
+        const slotsToSave = day.patterns.flatMap((pattern) =>
+          buildMicroSlotsForServiceBlock({
+            businessId,
+            employeeId: employee.id,
+            startTime: pattern.startTime,
+            endTime: pattern.endTime,
+            serviceIds: pattern.serviceIds,
+            maxAppointmentCount: pattern.maxAppointmentCount,
+          }).map((slot) => ({
+            ...slot,
+            status: SlotStatus.AVAILABLE,
+          })),
+        );
+
+        if (periodsToSave.length > 0 || slotsToSave.length > 0) {
+          plans.push({
+            employeeId: employee.id,
+            dateKey: day.dateKey,
+            periodsToSave,
+            slotsToSave,
+          });
+        }
+      }
+    }
+
+    return plans;
+  }
+
+  private async loadAssignedProviderHourProjections(
+    businessId: string,
+    service: Service,
+    employees: Employee[],
+    fromKey: string,
+    toKey: string,
+  ): Promise<Map<string, Date[]>> {
+    const plans = await this.planAssignedProvidersUpcomingHours(
+      businessId,
+      service,
+      employees,
+      fromKey,
+      toKey,
+    );
+    return indexProjectedMicroSlotStartTimes(
+      plans.map((p) => ({
+        employeeId: p.employeeId,
+        dateKey: p.dateKey,
+        slots: p.slotsToSave
+          .filter((s): s is { startTime: Date } => s.startTime instanceof Date)
+          .map((s) => ({ startTime: s.startTime })),
+      })),
+    );
+  }
+
+  private async persistAssignedHoursPlans(
+    plans: Array<{
+      periodsToSave: Array<Partial<SchedulingPeriod>>;
+      slotsToSave: Array<Partial<SchedulingSlot>>;
+    }>,
+  ): Promise<void> {
+    for (const plan of plans) {
+      if (plan.periodsToSave.length > 0) {
+        await this.schedulingPeriodRepo.save(
+          plan.periodsToSave as SchedulingPeriod[],
+        );
+      }
+      if (plan.slotsToSave.length > 0) {
+        await this.slotRepo.save(plan.slotsToSave as SchedulingSlot[]);
+      }
+    }
+  }
+
+  /**
+   * e2e-bug.273 — Materialize projected hours on mutating paths (booking POST).
+   * Public GET must call {@link loadAssignedProviderHourProjections} instead.
+   */
+  private async materializeAssignedProvidersUpcomingHours(
+    businessId: string,
+    service: Service,
+    employees: Employee[],
+    fromKey: string,
+    toKey: string,
+  ): Promise<void> {
+    const plans = await this.planAssignedProvidersUpcomingHours(
+      businessId,
+      service,
+      employees,
+      fromKey,
+      toKey,
+    );
+    await this.persistAssignedHoursPlans(plans);
+  }
+
+  /** @deprecated test alias — prefer materializeAssignedProvidersUpcomingHours */
+  private async ensureAssignedProvidersUpcomingHours(
+    businessId: string,
+    service: Service,
+    employees: Employee[],
+    fromKey: string,
+    toKey: string,
+    options?: { persist?: boolean },
+  ): Promise<void> {
+    if (options?.persist === false) {
+      await this.loadAssignedProviderHourProjections(
+        businessId,
+        service,
+        employees,
+        fromKey,
+        toKey,
+      );
+      return;
+    }
+    await this.materializeAssignedProvidersUpcomingHours(
+      businessId,
+      service,
+      employees,
+      fromKey,
+      toKey,
+    );
+  }
+
+  private async getEmployeeStartTimesWithProjection(
+    businessId: string,
+    employee: Employee,
+    dateKey: string,
+    projected: Map<string, Date[]>,
+  ): Promise<{ times: Date[]; fromProjection: boolean }> {
+    const times = await this.getEmployeeStartTimes(businessId, employee, dateKey);
+    if (times.length > 0) {
+      return { times, fromProjection: false };
+    }
+    const overlay =
+      projected.get(projectedStartTimesKey(employee.id, dateKey)) ?? [];
+    if (overlay.length === 0) {
+      return { times: [], fromProjection: false };
+    }
+    return {
+      times: this.snapToGrid(overlay),
+      fromProjection: true,
     };
   }
 
@@ -1284,12 +1584,27 @@ export class PublicBookingService {
     employees: Employee[],
     dateKey: string,
     options?: { notBeforeTime?: string | null },
+    projected?: Map<string, Date[]>,
   ): Promise<boolean> {
     const tz = this.resolveWallClockTimezone(business);
     let hasScheduleMatch = false;
 
     for (const employee of employees) {
-      const rawSlots = await this.getEmployeeStartTimes(business.id, employee, dateKey);
+      const { times: rawSlots, fromProjection } = projected
+        ? await this.getEmployeeStartTimesWithProjection(
+            business.id,
+            employee,
+            dateKey,
+            projected,
+          )
+        : {
+            times: await this.getEmployeeStartTimes(
+              business.id,
+              employee,
+              dateKey,
+            ),
+            fromProjection: false,
+          };
       const upcoming = rawSlots.filter((startTime) =>
         isWallClockSlotBookable(
           dateKey,
@@ -1298,6 +1613,11 @@ export class PublicBookingService {
           options?.notBeforeTime ?? null,
         ),
       );
+      // e2e-bug.273 — ephemeral projected hours are already service-scoped patterns
+      if (fromProjection && upcoming.length > 0) {
+        hasScheduleMatch = true;
+        break;
+      }
       if (
         await this.hasAnyBookableStartTimeWithService(
           business.id,
@@ -1399,6 +1719,16 @@ export class PublicBookingService {
       return employee.serviceIds.includes(service.id);
     });
 
+    // e2e-bug.273 — allow provider match against ephemeral projection (no GET persist)
+    const dateKey = start.toISOString().slice(0, 10);
+    const projected = await this.loadAssignedProviderHourProjections(
+      business.id,
+      service,
+      employees,
+      dateKey,
+      dateKey,
+    );
+
     const reviewSummaries =
       await this.reviewsService.getPublicReviewsByEmployees(
         business.id,
@@ -1408,9 +1738,14 @@ export class PublicBookingService {
     const providers: PublicServiceSlotProvider[] = [];
 
     for (const employee of employees) {
-      if (
-        !(await this.canBookServiceAt(business.id, employee.id, start, service))
-      ) {
+      const canBook =
+        (await this.canBookServiceAt(
+          business.id,
+          employee.id,
+          start,
+          service,
+        )) || startTimeMatchesProjection(projected, employee.id, start);
+      if (!canBook) {
         continue;
       }
 
@@ -2129,6 +2464,52 @@ export class PublicBookingService {
     });
   }
 
+  async getPackageBookableDates(
+    slug: string,
+    packageId: string,
+    from: string,
+    to: string,
+  ): Promise<{
+    from: string;
+    to: string;
+    packageId: string;
+    dates: string[];
+  }> {
+    const business = await this.resolveBusiness(slug);
+    this.assertPublicBookingEnabled(business);
+    const { serviceIds } = await this.resolvePackageBlockContext(
+      slug,
+      packageId,
+    );
+
+    const tz = this.resolveWallClockTimezone(business);
+    const fromKey = toIsoDay(from, tz);
+    const toKey = toIsoDay(to, tz);
+    if (fromKey > toKey) {
+      throw new BadRequestException('from must be on or before to');
+    }
+
+    const dateKeys = this.buildInclusiveDateKeyRange(fromKey, toKey, tz);
+    if (dateKeys.length > MAX_SERVICE_BOOKABLE_DATES_RANGE_DAYS) {
+      throw new BadRequestException(
+        `Date range cannot exceed ${MAX_SERVICE_BOOKABLE_DATES_RANGE_DAYS} days`,
+      );
+    }
+
+    const dates: string[] = [];
+    for (const dateKey of dateKeys) {
+      const { slots } = await this.getMultiServiceBlockDaySlots(
+        slug,
+        serviceIds,
+        dateKey,
+        { skipDurationCap: true },
+      );
+      if (slots.length > 0) dates.push(dateKey);
+    }
+
+    return { from: fromKey, to: toKey, packageId, dates };
+  }
+
   async getPackageBlockProviders(
     slug: string,
     packageId: string,
@@ -2139,11 +2520,14 @@ export class PublicBookingService {
       slug,
       packageId,
     );
+    // api-bug.2 / e2e-bug.107 — curated packages stay exempt from maxDurationMinutes
+    // on the providers path too (same skip as suggest-block / bookPackage).
     return this.getMultiServiceBlockProviders(
       slug,
       serviceIds,
       startTime,
       includeLaterDays,
+      { skipDurationCap: true },
     );
   }
 
@@ -2542,12 +2926,20 @@ export class PublicBookingService {
     serviceIds: string[],
     startTime: string,
     includeLaterDays = false,
+    options?: { skipDurationCap?: boolean },
   ) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
     const normalizedIds = normalizeMultiServiceIds(serviceIds);
     const settings =
       this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
+    // api-bug.2 — ad-hoc multi-service must enforce maxDurationMinutes here too;
+    // packages pass { skipDurationCap: true } via getPackageBlockProviders.
+    await this.multiServiceBookingsService.previewTotals(
+      business.id,
+      normalizedIds,
+      options,
+    );
     const services = await this.loadOrderedMultiServiceLines(
       business.id,
       normalizedIds,
@@ -2608,10 +3000,35 @@ export class PublicBookingService {
   async suggestMultiServicePerServiceLines(slug: string, serviceIds: string[]) {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);
+    const normalizedIds = normalizeMultiServiceIds(serviceIds);
+    const settings =
+      this.multiServiceBookingsService.resolveSettingsFromBusiness(business);
     await this.multiServiceBookingsService.previewTotals(
       business.id,
-      serviceIds,
+      normalizedIds,
     );
+
+    // e2e-bug.217 — prefer same search as suggest-block, then expand to lines.
+    // Independent nearest-slot chains often fail for pairs that a contiguous
+    // same-provider block can still schedule (Swedish+Neck on GevGas).
+    try {
+      const block = await this.suggestMultiServiceBlock(slug, normalizedIds);
+      const services = await this.loadOrderedMultiServiceLines(
+        business.id,
+        normalizedIds,
+      );
+      return {
+        lines: expandMultiServiceBlockToSuggestedLines(
+          services,
+          block,
+          settings.turnoverBufferMinutes,
+        ),
+      };
+    } catch (blockError) {
+      if (!(blockError instanceof BadRequestException)) {
+        throw blockError;
+      }
+    }
 
     const suggestions: Array<{
       serviceId: string;
@@ -2622,7 +3039,7 @@ export class PublicBookingService {
     }> = [];
 
     let notBefore: string | null = null;
-    for (const serviceId of serviceIds) {
+    for (const serviceId of normalizedIds) {
       const service = await this.serviceRepo.findOne({
         where: { id: serviceId, businessId: business.id, isActive: true },
       });
@@ -2642,7 +3059,14 @@ export class PublicBookingService {
         employeeId: nearest.employeeId,
         employeeName: nearest.employeeName,
       });
-      notBefore = nearest.startTime;
+      // Advance past the service window so the next line cannot overlap.
+      const durationMinutes =
+        (service?.durationMinutes ?? 0) + (service?.bufferMinutes ?? 0);
+      const endMs =
+        new Date(nearest.startTime).getTime() +
+        Math.max(0, durationMinutes) * 60_000 +
+        Math.max(0, settings.turnoverBufferMinutes) * 60_000;
+      notBefore = new Date(endMs).toISOString();
     }
 
     return { lines: suggestions };
@@ -3160,6 +3584,21 @@ export class PublicBookingService {
       where: { id: dto.serviceId, businessId: business.id, isActive: true },
     });
     if (!service) throw new NotFoundException('Service not found');
+
+    // e2e-bug.273 — materialize ephemeral assigned-provider hours on booking POST only
+    // e2e-bug.315 — owner-gated: skip materialize (fail closed downstream on a
+    // real slot-availability check) when the business has opted out.
+    if (resolveAssignedProviderHourRollForwardAllowed(business.settings)) {
+      const bookingDateKey = dto.startTime.slice(0, 10);
+      const assigned = await this.listEmployeesForService(business.id, service);
+      await this.materializeAssignedProvidersUpcomingHours(
+        business.id,
+        service,
+        assigned,
+        bookingDateKey,
+        bookingDateKey,
+      );
+    }
 
     const tourMeta = extractTourMetadata(service.metadata);
     const isTour = tourMeta !== null;

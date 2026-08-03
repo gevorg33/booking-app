@@ -131,6 +131,10 @@ describe('ai-command-registry.build', () => {
       recipes.filter((recipe) => recipe.surfaces.includes('customer')).length,
     ).toBeGreaterThanOrEqual(2);
     expect(
+      recipes.find((recipe) => recipe.id === 'public_assistant_compound')
+        ?.surfaces,
+    ).toEqual(expect.arrayContaining(['public', 'customer']));
+    expect(
       recipes.find((recipe) => recipe.id === 'dashboard_operational_compound')
         ?.llmDecompose,
     ).toBe(true);

@@ -1,5 +1,5 @@
-import { formatDateDisplay } from '../../common/utils/date-format.util.js';
 import { buildNoProvidersAvailableMessage } from './ai-booking-slot-messages.util.js';
+import { formatDateForAiLabel } from './ai-date-label.util.js';
 import type { TimeOfDayWindow } from './ai-operations.util.js';
 import type { RecommendedProvider } from '../public-booking/public-booking.service.js';
 
@@ -38,7 +38,8 @@ export function buildCheckProvidersSummary(input: {
   availableProviders: string[];
   availability: ProviderAvailabilityRow[];
 } {
-  const displayDay = formatDateDisplay(input.dateKey);
+  // e2e-bug.306 — AI availability copy must not use DD/MM slash dates.
+  const displayDay = formatDateForAiLabel(input.dateKey);
 
   if (input.providers.length === 0) {
     return {
@@ -63,7 +64,7 @@ export function buildCheckProvidersSummary(input: {
       return `• ${provider.name}${role} — ${times}`;
     }),
     '',
-    'Tap a provider below or reply with a name and time to book.',
+    'Tap a time slot below to book.',
   ];
 
   const availability = mapRecommendedProviders(input.providers);

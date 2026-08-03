@@ -95,9 +95,9 @@ function AiGuideStepsPanelInner({ guide, onNavigate, onHandoff }: AiGuideStepsPa
 
   return (
     <div className="space-y-3">
-      {guide.summary ? (
-        <p className="text-[13px] leading-relaxed text-gray-200">{guide.summary}</p>
-      ) : null}
+      <p className="text-[13px] leading-relaxed text-gray-200">
+        {t('ai.guideStepOf', { current: cursor + 1, total: steps.length })}: {step.title}
+      </p>
 
       <div className="rounded-lg border border-violet-700/40 bg-violet-950/20 p-3 space-y-2">
         <p className="text-[10px] uppercase tracking-wide text-violet-300/80">

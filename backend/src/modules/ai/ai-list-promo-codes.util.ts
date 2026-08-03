@@ -14,7 +14,14 @@ export function isListPromoCodesPrompt(prompt: string): boolean {
   if (/\b(create|add|issue|generate|deactivate|disable|remove)\b/i.test(prompt)) {
     return false;
   }
-  if (/\b(how\s+do|help|apply|checkout)\b/i.test(prompt)) return false;
+  // "Why wasn't my promo code applied?" is promo_code_help, not list (my + promo code).
+  if (
+    /\b(how\s+do|help|apply(?:ed)?|checkout|why|wasn'?t|didn'?t)\b/i.test(
+      prompt,
+    )
+  ) {
+    return false;
+  }
   return (
     /\b(promo|discount|coupon)\s+codes?\b/i.test(prompt) &&
     /\b(list|show|active|currently|what|which|all|my)\b/i.test(prompt)

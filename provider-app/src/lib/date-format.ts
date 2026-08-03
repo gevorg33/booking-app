@@ -93,3 +93,12 @@ export function formatTimeRangeDisplay(start: Date | string, end: Date | string)
 export function todayDisplay(): string {
   return formatDateDisplay(new Date());
 }
+
+export function formatMinutesDuration(totalMinutes: number): string {
+  const minutes = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) return `${remainder}m`;
+  if (remainder === 0) return `${hours}h`;
+  return `${hours}h ${remainder}m`;
+}

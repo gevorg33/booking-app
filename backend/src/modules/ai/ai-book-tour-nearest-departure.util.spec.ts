@@ -6,6 +6,7 @@ import { BOOK_TOUR_NEAREST_DEPARTURE_MULTILINGUAL_SCENARIOS } from './ai-book-to
 import {
   decomposeCustomerBookTourNearestDepartureCompoundPrompt,
   decomposePublicBookTourNearestDepartureCompoundPrompt,
+  extractLeadingTourNamePrompt,
   extractTourServiceNameFromBookingPrompt,
   hasTourBookingMutateTopic,
   hasTourNearestDepartureCue,
@@ -232,5 +233,33 @@ describe('ai-book-tour-nearest-departure.util (ai-cmd-customer-4.10.5)', () => {
     );
     expect(steps[0]?.params.aspect).toBe('all');
     expect(steps[1]?.params.aspect).toBe('remainingSpots');
+  });
+
+  describe('extractLeadingTourNamePrompt (e2e-bug.206)', () => {
+    it('extracts the leading name before "for N" with no booking verb', () => {
+      expect(
+        extractLeadingTourNamePrompt('Wine tour for 6 next Saturday'),
+      ).toBe('Wine tour');
+      expect(
+        extractLeadingTourNamePrompt('City tour for 8 on 15/08/2026'),
+      ).toBe('City tour');
+      expect(extractLeadingTourNamePrompt('Mountain trek for 5')).toBe(
+        'Mountain trek',
+      );
+    });
+
+    it('returns undefined when the prompt has no leading "<Name> for N" shape', () => {
+      expect(
+        extractLeadingTourNamePrompt('for 6 people book the wine tour'),
+      ).toBeUndefined();
+      expect(extractLeadingTourNamePrompt('book my thing please')).toBeUndefined();
+      expect(extractLeadingTourNamePrompt('')).toBeUndefined();
+    });
+
+    it('returns undefined for a lowercase-leading sentence (no proper-noun-like start)', () => {
+      expect(
+        extractLeadingTourNamePrompt('wine tour for 6 next Saturday'),
+      ).toBeUndefined();
+    });
   });
 });

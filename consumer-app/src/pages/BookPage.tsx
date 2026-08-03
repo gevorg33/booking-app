@@ -821,6 +821,14 @@ export default function BookPage() {
     );
   }, [slug, profileStored]);
 
+  // e2e-bug.182 — confirmPendingPayment's deps (service/profile/slot/checkoutQuote)
+  // change repeatedly as page data loads, re-firing the effect below; without this
+  // guard each re-fire sends a concurrent confirm-payment POST, and the backend's
+  // draft-completed check isn't atomic, so several can race past it and each mint
+  // a duplicate customer_subscriptions row for the same payment.
+  const confirmedSessionIdRef = useRef<string | null>(null);
+  const confirmInFlightRef = useRef(false);
+
   const confirmPendingPayment = useCallback(async () => {
     if (!slug || !serviceId) return false;
     const sessionFromUrl = resumeParams.get('session_id');
@@ -828,11 +836,17 @@ export default function BookPage() {
     const sessionId = sessionFromUrl?.trim() || pending?.sessionId;
     if (!sessionId) return false;
     if (pending && pending.serviceId !== serviceId) return false;
+    if (confirmInFlightRef.current || confirmedSessionIdRef.current === sessionId) {
+      return false;
+    }
 
+    confirmInFlightRef.current = true;
+    setAwaitingPaymentReturn(true);
     setSubmitting(true);
     setSubmitFeedback(null);
     try {
       const result = await confirmPublicBookingPayment(slug, sessionId);
+      confirmedSessionIdRef.current = sessionId;
       guestBookingRef.current = bookingCompletedAsGuest(!!getCustomerToken(slug));
       if (result.customer) {
         const token = getCustomerToken(slug);
@@ -861,8 +875,13 @@ export default function BookPage() {
       setAwaitingPaymentReturn(false);
       return true;
     } catch {
+      setSubmitFeedback({
+        message: copy.checkoutPaymentPendingRetryMessage,
+        kind: 'info',
+      });
       return false;
     } finally {
+      confirmInFlightRef.current = false;
       setSubmitting(false);
     }
   }, [
@@ -875,6 +894,7 @@ export default function BookPage() {
     checkoutQuote,
     queryClient,
     clinicOrderToken,
+    copy.checkoutPaymentPendingRetryMessage,
   ]);
 
   useEffect(() => {
@@ -1277,7 +1297,6 @@ export default function BookPage() {
     });
   const activationPaymentCopy = buildActivationPaymentCopy(locale);
   const showPaymentHiccupFallback = shouldShowPaymentHiccupFallback({
-    isActivationPath,
     cashAvailable,
     awaitingPaymentReturn,
     checkoutFailed,
@@ -1438,7 +1457,7 @@ export default function BookPage() {
   const submit = (linkedIntakeId?: string) => submitBooking(linkedIntakeId);
 
   const completeWithPayAtVenueFallback = async () => {
-    if (!cashAvailable || !isActivationPath) return;
+    if (!cashAvailable) return;
     clearPendingCheckoutPayment();
     setAwaitingPaymentReturn(false);
     setCheckoutFailed(false);

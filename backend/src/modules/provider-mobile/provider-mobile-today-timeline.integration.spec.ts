@@ -173,4 +173,32 @@ describe('ProviderMobileService today timeline (prov-exp-3.3)', () => {
     expect(summary.todayTimeline?.enabled).toBe(false);
     expect(summary.todayTimeline?.segments).toEqual([]);
   });
+
+  it('sums actual slot duration into availableMinutes, separate from the available count', async () => {
+    bookingRepo.find.mockResolvedValue([]);
+    slotRepo.find.mockResolvedValue([
+      {
+        startTime: new Date('2026-06-09T09:00:00.000Z'),
+        endTime: new Date('2026-06-09T09:15:00.000Z'),
+        status: 'available',
+      },
+      {
+        startTime: new Date('2026-06-09T09:15:00.000Z'),
+        endTime: new Date('2026-06-09T10:30:00.000Z'),
+        status: 'available',
+      },
+      {
+        startTime: new Date('2026-06-09T10:30:00.000Z'),
+        endTime: new Date('2026-06-09T11:00:00.000Z'),
+        status: 'booked',
+      },
+    ]);
+
+    const summary = await service.getScheduleSummary('biz-1', 'user-1', 14);
+
+    const day = summary.days.find((d) => d.date === '2026-06-09');
+    expect(day?.available).toBe(2);
+    expect(day?.availableMinutes).toBe(90);
+    expect(day?.booked).toBe(1);
+  });
 });

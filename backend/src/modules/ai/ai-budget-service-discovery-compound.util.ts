@@ -57,16 +57,42 @@ export function buildBudgetCompoundSharedParams(
     prompt,
     shared as Parameters<typeof enrichListServicesParamsFromPrompt>[1],
   );
+  // e2e-bug.238 — never keep book-half fillers as catalog filters.
+  // (sanitizeListServicesFilterValue also strips these; guard bookMatch below.)
+  if (isBudgetBookHalfFiller(enriched.serviceCategory)) {
+    enriched.serviceCategory = null;
+  }
+  if (isBudgetBookHalfFiller(enriched.serviceName)) {
+    enriched.serviceName = null;
+  }
   if (!enriched.serviceCategory && !enriched.serviceName) {
     const bookMatch = prompt.match(
-      /\bbook(?:\s+a|\s+an|\s+the)?\s+([a-z][\w\s-]{2,30}?)(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i,
+      /\bbook(?:\s+a|\s+an|\s+the)?\s+(?!soonest\b|nearest\b|next\b|first\b|earliest\b|available\b)([a-z][\w\s-]{2,30}?)(?=\s*(?:under|below|for|with|tomorrow|today|nearest|soonest|,|$))/i,
     );
     const keyword = bookMatch?.[1]?.trim().replace(/[,.]$/, '');
-    if (keyword && keyword.length >= 3) {
-      enriched.serviceCategory = keyword.split(/\s+/)[0] ?? keyword;
+    const head = keyword?.split(/\s+/)[0];
+    if (
+      keyword &&
+      keyword.length >= 3 &&
+      !isBudgetBookHalfFiller(keyword) &&
+      !isBudgetBookHalfFiller(head) &&
+      !/^(?:the|a|an|my|me|options?|services?)$/i.test(keyword) &&
+      !/^(?:the|a|an|my|me)$/i.test(head ?? '')
+    ) {
+      enriched.serviceCategory = head ?? keyword;
     }
   }
   return enriched;
+}
+
+/** Book-half cues that must never become list_services serviceCategory (e2e-bug.238). */
+function isBudgetBookHalfFiller(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return true;
+  return /^(?:the|a|an|soonest|nearest|next|first|earliest|available|free|open|upcoming|next\s+available|first\s+available|soonest\s+available|nearest\s+available|earliest\s+available)$/i.test(
+    trimmed,
+  );
 }
 
 export function decomposePublicBudgetServiceDiscoveryCompoundPrompt(

@@ -3,11 +3,15 @@ import {
   EXPLAIN_PROVIDER_SPECIALTY_PROMPTS,
   detectExplainProviderSpecialtyAction,
   enrichExplainProviderSpecialtyParamsFromPrompt,
+  extractProviderNameFromPrompt,
   isExplainProviderSpecialtyPrompt,
+  isSalonOrBusinessAboutPrompt,
   rescueExplainProviderSpecialtyIntent,
   resolveEmployeeByName,
   scoreEmployeeForSpecialtyTopic,
 } from './ai-explain-provider-specialty.util.js';
+import { EXPLAIN_PROVIDER_SPECIALTY_SALON_ABOUT_NEGATIVES } from './ai-explain-salon-profile.fixtures.js';
+import { isExplainSalonProfilePrompt } from './ai-explain-salon-profile.util.js';
 import { EXPLAIN_PROVIDER_SPECIALTY_MULTILINGUAL_SCENARIOS } from './ai-explain-provider-specialty-multilingual.fixtures.js';
 import { AI_COMMAND_EVAL_EXPLAIN_PROVIDER_SPECIALTY_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
@@ -78,6 +82,42 @@ describe('ai-explain-provider-specialty.util (ai-cmd-customer-4.1.6)', () => {
     expect(
       isExplainProviderSpecialtyPrompt('who is the best specialist for brows'),
     ).toBe(false);
+  });
+
+  // e2e-bug.191 — salon/business overview must not become named-provider specialty.
+  it.each(
+    EXPLAIN_PROVIDER_SPECIALTY_SALON_ABOUT_NEGATIVES.map(
+      (row) => [row.id, row] as const,
+    ),
+  )('rejects salon/business about cue $id for specialty', (_id, row) => {
+    expect(isSalonOrBusinessAboutPrompt(row.prompt)).toBe(true);
+    expect(isExplainProviderSpecialtyPrompt(row.prompt)).toBe(false);
+    expect(detectExplainProviderSpecialtyAction(row.prompt)).toBeNull();
+    expect(
+      rescueExplainProviderSpecialtyIntent(row.prompt, 'unknown'),
+    ).toBeNull();
+    expect(extractProviderNameFromPrompt(row.prompt)).toBeNull();
+  });
+
+  it('rescues slash business/salon info away from specialty into salon profile', () => {
+    const prompt = 'Tell me about this business / salon info';
+    expect(isExplainProviderSpecialtyPrompt(prompt)).toBe(false);
+    expect(isExplainSalonProfilePrompt(prompt)).toBe(true);
+    expect(
+      rescueExplainProviderSpecialtyIntent(
+        prompt,
+        'explain_provider_specialty',
+      ),
+    ).toBeNull();
+  });
+
+  it('still treats named stylists as specialty, not salon about', () => {
+    expect(isSalonOrBusinessAboutPrompt('Tell me about Anna')).toBe(false);
+    expect(isExplainProviderSpecialtyPrompt('Tell me about Anna')).toBe(true);
+    expect(extractProviderNameFromPrompt('Tell me about Anna')).toBe('Anna');
+    expect(
+      isExplainProviderSpecialtyPrompt("What is Gevorg's specialty?"),
+    ).toBe(true);
   });
 
   it('scores employees by specialty topic overlap', () => {

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
+import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   handleExplainBusinessHoursAndLocationLogic,
@@ -9,13 +10,28 @@ import {
 } from './ai-explain-business-hours-and-location.logic.js';
 import { handleGetDirectionsToSalonLogic } from './ai-get-directions-to-salon.logic.js';
 import { handleExplainSalonProfileLogic } from './ai-explain-salon-profile.logic.js';
+import { buildPublicOpeningHoursFromTemplates } from '../public-booking/public-opening-hours.util.js';
 
 @Injectable()
 export class AiBusinessHoursLocationService {
   private readonly deps: BusinessHoursLocationLogicDeps;
 
-  constructor(@InjectRepository(Business) businessRepo: Repository<Business>) {
-    this.deps = { businessRepo };
+  constructor(
+    @InjectRepository(Business) businessRepo: Repository<Business>,
+    @InjectRepository(ScheduleTemplate)
+    private readonly scheduleTemplateRepo: Repository<ScheduleTemplate>,
+  ) {
+    this.deps = {
+      businessRepo,
+      // e2e-bug.227 — same source as PublicBookingService.loadPublicOpeningHours
+      loadOpeningHours: async (businessId) => {
+        const templates = await this.scheduleTemplateRepo.find({
+          where: { businessId, isDeleted: false, isActive: true },
+          relations: { periods: true },
+        });
+        return buildPublicOpeningHoursFromTemplates(templates);
+      },
+    };
   }
 
   handleExplainBusinessHoursAndLocation(

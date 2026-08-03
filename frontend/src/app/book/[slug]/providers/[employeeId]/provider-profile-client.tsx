@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { PublicHeader } from '@/components/public-booking/public-header';
@@ -14,7 +15,6 @@ import { PublicReviewForm } from '@/components/public-booking/public-review-form
 import type {
   PublicBusinessProfile,
   PublicProvider,
-  PublicProviderReview,
   PublicProviderReviewsPage,
 } from '@/lib/public-api';
 import { formatScheduleTime, resolveNearestSlotDateLabel } from '@/lib/date-format';
@@ -23,6 +23,7 @@ import {
   resolveBusinessWallClockTimezone,
 } from '@/lib/wall-clock-slot.util';
 import { applyOptimisticReviewSummary } from '@/lib/provider-review-summary.util';
+import { shouldShowProviderProfileSeeAllReviewsLink } from '@/lib/provider-profile-reviews-link.util';
 import { bookPath } from '@/lib/tenant-host';
 import { useI18n } from '@/i18n';
 
@@ -68,6 +69,10 @@ export function ProviderProfileClient({
 
   const hasReviews = reviewCount > 0 && averageRating != null;
   const reviewsPageHref = bookPath(slug, `/providers/${provider.id}/reviews`);
+  const showSeeAllReviews = shouldShowProviderProfileSeeAllReviewsLink({
+    reviewCount,
+    totalPages: reviews.totalPages,
+  });
   const nearestDateText = resolveNearestSlotDateLabel(
     provider,
     locale,
@@ -122,10 +127,15 @@ export function ProviderProfileClient({
           {provider.role && <p className="text-sm text-gray-500 mt-1">{provider.role}</p>}
 
           {hasReviews && (
-            <div className="flex items-center justify-center gap-2 mt-4">
+            <Link
+              href={reviewsPageHref}
+              data-testid="provider-profile-reviews-header-link"
+              className="inline-flex items-center justify-center gap-2 mt-4 hover:opacity-90"
+              aria-label={t('public.seeMoreReviews')}
+            >
               <StarRatingDisplay rating={averageRating!} size="md" primaryColor="#fbbf24" />
               <ProviderReviewCountLabel count={reviewCount} />
-            </div>
+            </Link>
           )}
         </section>
 
@@ -192,14 +202,15 @@ export function ProviderProfileClient({
           )}
         </div>
 
-        {reviews.totalPages > 1 && (
-          <a
+        {showSeeAllReviews && (
+          <Link
             href={reviewsPageHref}
+            data-testid="provider-profile-see-all-reviews"
             className="block text-center mt-6 text-sm font-medium hover:underline"
             style={{ color: primary }}
           >
             {t('public.seeMoreReviews')}
-          </a>
+          </Link>
         )}
       </main>
 

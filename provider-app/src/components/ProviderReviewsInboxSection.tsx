@@ -102,11 +102,14 @@ export function ProviderReviewsInboxSection() {
                   <p className="booking-meta">{t('provider.reviewsInboxNoMatches')}</p>
                 ) : (
                   inbox.reviews.map((review) => (
-                    <button
+                    <div
                       key={review.id}
-                      type="button"
+                      role="button"
+                      tabIndex={review.bookingId ? 0 : -1}
+                      aria-disabled={!review.bookingId}
                       className="salon-card"
                       style={{
+                        display: 'block',
                         padding: 12,
                         textAlign: 'left',
                         width: '100%',
@@ -114,9 +117,15 @@ export function ProviderReviewsInboxSection() {
                         background: 'var(--ion-background-color, #fff)',
                         cursor: review.bookingId ? 'pointer' : 'default',
                       }}
-                      disabled={!review.bookingId}
                       onClick={() => {
                         if (review.bookingId) setSelectedBookingId(review.bookingId);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!review.bookingId) return;
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedBookingId(review.bookingId);
+                        }
                       }}
                     >
                       <div
@@ -142,7 +151,7 @@ export function ProviderReviewsInboxSection() {
                           ? ` · ${t('provider.reviewsTapToOpenBooking')}`
                           : ''}
                       </p>
-                    </button>
+                    </div>
                   ))
                 )}
               </div>

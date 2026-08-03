@@ -3,6 +3,10 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  E2E2_LIVE_CASES,
+  E2E2_SALON_TAB_ACTIVE_CLASS,
+} from './e2e2-salon-tab-active.fixtures.js';
+import {
   acquireSalonTabActiveClass,
   releaseSalonTabActiveClass,
   resetSalonTabActiveClassForTests,
@@ -100,5 +104,19 @@ describe('salon-tab-active body class (e2e-bug.2)', () => {
       root!.unmount();
     });
     container.remove();
+  });
+
+  it('fixture class name matches hook export', () => {
+    expect(E2E2_SALON_TAB_ACTIVE_CLASS).toBe(SALON_TAB_ACTIVE_CLASS);
+  });
+
+  it('documents live guru scenarios', () => {
+    expect(E2E2_LIVE_CASES.map((c) => c.id)).toEqual([
+      'cold-hard-load-home',
+      'cold-hard-load-services',
+      'warm-tab-switch-account-then-home',
+      'tab-bar-visible-cold',
+      'ai-fab-not-under-tab-bar',
+    ]);
   });
 });

@@ -13,7 +13,7 @@ export type ReportBookingProblemPromptFixture = {
   serviceName?: string;
 };
 
-export const CUSTOMER_REPORT_BOOKING_PROBLEM_CLASSIFIER_RULES = `- report_booking_problem: MUTATE — logged-in customer reports a problem with their own booking/visit (visit went wrong, bad experience, double charge, billing issue). Triggers: something went wrong with my visit, I was charged twice, report a problem with my appointment, open support ticket for my booking. Set bookingId when known; otherwise serviceName and/or date. Uses POST /me/support/ticket (Zendesk) when profile email exists, otherwise web support handoff. NOT leave_visit_review (rate/review), NOT explain_post_visit_review_prompt (popup explain), NOT contact_support (generic salon help), NOT cancel_my_booking.`;
+export const CUSTOMER_REPORT_BOOKING_PROBLEM_CLASSIFIER_RULES = `- report_booking_problem: MUTATE — logged-in customer reports a problem with their own booking/visit (visit went wrong, bad experience, double charge, billing issue, wrong appointment time, file a complaint). Triggers: something went wrong with my visit/booking, I was charged twice, report a booking problem, report a problem with my appointment, file a complaint about my appointment, please report it to support. Set bookingId when known; otherwise serviceName and/or date. Uses POST /me/support/ticket (Zendesk) when profile email exists, otherwise web support handoff. NOT leave_visit_review (rate/review), NOT explain_post_visit_review_prompt (popup explain), NOT contact_support (generic salon help without booking/visit issue), NOT confirm_my_booking_details (summary readout — never steal report/complaint phrasing), NOT cancel_my_booking.`;
 
 export const REPORT_BOOKING_PROBLEM_PROMPTS: readonly ReportBookingProblemPromptFixture[] =
   [
@@ -133,6 +133,54 @@ export const REPORT_BOOKING_PROBLEM_RESCUE_SCENARIOS = [
     prompt: 'Report a problem with my appointment',
     misclassifiedAction: 'unknown',
     expectedAction: 'report_booking_problem' as const,
+  },
+] as const;
+
+/** e2e-bug.236 — natural report/complaint phrasing stolen by confirm_my_booking_details. */
+export const E2E236_REPORT_VS_CONFIRM_SCENARIOS = [
+  {
+    id: 'e2e236-report-a-booking-problem-wrong-time',
+    prompt: 'report a booking problem — wrong time on my appointment',
+    surface: 'customer' as const,
+    misclassifiedAction: 'confirm_my_booking_details',
+    expectedAction: 'report_booking_problem' as const,
+  },
+  {
+    id: 'e2e236-something-went-wrong-booking-report-support',
+    prompt:
+      'something went wrong with my booking please report it to support',
+    surface: 'customer' as const,
+    misclassifiedAction: 'confirm_my_booking_details',
+    expectedAction: 'report_booking_problem' as const,
+  },
+  {
+    id: 'e2e236-file-a-complaint-appointment',
+    prompt: 'file a complaint about my appointment',
+    surface: 'customer' as const,
+    misclassifiedAction: 'confirm_my_booking_details',
+    expectedAction: 'report_booking_problem' as const,
+  },
+  {
+    id: 'e2e236-report-booking-problem-time-wrong-public',
+    prompt: 'report a booking problem — my appointment time was wrong',
+    surface: 'public' as const,
+    misclassifiedAction: 'confirm_my_booking_details',
+    expectedAction: 'report_booking_problem' as const,
+  },
+  {
+    id: 'e2e236-exact-report-booking-problem-control',
+    prompt: 'report booking problem',
+    surface: 'customer' as const,
+    misclassifiedAction: 'unknown',
+    expectedAction: 'report_booking_problem' as const,
+  },
+  {
+    id: 'e2e236-confirm-details-control-stays',
+    prompt: 'confirm my booking details',
+    surface: 'customer' as const,
+    misclassifiedAction: 'unknown',
+    expectedAction: 'confirm_my_booking_details' as const,
+    expectReport: false,
   },
 ] as const;
 

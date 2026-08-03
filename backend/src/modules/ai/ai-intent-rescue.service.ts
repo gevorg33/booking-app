@@ -15,6 +15,7 @@ import {
   extractPaymentStatusFromPrompt,
   extractLimitFromPrompt,
   rescueUnscopedCustomerCountIntent,
+  rescueCustomerRetentionRateIntent,
 } from './ai-intent-heuristics.js';
 import { applyBookingRescheduleActionHints } from './ai-booking-reschedule-hints.util.js';
 import {
@@ -38,6 +39,7 @@ import { enrichExplainPaymentOptionsParamsFromPrompt } from './ai-explain-paymen
 import {
   enrichFindSoonestParamsFromPrompt,
   isFindSoonestAppointmentPrompt,
+  isRescheduleExistingAppointmentPrompt,
 } from './ai-find-soonest-appointment.util.js';
 import { enrichCompareServicesParamsFromPrompt } from './ai-compare-services.util.js';
 import {
@@ -108,6 +110,7 @@ import { rescueIntegrationsIntent } from './ai-integrations.util.js';
 import { rescueExplainSupportInboxIntent } from './ai-explain-support-inbox.util.js';
 import {
   extractBusinessEmailOnCustomerChangeToggleFromPrompt,
+  isToggleBusinessEmailOnCustomerChangePrompt,
   rescuePushNotificationsIntent,
 } from './ai-push-notifications.util.js';
 import { rescueReschedulePackageVisitSelfIntent } from './ai-reschedule-package-visit-self.util.js';
@@ -134,6 +137,7 @@ import {
   enrichCreateProductParamsFromPrompt,
   enrichDeleteExpenseParamsFromPrompt,
   enrichRecordExpenseParamsFromPrompt,
+  isCreateProductPrompt,
   parseCreateCommissionRuleFromPrompt,
   parseExportAnalyticsReportFromPrompt,
   rescueRetailFinanceIntent,
@@ -176,6 +180,7 @@ import type { AssistantMode } from './ai-assistant-mode.util.js';
 import {
   disambiguateMisclassifiedAvailabilityIntent,
   resolveAvailabilityIntentFromPrompt,
+  type AvailabilityDisambiguationSurface,
 } from './ai-intent-disambiguation.util.js';
 import {
   parseCurrencyFromPrompt,
@@ -343,6 +348,7 @@ import {
   rescueConfirmMyBookingDetailsIntent,
 } from './ai-confirm-my-booking-details.util.js';
 import {
+  isProviderAvailabilityOpenCheckPrompt,
   parseAddBookingToCalendarFromPrompt,
   rescueAddBookingToCalendarIntent,
 } from './ai-add-booking-to-calendar.util.js';
@@ -460,6 +466,7 @@ import { rescueClinicCompoundIntent } from './ai-clinic-compound.util.js';
 import { rescueClinicLabDayCloseCompoundIntent } from './ai-clinic-lab-day-close-compound.util.js';
 import { rescueClinicLabReviewCompoundIntent } from './ai-clinic-lab-review-compound.util.js';
 import { rescueBudgetDiscoverAndBookCompoundIntent } from './ai-budget-discover-and-book-compound.util.js';
+import { rescueRescheduleThenCreateBookingCompoundIntent } from './ai-reschedule-then-create-booking-compound.util.js';
 import { rescueDiscoverBookAndPayCompoundIntent } from './ai-discover-book-and-pay-compound.util.js';
 import { rescueGiftCardCheckoutCompoundIntent } from './ai-gift-card-checkout-compound.util.js';
 import { rescueMultiServiceDayCompoundIntent } from './ai-multi-service-day-compound.util.js';
@@ -487,8 +494,9 @@ import {
   enrichListProviderReviewsParamsFromPrompt,
   rescueListProviderReviewsIntent,
 } from './ai-list-provider-reviews.util.js';
+import { rescueListProvidersIntent } from './ai-list-providers.util.js';
 import { isConcreteTimedBookAppointmentPrompt } from './ai-intent-disambiguation.util.js';
-import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
+import { enrichBookAppointmentParamsFromPrompt } from './ai-book-appointment-params.util.js';
 import {
   parseEnterTestResultFromPrompt,
   parseReleaseTestResultFromPrompt,
@@ -501,6 +509,7 @@ import {
 } from './ai-clinic-test-result-ext.util.js';
 import {
   enrichStaffOperationsRescueParams,
+  isCreateBookingNotEmployeePrompt,
   rescueStaffOperationsIntent,
 } from './ai-staff-operations.util.js';
 import {
@@ -560,8 +569,16 @@ import { rescueBookLabCollectionNearestCompoundIntent } from './ai-book-lab-coll
 import { parseBookLabFromOrderFromPrompt } from './ai-book-lab-from-order.util.js';
 import { rescueCompleteIntakeAndBookCompoundIntent } from './ai-complete-intake-and-book.util.js';
 import { rescueIntakeLabBookPayCompoundIntent } from './ai-intake-lab-book-pay-compound.util.js';
-import { rescueBookTourNearestDepartureCompoundIntent } from './ai-book-tour-nearest-departure.util.js';
-import { rescueTourGroupCheckoutCompoundIntent } from './ai-tour-group-checkout-compound.util.js';
+import {
+  rescueBookTourNearestDepartureCompoundIntent,
+  isBookTourNearestDepartureCompoundPrompt,
+  extractTourServiceNameFromBookingPrompt,
+  extractLeadingTourNamePrompt,
+} from './ai-book-tour-nearest-departure.util.js';
+import {
+  rescueTourGroupCheckoutCompoundIntent,
+  isTourGroupCheckoutCompoundPrompt,
+} from './ai-tour-group-checkout-compound.util.js';
 import {
   parseAdminDeleteCustomerDataFromPrompt,
   parseConfigureGranularConsentFromPrompt,
@@ -913,6 +930,29 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const { prompt, action, params } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
+    // e2e-bug.159 / e2e-bug.252 — owner cancel/reschedule email alert before
+    // booking/reschedule disambiguation (and before react_agent unknown fallthrough).
+    if (input.surface === 'dashboard') {
+      const ownerAlertEarly = this.tryRescuePushNotifications(prompt, action);
+      if (
+        ownerAlertEarly?.action ===
+        'toggle_business_email_on_customer_change'
+      ) {
+        return ownerAlertEarly;
+      }
+    }
+    // e2e-bug.295 — consumer adoption (home-screen widget, push, offline, …)
+    // before product-guide / calendar / list_my_upcoming steals. Home-tab tours
+    // stay safe: isExplainHomeScreenWidgetPrompt excludes "Home tab".
+    if (input.surface === 'customer' || input.surface === 'public') {
+      const consumerAdoptionClassifiedEarly = this.tryRescueConsumerAdoption(
+        prompt,
+        action,
+      );
+      if (consumerAdoptionClassifiedEarly) {
+        return consumerAdoptionClassifiedEarly;
+      }
+    }
     const productGuideMisroute = this.tryRescueProductGuideMisroute(
       prompt,
       action,
@@ -942,6 +982,13 @@ export class AiIntentRescueService {
       params,
     );
     if (unscopedCustomerCountEarly) return unscopedCustomerCountEarly;
+    // e2e-bug.137 — "customer retention rate" has no react_agent tool at all.
+    const customerRetentionRateEarly = this.tryRescueCustomerRetentionRate(
+      prompt,
+      action,
+      params,
+    );
+    if (customerRetentionRateEarly) return customerRetentionRateEarly;
     const createServicePrepaymentEarly = this.tryRescueCreateServicePrepayment(
       prompt,
       action,
@@ -957,6 +1004,18 @@ export class AiIntentRescueService {
         : this.tryRescueExplainCancelPolicy(prompt, action);
     if (explainCancelPolicyBeforeBudget)
       return explainCancelPolicyBeforeBudget;
+    // e2e-bug.148 — create_product before budget-discovery's price-mention steal.
+    const createProductBeforeBudget = this.tryRescueCreateProductEarly(
+      prompt,
+      action,
+    );
+    if (createProductBeforeBudget) return createProductBeforeBudget;
+    // e2e-bug.284 — move+then-book-another before budget / single-intent steals.
+    const rescheduleThenCreateEarly =
+      input.surface === 'dashboard' || input.surface == null
+        ? this.tryRescueRescheduleThenCreateBookingCompound(prompt, action)
+        : null;
+    if (rescheduleThenCreateEarly) return rescheduleThenCreateEarly;
     const budgetDiscoveryEarly =
       input.surface === 'provider'
         ? null
@@ -1106,6 +1165,7 @@ export class AiIntentRescueService {
     const addBookingToCalendarEarly = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
+      input.surface,
     );
     if (addBookingToCalendarEarly) return addBookingToCalendarEarly;
     const bookAnotherServiceEarly = this.tryRescueBookAnotherService(
@@ -1367,6 +1427,11 @@ export class AiIntentRescueService {
       action,
     );
     if (catalogDeactivateEarly) return catalogDeactivateEarly;
+    // e2e-bug.286 — "Create a booking for the first available…" before
+    // create_employee steals via Create + any provider.
+    const createBookingNotEmployeeEarly =
+      this.tryRescueCreateBookingNotEmployee(prompt, action, params);
+    if (createBookingNotEmployeeEarly) return createBookingNotEmployeeEarly;
     const staffOperationsEarly = this.tryRescueStaffOperations(prompt, action);
     if (staffOperationsEarly) return staffOperationsEarly;
     const waitlistDashboardEarly =
@@ -1385,6 +1450,31 @@ export class AiIntentRescueService {
       action,
     );
     if (providerPushSetupEarly) return providerPushSetupEarly;
+    // e2e-bug.244–247 — provider FAQ explainers before Exp2/Exp3 so live
+    // mutate/read intents (floor, reassign, time-off list, etc.) cannot steal.
+    if (input.surface === 'provider') {
+      const visitStatusExplainersBeforeExp2 =
+        this.tryRescueVisitStatusExplainers(prompt, action, params);
+      if (visitStatusExplainersBeforeExp2) {
+        return visitStatusExplainersBeforeExp2;
+      }
+      const calendarSchedulingExplainersBeforeExp2 =
+        this.tryRescueCalendarSchedulingExplainers(prompt, action, params);
+      if (calendarSchedulingExplainersBeforeExp2) {
+        return calendarSchedulingExplainersBeforeExp2;
+      }
+      const assistantUxExplainersBeforeExp2 =
+        this.tryRescueAssistantUxExplainers(prompt, action, params);
+      if (assistantUxExplainersBeforeExp2) {
+        return assistantUxExplainersBeforeExp2;
+      }
+      const dashboardHandoffBeforeExp2 = this.tryRescueDashboardHandoff(
+        prompt,
+        action,
+        params,
+      );
+      if (dashboardHandoffBeforeExp2) return dashboardHandoffBeforeExp2;
+    }
     const providerExp2Early = this.tryRescueProviderExp2(prompt, action);
     if (providerExp2Early) return providerExp2Early;
     // e2e-bug.131 — provider retail/cart rescues must not steal customer/public cart.
@@ -1404,6 +1494,10 @@ export class AiIntentRescueService {
     );
     if (providerTeamWhosNextEarly) return providerTeamWhosNextEarly;
     if (input.surface === 'provider') {
+      // Per-leg multi-service before whole-visit complete (e2e-bug.241)
+      const markMultiServiceStepDoneEarly =
+        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
+      if (markMultiServiceStepDoneEarly) return markMultiServiceStepDoneEarly;
       const markVisitCompleteEarly = this.tryRescueMarkVisitComplete(
         prompt,
         action,
@@ -1416,9 +1510,6 @@ export class AiIntentRescueService {
         params,
       );
       if (markVisitInProgressEarly) return markVisitInProgressEarly;
-      const markMultiServiceStepDoneEarly =
-        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
-      if (markMultiServiceStepDoneEarly) return markMultiServiceStepDoneEarly;
       const searchPatientEarly = this.tryRescueSearchPatient(
         prompt,
         action,
@@ -1555,13 +1646,14 @@ export class AiIntentRescueService {
       action,
     );
     if (speakAssistantReplyEarly) return speakAssistantReplyEarly;
-    const giveAiFeedbackEarly = this.tryRescueGiveAiFeedback(prompt, action);
-    if (giveAiFeedbackEarly) return giveAiFeedbackEarly;
+    // Provider feedback before customer give_ai_feedback (e2e-bug.243)
     const giveProviderAiFeedbackEarly =
       input.surface === 'provider'
         ? this.tryRescueGiveProviderAiFeedback(prompt, action)
         : null;
     if (giveProviderAiFeedbackEarly) return giveProviderAiFeedbackEarly;
+    const giveAiFeedbackEarly = this.tryRescueGiveAiFeedback(prompt, action);
+    if (giveAiFeedbackEarly) return giveAiFeedbackEarly;
     const explainRtlLayoutEarly = this.tryRescueExplainRtlLayout(
       prompt,
       action,
@@ -1580,6 +1672,11 @@ export class AiIntentRescueService {
     if (selfServiceBooking) return selfServiceBooking;
     const pushNotifications = this.tryRescuePushNotifications(prompt, action);
     if (pushNotifications) return pushNotifications;
+    // e2e-bug.232 — claim referral before marketing apply_promo_code_checkout
+    // steals "redeem/apply referral code" (promo extractor used to treat
+    // "referral" as promoCode).
+    const claimReferralCode = this.tryRescueClaimReferralCode(prompt, action);
+    if (claimReferralCode) return claimReferralCode;
     const marketingGrowth = this.tryRescueMarketingGrowth(prompt, action);
     if (marketingGrowth) return marketingGrowth;
     // e2e-bug.77 — dashboard/provider retail-finance (search_retail_sku) never on customer/public.
@@ -1599,8 +1696,9 @@ export class AiIntentRescueService {
         : this.tryRescueGiftFulfillment(prompt, action);
     if (giftFulfillment) return giftFulfillment;
     // e2e-bug.83 — before payments apply_gift_card_code steals "redeem referral code".
-    const claimReferralCode = this.tryRescueClaimReferralCode(prompt, action);
-    if (claimReferralCode) return claimReferralCode;
+    // (claim_referral already attempted above for promo; keep for gift-card ordering.)
+    const claimReferralCodeLate = this.tryRescueClaimReferralCode(prompt, action);
+    if (claimReferralCodeLate) return claimReferralCodeLate;
     const payments = this.tryRescuePayments(prompt, action);
     if (payments) return payments;
     const scheduleResources = this.tryRescueScheduleResources(prompt, action);
@@ -1623,6 +1721,65 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     const { prompt, action, params, reasoning } = input;
     const { employees, customers, timeZone, budgetSurface } = ctx;
+
+    // e2e-bug.280 — short give_ai_feedback cues ("Helpful", "Bad answer", …)
+    // classify as unknown, so runRescueClassifiedPhase is skipped. Mirror the
+    // classified-phase early rescues here for customer/public.
+    if (input.surface === 'customer' || input.surface === 'public') {
+      const speakAssistantReplyUnknownEarly =
+        this.tryRescueSpeakAssistantReply(prompt, action);
+      if (speakAssistantReplyUnknownEarly) {
+        return speakAssistantReplyUnknownEarly;
+      }
+      const giveAiFeedbackUnknownEarly = this.tryRescueGiveAiFeedback(
+        prompt,
+        action,
+      );
+      if (giveAiFeedbackUnknownEarly) return giveAiFeedbackUnknownEarly;
+      const explainRtlLayoutUnknownEarly = this.tryRescueExplainRtlLayout(
+        prompt,
+        action,
+      );
+      if (explainRtlLayoutUnknownEarly) return explainRtlLayoutUnknownEarly;
+      const explainVoiceInputUnknownEarly = this.tryRescueExplainVoiceInput(
+        prompt,
+        action,
+      );
+      if (explainVoiceInputUnknownEarly) return explainVoiceInputUnknownEarly;
+    }
+
+    // e2e-bug.252 — owner alert toggle before unknown→react_agent fallthrough.
+    if (input.surface === 'dashboard') {
+      const ownerAlertUnknownEarly = this.tryRescuePushNotifications(
+        prompt,
+        action,
+      );
+      if (
+        ownerAlertUnknownEarly?.action ===
+        'toggle_business_email_on_customer_change'
+      ) {
+        return ownerAlertUnknownEarly;
+      }
+    }
+
+    // e2e-bug.134 — a pasted manage link combined with a concrete date/time
+    // ("Reschedule my booking to Friday 2pm https://.../manage?bookingId=book-9&...")
+    // must still reach tryRescueManageBookingWithToken, not get stolen into
+    // book_appointment by the timed-book heuristic below (its bare `\bbook\b`
+    // regex matches the literal "book-9" bookingId value inside the URL).
+    const manageLinkCredsForUnknownPhase =
+      extractManageLinkCredentialsFromPrompt(prompt);
+    if (
+      manageLinkCredsForUnknownPhase.bookingId &&
+      manageLinkCredsForUnknownPhase.manageToken
+    ) {
+      const manageTokenUnknown = this.tryRescueManageBookingWithToken(
+        prompt,
+        action,
+        params,
+      );
+      if (manageTokenUnknown) return manageTokenUnknown;
+    }
 
     const summarizeDayUnknownEarly = this.tryRescueSummarizeDay(prompt, action);
     if (summarizeDayUnknownEarly) return summarizeDayUnknownEarly;
@@ -1711,6 +1868,13 @@ export class AiIntentRescueService {
       action,
     );
     if (businessTaxBeforeReviewUnknown) return businessTaxBeforeReviewUnknown;
+    // e2e-bug.137 — same "bare `rate`" steal as e2e-bug.146, this time for
+    // "customer retention rate" landing on leave_visit_review's REVIEW_CUE.
+    const customerRetentionRateBeforeReviewUnknown =
+      this.tryRescueCustomerRetentionRate(prompt, action, params);
+    if (customerRetentionRateBeforeReviewUnknown) {
+      return customerRetentionRateBeforeReviewUnknown;
+    }
     const leaveVisitReviewUnknownEarly =
       input.surface === 'provider'
         ? null
@@ -1727,6 +1891,13 @@ export class AiIntentRescueService {
       this.tryRescueListServicesPaymentFilter(prompt, action);
     if (listServicesPaymentFilterUnknown)
       return listServicesPaymentFilterUnknown;
+
+    // e2e-bug.148 — create_product before budget-discovery's price-mention steal.
+    const createProductBeforeBudgetUnknown = this.tryRescueCreateProductEarly(
+      prompt,
+      action,
+    );
+    if (createProductBeforeBudgetUnknown) return createProductBeforeBudgetUnknown;
 
     const budgetDiscoveryUnknown =
       input.surface === 'provider'
@@ -1956,9 +2127,18 @@ export class AiIntentRescueService {
     if (explainSubscriptionVsOneTimeUnknown) {
       return explainSubscriptionVsOneTimeUnknown;
     }
+    // e2e-bug.295 — adoption before calendar/list steals on unknown phase.
+    if (input.surface === 'customer' || input.surface === 'public') {
+      const consumerAdoptionBeforeCalendarUnknown =
+        this.tryRescueConsumerAdoption(prompt, action);
+      if (consumerAdoptionBeforeCalendarUnknown) {
+        return consumerAdoptionBeforeCalendarUnknown;
+      }
+    }
     const addBookingToCalendarUnknown = this.tryRescueAddBookingToCalendar(
       prompt,
       action,
+      input.surface,
     );
     if (addBookingToCalendarUnknown) return addBookingToCalendarUnknown;
 
@@ -2171,6 +2351,11 @@ export class AiIntentRescueService {
       };
     }
 
+    const staffOperationsBeforeCustomerPre =
+      this.tryRescueCreateBookingNotEmployee(prompt, action, params);
+    if (staffOperationsBeforeCustomerPre) {
+      return staffOperationsBeforeCustomerPre;
+    }
     const staffOperationsBeforeCustomer = this.tryRescueStaffOperations(
       prompt,
       action,
@@ -2359,6 +2544,12 @@ export class AiIntentRescueService {
     }
 
     if (input.surface === 'provider') {
+      // Per-leg multi-service before whole-visit complete (e2e-bug.241)
+      const markMultiServiceStepDoneUnknownEarly =
+        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
+      if (markMultiServiceStepDoneUnknownEarly) {
+        return markMultiServiceStepDoneUnknownEarly;
+      }
       const markVisitCompleteUnknownEarly = this.tryRescueMarkVisitComplete(
         prompt,
         action,
@@ -2369,11 +2560,6 @@ export class AiIntentRescueService {
         this.tryRescueMarkVisitInProgress(prompt, action, params);
       if (markVisitInProgressUnknownEarly) {
         return markVisitInProgressUnknownEarly;
-      }
-      const markMultiServiceStepDoneUnknownEarly =
-        this.tryRescueMarkMultiServiceStepDone(prompt, action, params);
-      if (markMultiServiceStepDoneUnknownEarly) {
-        return markMultiServiceStepDoneUnknownEarly;
       }
       const searchPatientUnknownEarly = this.tryRescueSearchPatient(
         prompt,
@@ -2573,6 +2759,9 @@ export class AiIntentRescueService {
       action,
     );
     if (catalogDeactivateUnknown) return catalogDeactivateUnknown;
+    const createBookingNotEmployeeUnknown =
+      this.tryRescueCreateBookingNotEmployee(prompt, action, params);
+    if (createBookingNotEmployeeUnknown) return createBookingNotEmployeeUnknown;
     const staffOperationsUnknown = this.tryRescueStaffOperations(
       prompt,
       action,
@@ -2597,6 +2786,32 @@ export class AiIntentRescueService {
       action,
     );
     if (providerPushSetupUnknownEarly) return providerPushSetupUnknownEarly;
+    // e2e-bug.244–247 — twin of classified-phase explainers before Exp2.
+    if (input.surface === 'provider') {
+      const visitStatusExplainersUnknownBeforeExp2 =
+        this.tryRescueVisitStatusExplainers(prompt, action, params);
+      if (visitStatusExplainersUnknownBeforeExp2) {
+        return visitStatusExplainersUnknownBeforeExp2;
+      }
+      const calendarSchedulingExplainersUnknownBeforeExp2 =
+        this.tryRescueCalendarSchedulingExplainers(prompt, action, params);
+      if (calendarSchedulingExplainersUnknownBeforeExp2) {
+        return calendarSchedulingExplainersUnknownBeforeExp2;
+      }
+      const assistantUxExplainersUnknownBeforeExp2 =
+        this.tryRescueAssistantUxExplainers(prompt, action, params);
+      if (assistantUxExplainersUnknownBeforeExp2) {
+        return assistantUxExplainersUnknownBeforeExp2;
+      }
+      const dashboardHandoffUnknownBeforeExp2 = this.tryRescueDashboardHandoff(
+        prompt,
+        action,
+        params,
+      );
+      if (dashboardHandoffUnknownBeforeExp2) {
+        return dashboardHandoffUnknownBeforeExp2;
+      }
+    }
     const providerExp2UnknownEarly = this.tryRescueProviderExp2(prompt, action);
     if (providerExp2UnknownEarly) return providerExp2UnknownEarly;
     // e2e-bug.131 — provider Exp3 only on provider surface (classified + unknown).
@@ -2667,6 +2882,12 @@ export class AiIntentRescueService {
       action,
     );
     if (pushNotificationsUnknown) return pushNotificationsUnknown;
+    // e2e-bug.232 — claim referral before marketing promo steal (unknown phase).
+    const claimReferralCodeUnknownEarly = this.tryRescueClaimReferralCode(
+      prompt,
+      action,
+    );
+    if (claimReferralCodeUnknownEarly) return claimReferralCodeUnknownEarly;
     const marketingGrowthUnknown = this.tryRescueMarketingGrowth(
       prompt,
       action,
@@ -2807,6 +3028,30 @@ export class AiIntentRescueService {
       };
     }
 
+    // e2e-bug.248 — reschedule (incl. nearest/soonest free time) before availability
+    // soonest steal via resolveAvailabilityIntentFromPrompt.
+    // e2e-bug.252 — skip owner "alert me when customers reschedule" prefs.
+    if (
+      /\b(reschedule|move|change time|shift)\b/i.test(prompt) &&
+      !/\bmove\s+\d+\s+.+(?:slot|appointment)/i.test(prompt) &&
+      !isToggleBusinessEmailOnCustomerChangePrompt(prompt)
+    ) {
+      const rescuedParams = { ...params };
+      applyBookingRescheduleActionHints(
+        'reschedule_booking',
+        rescuedParams,
+        prompt,
+        { employees, customers, timeZone },
+      );
+      return {
+        action: 'reschedule_booking',
+        params: rescuedParams,
+        reasoning: 'Rescheduling appointment.',
+        rescued: true,
+        rescueReason: 'reschedule_pattern',
+      };
+    }
+
     const availability = resolveAvailabilityIntentFromPrompt(
       'dashboard',
       prompt,
@@ -2861,26 +3106,6 @@ export class AiIntentRescueService {
     }
 
     if (
-      /\b(reschedule|move|change time|shift)\b/i.test(prompt) &&
-      !/\bmove\s+\d+\s+.+(?:slot|appointment)/i.test(prompt)
-    ) {
-      const rescuedParams = { ...params };
-      applyBookingRescheduleActionHints(
-        'reschedule_booking',
-        rescuedParams,
-        prompt,
-        { employees, customers, timeZone },
-      );
-      return {
-        action: 'reschedule_booking',
-        params: rescuedParams,
-        reasoning: 'Rescheduling appointment.',
-        rescued: true,
-        rescueReason: 'reschedule_pattern',
-      };
-    }
-
-    if (
       /\b(book|schedule|reserve|appointment)\b/i.test(prompt) &&
       !/\b(cancel|hide|clear)\b/i.test(prompt) &&
       !(
@@ -2901,7 +3126,7 @@ export class AiIntentRescueService {
           action: 'book_appointment',
           params: {
             ...params,
-            ...buildSharedBookingContextFromPrompt(prompt),
+            ...enrichBookAppointmentParamsFromPrompt(prompt, params),
           },
           reasoning: 'Customer/public timed book rescue → book_appointment',
           rescued: true,
@@ -3058,6 +3283,43 @@ export class AiIntentRescueService {
     };
   }
 
+  private tryRescueCreateBookingNotEmployee(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    // e2e-bug.286 — classifier/rescue "Create a booking…" → create_employee.
+    if (!isCreateBookingNotEmployeePrompt(prompt)) return null;
+    if (
+      action !== 'create_employee' &&
+      action !== 'unknown' &&
+      action !== 'invite_staff_member'
+    ) {
+      return null;
+    }
+    const rescuedParams = { ...params };
+    enrichBookingTimeHintsFromPrompt('create_booking', rescuedParams, prompt);
+    if (
+      /\bfirst\s+available\b/i.test(prompt) ||
+      /\b(?:nearest|soonest|next\s+available)\b/i.test(prompt) ||
+      isFirstAvailableBookingPrompt(prompt)
+    ) {
+      rescuedParams.bookingFirstAvailable = true;
+      delete rescuedParams.timeSlot;
+    }
+    if (isAnyProviderBookingPrompt(prompt)) {
+      rescuedParams.allProviders = true;
+    }
+    return {
+      action: 'create_booking',
+      params: rescuedParams,
+      reasoning:
+        'Create booking for a slot — not create_employee (e2e-bug.286).',
+      rescued: true,
+      rescueReason: 'create_booking_not_employee',
+    };
+  }
+
   private tryRescueStaffOperations(
     prompt: string,
     action: string,
@@ -3147,6 +3409,17 @@ export class AiIntentRescueService {
     }
     const rescued = rescueOperationsIntent(prompt, action, params);
     if (!rescued) return null;
+    // e2e-bug.287 — do not lock check_availability via timeOfDay enrich when
+    // the prompt is indefinite anybody/anyone/who-is-open. Availability
+    // disambiguation must remap to check_providers_for_service on
+    // dashboard/customer (named "is Gevorg open…" stays check_availability).
+    if (
+      rescued.action === 'check_availability' &&
+      action === 'check_availability' &&
+      isCheckProvidersForServicePrompt(prompt)
+    ) {
+      return null;
+    }
     const paramsChanged =
       JSON.stringify(rescued.params) !== JSON.stringify(params);
     if (rescued.action === action && !paramsChanged) return null;
@@ -3570,7 +3843,7 @@ export class AiIntentRescueService {
     if (!rescued) return null;
     return {
       action: rescued.action,
-      params,
+      params: { ...params, ...rescued.params },
       reasoning: `Provider confirm-pending-booking rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -3667,7 +3940,7 @@ export class AiIntentRescueService {
     if (!rescued) return null;
     return {
       action: rescued.action,
-      params: {},
+      params: { ...rescued.params },
       reasoning: `Provider give-ai-feedback rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
@@ -4037,7 +4310,10 @@ export class AiIntentRescueService {
         rescueReason: guestManageVisit.rescueReason,
       };
     }
-    if (surface === 'public') {
+    if (surface === 'public' || surface === 'customer') {
+      // e2e-bug.196 — /public/:slug/assistant uses surface:customer; public
+      // assistant compound recipes must still rescue before single-intent steals
+      // (explain_multi_service_cart / book_multi_service / …).
       const publicAssistantCompound = rescuePublicAssistantCompoundIntent(
         prompt,
         action,
@@ -4343,6 +4619,27 @@ export class AiIntentRescueService {
     };
   }
 
+  // e2e-bug.148 (write-side follow-up) — "Add a retail product ... priced at
+  // N dollars" was being stolen by the budget-discovery rescue's price-mention
+  // detection (→ list_services / budget_list_services) before
+  // rescueRetailFinanceIntent ever got a chance to run, since budget-discovery
+  // runs earlier in this pipeline. Mirrors the e2e-bug.146/137
+  // rescue-before-steal pattern.
+  private tryRescueCreateProductEarly(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    if (action === 'create_product') return null;
+    if (!isCreateProductPrompt(prompt)) return null;
+    return {
+      action: 'create_product',
+      params: enrichCreateProductParamsFromPrompt({}, prompt),
+      reasoning: 'Create product rescue before budget-discovery price steal.',
+      rescued: true,
+      rescueReason: 'create_product',
+    };
+  }
+
   private tryRescueListServicesPaymentFilter(
     prompt: string,
     action: string,
@@ -4355,6 +4652,25 @@ export class AiIntentRescueService {
       reasoning: `Service catalog payment filter rescue → ${rescued.action}`,
       rescued: true,
       rescueReason: rescued.rescueReason,
+    };
+  }
+
+  private tryRescueRescheduleThenCreateBookingCompound(
+    prompt: string,
+    action: string,
+  ): IntentRescueResult | null {
+    const compound = rescueRescheduleThenCreateBookingCompoundIntent(
+      prompt,
+      action,
+    );
+    if (!compound) return null;
+    return {
+      action: compound.action,
+      params: {},
+      reasoning:
+        'Reschedule then create booking compound — move existing visit, then book another.',
+      rescued: true,
+      rescueReason: compound.rescueReason,
     };
   }
 
@@ -5041,6 +5357,27 @@ export class AiIntentRescueService {
       },
       reasoning:
         'Count active customers (roster total) — not a ranked no-show/segment list.',
+      rescued: true,
+      rescueReason: rescued.rescueReason,
+    };
+  }
+
+  /** e2e-bug.137 — "customer retention rate" has no react_agent tool at all. */
+  private tryRescueCustomerRetentionRate(
+    prompt: string,
+    action: string,
+    params: Record<string, unknown>,
+  ): IntentRescueResult | null {
+    const rescued = rescueCustomerRetentionRateIntent(prompt, action);
+    if (!rescued) return null;
+    return {
+      action: rescued.action,
+      params: {
+        ...params,
+        customerMetric: rescued.customerMetric,
+      },
+      reasoning:
+        'Calculate customer retention rate from real repeat-visit data.',
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
@@ -6376,15 +6713,51 @@ export class AiIntentRescueService {
       prompt,
       action,
     );
-    if (!compound) return null;
-    return {
-      action: compound.action,
-      params: {},
-      reasoning:
-        'Book tour nearest departure compound — catalog lookup, pax validation, nearest slot booking.',
-      rescued: true,
-      rescueReason: compound.rescueReason,
-    };
+    if (compound) {
+      return {
+        action: compound.action,
+        params: {},
+        reasoning:
+          'Book tour nearest departure compound — catalog lookup, pax validation, nearest slot booking.',
+        rescued: true,
+        rescueReason: compound.rescueReason,
+      };
+    }
+
+    // e2e-bug.206 — the classifier can hallucinate one of these two
+    // compound-only recipe IDs directly (they're described in its own
+    // classifier rules text) for a tour prompt that doesn't actually satisfy
+    // either compound's trigger (no capacity gate, no earliest/nearest/
+    // soonest cue, and sometimes no explicit booking verb at all) — e.g.
+    // "Wine tour for 6 next Saturday" alone. Previously this fell straight
+    // through to `security_blocked` with no clarifying message. The
+    // classifier already having picked one of these two tour-only action IDs
+    // is itself strong enough signal that this is a tour prompt — reroute to
+    // the safe, read-only explain instead of blocking, reusing the same
+    // `fromCompound` structured-params escape hatch the compounds' own step 1
+    // already relies on (parseExplainTourBookingFromPrompt).
+    if (
+      (action === 'book_tour_nearest_departure' ||
+        action === 'tour_group_checkout') &&
+      !isBookTourNearestDepartureCompoundPrompt(prompt) &&
+      !isTourGroupCheckoutCompoundPrompt(prompt)
+    ) {
+      const serviceName =
+        extractTourServiceNameFromBookingPrompt(prompt) ??
+        extractLeadingTourNamePrompt(prompt);
+      if (serviceName) {
+        return {
+          action: 'explain_tour_booking',
+          params: { serviceName, aspect: 'all' },
+          reasoning:
+            'Incomplete tour booking request (no capacity gate or earliest-date cue) — explaining the tour instead of blocking.',
+          rescued: true,
+          rescueReason: 'incomplete_tour_booking_mutate_clarify',
+        };
+      }
+    }
+
+    return null;
   }
 
   private tryRescueTourConsumer(
@@ -6972,7 +7345,41 @@ export class AiIntentRescueService {
   private tryRescueAddBookingToCalendar(
     prompt: string,
     action: string,
+    surface?: string,
   ): IntentRescueResult | null {
+    // e2e-bug.307 — classifier may still label anybody-open as calendar; remap.
+    if (
+      action === 'add_booking_to_calendar' &&
+      isProviderAvailabilityOpenCheckPrompt(prompt)
+    ) {
+      const availabilitySurface =
+        surface === 'dashboard' || surface === 'customer' || surface === 'public'
+          ? surface
+          : 'public';
+      const resolved = resolveAvailabilityIntentFromPrompt(
+        availabilitySurface,
+        prompt,
+      );
+      if (resolved) {
+        return {
+          action: resolved.action,
+          params: { ...(resolved.params ?? {}) },
+          reasoning:
+            'Provider availability open-check — not add_booking_to_calendar (e2e-bug.307).',
+          rescued: true,
+          rescueReason: 'availability_not_calendar',
+        };
+      }
+      return {
+        action: 'check_availability',
+        params: {},
+        reasoning:
+          'Provider availability open-check — not add_booking_to_calendar (e2e-bug.307).',
+        rescued: true,
+        rescueReason: 'availability_not_calendar',
+      };
+    }
+
     const rescued = rescueAddBookingToCalendarIntent(prompt, action);
     if (!rescued) return null;
     const parsed = parseAddBookingToCalendarFromPrompt(prompt);
@@ -7098,6 +7505,18 @@ export class AiIntentRescueService {
       };
     }
 
+    // e2e-bug.191 — salon/business overview before named-provider specialty steal.
+    const salonProfile = rescueExplainSalonProfileIntent(prompt, action);
+    if (salonProfile) {
+      return {
+        action: salonProfile.action,
+        params: enrichExplainSalonProfileParamsFromPrompt({}, prompt),
+        reasoning: `Salon profile rescue → ${salonProfile.action}`,
+        rescued: true,
+        rescueReason: salonProfile.rescueReason,
+      };
+    }
+
     const providerSpecialty = rescueExplainProviderSpecialtyIntent(
       prompt,
       action,
@@ -7115,12 +7534,24 @@ export class AiIntentRescueService {
     return null;
   }
 
-  /** e2e-bug.92 — escape check_providers_for_service into reviews / any-provider / timed book. */
+  /** e2e-bug.92 / e2e-bug.189 — escape check_providers_for_service into roster / reviews / any-provider / timed book. */
   private tryRescueCheckProvidersCollapseIntents(
     prompt: string,
     action: string,
     surface: 'customer' | 'public',
   ): IntentRescueResult | null {
+    // e2e-bug.189 — roster-only prompts before other escapes.
+    const roster = rescueListProvidersIntent(prompt, action);
+    if (roster) {
+      return {
+        action: roster.action,
+        params: {},
+        reasoning: `List providers roster rescue (${surface}) → ${roster.action}`,
+        rescued: true,
+        rescueReason: roster.rescueReason,
+      };
+    }
+
     const reviews = rescueListProviderReviewsIntent(prompt, action);
     if (reviews) {
       return {
@@ -7143,14 +7574,28 @@ export class AiIntentRescueService {
       };
     }
 
+    // e2e-bug.134 — a pasted manage link combined with a concrete date/time
+    // ("Reschedule my booking to Friday 2pm https://.../manage?bookingId=book-9&...")
+    // must still reach tryRescueManageBookingWithToken later in the chain, not
+    // get stolen here into book_appointment (its bare `\bbook\b` regex, inside
+    // isConcreteTimedBookAppointmentPrompt, matches the literal "book-9" bookingId
+    // value embedded in the URL).
+    const manageLinkCredsForCollapseRescue =
+      extractManageLinkCredentialsFromPrompt(prompt);
+    const hasManageLinkCredsForCollapseRescue = Boolean(
+      manageLinkCredsForCollapseRescue.bookingId &&
+        manageLinkCredsForCollapseRescue.manageToken,
+    );
+
     if (
+      !hasManageLinkCredsForCollapseRescue &&
       isConcreteTimedBookAppointmentPrompt(prompt) &&
       action !== 'book_appointment' &&
       action !== 'book_nearest_slot'
     ) {
       return {
         action: 'book_appointment',
-        params: buildSharedBookingContextFromPrompt(prompt),
+        params: enrichBookAppointmentParamsFromPrompt(prompt),
         reasoning: `Timed book rescue (${surface}) → book_appointment`,
         rescued: true,
         rescueReason: 'public_timed_book',
@@ -7520,8 +7965,23 @@ export class AiIntentRescueService {
     timeZone = 'UTC',
     surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
+    // e2e-bug.134 — a pasted manage link combined with a concrete date/time
+    // ("Reschedule my booking to Friday 2pm https://.../manage?bookingId=...")
+    // must still reach tryRescueManageBookingWithToken later in the chain, not
+    // get stolen into book_appointment by the timed-book disambiguation below.
+    const manageLinkCredsForDisambiguation =
+      extractManageLinkCredentialsFromPrompt(prompt);
+    if (
+      manageLinkCredsForDisambiguation.bookingId &&
+      manageLinkCredsForDisambiguation.manageToken
+    ) {
+      return null;
+    }
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;
+    const createBookingNotEmployee =
+      this.tryRescueCreateBookingNotEmployee(prompt, action, params);
+    if (createBookingNotEmployee) return createBookingNotEmployee;
     const staffOperations = this.tryRescueStaffOperations(prompt, action);
     if (staffOperations) return staffOperations;
     const waitlistDashboard = this.tryRescueWaitlistDashboard(prompt, action);
@@ -7531,10 +7991,26 @@ export class AiIntentRescueService {
 
     const lower = prompt.toLowerCase();
 
+    // e2e-bug.284 — move+then-book-another must stay compound, not collapse
+    // to a lone reschedule_booking via misclass_to_reschedule.
+    const rescheduleThenCreate =
+      this.tryRescueRescheduleThenCreateBookingCompound(prompt, action);
+    if (rescheduleThenCreate) return rescheduleThenCreate;
+
+    // e2e-bug.248 — remap move/reschedule+nearest steals (soonest, optimize, book, …).
+    // e2e-bug.252 — never steal owner cancel/reschedule *alert prefs* into
+    // reschedule_booking (classifier often already has the toggle correct).
     if (
-      action === 'create_booking' &&
-      /\b(reschedule|move|shift)\b/i.test(lower) &&
-      /\bappointment\b/i.test(lower)
+      action !== 'reschedule_booking' &&
+      action !== 'reschedule_my_booking' &&
+      action !== 'toggle_business_email_on_customer_change' &&
+      !isToggleBusinessEmailOnCustomerChangePrompt(prompt) &&
+      isRescheduleExistingAppointmentPrompt(prompt) &&
+      // Customer/public self-serve "my appointment" stays on reschedule_my_booking.
+      !(
+        (surface === 'customer' || surface === 'public') &&
+        /\b(my|mine)\b/i.test(prompt)
+      )
     ) {
       const rescuedParams = { ...params };
       applyBookingRescheduleActionHints(
@@ -7548,7 +8024,14 @@ export class AiIntentRescueService {
         params: rescuedParams,
         reasoning: 'Move/reschedule existing appointment — not a new booking.',
         rescued: true,
-        rescueReason: 'create_booking_to_reschedule',
+        rescueReason:
+          action === 'find_soonest_appointment'
+            ? 'soonest_to_reschedule'
+            : action === 'optimize_schedule'
+              ? 'optimize_to_reschedule'
+              : action === 'create_booking'
+                ? 'create_booking_to_reschedule'
+                : 'misclass_to_reschedule',
       };
     }
 
@@ -7598,25 +8081,9 @@ export class AiIntentRescueService {
       };
     }
 
-    // e2e-bug.92 — include public so timed book / availability can escape check_providers.
-    for (const surface of ['dashboard', 'customer', 'public'] as const) {
-      const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
-        surface,
-        prompt,
-        action,
-        params,
-      );
-      if (availabilityFix) {
-        return {
-          action: availabilityFix.action,
-          params: availabilityFix.params ?? params,
-          reasoning: `Availability disambiguation (${surface}) → ${availabilityFix.action}`,
-          rescued: true,
-          rescueReason: availabilityFix.rescueReason,
-        };
-      }
-    }
-
+    // e2e-bug.249 — dashboard check-then-book / first-available before the
+    // multi-surface availability loop (public book_appointment must not steal).
+    // e2e-bug.286 — also remap create_employee steal of "create a booking…".
     if (
       action === 'create_booking' &&
       isCheckProvidersForServicePrompt(prompt) &&
@@ -7635,19 +8102,97 @@ export class AiIntentRescueService {
     }
 
     if (
-      (action === 'create_booking' || action === 'reschedule_booking') &&
-      isFirstAvailableBookingPrompt(prompt)
+      (action === 'create_booking' ||
+        action === 'reschedule_booking' ||
+        action === 'create_employee') &&
+      (isFirstAvailableBookingPrompt(prompt) ||
+        (action === 'create_employee' &&
+          isCreateBookingNotEmployeePrompt(prompt)))
     ) {
       const rescuedParams = { ...params };
-      enrichBookingTimeHintsFromPrompt(action, rescuedParams, prompt);
+      enrichBookingTimeHintsFromPrompt('create_booking', rescuedParams, prompt);
+      if (
+        /\bfirst\s+available\b/i.test(prompt) ||
+        /\b(?:nearest|soonest|next\s+available)\b/i.test(prompt) ||
+        isFirstAvailableBookingPrompt(prompt)
+      ) {
+        rescuedParams.bookingFirstAvailable = true;
+        delete rescuedParams.timeSlot;
+      }
+      if (isAnyProviderBookingPrompt(prompt)) {
+        rescuedParams.allProviders = true;
+      }
       return {
-        action,
+        action:
+          action === 'reschedule_booking'
+            ? 'reschedule_booking'
+            : 'create_booking',
         params: rescuedParams,
         reasoning:
-          'Nearest/first available slot — no fixed start time required.',
+          action === 'create_employee'
+            ? 'Create booking (not hire staff) — first available slot.'
+            : 'Nearest/first available slot — no fixed start time required.',
         rescued: true,
-        rescueReason: 'booking_first_available',
+        rescueReason:
+          action === 'create_employee'
+            ? 'create_booking_not_employee'
+            : 'booking_first_available',
       };
+    }
+
+    // e2e-bug.92 — include public so timed book / availability can escape check_providers.
+    // Prefer the caller's surface first so dashboard create_booking is not rewritten
+    // by a later public book_appointment candidate (e2e-bug.249).
+    // e2e-bug.287 — stop after the caller surface when it already agrees with the
+    // current action (dashboard check_providers must not be aliased to public
+    // check_availability), and never let a secondary surface remap after the
+    // caller surface already produced a fix-or-confirm decision.
+    const primaryAvailabilitySurface: AvailabilityDisambiguationSurface =
+      surface === 'dashboard' ||
+      surface === 'customer' ||
+      surface === 'public'
+        ? surface
+        : 'dashboard';
+    const secondaryAvailabilitySurfaces = (
+      ['dashboard', 'customer', 'public'] as const
+    ).filter((s) => s !== primaryAvailabilitySurface);
+    const primaryAvailabilityFix = disambiguateMisclassifiedAvailabilityIntent(
+      primaryAvailabilitySurface,
+      prompt,
+      action,
+      params,
+    );
+    if (primaryAvailabilityFix) {
+      return {
+        action: primaryAvailabilityFix.action,
+        params: primaryAvailabilityFix.params ?? params,
+        reasoning: `Availability disambiguation (${primaryAvailabilitySurface}) → ${primaryAvailabilityFix.action}`,
+        rescued: true,
+        rescueReason: primaryAvailabilityFix.rescueReason,
+      };
+    }
+    const primaryAvailabilityResolved = resolveAvailabilityIntentFromPrompt(
+      primaryAvailabilitySurface,
+      prompt,
+    );
+    if (primaryAvailabilityResolved?.action !== action) {
+      for (const availabilitySurface of secondaryAvailabilitySurfaces) {
+        const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
+          availabilitySurface,
+          prompt,
+          action,
+          params,
+        );
+        if (availabilityFix) {
+          return {
+            action: availabilityFix.action,
+            params: availabilityFix.params ?? params,
+            reasoning: `Availability disambiguation (${availabilitySurface}) → ${availabilityFix.action}`,
+            rescued: true,
+            rescueReason: availabilityFix.rescueReason,
+          };
+        }
+      }
     }
 
     if (

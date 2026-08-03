@@ -15,6 +15,7 @@ import {
   PROVIDER_PRODUCT_GUIDE_INTENTS,
   type ProviderProductGuideIntent,
 } from './ai-provider-product-guide.util.js';
+import { isProviderHomeOrTodayTabGuidePrompt } from './ai-product-guide-rescue.util.js';
 import {
   APP_GUIDE_INTENTS,
   hasProductGuideNavigationCue,
@@ -89,6 +90,15 @@ export function parseProviderProductGuideIntentFromPrompt(
   params: Record<string, unknown> = {},
 ): boolean {
   if (readStringParam(params, 'topicId')) return true;
+
+  // e2e-bug.302 — RU/HY Home|Today tab how-to classified as explain_provider_app_tabs
+  // must pass validation (scenario regex was EN/Today-only).
+  if (
+    action === 'explain_provider_app_tabs' &&
+    isProviderHomeOrTodayTabGuidePrompt(prompt)
+  ) {
+    return true;
+  }
 
   const scenario = PROVIDER_PRODUCT_GUIDE_RESCUE_SCENARIOS.find(
     (row) => row.intent === action,

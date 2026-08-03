@@ -1,6 +1,7 @@
 import { E2E79_LIVE_SCENARIOS, E2E79_NON_EXPLAIN_STILL_MATCHES } from './ai-e2e79-explain-subscription-vs-one-time.fixtures.js';
 import { isAddBookingToCalendarPrompt } from './ai-add-booking-to-calendar.util.js';
 import { isCompareServicesPrompt } from './ai-compare-services.util.js';
+import { isConfirmMyBookingDetailsPrompt } from './ai-confirm-my-booking-details.util.js';
 import { isSubscriptionUsageHistoryPrompt } from './ai-customer-crm.util.js';
 import {
   hasSubscriptionCheckoutCompareCue,
@@ -28,6 +29,12 @@ describe('e2e-bug.79 explain_subscription_vs_one_time unreachable', () => {
     expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
       'NOT subscription_usage_history',
     );
+    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
+      'NOT confirm_my_booking_details',
+    );
+    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
+      'NOT choose_payment_method',
+    );
     expect(schema).toContain(
       CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
     );
@@ -41,8 +48,15 @@ describe('e2e-bug.79 explain_subscription_vs_one_time unreachable', () => {
       expect(isAddBookingToCalendarPrompt(prompt)).toBe(false);
       expect(isCompareServicesPrompt(prompt)).toBe(false);
       expect(isSubscriptionUsageHistoryPrompt(prompt)).toBe(false);
+      expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(false);
       expect(
         rescueExplainSubscriptionVsOneTimeIntent(prompt, 'unknown')?.action,
+      ).toBe('explain_subscription_vs_one_time');
+      expect(
+        rescueExplainSubscriptionVsOneTimeIntent(
+          prompt,
+          'confirm_my_booking_details',
+        )?.action,
       ).toBe('explain_subscription_vs_one_time');
     },
   );

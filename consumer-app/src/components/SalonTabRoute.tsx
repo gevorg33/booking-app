@@ -1,5 +1,4 @@
 import {
-  IonButton,
   IonContent,
   IonHeader,
   IonPage,
@@ -20,6 +19,7 @@ import {
   type SalonTabId,
 } from '../lib/salon-tab-route.util.js';
 import { resolveAppConsumerLocale } from '../lib/tenant-locale.js';
+import { ConsumerActionButton } from './ConsumerActionButton.js';
 import { SalonTabChrome } from './SalonTabChrome.js';
 import { SalonTabPageContent } from './SalonTabPageContent.js';
 
@@ -75,9 +75,9 @@ export function SalonTabRoute({ page }: { page: SalonTabId }) {
           <p role="alert" style={{ marginBottom: 16 }}>
             {error || copy.salonNotFound}
           </p>
-          <IonButton expand="block" onClick={() => history.replace('/')}>
+          <ConsumerActionButton expand="block" onClick={() => history.replace('/')}>
             {copy.salonNotFoundBack}
-          </IonButton>
+          </ConsumerActionButton>
         </IonContent>
       </IonPage>
     );

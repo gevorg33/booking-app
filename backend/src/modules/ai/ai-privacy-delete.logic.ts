@@ -77,6 +77,13 @@ export async function handlePrivacyDeleteLogic(
         privacyDeletePending: true,
         pendingAction: 'privacy_delete',
         navigate: buildPrivacyDeleteNavigate(),
+        // e2e-bug.257 — echo pending into sessionContext so public/client
+        // turn-2 can confirm without relying on LLM history alone.
+        sessionContext: {
+          privacyDeletePending: true,
+          requiresConfirmation: true,
+          pendingAction: 'privacy_delete',
+        },
       },
     );
   }
@@ -86,5 +93,10 @@ export async function handlePrivacyDeleteLogic(
   return success('privacy_delete', 'Your account data has been anonymized.', {
     deleted: true,
     navigate: buildPrivacyDeleteNavigate(),
+    sessionContext: {
+      privacyDeletePending: false,
+      requiresConfirmation: false,
+      pendingAction: null,
+    },
   });
 }

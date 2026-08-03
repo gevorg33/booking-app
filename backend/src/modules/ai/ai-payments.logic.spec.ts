@@ -29,6 +29,7 @@ import {
   handlePurchaseSubscriptionCheckoutLogic,
   handleExplainWhyStripeRequiredLogic,
   handleReceiptStatusLogic,
+  handleConfirmStripePaymentLogic,
   handlePaymentsCompoundLogic,
   type PaymentsLogicDeps,
 } from './ai-payments.logic.js';
@@ -1041,6 +1042,31 @@ describe('ai-payments.logic', () => {
       expect(payOnlineWithSlot.details?.sessionContext).toEqual({
         paymentMethod: 'online',
       });
+      // e2e-bug.229 — named service must not wipe checkout slot identity.
+      const payOnlineNamedSwedish = await handlePayOnlineLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+          serviceName: 'Swedish massage booking',
+        },
+        'pay online for my Swedish massage booking',
+      );
+      expect(payOnlineNamedSwedish.success).toBe(true);
+      expect(payOnlineNamedSwedish.summary).not.toContain(
+        'Pick a time slot first',
+      );
+      expect(payOnlineNamedSwedish.details?.navigate).toEqual({
+        path: 'checkout',
+        query: {
+          serviceId: 's1',
+          employeeId: 'e1',
+          startTime: '2026-06-06T18:00:00Z',
+          payment: 'online',
+        },
+      });
       const noStripe = await handlePayOnlineLogic(
         buildDeps({
           businessRepo: {
@@ -1288,6 +1314,49 @@ describe('ai-payments.logic', () => {
       expect(
         (await handleReceiptStatusLogic(buildDeps(), 'biz-1', {})).success,
       ).toBe(false);
+    });
+
+    // e2e-bug.188 — confirm_stripe_payment only ever read params.sessionId,
+    // so "did my payment go through?" always failed with "missing session"
+    // even though the widget's own assistantContext carries an in-progress
+    // checkout as pendingCheckoutSessionId (ConsumerBookingAssistant.tsx).
+    it('confirm_stripe_payment resolves sessionId from context and fails clean when absent', async () => {
+      const missing = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1');
+      expect(missing.success).toBe(false);
+      expect(missing.summary).toContain('Missing the Stripe checkout session');
+      expect(missing.details).toEqual({ clarify: true, missing: ['sessionId'] });
+
+      const explicit = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1', {
+        sessionId: 'cs_test_explicit',
+      });
+      expect(explicit.success).toBe(true);
+      expect(explicit.summary).toContain('Payment confirmed');
+
+      const fromPending = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1', {
+        pendingCheckoutSessionId: 'cs_test_pending',
+      });
+      expect(fromPending.success).toBe(true);
+      expect(fromPending.details?.sessionContext).toEqual({
+        paymentMethod: 'online',
+      });
+
+      const failed = await handleConfirmStripePaymentLogic(
+        buildDeps({
+          bookingPaymentService: {
+            confirmCheckoutSession: jest.fn(async () => {
+              throw new Error('Payment not complete yet');
+            }),
+          } as any,
+        }),
+        'biz-1',
+        { sessionId: 'cs_test_incomplete' },
+      );
+      expect(failed.success).toBe(false);
+      expect(failed.summary).toContain('Payment not complete yet');
+      expect(failed.details).toEqual({
+        sessionId: 'cs_test_incomplete',
+        reason: 'confirm_failed',
+      });
     });
   });
 

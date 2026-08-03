@@ -86,4 +86,21 @@ describe('public-booking-assistant-context.util (ai-guide-1.5.3 / e2e-bug.106)',
     expect(extractPublicAssistantQueryContext('')).toEqual({});
     expect(extractPublicAssistantQueryContext('?')).toEqual({});
   });
+
+  it('e2e-bug.106 — threads bookingId alone when the manage link has no token yet', () => {
+    expect(
+      buildPublicAssistantPageContext('/book/demo/manage', 'bookingId=book-1'),
+    ).toEqual({
+      screen: '/book/demo/manage',
+      pathname: '/book/demo/manage',
+      bookingStep: 'manage',
+      bookingId: 'book-1',
+    });
+  });
+
+  it('e2e-bug.106 — blank/whitespace-only query values are dropped, not threaded as empty strings', () => {
+    expect(
+      extractPublicAssistantQueryContext('bookingId=%20&token=tok-abc'),
+    ).toEqual({ manageToken: 'tok-abc' });
+  });
 });
