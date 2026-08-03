@@ -104,6 +104,46 @@ export class AiCommandTrace {
   @Column({ name: 'pipeline_trace', type: 'jsonb', nullable: true })
   pipelineTrace: PipelineTrace[] | null;
 
+  /**
+   * AI-ROADMAP Task 1 — steal telemetry.
+   * Action chosen by the LLM classifier, before any later stage could replace
+   * it. `action` above is what actually ran; when the two differ, a
+   * post-classify stage took the decision away.
+   */
+  @Column({
+    name: 'classified_action',
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+  })
+  classifiedAction: string | null;
+
+  /** Pipeline stage that produced the action which ran (null when classify's survived). */
+  @Column({
+    name: 'action_changed_by',
+    type: 'varchar',
+    length: 32,
+    nullable: true,
+  })
+  actionChangedBy: string | null;
+
+  /** Coarse structured bucket for failures (see `deriveFailureReason`). */
+  @Column({
+    name: 'failure_reason',
+    type: 'varchar',
+    length: 64,
+    nullable: true,
+  })
+  failureReason: string | null;
+
+  /**
+   * Redacted response summary — persisted only for non-executed outcomes.
+   * Without it, a failed command leaves no recoverable cause; with it, failure
+   * triage does not require reproducing the prompt.
+   */
+  @Column({ name: 'result_summary', type: 'text', nullable: true })
+  resultSummary: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

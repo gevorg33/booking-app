@@ -43,7 +43,8 @@ Both source docs quote inventory numbers that disagree. Ground truth from the cu
 |---|---|---|---|
 | `export function is*Prompt` | ~141 files w/ regex | ~780 / ~308 files | **786 across 310 files** |
 | `tryRescue*` methods | 159 | "large" | **163** |
-| Registry action groups | — | — | **110** |
+| Registry seed groups | — | — | **110** |
+| Registry entries (actual commands) | — | — | **696** |
 | Golden eval cases | ~8,294 (claimed) | — | **594 `prompt:` rows** |
 | Intent anchor bank | assumed populated | assumed populated | **empty (59-line stub)** |
 
@@ -369,8 +370,10 @@ multi-region low-latency serving. Neither is on the horizon.
 Effort estimates assume one focused engineer; they are rough.
 
 ### Phase 0 — Freeze & inventory *(1–2 weeks)*
-- [ ] **Freeze:** no new `is*Prompt` paraphrase detector, no new `tryRescue*`. Exceptions need an
+- [x] **Freeze:** no new `is*Prompt` paraphrase detector, no new `tryRescue*`. Exceptions need an
       inventory row + owner + 14-day expiry (Regex.MD §12.10, kept).
+      **Shipped 2026-08-03** — `ai-detector-freeze.boundary.spec.ts` ratchets both counts
+      (786 / 163); they can only go down. `npm run test:ai-detector-freeze` prints the burn-down.
 - [ ] AST scan → `ai-command-inventory.json`: every one of the 786 detectors labelled
       `legacy_paraphrase | structural_slot | confirm_gate | compound_connector | routing_shape`,
       with `mapsToActions`, `surfaces`, `wiredInRescue`, `fixtureIds`.
@@ -381,10 +384,18 @@ Effort estimates assume one focused engineer; they are rough.
       `aliases`, `risk`, `variables` JSON Schema, `examples`, `confirm`, `surfaces`.
 - [ ] Generate from it: classifier shortlist, tool/function defs, validation, surface gating,
       permission checks.
-- [ ] **Reachability meta-test** — every registry command must be reachable on every declared
+- [x] **Reachability meta-test** — every registry command must be reachable on every declared
       surface (catches e2e-bug.342 permanently).
-- [ ] **Telemetry gap (Regex.MD A.2, promoted):** add `classifiedAction`, `finalAction`,
+      **Shipped 2026-08-03** — `ai-command-reachability.boundary.spec.ts` asserts
+      `registry row ⟷ dispatchable handler` in both directions, rejects an intent claimed by two
+      dispatch maps, and ratchets the 282 registry rows still routed by switch statements rather
+      than a dispatch map. See §12.
+- [x] **Telemetry gap (Regex.MD A.2, promoted):** add `classifiedAction`, `finalAction`,
       `rescueDetectorId`, `candidateSet` to `ai_command_trace` — steals become measurable.
+      **Shipped 2026-08-03** — see §11.
+- [ ] Remaining: `session_id` (needed by Phase 6 follow-up resolution) and per-step outcome rows
+      for `compound_intent`, so a 62%-failing compound shows *which* step failed. Deliberately not
+      added yet — both need call-site plumbing, and an unpopulated column is worse than none.
 
 ### Phase 2 — Make the gates real *(1–2 weeks)*
 - [ ] Refresh the stale accuracy baseline; make the gate blocking (AI-TODO Phase 1).
@@ -511,6 +522,104 @@ Q2/Q3 ─────────── Phase 6 (memory) ── Phase 8 (retirem
 Phases 1–3 are the critical path. Phase 8 (deleting 786 detectors) is the largest *volume* of
 work but the lowest risk once the planner is authoritative — and it gets dramatically cheaper by
 deleting in slices rather than migrating detector-by-detector.
+
+---
+
+---
+
+## 11. Task 1 results — steal telemetry (shipped 2026-08-03)
+
+The roadmap claimed steals were unmeasurable. They were in fact *derivable*: the pipeline has been
+writing a per-stage `PipelineTrace[]` into `ai_command_trace.pipeline_trace` all along; only the
+final action was ever promoted to a column. So Task 1 shipped as attribution over existing data —
+**no new instrumentation, and all 5,362 historical rows backfilled.**
+
+**Delivered**
+- `ai-command-trace-attribution.util.ts` — pure derivation of `classifiedAction`, whether it
+  survived, and which stage replaced it (21 tests).
+- 4 new columns (`classified_action`, `action_changed_by`, `failure_reason`, `result_summary`),
+  populated going forward and backfilled historically by
+  `20260815120000-ai-command-trace-steal-attribution.sql`.
+- `ai_command_steal_summary` view — steal pairs ranked by occurrences and % failed.
+- Phase 0 freeze ratchet (§6).
+
+**First measurements (n = 1,271 traces carrying a classify stage)**
+
+| Result | Value |
+|---|---:|
+| Action changed after classification (**steal rate**) | **24.2%** (307) |
+| ↳ attributed to the **`rescue`** layer | **216 (70%)** |
+| ↳ after the traced pipeline (compound re-dispatch) | 86 |
+| ↳ `self_verify` / `narrow_reclassify` | 5 |
+
+Worst steals by measured harm:
+
+| Steal | n | % failed |
+|---|---:|---:|
+| `update_bookings → mark_paid` (rescue) | 11 | **91%** |
+| `compound_intent → reschedule_booking` / `→ create_booking` / `→ cancel_package_visit` | 33 | 0% |
+| `bulk_create_catalog → create_service_category` (rescue) | 16 | 0% |
+| `assign_employee_services → add_services_to_cart` (rescue) | — | — |
+
+**Two findings that change the plan**
+
+1. **`rescue` is confirmed as the primary stealer (70%)** — the roadmap's central bet is now
+   backed by production data rather than inference. `assign_employee_services →
+   add_services_to_cart` is a *customer* cart action winning a *dashboard* request: the
+   e2e-bug.349 family, independently reproduced in telemetry.
+2. **Not every steal is harmful, and the harmful ones are a minority.** Most steal pairs fail 0%
+   of the time — they are the rescue layer *correcting* real classifier errors. Phase 3 must
+   therefore kill steals **by measured harm** (mutating targets like `mark_paid`, and
+   `compound_intent → single command`, which destroys multi-command execution), and treat the
+   benign ones as evidence the classifier needs those cases as training examples — removing them
+   only once it learns. §6 Phase 3 is worded as a blanket deletion; this is the correction.
+
+**Caveat:** attribution is inferred from stage ordering, not from an explicit "I changed the
+action" signal. The first version of this logic blamed `self_verify` for 221 of 307 steals; a
+production trace showed `self_verify` merely echoes the action `rescue` had already replaced. The
+rule is now "first stage to introduce the final action", which is correct for every trace shape
+observed — but an explicit `rescueDetectorId` emitted by the rescue layer itself would be
+stronger, and should land with Phase 3.
+
+---
+
+## 12. Phase 1 progress — reachability gate (shipped 2026-08-03)
+
+**Delivered:** `ai-command-reachability.boundary.spec.ts`, wired as `npm run test:ai-reachability`
+and bundled into `npm run test:ai-roadmap-gates` alongside the Phase 0 freeze and the attribution
+tests.
+
+It enforces four invariants across all 41 `*-dispatch.build.ts` maps:
+
+1. **Every dispatchable action has a registry row** — the e2e-bug.342 guard. A handler without a
+   row is silently unreachable: `getCommandEntry` returns `undefined`, the surface check does
+   `undefined?.includes(...)` → `false`, and the rescue pipeline drops the result with no error.
+2. **Every declared alias points at a real registry action.**
+3. **No intent is claimed by two dispatch maps** (ambiguous ownership).
+4. **Ratchet** on registry rows not yet routed through a dispatch map.
+
+**Corrections to §1's inventory**
+
+- The registry has **696 command entries**, not 110. The earlier figure counted `intents: [` seed
+  *groups* in `ai-command-registry.build.ts`; `buildCommandRegistry()` expands those into 696
+  individual commands. Phase 1's migration is therefore ~6× larger than first scoped — which
+  strengthens, not weakens, the case for generating everything from one entry rather than
+  hand-maintaining six parallel lists.
+- Baseline: **696 registry / 415 dispatchable / 282 rows still routed by switch statements.**
+
+**Finding: aliases are a real requirement with nowhere to live.** The first run flagged
+`create_catalog_test_order` as an orphan. It is not a bug — it is a deliberate second classifier
+name for `create_test_order`, routed to the identical handler. But `CommandRegistryEntry` has no
+`aliases` field, so that fact exists only as an extra dispatch-map key plus a code comment,
+invisible to the classifier schema, coverage tests and docs. This independently validates the
+`aliases` field in §3.1. The test carries a documented `KNOWN_ALIASES` allowlist that should be
+**deleted and derived from the registry** once §3.1 lands.
+
+**Not yet started in Phase 1:** the `CommandSpec` shape itself (§3.1) — `domain.verb` ids,
+`risk` tiers, `variables` JSON Schema, `examples`, `confirm` policy — and generating the
+classifier shortlist / tool definitions / validation from it. The gates above are the safety net
+that makes that migration checkable as it proceeds: any command that loses its handler or its row
+during the move now fails CI instead of disappearing silently.
 
 ---
 

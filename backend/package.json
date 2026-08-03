@@ -317,7 +317,11 @@
     "backfill:loyalty": "nest build && node dist/scripts/backfill-loyalty-points.js",
     "upgrade-all-tenants-plan": "nest build && node dist/scripts/upgrade-all-tenants-plan.js",
     "upgrade-all-tenants-plan:dry-run": "nest build && node dist/scripts/upgrade-all-tenants-plan.js --dry-run",
-    "fix:loyalty": "nest build && node dist/scripts/recalculate-loyalty-earnings.js"
+    "fix:loyalty": "nest build && node dist/scripts/recalculate-loyalty-earnings.js",
+    "test:ai-detector-freeze": "jest --runInBand --testPathPatterns='ai-detector-freeze'",
+    "test:ai-trace-attribution": "jest --runInBand --testPathPatterns='ai-command-trace-attribution'",
+    "test:ai-reachability": "jest --runInBand --testPathPatterns='ai-command-reachability'",
+    "test:ai-roadmap-gates": "npm run test:ai-detector-freeze && npm run test:ai-reachability && npm run test:ai-trace-attribution"
   },
   "dependencies": {
     "@langchain/core": "^1.1.48",
