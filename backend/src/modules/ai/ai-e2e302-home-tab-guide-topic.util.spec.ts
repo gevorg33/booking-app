@@ -19,9 +19,9 @@ describe('e2e-bug.302: HY Home-tab guide topic + localized clarify', () => {
     'enrich topic $id',
     ({ prompt, expectTopicId }) => {
       expect(isProviderHomeOrTodayTabGuidePrompt(prompt)).toBe(true);
-      expect(
-        enrichGuideTopicFromPrompt(prompt, { surface: 'provider' }),
-      ).toBe(expectTopicId);
+      expect(enrichGuideTopicFromPrompt(prompt, { surface: 'provider' })).toBe(
+        expectTopicId,
+      );
     },
   );
 
@@ -68,15 +68,12 @@ describe('e2e-bug.302: HY Home-tab guide topic + localized clarify', () => {
     'Как пользоваться вкладкой Today?',
     'How do I use the Home tab?',
     'Ինչպե՞ս օգտագործեմ Home tab-ը',
-  ])(
-    'explain_provider_app_tabs validates Home/Today cue: %s',
-    (prompt) => {
-      expect(
-        parseProviderProductGuideIntentFromPrompt(
-          'explain_provider_app_tabs',
-          prompt,
-        ),
-      ).toBe(true);
-    },
-  );
+  ])('explain_provider_app_tabs validates Home/Today cue: %s', (prompt) => {
+    expect(
+      parseProviderProductGuideIntentFromPrompt(
+        'explain_provider_app_tabs',
+        prompt,
+      ),
+    ).toBe(true);
+  });
 });

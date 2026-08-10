@@ -117,7 +117,9 @@ describe('ai-explain-home-screen-widget.logic (ai-cmd-customer-4.13.6)', () => {
         'How does the home screen widget work?',
       );
       expect(result.success).toBe(true);
-      expect(result.summary).toMatch(/The app builds a home_screen_widget_snapshot/);
+      expect(result.summary).toMatch(
+        /The app builds a home_screen_widget_snapshot/,
+      );
     });
   });
 });

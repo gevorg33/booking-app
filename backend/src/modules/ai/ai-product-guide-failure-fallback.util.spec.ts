@@ -85,16 +85,14 @@ describe('ai-product-guide-failure-fallback.util (ai-guide-1.8.3)', () => {
     ['customer', '/s/account'],
     ['public', '/book/checkout'],
     ['dashboard', '/dashboard/schedule'],
-  ] as const)(
-    'keeps grounded routes for %s %s',
-    (surface, route) => {
-      expect(isWeakDefaultGuideFallbackRoute(route, surface)).toBe(false);
-    },
-  );
+  ] as const)('keeps grounded routes for %s %s', (surface, route) => {
+    expect(isWeakDefaultGuideFallbackRoute(route, surface)).toBe(false);
+  });
 
   it.each(
     POST_FAILURE_GUIDE_FALLBACK_SCENARIOS.filter(
-      (row) => 'expectGuideAttached' in row && row.expectGuideAttached === false,
+      (row) =>
+        'expectGuideAttached' in row && row.expectGuideAttached === false,
     ).map((row) => [row.id, row] as const),
   )(
     'appendPostFailureGuideFallback skips weak default for $id (e2e-bug.53)',

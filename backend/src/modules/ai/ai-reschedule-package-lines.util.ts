@@ -42,12 +42,6 @@ export interface ParsedReschedulePackageLinesRequest {
   timeSlot?: string;
 }
 
-export function isReschedulePackageLinesPrompt(prompt: string): boolean {
-  const rescheduleIntent = /\b(reschedule|move|change|shift)\b/i.test(prompt);
-  const multiVisit = extractPackageVisitIndexesFromPrompt(prompt).length >= 2;
-  return rescheduleIntent && multiVisit;
-}
-
 export function enrichReschedulePackageLinesParamsFromPrompt(
   params: Record<string, unknown>,
   prompt: string,

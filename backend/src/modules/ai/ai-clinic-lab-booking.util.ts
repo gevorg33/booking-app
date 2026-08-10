@@ -646,6 +646,23 @@ export function isAwaitingPatientBookingListPrompt(prompt: string): boolean {
 }
 
 function extractTimeSlotFromPrompt(prompt: string): string | null {
+  // e2e-bug.364, second variant. `atTime` below handles "at 3:30 pm" correctly
+  // because it captures the meridiem itself — but it requires the word "at".
+  // Without it, "3:30 pm" fell through to `plainTime`, which matches "3:30" and
+  // returned 03:30: twelve hours early. Any prompt with a meridiem is resolved
+  // here first, with or without "at".
+  const meridiemTime = prompt.match(
+    /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
+  );
+  if (meridiemTime) {
+    let hour = Number(meridiemTime[1]);
+    const minute = meridiemTime[2] ?? '00';
+    const meridiem = meridiemTime[3].toLowerCase();
+    if (meridiem === 'pm' && hour < 12) hour += 12;
+    if (meridiem === 'am' && hour === 12) hour = 0;
+    return normalizeTime24(`${hour}:${minute}`);
+  }
+
   const atTime = prompt.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
   if (atTime) {
     let hour = Number(atTime[1]);

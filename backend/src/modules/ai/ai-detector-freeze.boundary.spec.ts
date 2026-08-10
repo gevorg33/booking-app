@@ -18,16 +18,37 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const AI_DIR = join(__dirname);
+/**
+ * The whole backend tree, not just `modules/ai`.
+ *
+ * The original scan root was this directory, which left four detectors —
+ * `isFillGapPrompt`, `isWhosNextPrompt`, `isTeamWhosNextPrompt` (provider-mobile)
+ * and `isServiceTierFilterPrompt` (common/utils) — outside the freeze entirely.
+ * A new paraphrase detector added there passed CI. Found by the Phase 0
+ * inventory scan, which refused to inherit the blind spot.
+ */
+const SCAN_ROOT = join(__dirname, '..', '..');
 
-/** Frozen at the AI-ROADMAP merge point (2026-08-03). Lower these, never raise. */
+/**
+ * Frozen at the AI-ROADMAP merge point (2026-08-03). Lower these, never raise.
+ *
+ * `isPromptDetectors` moved 790 → 777 on 2026-08-08: e2e-bug.354 deleted 13
+ * detectors with no production caller. The ratchet is meant to fall this way —
+ * Phase 8's whole direction — so this is the first time it has.
+ *
+ * `isPromptDetectors` moved 786 → 790 on 2026-08-05 when the scan root widened
+ * from `modules/ai` to `src`. That is the four detectors named above becoming
+ * visible, not four new ones: no detector was added. This is the only reason a
+ * baseline may ever go up, and it must be argued in the commit that does it.
+ */
 const BASELINE = {
-  isPromptDetectors: 786,
+  isPromptDetectors: 777,
   tryRescueMethods: 163,
 } as const;
 
 function walkTsFiles(dir: string, acc: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
+    if (entry === 'node_modules') continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       walkTsFiles(full, acc);
@@ -40,7 +61,7 @@ function walkTsFiles(dir: string, acc: string[] = []): string[] {
 
 function countMatches(pattern: RegExp): number {
   let total = 0;
-  for (const file of walkTsFiles(AI_DIR)) {
+  for (const file of walkTsFiles(SCAN_ROOT)) {
     const matches = readFileSync(file, 'utf8').match(pattern);
     total += matches?.length ?? 0;
   }
@@ -61,7 +82,7 @@ describe('AI-ROADMAP Phase 0 — detector freeze', () => {
   it('reports the current burn-down so progress is visible in CI output', () => {
     const detectors = countMatches(/export function is[A-Za-z0-9_]*Prompt/g);
     const rescues = countMatches(/private (?:async )?tryRescue[A-Za-z0-9_]*/g);
-    // eslint-disable-next-line no-console
+
     console.log(
       `[AI-ROADMAP burn-down] is*Prompt ${detectors}/${BASELINE.isPromptDetectors} · ` +
         `tryRescue* ${rescues}/${BASELINE.tryRescueMethods}`,

@@ -13,8 +13,7 @@ export const E2E252_OWNER_RESCHEDULE_ALERT_SCENARIOS: readonly E2e252OwnerResche
   [
     {
       id: 'canon-every-time-a-customer-reschedules',
-      prompt:
-        'Alert me every time a customer reschedules their appointment',
+      prompt: 'Alert me every time a customer reschedules their appointment',
       expectToggle: true,
       enabled: true,
     },

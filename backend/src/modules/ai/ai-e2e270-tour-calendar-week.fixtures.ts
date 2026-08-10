@@ -90,6 +90,7 @@ export const E2E270_CRASH_PROMPTS = [
   },
   {
     id: 'ai-e2e270-provider-schedule-this-week',
-    prompt: 'List tours on the provider schedule this week with service and pax',
+    prompt:
+      'List tours on the provider schedule this week with service and pax',
   },
 ] as const;

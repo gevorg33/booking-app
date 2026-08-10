@@ -59,8 +59,8 @@ describe('AiBusinessProfileService (ai-cmd-dashboard-6.2)', () => {
     expect(service.isGetDashboardOverviewPrompt('dashboard overview')).toBe(
       true,
     );
-    expect(
-      service.isUpdateBusinessProfilePrompt('update business phone'),
-    ).toBe(true);
+    expect(service.isUpdateBusinessProfilePrompt('update business phone')).toBe(
+      true,
+    );
   });
 });

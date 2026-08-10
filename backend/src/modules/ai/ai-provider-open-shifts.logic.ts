@@ -218,13 +218,14 @@ function extractWaitlistServiceNameFromPrompt(
   if (typeof params.serviceName === 'string' && params.serviceName.trim()) {
     return params.serviceName.trim();
   }
-  const match = prompt.match(
-    /\bwaiting\s+for\s+([A-Za-z][\w\s'-]*?)(?:\?|$)/i,
-  );
+  const match = prompt.match(/\bwaiting\s+for\s+([A-Za-z][\w\s'-]*?)(?:\?|$)/i);
   return match?.[1]?.trim() || null;
 }
 
-type ActiveWaitlistEntry = { customer: Customer; request: CustomerWaitlistRequest };
+type ActiveWaitlistEntry = {
+  customer: Customer;
+  request: CustomerWaitlistRequest;
+};
 
 async function findActiveWaitlistEntries(
   deps: ProviderOpenShiftsLogicDeps,
@@ -522,7 +523,9 @@ export async function handleBookWalkInGapLogic(
         serviceId: service.id,
         startTime: startTime.toISOString(),
         notes: customerName ? `Walk-in: ${customerName}` : 'Walk-in',
-        metadata: customerName ? { walkInCustomerName: customerName } : undefined,
+        metadata: customerName
+          ? { walkInCustomerName: customerName }
+          : undefined,
       } as Parameters<BookingService['create']>[1],
       userId,
     );

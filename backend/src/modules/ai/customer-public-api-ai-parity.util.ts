@@ -1,4 +1,7 @@
-import { CUSTOMER_INTENTS, PUBLIC_INTENTS } from './ai-command-registry.build.js';
+import {
+  CUSTOMER_INTENTS,
+  PUBLIC_INTENTS,
+} from './ai-command-registry.build.js';
 import type {
   CustomerPublicApiParityEntry,
   CustomerPublicApiAiParityCoverage,
@@ -26,7 +29,9 @@ export function validateParityCoverage(
   coverage: CustomerPublicApiAiParityCoverage,
 ): string[] {
   if (coverage.kind === 'dashboard-only' || coverage.kind === 'no-ai') {
-    return coverage.reason.trim() ? [] : [`missing reason for ${coverage.kind}`];
+    return coverage.reason.trim()
+      ? []
+      : [`missing reason for ${coverage.kind}`];
   }
   if (!coverage.intents.length) {
     return [`${coverage.kind} coverage requires at least one intent`];
@@ -71,7 +76,10 @@ export function assertCustomerPublicApiAiParity(
 export function formatParityEntryForDocs(
   entry: CustomerPublicApiParityEntry,
 ): string {
-  if (entry.coverage.kind === 'dashboard-only' || entry.coverage.kind === 'no-ai') {
+  if (
+    entry.coverage.kind === 'dashboard-only' ||
+    entry.coverage.kind === 'no-ai'
+  ) {
     return `${entry.coverage.kind} — ${entry.coverage.reason}`;
   }
   return entry.coverage.intents.join(', ');
@@ -84,7 +92,8 @@ export function listMutateIntentsMissingApiBinding(
 ): string[] {
   const bound = new Set(
     entries.flatMap((entry) =>
-      entry.coverage.kind === 'customer-ai' || entry.coverage.kind === 'public-ai'
+      entry.coverage.kind === 'customer-ai' ||
+      entry.coverage.kind === 'public-ai'
         ? entry.coverage.intents
         : [],
     ),

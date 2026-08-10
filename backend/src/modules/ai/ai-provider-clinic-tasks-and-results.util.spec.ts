@@ -43,9 +43,7 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
   });
 
   it('detects list_lab_results_queue prompts', () => {
-    expect(isListLabResultsQueuePrompt('Show my lab results queue')).toBe(
-      true,
-    );
+    expect(isListLabResultsQueuePrompt('Show my lab results queue')).toBe(true);
     expect(
       isListLabResultsQueuePrompt('Any lab results waiting for my review?'),
     ).toBe(true);
@@ -56,9 +54,7 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
 
   it('detects claim vs complete clinic task prompts', () => {
     expect(isClaimClinicTaskPrompt('Claim this task')).toBe(true);
-    expect(isClaimClinicTaskPrompt('Take the follow-up call task')).toBe(
-      true,
-    );
+    expect(isClaimClinicTaskPrompt('Take the follow-up call task')).toBe(true);
     expect(isCompleteClinicTaskPrompt('Mark task done')).toBe(true);
     expect(isCompleteClinicTaskPrompt('Complete the follow-up call task')).toBe(
       true,
@@ -69,9 +65,9 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
   });
 
   it('detects list_booking_lab_summaries prompts', () => {
-    expect(isListBookingLabSummariesPrompt('Any flagged results on this visit?')).toBe(
-      true,
-    );
+    expect(
+      isListBookingLabSummariesPrompt('Any flagged results on this visit?'),
+    ).toBe(true);
     expect(
       isListBookingLabSummariesPrompt('Show lab results for this booking'),
     ).toBe(true);
@@ -176,10 +172,14 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
     );
     expect(extractClinicTaskIdFromPrompt('Claim this task')).toBeNull();
     expect(
-      extractBookingIdForLabSummariesFromPrompt('Show results for booking abc123def'),
+      extractBookingIdForLabSummariesFromPrompt(
+        'Show results for booking abc123def',
+      ),
     ).toBe('abc123def');
     expect(
-      extractBookingIdForLabSummariesFromPrompt('Any flagged results on this visit?'),
+      extractBookingIdForLabSummariesFromPrompt(
+        'Any flagged results on this visit?',
+      ),
     ).toBeNull();
   });
 
@@ -211,7 +211,10 @@ describe('ai-provider-clinic-tasks-and-results.util (ai-cmd-provider-6.9)', () =
 
   it('returns null for unrelated prompts', () => {
     expect(
-      rescueProviderClinicTasksAndResultsIntent('Book a haircut tomorrow', 'unknown'),
+      rescueProviderClinicTasksAndResultsIntent(
+        'Book a haircut tomorrow',
+        'unknown',
+      ),
     ).toBeNull();
   });
 

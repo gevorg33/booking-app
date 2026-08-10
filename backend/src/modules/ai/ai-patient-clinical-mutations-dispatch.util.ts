@@ -16,9 +16,7 @@ export async function dispatchPatientClinicalMutationsLogicIntent(
   deps: PatientClinicalMutationsLogicDeps,
   ctx: PatientClinicalMutationsDispatchContext,
 ): Promise<CommandResult | null> {
-  const handler = PATIENT_CLINICAL_MUTATIONS_LOGIC_DISPATCH_MAP.get(
-    ctx.action,
-  );
+  const handler = PATIENT_CLINICAL_MUTATIONS_LOGIC_DISPATCH_MAP.get(ctx.action);
   if (!handler) return null;
   return handler(deps, ctx);
 }

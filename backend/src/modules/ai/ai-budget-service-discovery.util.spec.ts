@@ -317,10 +317,18 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     it('rescueBudgetServiceDiscoveryIntent no longer steals deposit-forfeiture prompts from later rescues', () => {
       const prompt = 'why do I have to pay a deposit to book?';
       expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_checkout_currency', 'customer'),
+        rescueBudgetServiceDiscoveryIntent(
+          prompt,
+          'explain_checkout_currency',
+          'customer',
+        ),
       ).toBeNull();
       expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_why_stripe_required', 'customer'),
+        rescueBudgetServiceDiscoveryIntent(
+          prompt,
+          'explain_why_stripe_required',
+          'customer',
+        ),
       ).toBeNull();
     });
   });

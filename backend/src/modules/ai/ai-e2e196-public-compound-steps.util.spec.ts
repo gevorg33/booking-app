@@ -21,13 +21,12 @@ describe('e2e-bug.196 public compound PUBLIC_ONLY steps', () => {
 
   it('dispatchCompoundStepAction source wires every PUBLIC_ONLY action', () => {
     const source = readFileSync(
-      join(
-        __dirname,
-        '../public-booking/public-booking-assistant.service.ts',
-      ),
+      join(__dirname, '../public-booking/public-booking-assistant.service.ts'),
       'utf8',
     );
-    const switchStart = source.indexOf('private async dispatchCompoundStepAction');
+    const switchStart = source.indexOf(
+      'private async dispatchCompoundStepAction',
+    );
     expect(switchStart).toBeGreaterThan(-1);
     const switchBody = source.slice(
       switchStart,
@@ -41,7 +40,9 @@ describe('e2e-bug.196 public compound PUBLIC_ONLY steps', () => {
     }
   });
 
-  it.each(E2E196_PUBLIC_ONLY_COMPOUND_ACTIONS.map((action) => [action] as const))(
+  it.each(
+    E2E196_PUBLIC_ONLY_COMPOUND_ACTIONS.map((action) => [action] as const),
+  )(
     'dispatchCompoundStepAction does not return unsupported for %s',
     async (action) => {
       const stubs: Record<string, jest.Mock> = {
@@ -126,11 +127,14 @@ describe('e2e-bug.196 public compound PUBLIC_ONLY steps', () => {
 
   it.each(
     E2E196_PUBLIC_COMPOUND_LIVE_CASES.map((row) => [row.id, row] as const),
-  )('decomposes live compound $id into expected PUBLIC_ONLY steps', (_id, row) => {
-    expect(isPublicAssistantCompoundPrompt(row.prompt)).toBe(true);
-    const steps = decomposePublicAssistantCompoundPrompt(row.prompt);
-    expect(steps.map((step) => step.action)).toEqual([...row.expectActions]);
-  });
+  )(
+    'decomposes live compound $id into expected PUBLIC_ONLY steps',
+    (_id, row) => {
+      expect(isPublicAssistantCompoundPrompt(row.prompt)).toBe(true);
+      const steps = decomposePublicAssistantCompoundPrompt(row.prompt);
+      expect(steps.map((step) => step.action)).toEqual([...row.expectActions]);
+    },
+  );
 
   it('registers e2e196 compound fixtures with matching ordered actions', () => {
     const e2e196 = PUBLIC_ASSISTANT_COMPOUND_PROMPTS.filter((row) =>
@@ -138,9 +142,9 @@ describe('e2e-bug.196 public compound PUBLIC_ONLY steps', () => {
     );
     expect(e2e196).toHaveLength(7);
     for (const row of e2e196) {
-      expect(decomposePublicAssistantCompoundPrompt(row.prompt).map((s) => s.action)).toEqual(
-        [...row.orderedActions],
-      );
+      expect(
+        decomposePublicAssistantCompoundPrompt(row.prompt).map((s) => s.action),
+      ).toEqual([...row.orderedActions]);
     }
   });
 });

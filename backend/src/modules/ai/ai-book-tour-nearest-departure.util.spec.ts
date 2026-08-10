@@ -252,7 +252,9 @@ describe('ai-book-tour-nearest-departure.util (ai-cmd-customer-4.10.5)', () => {
       expect(
         extractLeadingTourNamePrompt('for 6 people book the wine tour'),
       ).toBeUndefined();
-      expect(extractLeadingTourNamePrompt('book my thing please')).toBeUndefined();
+      expect(
+        extractLeadingTourNamePrompt('book my thing please'),
+      ).toBeUndefined();
       expect(extractLeadingTourNamePrompt('')).toBeUndefined();
     });
 

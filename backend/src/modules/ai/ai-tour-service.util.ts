@@ -187,9 +187,7 @@ export function isExplainTourServicesPrompt(prompt: string): boolean {
   if (isExplainPackageDisplayNamePrompt(prompt)) return false;
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;
-  if (
-    /(?:ինչ\s+է\s+իմ\s+հաջորդ|когда\s+моя\s+следующ)/iu.test(prompt)
-  ) {
+  if (/(?:ինչ\s+է\s+իմ\s+հաջորդ|когда\s+моя\s+следующ)/iu.test(prompt)) {
     return false;
   }
   if (/\b(?:upcoming\s+)?tour\s+departures?\b/i.test(prompt)) return false;

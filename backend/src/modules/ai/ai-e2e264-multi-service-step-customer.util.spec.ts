@@ -22,9 +22,7 @@ describe('e2e-bug.264: multi-service step-done customerName extract', () => {
       parseMarkMultiServiceStepDoneFromPrompt('Finish step 1 for Spa Day QA'),
     ).toEqual({ stepIndex: 1, customerName: 'Spa Day QA' });
     expect(
-      parseMarkMultiServiceStepDoneFromPrompt(
-        'Complete blowdry leg for Jane',
-      ),
+      parseMarkMultiServiceStepDoneFromPrompt('Complete blowdry leg for Jane'),
     ).toEqual({ serviceName: 'blowdry', customerName: 'Jane' });
   });
 

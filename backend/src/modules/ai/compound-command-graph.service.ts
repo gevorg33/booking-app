@@ -494,7 +494,9 @@ export class CompoundCommandGraphService {
       // could not be built; that drops the customer's move/create/cancel
       // without telling them. Stop and ask instead (mirrors the
       // handoff.status === 'clarify' branch above).
-      const actionLabel = COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ?? parsed.action.replace(/_/g, ' ');
+      const actionLabel =
+        COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ??
+        parsed.action.replace(/_/g, ' ');
       let clarify: CommandResult = {
         success: false,
         action: parsed.action,

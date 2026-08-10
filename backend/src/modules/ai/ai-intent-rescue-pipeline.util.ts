@@ -86,7 +86,20 @@ export function acceptRescueForSurface(
   if (
     result.action === 'unknown' ||
     result.action === 'error' ||
-    result.action === 'security_blocked'
+    result.action === 'security_blocked' ||
+    // e2e-bug.425 — `compound_intent` is a routing outcome, not a command.
+    //
+    // It names "this message contains several requests"; the commands are its
+    // steps, and each is surface-checked when it is dispatched. Asking
+    // `isIntentAllowedOnSurface('compound_intent', …)` therefore asks the
+    // registry about something that will never be in it, gets `false`, and
+    // discards the rescue — on **every surface**. All 48 compound eval cases
+    // failed with `got none` while the decomposer worked perfectly.
+    //
+    // Listed here beside the other pseudo-actions rather than registered as a
+    // command: a registry row would put it into command lists, dispatch
+    // reachability and the spec inventory, none of which it belongs in.
+    result.action === 'compound_intent'
   ) {
     return result;
   }

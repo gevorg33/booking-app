@@ -15,6 +15,40 @@ function makeDeps(
   } as SelfServiceBookingLogicDeps;
 }
 
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * The fixtures book visits on 2026-08-15 and 2026-08-22 and the assertion counts
+ * two upcoming. Both fall into the past within a fortnight, at which point the
+ * count silently becomes one and then zero.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs. Freezing rather than rewriting the
+ * fixtures to offsets from `Date.now()` — an offset-computed fixture becomes a
+ * second implementation of the resolver it is meant to check.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+const FROZEN_NOW = new Date('2026-08-01T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('ai-list-my-upcoming-appointments.logic (ai-cmd-customer-4.4.1)', () => {
   const sampleBookings = [
     {

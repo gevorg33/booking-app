@@ -146,20 +146,25 @@ export type CommandFailureReason =
   | 'compound_step_failed'
   | 'unclassified';
 
-export function deriveFailureReason(
-  result: { success: boolean; action: string; details?: Record<string, unknown> },
-): CommandFailureReason | null {
+export function deriveFailureReason(result: {
+  success: boolean;
+  action: string;
+  details?: Record<string, unknown>;
+}): CommandFailureReason | null {
   if (result.success) return null;
   const d = result.details ?? {};
 
   if (Array.isArray(d.missing) && d.missing.length > 0) return 'missing_params';
-  if (d.clarify === true || d.needsClarification === true) return 'missing_params';
+  if (d.clarify === true || d.needsClarification === true)
+    return 'missing_params';
   if (typeof d.failedStep === 'string') return 'compound_step_failed';
   if (d.unresolvedEntity != null || d.resolutionFailed === true) {
     return 'entity_unresolved';
   }
-  if (d.permissionDenied === true || d.notAllowed === true) return 'not_permitted';
-  if (d.validationErrors != null || d.invalidParams != null) return 'validation';
+  if (d.permissionDenied === true || d.notAllowed === true)
+    return 'not_permitted';
+  if (d.validationErrors != null || d.invalidParams != null)
+    return 'validation';
   if (d.error != null || d.exception != null) return 'upstream_error';
 
   return 'unclassified';

@@ -37,9 +37,6 @@ describe('ai-command-registry.build', () => {
     const unknown = registry.find((entry) => entry.id === 'unknown');
     expect(unknown?.executionMode).toBe('read_only');
     expect(unknown?.mutating).toBe(false);
-    expect(unknown?.tiers).toEqual(
-      expect.arrayContaining(['client', 'staff', 'manager', 'owner']),
-    );
   });
 
   it('marks orchestration intents from the orchestration set', () => {
@@ -63,9 +60,12 @@ describe('ai-command-registry.build', () => {
     expect(
       registry.find((entry) => entry.id === 'book_package')?.surfaces,
     ).toContain('customer');
+    // e2e-bug.355 — `entry.tiers` was deleted with the rest of the dead flat
+    // permission model. The per-surface answer lives in `CommandSpec.tiers` and
+    // is asserted by ai-command-spec.conformance.spec.ts against the live gate.
     expect(
-      registry.find((entry) => entry.id === 'book_package')?.tiers,
-    ).toEqual(['client']);
+      registry.find((entry) => entry.id === 'book_package')?.surfaces,
+    ).toContain('customer');
     expect(
       registry.find((entry) => entry.id === 'create_booking_cash')?.sprint,
     ).toBe('bookingDepth');
@@ -150,7 +150,6 @@ describe('ai-command-registry.build', () => {
       {
         id: 'synthetic_missing_intent',
         surfaces: ['dashboard'],
-        tiers: ['owner'],
         mutating: false,
         executionMode: 'read_only',
         apiModule: 'ai-command',

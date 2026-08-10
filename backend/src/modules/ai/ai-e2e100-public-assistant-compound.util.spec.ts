@@ -43,9 +43,9 @@ describe('e2e-bug.100 public_assistant_compound registry examples', () => {
   });
 
   it.each(
-    PUBLIC_ASSISTANT_COMPOUND_PROMPTS.filter((row) => row.misclassifiedAction).map(
-      (row) => [row.id, row] as const,
-    ),
+    PUBLIC_ASSISTANT_COMPOUND_PROMPTS.filter(
+      (row) => row.misclassifiedAction,
+    ).map((row) => [row.id, row] as const),
   )('rescues misroute for %s', (_id, row) => {
     const rescued = rescuePublicAssistantCompoundIntent(
       row.prompt,

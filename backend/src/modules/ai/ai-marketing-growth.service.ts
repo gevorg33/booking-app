@@ -236,7 +236,10 @@ export class AiMarketingGrowthService {
     return handleStartBillingCheckoutLogic(this.deps, businessId, params);
   }
 
-  handleConfirmBillingCheckout(businessId: string, params: Record<string, any>) {
+  handleConfirmBillingCheckout(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
     return handleConfirmBillingCheckoutLogic(this.deps, businessId, params);
   }
 

@@ -54,8 +54,6 @@ export interface CommandRegistryEntry {
   id: string;
   /** Surfaces where this intent may be invoked. */
   surfaces: CommandSurface[];
-  /** Access tiers allowed per surface (empty = none). */
-  tiers: AccessTier[];
   /** Whether the intent mutates persisted state. */
   mutating: boolean;
   executionMode: CommandExecutionMode;

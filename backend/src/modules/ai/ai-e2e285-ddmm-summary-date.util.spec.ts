@@ -27,9 +27,9 @@ describe('e2e-bug.285 DD/MM AI summary date labels', () => {
   it.each(E2E285_SUMMARY_MISREAD_CASES.map((row) => [row.id, row] as const))(
     'summaryMisreadsStartTimeMonth detects $id',
     (_id, row) => {
-      expect(
-        summaryMisreadsStartTimeMonth(row.summary, row.startTime),
-      ).toBe(row.expectMisread);
+      expect(summaryMisreadsStartTimeMonth(row.summary, row.startTime)).toBe(
+        row.expectMisread,
+      );
     },
   );
 

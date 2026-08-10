@@ -58,13 +58,13 @@ describe('ai-growth-loops-customer integration (ai-cmd-customer-4.0 P3)', () => 
               platform: null,
             })),
           },
+        },
+        {
+          provide: getRepositoryToken(Business),
+          useValue: {
+            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
           },
-          {
-            provide: getRepositoryToken(Business),
-            useValue: {
-              findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
-            },
-          },
+        },
       ],
     }).compile();
 

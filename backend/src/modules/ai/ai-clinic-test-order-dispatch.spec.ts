@@ -39,7 +39,9 @@ describe('ai-clinic-test-order dispatch (ai-cmd-ext-0.5)', () => {
   }
 
   it('registers a handler for both create_test_order and its alias create_catalog_test_order', () => {
-    expect(getClinicTestOrderLogicDispatchHandler('create_test_order')).toBeDefined();
+    expect(
+      getClinicTestOrderLogicDispatchHandler('create_test_order'),
+    ).toBeDefined();
     expect(
       getClinicTestOrderLogicDispatchHandler('create_catalog_test_order'),
     ).toBeDefined();

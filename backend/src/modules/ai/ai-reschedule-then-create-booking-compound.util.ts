@@ -37,11 +37,17 @@ const SECOND_BOOK_CUE =
   /\b(?:a\s+second|another|second|also)\b|\bfor\s+[A-Z][\p{L}'-]{1,40}\b|\bbook\s+(?:a|an)\s+[a-z]/iu;
 
 function hasThenBookSecondCue(prompt: string): boolean {
-  if (!BOOK_JOIN.test(prompt) && !/\bthen\s+book\b|\band\s+book\b|;\s*book\b/i.test(prompt)) {
+  if (
+    !BOOK_JOIN.test(prompt) &&
+    !/\bthen\s+book\b|\band\s+book\b|;\s*book\b/i.test(prompt)
+  ) {
     return false;
   }
   // "put it / move it" restates the same reschedule — not a new booking.
-  if (/\b(?:put|move)\s+(?:it|that|them)\b/i.test(prompt) && !SECOND_BOOK_CUE.test(prompt)) {
+  if (
+    /\b(?:put|move)\s+(?:it|that|them)\b/i.test(prompt) &&
+    !SECOND_BOOK_CUE.test(prompt)
+  ) {
     return false;
   }
   if (/\b(?:book|schedule|create|reserve)\b/i.test(prompt) === false) {

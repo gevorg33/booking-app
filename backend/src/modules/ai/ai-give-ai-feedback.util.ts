@@ -74,7 +74,10 @@ export function localizedFeedbackReasonOptions(locale?: string): Array<{
 }> {
   const loc = resolveLocale(locale);
   return [
-    { id: 'wrong_action', label: t(loc, 'assistant.feedbackReasonWrongAction') },
+    {
+      id: 'wrong_action',
+      label: t(loc, 'assistant.feedbackReasonWrongAction'),
+    },
     { id: 'wrong_date', label: t(loc, 'assistant.feedbackReasonWrongDate') },
     {
       id: 'wrong_person',

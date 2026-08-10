@@ -16,7 +16,10 @@ export const PROVIDER_MARK_PAID_LEGACY_LOCALE_SIBLING_IDS: Record<
   { hy: string; ru: string }
 > = {
   'mark-paid-cash-voice-en': { hy: 'mark-paid-hy', ru: 'mark-paid-ru' },
-  'mark-paid-jane-cash-en': { hy: 'mark-paid-jane-hy', ru: 'mark-paid-jane-ru' },
+  'mark-paid-jane-cash-en': {
+    hy: 'mark-paid-jane-hy',
+    ru: 'mark-paid-jane-ru',
+  },
 };
 
 const MARK_PAID_I18N: Record<string, { hy: string; ru: string }> = {
@@ -78,9 +81,9 @@ function buildProviderMarkPaidMultilingualScenarios(): ProviderMarkPaidMultiling
 }
 
 export const PROVIDER_MARK_PAID_EN_SCENARIO_IDS: string[] =
-  PROVIDER_MARK_PAID_PROMPT_SCENARIOS.filter((row) => row.id.endsWith('-en')).map(
-    (row) => row.id,
-  );
+  PROVIDER_MARK_PAID_PROMPT_SCENARIOS.filter((row) =>
+    row.id.endsWith('-en'),
+  ).map((row) => row.id);
 
 export const PROVIDER_MARK_PAID_MULTILINGUAL_SCENARIOS: ProviderMarkPaidMultilingualScenario[] =
   buildProviderMarkPaidMultilingualScenarios();

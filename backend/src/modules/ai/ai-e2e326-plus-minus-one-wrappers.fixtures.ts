@@ -86,7 +86,10 @@ export const E2E326_NEGATIVE_PROMPTS: readonly {
 }[] = [
   { id: 'ai-e2e326-neg-party-plus-one', prompt: 'party of +1' },
   { id: 'ai-e2e326-neg-book-plus-one', prompt: 'Book +1 massage tomorrow' },
-  { id: 'ai-e2e326-neg-thanks-book-plus-one', prompt: 'thanks, book +1 massage' },
+  {
+    id: 'ai-e2e326-neg-thanks-book-plus-one',
+    prompt: 'thanks, book +1 massage',
+  },
   { id: 'ai-e2e326-neg-plus-one-stars-thanks', prompt: 'thanks, +1 stars' },
   { id: 'ai-e2e326-neg-plus-ten-thanks', prompt: '+10 thanks' },
 ];

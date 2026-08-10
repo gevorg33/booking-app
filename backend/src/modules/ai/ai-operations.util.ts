@@ -284,9 +284,7 @@ function extractAbsolutePriceAmount(
       /(?:by|of)\s*\$?\s*(\d+(?:\.\d+)?)\s*(?:dollars?|usd|eur|amd|gbp)?\b/i,
     ) ||
     prompt.match(/\$\s*(\d+(?:\.\d+)?)/) ||
-    prompt.match(
-      /(\d+(?:\.\d+)?)\s*(?:dollars?|usd|eur|amd|gbp)\b/i,
-    );
+    prompt.match(/(\d+(?:\.\d+)?)\s*(?:dollars?|usd|eur|amd|gbp)\b/i);
   if (!match?.[1]) return null;
   const n = Number.parseFloat(match[1]);
   return Number.isFinite(n) ? n : null;
@@ -345,9 +343,7 @@ export function applyPriceAdjustment(
     percentOrAdjustment.amountChange != null &&
     Number.isFinite(percentOrAdjustment.amountChange)
   ) {
-    return (
-      Math.round((price + percentOrAdjustment.amountChange) * 100) / 100
-    );
+    return Math.round((price + percentOrAdjustment.amountChange) * 100) / 100;
   }
   if (
     percentOrAdjustment.percentChange != null &&
@@ -754,3 +750,31 @@ export function shouldAutoExecuteOperations(
   }
   return false;
 }
+
+/**
+ * The reads inside this list — e2e-bug.376, second wave.
+ *
+ * The registry binding passes the whole intent list as its own `mutateIntents`,
+ * so every member is registered `mutating: true`. §110 fixed that pattern for
+ * `PROVIDER_PAYMENTS_INTENTS` and checked the other bindings for reads by
+ * looking for read *verbs* (`explain_`, `list_`, `get_`, `summarize_`). These
+ * are named as nouns — `revenue_forecast`, `staff_service_matrix`,
+ * `delivery_queue` — so the check missed them.
+ *
+ * Excluded from the mutate list rather than removed from the intent list: they
+ * are real commands on this surface, they simply do not write.
+ */
+export const OPERATIONS_READ_ONLY_INTENTS: readonly string[] = [
+  'check_schedule_compliance',
+  'revenue_forecast',
+  // NOT `staff_service_matrix`, though its spec describes a read ("Show which
+  // staff can perform which services", `confirm: 'never'`). It is listed
+  // explicitly in two inline `mutateIntents` arrays and in
+  // `DASHBOARD_EXECUTION_CONFIRM_ACTIONS`, and production shows it going through
+  // the approval path. Two authors deliberately marked it a mutation; the other
+  // five here were swept in mechanically by a whole-list-as-mutate-list binding.
+  // Reclassifying it would remove a confirmation gate on the strength of a
+  // description, which is the wrong direction to be wrong in. Left for
+  // e2e-bug.405's review, where the spec/runtime confirmation disagreement is
+  // already the subject.
+];

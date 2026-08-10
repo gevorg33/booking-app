@@ -25,9 +25,7 @@ describe('e2e-bug.130 gift-card purchase vs multi-service / budget', () => {
     'detectors keep %s on buy_gift_card',
     (_id, row) => {
       expect(isBuyGiftCardPrompt(row.prompt)).toBe(true);
-      expect(isMultiServiceAvailabilityDiscoveryPrompt(row.prompt)).toBe(
-        false,
-      );
+      expect(isMultiServiceAvailabilityDiscoveryPrompt(row.prompt)).toBe(false);
       expect(
         extractServiceNamesFromPrompt(row.prompt).some((n) =>
           /gift\s*card|check\s*out/i.test(n),

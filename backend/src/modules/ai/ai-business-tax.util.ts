@@ -1,3 +1,4 @@
+import { isSummarizeCustomerTaxPaidPrompt } from './ai-summarize-customer-tax-paid.util.js';
 import {
   normalizeTaxPricingModel,
   normalizeTaxRatePercent,
@@ -367,6 +368,15 @@ export function isExplainBusinessTaxPrompt(prompt: string): boolean {
   if (isSetServiceTaxRatePrompt(prompt)) return false;
   if (isExplainStackedTaxPrompt(prompt)) return false;
   if (isConfigureBusinessTaxPrompt(prompt)) return false;
+  // e2e-bug.431 — "how much tax has Jane paid" is about a customer, not the
+  // business's tax settings.
+  //
+  // The three exclusions above already keep this detector out of its siblings'
+  // territory; `summarize_customer_tax_paid` was simply missing from the list,
+  // and took all five of its eval cases. The guard below (line ~372) looks like
+  // it should have caught them — it declines appointment-scoped prompts — but
+  // it tests `\bappointment\b`, which does not match "appointments".
+  if (isSummarizeCustomerTaxPaidPrompt(prompt)) return false;
 
   if (
     /\b(appointment|provider\s+app|payment\s+breakdown|mark(?:ed)?\s+paid|collected)\b/i.test(

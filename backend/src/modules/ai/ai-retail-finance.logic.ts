@@ -356,8 +356,7 @@ export async function handleUpdateInventoryProductLogic(
     );
   }
 
-  const name =
-    typeof params.newName === 'string' ? params.newName : undefined;
+  const name = typeof params.newName === 'string' ? params.newName : undefined;
   const sku = typeof params.sku === 'string' ? params.sku : undefined;
   const retailPrice =
     typeof params.retailPrice === 'number' ? params.retailPrice : undefined;
@@ -521,9 +520,7 @@ export async function handleSetRecommendedProductsLogic(
       )
     : [];
   const productIdsParam = Array.isArray(params.productIds)
-    ? params.productIds.filter(
-        (id): id is string => typeof id === 'string',
-      )
+    ? params.productIds.filter((id): id is string => typeof id === 'string')
     : [];
 
   if (productNames.length === 0 && productIdsParam.length === 0) {
@@ -1262,7 +1259,11 @@ export async function handleExportAnalyticsReportLogic(
     (params.format as string | undefined)?.toLowerCase() === 'pdf'
       ? 'pdf'
       : 'csv';
-  const query = { from, to, locationId: params.locationId as string | undefined };
+  const query = {
+    from,
+    to,
+    locationId: params.locationId as string | undefined,
+  };
 
   try {
     if (format === 'pdf') {
@@ -1325,7 +1326,12 @@ export async function handleSummarizeReviewsLogic(
       totalReviews > 0
         ? `${totalReviews} review(s), average rating ${overallAvg}/5.`
         : 'No reviews yet.',
-      { perEmployee: filtered, overallAvg, totalReviews, recentReviews: recent },
+      {
+        perEmployee: filtered,
+        overallAvg,
+        totalReviews,
+        recentReviews: recent,
+      },
     );
   } catch (err: any) {
     return failure(
@@ -1361,7 +1367,9 @@ export async function handleSummarizeAdoptionFunnelLogic(
       steps.length
         ? `Adoption funnel (last ${dashboard.periodDays} days): ${steps
             .map((s) => `${s.step} ${s.count}`)
-            .join(' → ')}${overallConversion != null ? ` — ${overallConversion}% overall conversion` : ''}.`
+            .join(
+              ' → ',
+            )}${overallConversion != null ? ` — ${overallConversion}% overall conversion` : ''}.`
         : `No adoption funnel activity in the last ${dashboard.periodDays} days.`,
       { dashboard, overallConversion },
     );
@@ -1533,9 +1541,7 @@ export async function handleSetRetailSalesLinesLogic(
     (params.lines as
       | Array<{ productId?: string; productName?: string; quantity?: number }>
       | undefined) ??
-    parseRetailSalesLinesFromPrompt(
-      prompt ?? (params._prompt as string) ?? '',
-    );
+    parseRetailSalesLinesFromPrompt(prompt ?? (params._prompt as string) ?? '');
 
   if (!rawLines || !rawLines.length) {
     return failure(

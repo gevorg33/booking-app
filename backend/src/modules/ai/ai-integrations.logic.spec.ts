@@ -471,9 +471,9 @@ describe('ai-integrations.logic', () => {
     expect(deps.apiKeyService.revokeKey).toHaveBeenCalledWith('biz-1', 'k1');
     expect(deps.apiKeyService.createKey).not.toHaveBeenCalled();
 
-    expect(
-      (await handleRevokeApiKeyLogic(deps, 'biz-1', {})).success,
-    ).toBe(false);
+    expect((await handleRevokeApiKeyLogic(deps, 'biz-1', {})).success).toBe(
+      false,
+    );
 
     const noMatchDeps = buildDeps({
       apiKeyService: {
@@ -510,10 +510,12 @@ describe('ai-integrations.logic', () => {
       { googleReserveEnabled: true, telegramEnabled: true },
     );
     expect(result.success).toBe(true);
-    expect(deps.distributionIntegrationService.updateSettings).toHaveBeenCalledWith(
-      'biz-1',
-      { googleReserveEnabled: true, telegramEnabled: true },
-    );
+    expect(
+      deps.distributionIntegrationService.updateSettings,
+    ).toHaveBeenCalledWith('biz-1', {
+      googleReserveEnabled: true,
+      telegramEnabled: true,
+    });
 
     expect(
       (await handleConfigureDistributionChannelsLogic(deps, 'biz-1', {}))

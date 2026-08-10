@@ -1,5 +1,8 @@
 import { describe, expect, it } from '@jest/globals';
-import { CUSTOMER_INTENTS, PUBLIC_INTENTS } from './ai-command-registry.build.js';
+import {
+  CUSTOMER_INTENTS,
+  PUBLIC_INTENTS,
+} from './ai-command-registry.build.js';
 import { SELF_SERVICE_BOOKING_MUTATE_INTENTS } from './ai-self-service-booking.util.js';
 import { CUSTOMER_PUBLIC_API_AI_PARITY } from './customer-public-api-ai-parity.fixtures.js';
 import {
@@ -19,10 +22,13 @@ describe('customer-public-api-ai-parity (ai-cmd-customer-6.13)', () => {
 
   it.each(
     CUSTOMER_PUBLIC_API_AI_PARITY.map((entry) => [entry.id, entry] as const),
-  )('%s registers customer/public intents or is dashboard-only/no-ai', (id, entry) => {
-    expect(listParityViolations([entry])).toEqual([]);
-    expect(formatParityEntryForDocs(entry).length).toBeGreaterThan(0);
-  });
+  )(
+    '%s registers customer/public intents or is dashboard-only/no-ai',
+    (id, entry) => {
+      expect(listParityViolations([entry])).toEqual([]);
+      expect(formatParityEntryForDocs(entry).length).toBeGreaterThan(0);
+    },
+  );
 
   it('flags unknown customer intents', () => {
     expect(listUnknownCustomerIntents(['my_profile'])).toEqual([]);

@@ -299,7 +299,10 @@ export async function handleExplainTourServicesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveTourCatalogServiceByName(tourServices, parsed.serviceName);
+    const match = resolveTourCatalogServiceByName(
+      tourServices,
+      parsed.serviceName,
+    );
     tourServices = match ? [match] : [];
   }
 

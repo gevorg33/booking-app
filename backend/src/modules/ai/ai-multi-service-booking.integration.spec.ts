@@ -4,7 +4,6 @@ import {
   applyPackageMultiServicePromptHints,
   decomposeDashboardPackageMultiServiceCompoundPrompt,
   disambiguateStaffPackageMultiBooking,
-  isDashboardPackageMultiCompoundPrompt,
 } from './ai-package-multi-service-hints.util.js';
 import {
   ALL_MULTI_SERVICE_CHECKOUT_PROMPTS,
@@ -72,36 +71,6 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
   });
 
   describe('prompt detection and decomposition', () => {
-    it.each(ALL_MULTI_SERVICE_CHECKOUT_PROMPTS)(
-      'detects multi-service checkout compound for $id',
-      ({
-        prompt,
-        serviceNames,
-        customerName,
-        employeeName,
-        orderedActions,
-      }) => {
-        expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(true);
-
-        const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
-          prompt,
-          employees,
-          customers,
-        );
-        expect(steps.map((s) => s.action)).toEqual(orderedActions);
-        expect(steps[0]?.action).toBe('check_multi_service_block_availability');
-        expect(steps[0]?.params.serviceNames).toEqual(
-          expect.arrayContaining(serviceNames),
-        );
-        if (customerName) {
-          expect(steps[1]?.params.customerName).toBe(customerName);
-        }
-        if (employeeName) {
-          expect(steps[1]?.params.employeeName).toBe(employeeName);
-        }
-      },
-    );
-
     it('accumulates cart services before check step', () => {
       const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
         MULTI_SERVICE_CHECKOUT_PROMPTS[0].prompt,
@@ -128,11 +97,6 @@ describe('ai multi-service booking checkout integration (ai-cmd-h4.1)', () => {
       expect(result?.steps[0]?.action).toBe(
         'check_multi_service_block_availability',
       );
-    });
-
-    it('does not treat single-service booking as multi-service compound', () => {
-      const prompt = 'Book haircut for Maria Tuesday 10am';
-      expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(false);
     });
   });
 

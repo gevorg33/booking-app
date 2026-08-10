@@ -162,8 +162,7 @@ export const EXPLAIN_PROVIDER_AVAILABILITY_PROMPTS: readonly ExplainProviderAvai
     // e2e-bug.194 — "Explain X availability for <service> <day>" must not be blocked by "availability for"
     {
       id: 'explain-gevorg-availability-swedish-next-tuesday-public',
-      prompt:
-        'Explain Gevorg availability for Swedish massage next Tuesday',
+      prompt: 'Explain Gevorg availability for Swedish massage next Tuesday',
       surface: 'public',
       expectedAction: 'explain_provider_availability',
       aspect: 'named_schedule',
@@ -172,8 +171,7 @@ export const EXPLAIN_PROVIDER_AVAILABILITY_PROMPTS: readonly ExplainProviderAvai
     },
     {
       id: 'explain-gevorg-availability-swedish-next-tuesday-customer',
-      prompt:
-        'Explain Gevorg availability for Swedish massage next Tuesday',
+      prompt: 'Explain Gevorg availability for Swedish massage next Tuesday',
       surface: 'customer',
       expectedAction: 'explain_provider_availability',
       aspect: 'named_schedule',
@@ -223,8 +221,7 @@ export const EXPLAIN_PROVIDER_AVAILABILITY_RESCUE_SCENARIOS = [
   },
   {
     id: 'rescue-explain-availability-for-from-unknown',
-    prompt:
-      'Explain Gevorg availability for Swedish massage next Tuesday',
+    prompt: 'Explain Gevorg availability for Swedish massage next Tuesday',
     misclassifiedAction: 'unknown',
   },
 ] as const;

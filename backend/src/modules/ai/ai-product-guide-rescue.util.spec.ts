@@ -96,9 +96,13 @@ describe('ai-product-guide-rescue.util (ai-guide-1.6.3)', () => {
       rescueReason: 'public_booking_help',
     });
     expect(
-      rescueProductGuideIntent('How do I use the Home tab?', 'explain_app_feature', {
-        surface: 'customer',
-      }).action,
+      rescueProductGuideIntent(
+        'How do I use the Home tab?',
+        'explain_app_feature',
+        {
+          surface: 'customer',
+        },
+      ).action,
     ).toBe('explain_app_feature');
   });
 });

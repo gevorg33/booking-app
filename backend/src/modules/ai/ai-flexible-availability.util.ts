@@ -290,9 +290,10 @@ export function normalizeAvailabilityServiceCategory(keyword: string): string {
  * Prefer multi-word extracted names as serviceName so catalog resolve does not
  * depend on first-token category matching (e2e-bug.200).
  */
-export function resolveAvailabilityServiceFieldsFromKeyword(
-  keyword: string,
-): { serviceName: string | null; serviceCategory: string | null } {
+export function resolveAvailabilityServiceFieldsFromKeyword(keyword: string): {
+  serviceName: string | null;
+  serviceCategory: string | null;
+} {
   const trimmed = keyword.trim().replace(/[,.]$/, '');
   if (!trimmed || trimmed.length < 3) {
     return { serviceName: null, serviceCategory: null };
@@ -497,7 +498,10 @@ export function applySameDayRelativeDateToAvailabilityParams(
       return entry;
     }
     const window = entry as AvailabilityWindow;
-    if (window.date || (Array.isArray(window.weekdays) && window.weekdays.length > 0)) {
+    if (
+      window.date ||
+      (Array.isArray(window.weekdays) && window.weekdays.length > 0)
+    ) {
       return window;
     }
     return { ...window, date: relativeDate };

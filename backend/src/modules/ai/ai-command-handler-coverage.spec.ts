@@ -155,8 +155,13 @@ describe('ai command INTENT_SCHEMA union drift (ai-cmd-ext-0.1)', () => {
 
 describe('ai command default branch telemetry (ai-cmd-ext-0.3)', () => {
   it('routes executeSingleIntent default through registry-aware unwired helper', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      'buildUnwiredDashboardIntentResult(parsed.action',
+    // Matched with tolerant whitespace rather than as a literal substring: the
+    // call sits ~60 columns deep, so prettier wraps it across lines whenever the
+    // surrounding code shifts, and the assertion then fails for a reformat that
+    // changed no behaviour. The invariant is "the default branch calls the
+    // registry-aware helper with parsed.action", not how it is line-broken.
+    expect(AI_COMMAND_SERVICE_SOURCE).toMatch(
+      /buildUnwiredDashboardIntentResult\(\s*parsed\.action/,
     );
     expect(AI_COMMAND_SERVICE_SOURCE).not.toContain(
       "I don't know how to execute that action yet",

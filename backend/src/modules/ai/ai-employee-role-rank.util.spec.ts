@@ -3,35 +3,10 @@ import {
   enrichEmployeeRoleRankFromPrompt,
   extractEmployeeRoleFromPrompt,
   isEmployeeRoleOccupation,
-  isEmployeeRoleRankPrompt,
 } from './ai-employee-role-rank.util.js';
 import { rescueServiceRankDiscoveryIntent } from './ai-service-rank-discovery.util.js';
 
 describe('ai-employee-role-rank.util', () => {
-  it('detects top rated cosmetologist as employee role rank prompt', () => {
-    expect(isEmployeeRoleRankPrompt('top rated cosmetologist')).toBe(true);
-    expect(extractEmployeeRoleFromPrompt('top rated cosmetologist')).toBe(
-      'cosmetologist',
-    );
-  });
-
-  it('detects who are the top-rated cosmetologists phrasing', () => {
-    const prompt = 'who are the Top-rated Cosmetologists';
-    expect(isEmployeeRoleRankPrompt(prompt)).toBe(true);
-    expect(extractEmployeeRoleFromPrompt(prompt)).toBe('cosmetologist');
-    expect(
-      rescueServiceRankDiscoveryIntent(
-        prompt,
-        'check_providers_for_service',
-        'customer',
-      ),
-    ).toEqual({
-      action: 'recommend_specialists',
-      rescueReason: 'rank_provider_specialists',
-      params: { employeeRole: 'cosmetologist' },
-    });
-  });
-
   it('matches provider metadata role/title case-insensitively', () => {
     expect(
       employeeRoleMatchesHint('Cosmetologist', undefined, 'cosmetologist'),

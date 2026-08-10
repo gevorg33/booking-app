@@ -365,7 +365,8 @@ export function rescueCreatePromoCodeIntent(
 
 export const DEACTIVATE_PROMO_CODE_INTENT = 'deactivate_promo_code' as const;
 
-const DEACTIVATE_VERB = /\b(deactivate|disable|turn\s+off|cancel|remove|delete|expire)\b/i;
+const DEACTIVATE_VERB =
+  /\b(deactivate|disable|turn\s+off|cancel|remove|delete|expire)\b/i;
 
 export function isDeactivatePromoCodePrompt(prompt: string): boolean {
   const text = prompt.trim();

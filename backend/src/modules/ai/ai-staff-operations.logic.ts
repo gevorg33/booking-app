@@ -325,7 +325,7 @@ export async function handleUpdateTeamMemberRoleLogic(
   if (!employeeName) {
     return failure(
       'update_team_member_role',
-      'Please specify which team member\'s role to change (employeeName).',
+      "Please specify which team member's role to change (employeeName).",
     );
   }
 

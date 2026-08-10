@@ -7,6 +7,7 @@ import {
 import { SCHEDULING_INTENTS } from './ai-scheduling.util.js';
 import {
   OPERATIONS_INTENTS,
+  OPERATIONS_READ_ONLY_INTENTS,
   OPERATIONS_STAFF_INTENTS,
 } from './ai-operations.util.js';
 import {
@@ -50,12 +51,14 @@ import {
   DASHBOARD_PAYMENTS_MUTATE_INTENTS,
   DASHBOARD_PAYMENTS_READ_INTENTS,
   PROVIDER_PAYMENTS_INTENTS,
+  PROVIDER_PAYMENTS_MUTATE_INTENTS,
   CUSTOMER_PAYMENTS_INTENTS,
 } from './ai-payments.util.js';
 import {
   DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
   DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS,
   PROVIDER_GIFT_FULFILLMENT_INTENTS,
+  PROVIDER_GIFT_FULFILLMENT_READ_INTENTS,
   CUSTOMER_GIFT_FULFILLMENT_INTENTS,
 } from './ai-gift-fulfillment.util.js';
 import {
@@ -258,6 +261,24 @@ const PROVIDER_EXCLUSIVE_INTENTS = [
   'retry_offline_action',
   'dismiss_push',
   'end_of_day_summary',
+  // e2e-bug.424 — nine provider explainers that had detectors, handlers and eval
+  // coverage, and no registry entry.
+  //
+  // `acceptRescueForSurface` asks `isIntentAllowedOnSurface`, which reads this
+  // registry. With no entry the answer is false, so the pipeline discarded a
+  // correct rescue: `runRescueUnknownPhase` returns `explain_today_timeline` for
+  // "Walk me through my day" and the surface gate then threw it away. All nine
+  // scored **0%** across 241 eval cases — 61% of every remaining deterministic
+  // failure — while their detectors worked perfectly in isolation.
+  'explain_today_timeline',
+  'explain_retail_cart',
+  'explain_deposit_balance_due',
+  'explain_multi_service_timeline',
+  'explain_package_visit_context',
+  'explain_gift_card_redemption',
+  'explain_booking_payment_breakdown',
+  'explain_cancel_policy_for_client',
+  'explain_tour_group_on_booking',
   'new_booking_push_actions',
   'confirm_booking_from_push',
   'suggest_reschedule_from_push',
@@ -420,7 +441,10 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'ai-command',
     handler: 'AiOperationsService',
     sprint: 'operations',
-    mutateIntents: OPERATIONS_INTENTS,
+    // e2e-bug.376 — the reads in this list do not write. See §123.
+    mutateIntents: OPERATIONS_INTENTS.filter(
+      (id) => !OPERATIONS_READ_ONLY_INTENTS.includes(id),
+    ),
   },
   {
     intents: BUSINESS_CURRENCY_INTENTS,
@@ -1151,7 +1175,15 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'provider-open-shifts',
     handler: 'AiProviderOpenShiftsService',
     sprint: 'providerExp7',
-    mutateIntents: [],
+    // e2e-bug.377: `book_walk_in_gap` calls `bookingService.create(...)` — it
+    // creates a real customer booking. With an empty `mutateIntents` the whole
+    // binding was read-only, so it ran as `executionMode: 'read_only'` at T0:
+    // no confirmation gate, no post-exec assertion, and missing from the
+    // mutating-command count that risk reporting uses.
+    //
+    // The other four open-shift intents are genuinely reads (they suggest,
+    // list and draft), so only this one moves.
+    mutateIntents: ['book_walk_in_gap'],
   },
   {
     intents: [...PROVIDER_EXP_3_INTENTS],
@@ -1287,7 +1319,7 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'payments',
     handler: 'AiPaymentsService',
     sprint: 'payments',
-    mutateIntents: PROVIDER_PAYMENTS_INTENTS,
+    mutateIntents: PROVIDER_PAYMENTS_MUTATE_INTENTS,
   },
   {
     intents: CUSTOMER_PAYMENTS_INTENTS,
@@ -1466,7 +1498,10 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     apiModule: 'gift-fulfillment',
     handler: 'AiGiftFulfillmentService',
     sprint: 'giftFulfillment',
-    mutateIntents: PROVIDER_GIFT_FULFILLMENT_INTENTS,
+    // e2e-bug.376 — the reads in this list do not write. See §123.
+    mutateIntents: PROVIDER_GIFT_FULFILLMENT_INTENTS.filter(
+      (id) => !PROVIDER_GIFT_FULFILLMENT_READ_INTENTS.includes(id),
+    ),
   },
   {
     intents: CUSTOMER_GIFT_FULFILLMENT_INTENTS,
@@ -1634,14 +1669,6 @@ const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
     sprint: 'dashboardAuditFollowUp',
     mutateIntents: [],
   },
-  {
-    intents: PROVIDER_PAYMENTS_INTENTS,
-    surfaces: ['provider'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: PROVIDER_PAYMENTS_INTENTS,
-  },
 ];
 
 /** Core dashboard / provider intents implemented in AiCommandService (pre-sprint modules). */
@@ -1652,6 +1679,57 @@ const LEGACY_CORE_BINDINGS: Array<{
   handler: string;
   mutateIntents: readonly string[];
 }> = [
+  // e2e-bug.386 — the customer surface for commands the registry only ever
+  // offered on `public`.
+  //
+  // `CommandSurface` has both `public` and `customer`, but no request has ever
+  // arrived on `public`: across the 5,362-row trace corpus it is `customer`
+  // 3,703, `dashboard` 1,161, `provider` 498, `public` **zero**. These ten
+  // commands were nonetheless bound to `public` alone, so `specsForActor` hid
+  // them from the planner on the surface that carries 69% of all traffic —
+  // 794 executed traces, 23% of the corpus, for commands the planner could not
+  // see. §83 measured it; this is the half of the fix the registry owns.
+  //
+  // The access gate already permits them: `isIntentAllowed('customer',
+  // 'client', id)` returns true for every id here, which is how those 794
+  // traces executed at all. Only the *declared* surface disagreed with the
+  // running system.
+  //
+  // Registered FIRST on purpose. `register` unions surfaces but overwrites
+  // `bindingByIntent`, so a later binding wins the handler. Going first adds
+  // `customer` to the surface set while leaving every handler, apiModule and
+  // sprint exactly as the existing bindings set them — `list_services` and
+  // `check_availability` in particular keep the dashboard/provider handlers
+  // they resolve to today.
+  {
+    intents: [
+      'booking_help',
+      'business_info',
+      'check_availability',
+      'complete_intake_and_book',
+      'find_evening_weekend_slots',
+      'find_services_under_budget',
+      'get_intake_flow_status',
+      'list_providers',
+      'list_public_promotions',
+      'list_services',
+      'recommend_specialists',
+      'book_appointment',
+      'create_intake_draft',
+      'start_pre_visit_intake',
+      'submit_intake_answers',
+      'explain_package_currency',
+      'explain_package_display_name',
+    ],
+    surfaces: ['customer'],
+    apiModule: 'public-booking',
+    handler: 'PublicBookingAssistantService',
+    // Empty: the mutating members of this list are already in the
+    // PUBLIC_ANONYMOUS binding's `mutateIntents`, and `mutateSet` is global and
+    // additive. Repeating them here would be redundant, and omitting them
+    // cannot un-mutate anything.
+    mutateIntents: [],
+  },
   {
     intents: [
       'create_booking',
@@ -2023,7 +2101,6 @@ export function buildCommandRegistry(
     entries.push({
       id,
       surfaces,
-      tiers,
       mutating,
       executionMode: resolveExecutionMode(id, mutating),
       apiModule: binding?.apiModule ?? 'ai-command',

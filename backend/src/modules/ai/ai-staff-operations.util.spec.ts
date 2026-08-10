@@ -132,12 +132,8 @@ describe('ai-staff-operations.util (ai-cmd-ext-2.5–2.8)', () => {
     expect(isUpdateTeamMemberRolePrompt("Make Maria's role manager")).toBe(
       true,
     );
-    expect(isUpdateTeamMemberRolePrompt('Set Jake\'s role to admin')).toBe(
-      true,
-    );
-    expect(isUpdateTeamMemberRolePrompt('Promote Anna to manager')).toBe(
-      true,
-    );
+    expect(isUpdateTeamMemberRolePrompt("Set Jake's role to admin")).toBe(true);
+    expect(isUpdateTeamMemberRolePrompt('Promote Anna to manager')).toBe(true);
     expect(isUpdateTeamMemberRolePrompt('Rename Anna to Maria')).toBe(false);
   });
 

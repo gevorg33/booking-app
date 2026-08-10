@@ -1,3 +1,8 @@
+import { isClarifyResult } from './ai-clarify.util.js';
+import {
+  attachCompoundStepAttribution,
+  type CompoundStepOutcome,
+} from './ai-compound-step-outcome.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { AiCustomerCrmService } from './ai-customer-crm.service.js';
 import type { AiScheduleResourcesService } from './ai-schedule-resources.service.js';
@@ -160,9 +165,10 @@ function withCustomerSession(
         ? params.locale.trim()
         : undefined) ?? session.locale,
     // e2e-bug.125 — forward booking-page slug; handlers also resolve via businessId.
-    slug: (typeof params.slug === 'string' && params.slug.trim()
-      ? params.slug.trim()
-      : undefined) ?? session.slug,
+    slug:
+      (typeof params.slug === 'string' && params.slug.trim()
+        ? params.slug.trim()
+        : undefined) ?? session.slug,
     cartServiceIds: session.cartServiceIds ?? params.cartServiceIds,
     packageId: session.packageId ?? params.packageId,
     packageName: session.packageName ?? params.packageName,
@@ -190,7 +196,9 @@ function withCustomerSession(
     maxPrice: params.maxPrice ?? session.maxPrice,
     serviceRank:
       params.serviceRank ??
-      (params.serviceName && !session.serviceId ? undefined : session.serviceRank),
+      (params.serviceName && !session.serviceId
+        ? undefined
+        : session.serviceRank),
     availabilityWindows:
       session.availabilityWindows ?? params.availabilityWindows,
     lastPush: session.lastPush ?? params.lastPush,
@@ -310,10 +318,7 @@ export async function dispatchCustomerIntent(
       return deps.providerSpecialty.handleSubmitProviderReview(businessId, p);
     }
     if (action === 'submit_review_with_token') {
-      return deps.providerSpecialty.handleSubmitReviewWithToken(
-        businessId,
-        p,
-      );
+      return deps.providerSpecialty.handleSubmitReviewWithToken(businessId, p);
     }
     return deps.providerSpecialty.handleExplainProviderSpecialty(
       businessId,
@@ -606,7 +611,7 @@ export async function dispatchCustomerIntent(
     case 'sign_in_with_apple':
     case 'sign_in_with_phone':
       return deps.guestCheckoutFields.handleSignInWithProvider(
-        action as 'sign_in_with_google' | 'sign_in_with_apple' | 'sign_in_with_phone',
+        action,
         businessId,
         p,
       );
@@ -797,10 +802,7 @@ export async function dispatchCustomerIntent(
     case 'use_subscription_credit':
       return deps.selfServiceBooking.handleUseSubscriptionCredit(businessId, p);
     case 'cancel_my_subscription':
-      return deps.selfServiceBooking.handleCancelMySubscription(
-        businessId,
-        p,
-      );
+      return deps.selfServiceBooking.handleCancelMySubscription(businessId, p);
     case 'cancel_my_booking':
       return deps.selfServiceBooking.handleCancelMyBooking(
         businessId,
@@ -1048,7 +1050,10 @@ export async function executeCustomerCompoundFromSteps(
   const results: CommandResult[] = [];
   let compoundContext: CustomerIntentSession = { ...session, prompt };
 
-  for (const step of steps.slice(0, 4)) {
+  // Named rather than inlined: the telemetry below reports on exactly the steps
+  // this loop attempts, and a second `slice` that drifted would misreport them.
+  const attempted = steps.slice(0, 4);
+  for (const step of attempted) {
     const stepParams = {
       ...mergeSharedBookingStepParams(
         compoundContext as Record<string, unknown>,
@@ -1083,7 +1088,7 @@ export async function executeCustomerCompoundFromSteps(
     }
     results.push(result);
     if (!result.success) {
-      return {
+      const failure: CommandResult = {
         success: false,
         action: 'compound_intent',
         summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}`,
@@ -1094,6 +1099,28 @@ export async function executeCustomerCompoundFromSteps(
           decomposed: true,
         },
       };
+      // e2e-bug.412 — record which sub-intent broke it, per step.
+      //
+      // `compound_intent` is the worst number on the customer surface and the
+      // parent trace can only say the whole thing failed. `ai_command_trace_step`
+      // exists to answer which one, and nothing on this surface was writing to
+      // it: `attachCompoundStepAttribution` was called only from
+      // `ai-command.service.ts`.
+      //
+      // `directOutcomes` rather than plan ids — this loop dispatched the
+      // handlers itself, so it knows, and there is no plan to infer from.
+      attachCompoundStepAttribution(failure, {
+        actions: attempted.map((entry) => entry.action),
+        planStepIdsByIndex: [],
+        directOutcomes: attempted.map((entry, index): CompoundStepOutcome => {
+          if (index < results.length - 1) return 'executed';
+          if (index > results.length - 1) return 'skipped';
+          // The step that stopped the compound. A question is not a failure —
+          // the distinction the migration's own comment calls out.
+          return isClarifyResult(result) ? 'clarified' : 'failed';
+        }),
+      });
+      return failure;
     }
     compoundContext = mergeCustomerCompoundContext(
       { ...compoundContext },
@@ -1113,7 +1140,7 @@ export async function executeCustomerCompoundFromSteps(
     .find((entry) => entry.action === 'book_nearest_slot');
   const bookDetails = bookStep?.details as Record<string, unknown> | undefined;
 
-  return {
+  const completed: CommandResult = {
     success: true,
     action: 'compound_intent',
     summary: `Completed ${results.length} customer step(s): ${results.map((entry) => entry.action.replace(/_/g, ' ')).join(', ')}.`,
@@ -1134,4 +1161,17 @@ export async function executeCustomerCompoundFromSteps(
         compoundContext.checkProvidersHandoff,
     },
   };
+
+  // e2e-bug.412 — a completed compound is recorded per step too, not only when
+  // it breaks. Without the success rows there is no denominator, and
+  // `ai_command_compound_step_failure` would report every sub-intent at 100%.
+  attachCompoundStepAttribution(completed, {
+    actions: attempted.map((entry) => entry.action),
+    planStepIdsByIndex: [],
+    directOutcomes: attempted.map(
+      (_, index): CompoundStepOutcome =>
+        index < results.length ? 'executed' : 'skipped',
+    ),
+  });
+  return completed;
 }

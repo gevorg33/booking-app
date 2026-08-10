@@ -1,7 +1,9 @@
 export function isOpenBookingDetailPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   if (/\bshifts?\b/.test(lower)) return false;
-  if (/\b(?:cancel|reschedule|block|mark|check[\s-]?in|from\s+push)\b/.test(lower)) {
+  if (
+    /\b(?:cancel|reschedule|block|mark|check[\s-]?in|from\s+push)\b/.test(lower)
+  ) {
     return false;
   }
   if (/\bopen\b.{0,30}\b(?:appointment|booking|visit)\b/.test(lower)) {

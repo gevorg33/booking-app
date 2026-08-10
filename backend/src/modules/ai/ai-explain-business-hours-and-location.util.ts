@@ -1,4 +1,7 @@
-import { parseBusinessHoursWindow, isComplianceCheckPrompt } from './ai-operations.util.js';
+import {
+  parseBusinessHoursWindow,
+  isComplianceCheckPrompt,
+} from './ai-operations.util.js';
 import { isExplainBusinessLanguagesPrompt } from './ai-business-languages.util.js';
 import { isApplyClinicPlaybookPrompt } from './ai-clinic-service.util.js';
 import {
@@ -230,9 +233,7 @@ function hasHoursCue(prompt: string): boolean {
     // emphasis mark (՛, U+055B) commonly inserted in imperative forms
     // ("Բացատրի՛ր" = "Explain!"), otherwise "ատրիր" never literally matches
     // and "բաց" alone wrongly fires the hours cue.
-    /(?:աշխատանքային|բաց(?!՛?իր|ատրի՛?ր)|ժամեր|երբ)/iu.test(
-      prompt,
-    ) ||
+    /(?:աշխատանքային|բաց(?!՛?իր|ատրի՛?ր)|ժամեր|երբ)/iu.test(prompt) ||
     /(?:часы|открыт|работаете|закрыва)/iu.test(prompt)
   );
 }

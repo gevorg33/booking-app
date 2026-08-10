@@ -1,3 +1,4 @@
+import { deriveConversationIdentity } from './ai-conversation.util.js';
 import { randomUUID } from 'node:crypto';
 import type { AiGatewayExecuteParams } from './ai-gateway.service.js';
 import type {
@@ -157,6 +158,16 @@ export function stampCommandTraceDetails(
       pipelineTrace: metadata.pipelineTrace ?? result.details?.pipelineTrace,
       confidence: metadata.confidence ?? result.details?.confidence,
       routingTier: metadata.routingTier ?? result.details?.routingTier,
+      // e2e-bug.419 — `extractCommandTraceMetadata` reads the trace's params
+      // from `details`, so a surface that never writes them there records
+      // `params = {}` for every request. That was the customer surface: 99.4%
+      // empty against the dashboard's 83.5%, which is not a difference in how
+      // much context the two carry, it is one of them not reporting.
+      //
+      // `?? result.details?.params` keeps every existing caller unchanged: the
+      // dashboard passes no `params` in its metadata and falls through to what
+      // is already on the result.
+      params: metadata.params ?? result.details?.params,
       candidateSource:
         metadata.candidateSource ?? result.details?.candidateSource,
       promptNormalized:
@@ -178,6 +189,12 @@ export function buildGatewayCommandTraceInput(opts: {
   latencyMs?: number;
 }): RecordAiCommandTraceInput {
   const metadata = extractCommandTraceMetadata(opts.result);
+  const identity = deriveConversationIdentity({
+    userId: opts.params.userId ?? null,
+    businessId: opts.params.businessId,
+    history: opts.params.history ?? [],
+    prompt: opts.params.prompt,
+  });
   const action =
     typeof opts.result.action === 'string' && opts.result.action.length > 0
       ? opts.result.action
@@ -201,6 +218,12 @@ export function buildGatewayCommandTraceInput(opts: {
     latencyMs: opts.latencyMs,
     pipelineTrace: metadata.pipelineTrace,
     traceId: metadata.traceId ?? opts.traceId,
+    // AI-ROADMAP Phase 1 / §50 — the conversation key, derived from the history
+    // the clients already replay. Computed here rather than at the call site so
+    // every gateway surface gets it from one place; `deriveConversationIdentity`
+    // returns null for anonymous visitors, which is the intended value.
+    sessionId: identity.conversationId,
+    sessionTurn: identity.turnIndex,
   };
 }
 

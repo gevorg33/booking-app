@@ -1071,10 +1071,9 @@ describe('ai-catalog.logic', () => {
         { planName: 'Nail' },
       );
       expect(activated.success).toBe(true);
-      expect(activateDeps.subscriptionsService.activatePlan).toHaveBeenCalledWith(
-        'biz-1',
-        'plan-1',
-      );
+      expect(
+        activateDeps.subscriptionsService.activatePlan,
+      ).toHaveBeenCalledWith('biz-1', 'plan-1');
 
       const byPlanId = buildDeps();
       expect(

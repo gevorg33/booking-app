@@ -41,10 +41,9 @@ describe('ai-my-locale.logic', () => {
       expect(result.success).toBe(true);
       expect(result.action).toBe('get_my_locale');
       expect(result.details?.preferredLocale).toBe('en');
-      expect(deps.publicCustomerAuthService.getPreferredLocale).toHaveBeenCalledWith(
-        'salon',
-        'cust-1',
-      );
+      expect(
+        deps.publicCustomerAuthService.getPreferredLocale,
+      ).toHaveBeenCalledWith('salon', 'cust-1');
     });
 
     it('requires sign-in', async () => {

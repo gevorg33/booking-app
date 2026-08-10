@@ -45,8 +45,16 @@ describe('ai-package-visit-lines.util', () => {
     );
 
     expect(lines).toEqual([
-      { bookingId: 'book-1', startTime: '2026-07-10T09:00:00.000Z', employeeId: 'emp-1' },
-      { bookingId: 'book-2', startTime: '2026-07-10T10:05:00.000Z', employeeId: 'emp-1' },
+      {
+        bookingId: 'book-1',
+        startTime: '2026-07-10T09:00:00.000Z',
+        employeeId: 'emp-1',
+      },
+      {
+        bookingId: 'book-2',
+        startTime: '2026-07-10T10:05:00.000Z',
+        employeeId: 'emp-1',
+      },
     ]);
   });
 
@@ -78,7 +86,11 @@ describe('ai-package-visit-lines.util', () => {
       '2026-07-10T09:00:00.000Z',
     );
     expect(lines).toEqual([
-      { bookingId: 'book-1', startTime: '2026-07-10T09:00:00.000Z', employeeId: 'emp-1' },
+      {
+        bookingId: 'book-1',
+        startTime: '2026-07-10T09:00:00.000Z',
+        employeeId: 'emp-1',
+      },
     ]);
   });
 });

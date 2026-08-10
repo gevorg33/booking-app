@@ -307,8 +307,9 @@ describe('provider AI visit status lifecycle (ai-cmd-provider-5.16)', () => {
         // day scan for customerName resolution
         return dayBookings;
       }),
-      findOne: jest.fn(async ({ where }: any) =>
-        dayBookings.find((b) => b.id === where?.id) ?? null,
+      findOne: jest.fn(
+        async ({ where }: any) =>
+          dayBookings.find((b) => b.id === where?.id) ?? null,
       ),
     };
     const bookingService = { update: jest.fn(async (..._args: any[]) => ({})) };
@@ -363,8 +364,9 @@ describe('provider AI visit status lifecycle (ai-cmd-provider-5.16)', () => {
         if (query?.where?.multiServiceGroupId === 'grp-spa') return dayBookings;
         return dayBookings;
       }),
-      findOne: jest.fn(async ({ where }: any) =>
-        dayBookings.find((b) => b.id === where?.id) ?? null,
+      findOne: jest.fn(
+        async ({ where }: any) =>
+          dayBookings.find((b) => b.id === where?.id) ?? null,
       ),
     };
     const bookingService = { update: jest.fn(async (..._args: any[]) => ({})) };

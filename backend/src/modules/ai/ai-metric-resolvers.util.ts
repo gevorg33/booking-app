@@ -1,6 +1,7 @@
 /**
  * Metric param resolution — semantic anchors (acc-3.14); classifier params override.
  */
+import { isConfigurePrivacyRetentionPrompt } from './ai-business-compliance.util.js';
 import type { CustomerInsightMetric } from '../customer/customer.service.js';
 import {
   resolveAppointmentMetricFromSemantic,
@@ -251,6 +252,19 @@ export function isCustomerMostCancellationsPrompt(prompt: string): boolean {
  * getCustomerInsights already tracks repeat-visit counts per customer.
  */
 export function isCustomerRetentionRatePrompt(prompt: string): boolean {
+  // e2e-bug.432 — "retention" is two different words, and this matched the bare
+  // one.
+  //
+  // Customer retention is an analytics question: how many customers come back.
+  // Data retention is configuration: "Set customer PII retention to 730 days",
+  // "Set audit log retention to 7 years". Both were answered with a customer
+  // summary, which is not merely unhelpful — the user asked to *change a
+  // setting* and got a report.
+  //
+  // Guarded by the sibling detector rather than by listing PII and audit-log
+  // vocabulary here, so the two stay in step: whatever
+  // `configure_privacy_retention` learns to recognise, this declines.
+  if (isConfigurePrivacyRetentionPrompt(prompt)) return false;
   return (
     /\bretention\b/i.test(prompt) ||
     /\b(returning|repeat)\s+customers?\b/i.test(prompt) ||

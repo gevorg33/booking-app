@@ -37,12 +37,14 @@ const E2E238_BUDGET_SOONEST_SCENARIOS = [
 ] as const;
 
 describe('e2e-bug.238 budget soonest vs list_services filter', () => {
-  it.each(['soonest', 'nearest', 'next available', 'soonest available'] as const)(
-    'sanitize drops availability filler %s',
-    (filler) => {
-      expect(sanitizeListServicesFilterValue(filler)).toBeNull();
-    },
-  );
+  it.each([
+    'soonest',
+    'nearest',
+    'next available',
+    'soonest available',
+  ] as const)('sanitize drops availability filler %s', (filler) => {
+    expect(sanitizeListServicesFilterValue(filler)).toBeNull();
+  });
 
   it.each(E2E238_BUDGET_SOONEST_SCENARIOS.map((row) => [row.id, row] as const))(
     'extracts real category for $id',

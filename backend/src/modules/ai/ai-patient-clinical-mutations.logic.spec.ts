@@ -16,8 +16,15 @@ describe('ai-patient-clinical-mutations.logic', () => {
     find: jest.fn(async () => [maria]),
     findOne: jest.fn(async () => null),
   };
-  const profileAccess = { ctx: { userId: 'user-1', membershipRole: 'owner', employeeId: null }, phiAccess: { hasAssignedBooking: false } };
-  const staffNoteAccess = { ctx: { userId: 'user-1', membershipRole: 'owner', employeeId: null }, phiAccess: { hasAssignedBooking: false }, canWrite: true };
+  const profileAccess = {
+    ctx: { userId: 'user-1', membershipRole: 'owner', employeeId: null },
+    phiAccess: { hasAssignedBooking: false },
+  };
+  const staffNoteAccess = {
+    ctx: { userId: 'user-1', membershipRole: 'owner', employeeId: null },
+    phiAccess: { hasAssignedBooking: false },
+    canWrite: true,
+  };
 
   const profilesService = {
     upsertProfileForCustomer: jest.fn(
@@ -90,24 +97,41 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleUpdateClinicalProfileLogic', () => {
     it('clarifies when no customer is given', async () => {
-      const result = await handleUpdateClinicalProfileLogic(deps, 'biz-1', 'user-1', {});
+      const result = await handleUpdateClinicalProfileLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
       expect(result.success).toBe(false);
       expect(result.details.clarify).toBe(true);
     });
 
     it('clarifies when no field is given', async () => {
-      const result = await handleUpdateClinicalProfileLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleUpdateClinicalProfileLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(false);
-      expect(profileAccessService.assertCustomerClinicalProfileAccess).not.toHaveBeenCalled();
+      expect(
+        profileAccessService.assertCustomerClinicalProfileAccess,
+      ).not.toHaveBeenCalled();
     });
 
     it('updates the clinical profile', async () => {
-      const result = await handleUpdateClinicalProfileLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        bloodType: 'O+',
-      });
+      const result = await handleUpdateClinicalProfileLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          bloodType: 'O+',
+        },
+      );
       expect(result.success).toBe(true);
       expect(profilesService.upsertProfileForCustomer).toHaveBeenCalledWith(
         'biz-1',
@@ -120,29 +144,44 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleDismissPatientAlertLogic', () => {
     it('clarifies when alertType/sourceId missing', async () => {
-      const result = await handleDismissPatientAlertLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleDismissPatientAlertLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.details.clarify).toBe(true);
     });
 
     it('rejects an unknown alert type', async () => {
-      const result = await handleDismissPatientAlertLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        alertType: 'NotARealType',
-        sourceId: 'src-1',
-      });
+      const result = await handleDismissPatientAlertLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          alertType: 'NotARealType',
+          sourceId: 'src-1',
+        },
+      );
       expect(result.success).toBe(false);
       expect(alertsService.dismissAlert).not.toHaveBeenCalled();
     });
 
     it('dismisses the alert', async () => {
-      const result = await handleDismissPatientAlertLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        alertType: 'IntakeIncomplete',
-        sourceId: 'src-1',
-      });
+      const result = await handleDismissPatientAlertLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          alertType: 'IntakeIncomplete',
+          sourceId: 'src-1',
+        },
+      );
       expect(result.success).toBe(true);
       expect(alertsService.dismissAlert).toHaveBeenCalledWith(
         'biz-1',
@@ -156,19 +195,31 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleReleasePatientDocumentLogic', () => {
     it('clarifies when documentId missing', async () => {
-      const result = await handleReleasePatientDocumentLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleReleasePatientDocumentLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('releases the document (default true)', async () => {
-      const result = await handleReleasePatientDocumentLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        documentId: 'doc-1',
-      });
+      const result = await handleReleasePatientDocumentLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          documentId: 'doc-1',
+        },
+      );
       expect(result.success).toBe(true);
-      expect(documentsService.updateDocumentReleaseForCustomer).toHaveBeenCalledWith(
+      expect(
+        documentsService.updateDocumentReleaseForCustomer,
+      ).toHaveBeenCalledWith(
         'biz-1',
         'cust-maria',
         'doc-1',
@@ -178,11 +229,16 @@ describe('ai-patient-clinical-mutations.logic', () => {
     });
 
     it('revokes the document when releasedToPatient=false', async () => {
-      const result = await handleReleasePatientDocumentLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        documentId: 'doc-1',
-        releasedToPatient: false,
-      });
+      const result = await handleReleasePatientDocumentLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          documentId: 'doc-1',
+          releasedToPatient: false,
+        },
+      );
       expect(result.success).toBe(true);
       expect(result.summary).toMatch(/Revoked/);
     });
@@ -190,19 +246,29 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleCreateEncounterAddendumLogic', () => {
     it('clarifies when body missing', async () => {
-      const result = await handleCreateEncounterAddendumLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        bookingId: 'booking-1',
-      });
+      const result = await handleCreateEncounterAddendumLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          bookingId: 'booking-1',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('resolves encounterId from bookingId', async () => {
-      const result = await handleCreateEncounterAddendumLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        bookingId: 'booking-1',
-        body: 'Follow-up scheduled',
-      });
+      const result = await handleCreateEncounterAddendumLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          bookingId: 'booking-1',
+          body: 'Follow-up scheduled',
+        },
+      );
       expect(result.success).toBe(true);
       expect(encountersService.appendAddendum).toHaveBeenCalledWith(
         'biz-1',
@@ -214,21 +280,31 @@ describe('ai-patient-clinical-mutations.logic', () => {
     });
 
     it('fails when the booking has no visit note yet', async () => {
-      const result = await handleCreateEncounterAddendumLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        bookingId: 'booking-2',
-        body: 'Follow-up scheduled',
-      });
+      const result = await handleCreateEncounterAddendumLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          bookingId: 'booking-2',
+          body: 'Follow-up scheduled',
+        },
+      );
       expect(result.success).toBe(false);
       expect(encountersService.appendAddendum).not.toHaveBeenCalled();
     });
 
     it('uses encounterId directly when given', async () => {
-      const result = await handleCreateEncounterAddendumLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        encounterId: 'encounter-9',
-        body: 'Note',
-      });
+      const result = await handleCreateEncounterAddendumLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          encounterId: 'encounter-9',
+          body: 'Note',
+        },
+      );
       expect(result.success).toBe(true);
       expect(encountersService.appendAddendum).toHaveBeenCalledWith(
         'biz-1',
@@ -242,18 +318,28 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleUpdateEncounterByBookingLogic', () => {
     it('clarifies when bookingId/visitNote missing', async () => {
-      const result = await handleUpdateEncounterByBookingLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleUpdateEncounterByBookingLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('upserts the encounter', async () => {
-      const result = await handleUpdateEncounterByBookingLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        bookingId: 'booking-1',
-        visitNote: 'Patient reports mild headache',
-      });
+      const result = await handleUpdateEncounterByBookingLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          bookingId: 'booking-1',
+          visitNote: 'Patient reports mild headache',
+        },
+      );
       expect(result.success).toBe(true);
       expect(encountersService.upsertEncounterForBooking).toHaveBeenCalledWith(
         'biz-1',
@@ -267,14 +353,24 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleListCustomerStaffNotesLogic', () => {
     it('clarifies without a customer', async () => {
-      const result = await handleListCustomerStaffNotesLogic(deps, 'biz-1', 'user-1', {});
+      const result = await handleListCustomerStaffNotesLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
       expect(result.success).toBe(false);
     });
 
     it('lists staff notes', async () => {
-      const result = await handleListCustomerStaffNotesLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleListCustomerStaffNotesLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(true);
       expect(result.details.notes).toHaveLength(1);
     });
@@ -282,18 +378,28 @@ describe('ai-patient-clinical-mutations.logic', () => {
 
   describe('handleAddCustomerStaffNoteLogic', () => {
     it('clarifies when body missing', async () => {
-      const result = await handleAddCustomerStaffNoteLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-      });
+      const result = await handleAddCustomerStaffNoteLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('adds a staff note', async () => {
-      const result = await handleAddCustomerStaffNoteLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        body: 'Prefers text reminders',
-        bookingId: 'booking-1',
-      });
+      const result = await handleAddCustomerStaffNoteLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          body: 'Prefers text reminders',
+          bookingId: 'booking-1',
+        },
+      );
       expect(result.success).toBe(true);
       expect(staffNotesService.createNoteForCustomer).toHaveBeenCalledWith(
         'biz-1',

@@ -1218,7 +1218,7 @@ export class AiScheduleHandlersService {
       return {
         success: false,
         action: 'delete_schedule_block',
-        summary: 'Specify which provider\'s block to delete.',
+        summary: "Specify which provider's block to delete.",
         details: { clarify: true, missing: ['employeeName'] },
       };
     }
@@ -1323,7 +1323,7 @@ export class AiScheduleHandlersService {
       return {
         success: false,
         action: 'get_provider_calendar',
-        summary: 'Specify which provider\'s calendar to show.',
+        summary: "Specify which provider's calendar to show.",
         details: { clarify: true, missing: ['employeeName'] },
       };
     }

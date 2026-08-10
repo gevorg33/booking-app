@@ -6,16 +6,17 @@ import { resolvePostFailureGuideSnippet } from './ai-product-guide-failure-fallb
 import { resolveProductGuideSessionContext } from './ai-product-guide-session.util.js';
 
 describe('e2e-bug.331 — public booking funnel surface detection', () => {
-  it.each(
-    E2E331_SESSION_CONTEXT_CASES.map((row) => [row.id, row] as const),
-  )('%s', (_id, scenario) => {
-    const ctx = resolveProductGuideSessionContext(
-      { context: scenario.context },
-      scenario.surfaceHint,
-    );
-    expect(ctx.surface).toBe(scenario.expectedSurface);
-    expect(ctx.route).toBe(scenario.expectedRoute);
-  });
+  it.each(E2E331_SESSION_CONTEXT_CASES.map((row) => [row.id, row] as const))(
+    '%s',
+    (_id, scenario) => {
+      const ctx = resolveProductGuideSessionContext(
+        { context: scenario.context },
+        scenario.surfaceHint,
+      );
+      expect(ctx.surface).toBe(scenario.expectedSurface);
+      expect(ctx.route).toBe(scenario.expectedRoute);
+    },
+  );
 
   it.each(
     E2E331_FALLBACK_PRECEDENCE_CASES.map((row) => [row.id, row] as const),

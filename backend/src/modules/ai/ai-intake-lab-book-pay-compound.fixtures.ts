@@ -111,11 +111,7 @@ function buildIntakeLabBookPayPrompts(): IntakeLabBookPayCompoundFixture[] {
         id: `${entry.id}-${surface}`,
         prompt: entry.prompt,
         surface,
-        orderedActions: [
-          'complete_intake_and_book',
-          bookAction,
-          paymentAction,
-        ],
+        orderedActions: ['complete_intake_and_book', bookAction, paymentAction],
         serviceName: entry.serviceName,
         paymentAction,
       });

@@ -126,7 +126,13 @@ export function rerankIntentCandidates(
   if (candidates.length === 0) return null;
 
   const margin = options?.runnerUpMargin ?? DEFAULT_RERANK_RUNNER_UP_MARGIN;
-  const sorted = [...candidates].sort((a, b) => b.confidence - a.confidence);
+  // e2e-bug.403 — precedence first, then confidence. Only a planner route in a
+  // retired domain sets it, so for every other candidate this is the previous
+  // pure-confidence ordering.
+  const sorted = [...candidates].sort(
+    (a, b) =>
+      (b.precedence ?? 0) - (a.precedence ?? 0) || b.confidence - a.confidence,
+  );
   const ranked = sorted.map((candidate, rank) => ({ ...candidate, rank }));
   const [top, runnerUp] = ranked;
   const ambiguous =

@@ -19,7 +19,10 @@ import type { BusinessProfileDispatchContext } from './ai-business-profile-dispa
 export class AiBusinessProfileService {
   private readonly deps: BusinessProfileLogicDeps;
 
-  constructor(businessService: BusinessService, dashboardService: DashboardService) {
+  constructor(
+    businessService: BusinessService,
+    dashboardService: DashboardService,
+  ) {
     this.deps = { businessService, dashboardService };
   }
 

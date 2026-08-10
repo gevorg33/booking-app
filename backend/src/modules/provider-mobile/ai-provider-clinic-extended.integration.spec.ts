@@ -143,7 +143,7 @@ describe('provider AI clinic extended (ai-cmd-provider-5.19)', () => {
     const result = await service.executeCommand(
       businessId,
       userId,
-      'Why can\'t I edit intake here?',
+      "Why can't I edit intake here?",
       [],
     );
 

@@ -1,4 +1,6 @@
-export const EXPLAIN_PROVIDER_CONTEXT_INTENTS = ['explain_provider_context'] as const;
+export const EXPLAIN_PROVIDER_CONTEXT_INTENTS = [
+  'explain_provider_context',
+] as const;
 
 export type ExplainProviderContextIntent =
   (typeof EXPLAIN_PROVIDER_CONTEXT_INTENTS)[number];

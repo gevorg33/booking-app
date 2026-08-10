@@ -53,10 +53,14 @@ describe('handleSubmitReviewWithTokenLogic', () => {
   });
 
   it('requires bookingId and token', async () => {
-    const result = await handleSubmitReviewWithTokenLogic(buildDeps(), 'biz-1', {
-      slug: 'salon',
-      rating: 5,
-    });
+    const result = await handleSubmitReviewWithTokenLogic(
+      buildDeps(),
+      'biz-1',
+      {
+        slug: 'salon',
+        rating: 5,
+      },
+    );
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
   });
@@ -82,7 +86,7 @@ describe('handleSubmitReviewWithTokenLogic', () => {
           serviceName: 'Haircut',
           customerName: 'Guest',
           appointmentDate: '2026-06-01T10:00:00.000Z',
-        appointmentEndDate: '2026-06-01T11:00:00.000Z',
+          appointmentEndDate: '2026-06-01T11:00:00.000Z',
           alreadySubmitted: true,
         })),
         submitPublic: jest.fn(),

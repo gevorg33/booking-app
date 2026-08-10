@@ -52,8 +52,7 @@ export function summaryMisreadsStartTimeMonth(
   summary: string,
   startTime: Date | string,
 ): boolean {
-  const d =
-    typeof startTime === 'string' ? new Date(startTime) : startTime;
+  const d = typeof startTime === 'string' ? new Date(startTime) : startTime;
   if (Number.isNaN(d.getTime())) return false;
   const monthIndex = d.getUTCMonth(); // 0-based
   const usMonths = [

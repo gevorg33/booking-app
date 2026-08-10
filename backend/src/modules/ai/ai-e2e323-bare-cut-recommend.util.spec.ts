@@ -18,7 +18,7 @@ describe("e2e-bug.323 bare cut prefers Men's/Women's cut over hairstyle", () => 
   );
 
   it.each(E2E323_BARE_CUT_CASES)(
-    'resolves Men\'s cut + Women\'s cut (not hairstyle) for $id when the catalog has cut-named services',
+    "resolves Men's cut + Women's cut (not hairstyle) for $id when the catalog has cut-named services",
     ({ prompt }) => {
       const category = extractProviderRankServiceCategoryFromPrompt(prompt);
       const matched = resolveServicesFromCatalogParams(

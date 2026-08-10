@@ -198,8 +198,9 @@ export function isListTeamUnpaidTodayPrompt(prompt: string): boolean {
   if (containsArmenianScript(prompt)) {
     const teamCueHy = /(թիմ|հարկ)/i.test(prompt);
     const whoCueHy = /(ո՞վ|ովքեր)/i.test(prompt);
-    const negCueHy =
-      /(չվճարված|չի\s+վճարել|չեն\s+վճարել|չեն\s+վճարվել)/i.test(prompt);
+    const negCueHy = /(չվճարված|չի\s+վճարել|չեն\s+վճարել|չեն\s+վճարվել)/i.test(
+      prompt,
+    );
     const owesCueHy = /(պարտք)/i.test(prompt);
     if ((teamCueHy && (negCueHy || owesCueHy)) || (whoCueHy && negCueHy)) {
       return true;
@@ -403,7 +404,12 @@ export function inferReviewsInboxPeriodFromPrompt(
   params: Record<string, unknown>,
 ): 'today' | 'yesterday' | 'week' | 'month' {
   const raw = String(params.period ?? '').toLowerCase();
-  if (raw === 'today' || raw === 'yesterday' || raw === 'week' || raw === 'month') {
+  if (
+    raw === 'today' ||
+    raw === 'yesterday' ||
+    raw === 'week' ||
+    raw === 'month'
+  ) {
     return raw;
   }
   if (/\byesterday\b/i.test(prompt)) return 'yesterday';
@@ -433,7 +439,9 @@ export function inferReviewsInboxRatingFilterFromPrompt(
     };
   }
 
-  const starMatch = prompt.match(/\b(\d|one|two|three|four|five)[\s-]?stars?\b/i);
+  const starMatch = prompt.match(
+    /\b(\d|one|two|three|four|five)[\s-]?stars?\b/i,
+  );
   if (starMatch) {
     const raw = starMatch[1].toLowerCase();
     const n = REVIEWS_INBOX_STAR_WORD_TO_NUMBER[raw] ?? Number(raw);
@@ -446,7 +454,10 @@ export function inferReviewsInboxRatingFilterFromPrompt(
     /\b(bad|low|negative)\s+reviews?\b/i.test(prompt) ||
     /\bdid\s+i\s+get\s+any\s+(?:bad|low)\s+reviews?\b/i.test(prompt)
   ) {
-    return { maxRating: PROVIDER_REVIEWS_INBOX_LOW_RATING_MAX, ratingLabel: 'low-rated ' };
+    return {
+      maxRating: PROVIDER_REVIEWS_INBOX_LOW_RATING_MAX,
+      ratingLabel: 'low-rated ',
+    };
   }
 
   return undefined;
@@ -722,9 +733,7 @@ export function extractReassignEmployeeName(
   const toMatch = prompt.match(/(?:^|[\s,])(?:to|на)\s+([A-Z][A-Za-z]+)\b/);
   if (toMatch?.[1]?.trim()) return toMatch[1].trim();
 
-  const hyNameMatch = prompt.match(
-    /([A-Z][A-Za-z]+)-(?:ին|ի|ը)(?=[\s,]|$)/,
-  );
+  const hyNameMatch = prompt.match(/([A-Z][A-Za-z]+)-(?:ին|ի|ը)(?=[\s,]|$)/);
   if (hyNameMatch?.[1]?.trim()) return hyNameMatch[1].trim();
 
   return null;
@@ -864,7 +873,9 @@ export function formatProviderMyStatsSummary(
   );
   const scopeLabel = t(
     loc,
-    stats.scope === 'team' ? 'assistant.myStatsScopeTeam' : 'assistant.myStatsScopeYour',
+    stats.scope === 'team'
+      ? 'assistant.myStatsScopeTeam'
+      : 'assistant.myStatsScopeYour',
   );
   const visitNoun = (count: number) =>
     pluralNoun(loc, count, {
@@ -880,7 +891,9 @@ export function formatProviderMyStatsSummary(
       count: stats.completedBookings,
       noun: visitNoun(stats.completedBookings),
     }),
-    t(loc, 'assistant.myStatsPaidRevenue', { amount: money(stats.paidRevenue) }),
+    t(loc, 'assistant.myStatsPaidRevenue', {
+      amount: money(stats.paidRevenue),
+    }),
     t(loc, 'assistant.myStatsUtilization', {
       percent: stats.utilizationPercent,
       booked: stats.bookedMinutes,

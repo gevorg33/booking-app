@@ -93,7 +93,10 @@ describe('e2e-bug.234 manage-page URL manageToken for guest cancel/reschedule', 
     const row = E2E234_MANAGE_TOKEN_PAGE_SCENARIOS.find(
       (r) => r.id === 'e2e234-reschedule-with-manage-token-phrase',
     )!;
-    const creds = resolveManageBookingCredentials({ ...row.session }, row.prompt);
+    const creds = resolveManageBookingCredentials(
+      { ...row.session },
+      row.prompt,
+    );
     expect(creds).toEqual({
       bookingId: E2E234_MANAGE_PAGE_SESSION.bookingId,
       manageToken: E2E234_MANAGE_PAGE_SESSION.manageToken,

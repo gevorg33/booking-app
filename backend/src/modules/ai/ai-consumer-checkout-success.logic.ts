@@ -15,6 +15,7 @@ import {
   type ConsumerCheckoutSuccessAspect,
   type ParsedExplainConsumerCheckoutSuccess,
 } from './ai-consumer-checkout-success.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ExplainConsumerCheckoutSuccessLogicDeps {
   businessRepo: Pick<Repository<Business>, 'findOne'>;
@@ -40,17 +41,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function buildSummaryAspectText(input: {
@@ -165,7 +155,7 @@ async function resolveBookedService(
         where: { businessId, isActive: true },
         relations: { category: true },
       })
-      .then((list) => resolveServiceByName(list, parsed.serviceName!));
+      .then((list) => matchServiceByNameLegacy(list, parsed.serviceName!));
     return { service: service ?? null, booking: null };
   }
 

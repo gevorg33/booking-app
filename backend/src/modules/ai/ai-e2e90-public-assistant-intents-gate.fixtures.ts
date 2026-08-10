@@ -78,6 +78,6 @@ export const E2E90_DISCOVERY_PROMPTS = [
 export const E2E90_CRASH_MARKERS = [
   "Cannot read properties of undefined (reading 'includes')",
   'Cannot read properties of undefined',
-  'reading \'includes\'',
+  "reading 'includes'",
   'Internal server error',
 ] as const;

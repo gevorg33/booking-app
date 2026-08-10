@@ -85,7 +85,9 @@ describe('ai-provider-calendar-scheduling-explainers.util (e2e-bug.245 / ai-cmd-
   ])('rejects negative %s', (_id, prompt) => {
     expect(isExplainCalendarUtilizationBandsPrompt(prompt)).toBe(false);
     expect(isExplainBlockVsTimeOffPrompt(prompt)).toBe(false);
-    expect(rescueCalendarSchedulingExplainersIntent(prompt, 'unknown')).toBeNull();
+    expect(
+      rescueCalendarSchedulingExplainersIntent(prompt, 'unknown'),
+    ).toBeNull();
   });
 
   it('builds summaries with required vocabulary', () => {

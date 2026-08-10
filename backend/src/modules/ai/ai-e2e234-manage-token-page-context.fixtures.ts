@@ -20,8 +20,7 @@ export const E2E234_MANAGE_TOKEN_PAGE_SCENARIOS = [
   },
   {
     id: 'e2e234-reschedule-with-manage-token-phrase',
-    prompt:
-      'Reschedule this booking with my manage token to August 3 at 15:00',
+    prompt: 'Reschedule this booking with my manage token to August 3 at 15:00',
     misclassifiedAction: 'reschedule_booking_with_token',
     expectedAction: 'reschedule_booking_with_token' as const,
     session: E2E234_MANAGE_PAGE_SESSION,

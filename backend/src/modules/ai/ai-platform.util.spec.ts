@@ -333,9 +333,9 @@ describe('ai-platform.util', () => {
       'security_blocked',
     );
     // e2e-bug.127 — no snake_case action id in customer-facing summary
-    expect(buildPublicAssistantDeniedResult('create_booking').summary).not.toMatch(
-      /create_booking/,
-    );
+    expect(
+      buildPublicAssistantDeniedResult('create_booking').summary,
+    ).not.toMatch(/create_booking/);
     expect(
       buildCustomerAssistantDeniedResult('create_booking', 'ru').summary,
     ).toMatch(/помощнике клиента/i);

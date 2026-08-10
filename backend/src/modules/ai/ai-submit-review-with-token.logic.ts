@@ -69,10 +69,13 @@ export async function handleSubmitReviewWithTokenLogic(
         token,
       );
       if (context.alreadySubmitted) {
-        return success('A review was already submitted for this visit. Thanks!', {
-          context,
-          alreadySubmitted: true,
-        });
+        return success(
+          'A review was already submitted for this visit. Thanks!',
+          {
+            context,
+            alreadySubmitted: true,
+          },
+        );
       }
       return failure(
         `Rate your ${context.serviceName} visit with ${context.employeeName} from 1 to 5 stars.`,

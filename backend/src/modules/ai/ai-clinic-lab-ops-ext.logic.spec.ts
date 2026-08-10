@@ -28,7 +28,10 @@ function buildDeps(
   return {
     bookingRepo: { find: jest.fn(async () => []) },
     resultRepo: { find: jest.fn(async () => []) } as any,
-    orderRepo: { find: jest.fn(async () => []), findOne: jest.fn(async () => null) },
+    orderRepo: {
+      find: jest.fn(async () => []),
+      findOne: jest.fn(async () => null),
+    },
     clinicTestResultService: {} as any,
     clinicCatalogService: {
       updateReferenceRangeByCode: jest.fn(async () => ({}) as any),
@@ -59,7 +62,11 @@ function buildDeps(
           action: 'Released',
           date: '2026-06-01T00:00:00.000Z',
           changes: [],
-          editedBy: { employeeId: 'emp-1', fullName: 'Dr. Smith', role: 'owner' },
+          editedBy: {
+            employeeId: 'emp-1',
+            fullName: 'Dr. Smith',
+            role: 'owner',
+          },
           note: null,
         },
       ]),
@@ -83,29 +90,46 @@ describe('ai-clinic-lab-ops-ext.logic (ai-cmd-dashboard-6.9.3)', () => {
   describe('handleTransitionSpecimenLogic', () => {
     it('fails when toStatus is not a valid specimen status', async () => {
       const deps = buildDeps();
-      const result = await handleTransitionSpecimenLogic(deps, 'biz-1', 'user-1', {
-        specimenId: 'spec-1',
-        toStatus: 'NotAStatus',
-      });
+      const result = await handleTransitionSpecimenLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          specimenId: 'spec-1',
+          toStatus: 'NotAStatus',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('fails when the specimen cannot be resolved', async () => {
       const deps = buildDeps();
-      const result = await handleTransitionSpecimenLogic(deps, 'biz-1', 'user-1', {
-        toStatus: 'InTransit',
-      });
+      const result = await handleTransitionSpecimenLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          toStatus: 'InTransit',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('resolves by orderId and transitions the specimen', async () => {
       const deps = buildDeps();
-      const result = await handleTransitionSpecimenLogic(deps, 'biz-1', 'user-1', {
-        orderId: 'abc123',
-        toStatus: 'InTransit',
-      });
+      const result = await handleTransitionSpecimenLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          orderId: 'abc123',
+          toStatus: 'InTransit',
+        },
+      );
       expect(result.success).toBe(true);
-      expect(deps.specimenStatusService.transitionSpecimenStatus).toHaveBeenCalledWith(
+      expect(
+        deps.specimenStatusService.transitionSpecimenStatus,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           businessId: 'biz-1',
           specimenId: 'spec-1',
@@ -117,10 +141,15 @@ describe('ai-clinic-lab-ops-ext.logic (ai-cmd-dashboard-6.9.3)', () => {
 
     it('resolves by customerName', async () => {
       const deps = buildDeps();
-      const result = await handleTransitionSpecimenLogic(deps, 'biz-1', 'user-1', {
-        customerName: 'Maria',
-        toStatus: 'ReceivedInLab',
-      });
+      const result = await handleTransitionSpecimenLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          customerName: 'Maria',
+          toStatus: 'ReceivedInLab',
+        },
+      );
       expect(result.success).toBe(true);
     });
 
@@ -132,10 +161,15 @@ describe('ai-clinic-lab-ops-ext.logic (ai-cmd-dashboard-6.9.3)', () => {
           }),
         },
       });
-      const result = await handleTransitionSpecimenLogic(deps, 'biz-1', 'user-1', {
-        specimenId: 'spec-1',
-        toStatus: 'Rejected',
-      });
+      const result = await handleTransitionSpecimenLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          specimenId: 'spec-1',
+          toStatus: 'Rejected',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.summary).toContain('Invalid transition');
     });

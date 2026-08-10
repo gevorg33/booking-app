@@ -93,7 +93,10 @@ export function isSuggestWaitlistForGapPrompt(prompt: string): boolean {
 /** ai-cmd-provider-5.5.3 — draft (copy-only) SMS text offering an open gap to the top waitlist candidate. */
 export function isDraftWaitlistOfferMessagePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
-  if (/\b(draft|message|text|sms)\b/i.test(lower) && /\bwaitlist\b/i.test(lower)) {
+  if (
+    /\b(draft|message|text|sms)\b/i.test(lower) &&
+    /\bwaitlist\b/i.test(lower)
+  ) {
     return true;
   }
   if (

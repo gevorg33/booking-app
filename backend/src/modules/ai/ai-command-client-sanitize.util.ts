@@ -30,7 +30,11 @@ export const INTERNAL_COMMAND_DETAIL_KEYS = [
 ] as const;
 
 /** Param-bag detail fields that mix real business params with internal `_`-prefixed hints. */
-const PARAM_BAG_DETAIL_KEYS = new Set(['params', 'partialParams', 'enrichedParams']);
+const PARAM_BAG_DETAIL_KEYS = new Set([
+  'params',
+  'partialParams',
+  'enrichedParams',
+]);
 
 const INTERNAL_DETAIL_KEY_SET = new Set<string>(INTERNAL_COMMAND_DETAIL_KEYS);
 

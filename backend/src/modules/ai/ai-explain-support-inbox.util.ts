@@ -1,8 +1,6 @@
 /** e2e-bug.139 — support-ticket / unread-message status is not list_agent_tasks. */
 
-export const EXPLAIN_SUPPORT_INBOX_INTENTS = [
-  'explain_support_inbox',
-] as const;
+export const EXPLAIN_SUPPORT_INBOX_INTENTS = ['explain_support_inbox'] as const;
 
 export type ExplainSupportInboxIntent =
   (typeof EXPLAIN_SUPPORT_INBOX_INTENTS)[number];

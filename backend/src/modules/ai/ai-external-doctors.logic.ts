@@ -4,9 +4,7 @@ import type { CommandResult } from './command-completion.types.js';
 export interface ExternalDoctorsLogicDeps {
   externalDoctorsService: Pick<
     ExternalDoctorsService,
-    | 'listExternalDoctors'
-    | 'createExternalDoctor'
-    | 'updateExternalDoctor'
+    'listExternalDoctors' | 'createExternalDoctor' | 'updateExternalDoctor'
   >;
 }
 
@@ -100,7 +98,7 @@ export async function handleCreateExternalDoctorLogic(
   if (missing.length) {
     return failure(
       'create_external_doctor',
-      'Provide the doctor\'s name and full address (street, city, province, country, postalCode) to add them to the registry.',
+      "Provide the doctor's name and full address (street, city, province, country, postalCode) to add them to the registry.",
       { clarify: true, missing },
     );
   }
@@ -165,7 +163,8 @@ export async function handleUpdateExternalDoctorLogic(
 
   const patch: Record<string, unknown> = {};
   if (typeof params.name === 'string') patch.name = params.name.trim();
-  if (typeof params.clinicName === 'string') patch.clinicName = params.clinicName;
+  if (typeof params.clinicName === 'string')
+    patch.clinicName = params.clinicName;
   if (typeof params.specialty === 'string') patch.specialty = params.specialty;
   if (typeof params.fax === 'string') patch.fax = params.fax;
   if (typeof params.phone === 'string') patch.phone = params.phone;
@@ -238,7 +237,9 @@ export async function handleListExternalDoctorsLogic(
       {
         q: typeof params.q === 'string' ? params.q : undefined,
         activeOnly:
-          typeof params.activeOnly === 'boolean' ? params.activeOnly : undefined,
+          typeof params.activeOnly === 'boolean'
+            ? params.activeOnly
+            : undefined,
         page: typeof params.page === 'number' ? params.page : undefined,
         pageSize:
           typeof params.pageSize === 'number' ? params.pageSize : undefined,

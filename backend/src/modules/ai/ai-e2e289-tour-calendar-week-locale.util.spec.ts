@@ -12,6 +12,42 @@ import { isAiDateGroundedBookingAction } from './ai-date-label.util.js';
 import { CommandReasoningService } from './command-reasoning.service.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * The tour week starts 2026-08-03 and the tour runs 2026-08-05, both of which
+ * are read relative to today when the summary is built.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs. Freezing rather than rewriting the
+ * fixtures to offsets from `Date.now()` — an offset-computed fixture becomes a
+ * second implementation of the resolver it is meant to check.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+// Inside the fixture's week, not before it: the summary is built relative to
+// today, so freezing to 2026-08-01 made the 2026-08-03 week *next* week and
+// changed the wording the assertion checks.
+const FROZEN_NOW = new Date('2026-08-04T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('e2e-bug.289 tour calendar week locale summaries', () => {
   const emptyDeps = {
     bookingService: { findAll: jest.fn(async () => []) },
@@ -116,9 +152,7 @@ describe('e2e-bug.289 tour calendar week locale summaries', () => {
   });
 
   it('isAiDateGroundedBookingAction covers list_tour_calendar_week', () => {
-    expect(isAiDateGroundedBookingAction(E2E289_SKIP_ENRICH_ACTION)).toBe(
-      true,
-    );
+    expect(isAiDateGroundedBookingAction(E2E289_SKIP_ENRICH_ACTION)).toBe(true);
   });
 
   it('CommandReasoningService skips enrich for list_tour_calendar_week', async () => {

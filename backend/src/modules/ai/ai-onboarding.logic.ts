@@ -87,9 +87,8 @@ export async function handleRecommendCatalogLogic(
   businessId: string,
 ): Promise<CommandResult> {
   try {
-    const recommendation = await deps.onboardingService.recommendCatalog(
-      businessId,
-    );
+    const recommendation =
+      await deps.onboardingService.recommendCatalog(businessId);
     return success(
       'recommend_catalog',
       `${recommendation.summary} (${recommendation.categories.length} categor${recommendation.categories.length === 1 ? 'y' : 'ies'}).`,

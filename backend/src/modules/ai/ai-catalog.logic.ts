@@ -215,8 +215,7 @@ export async function handleUpdateServiceCategoryLogic(
   const updated = await deps.categoryService.update(category.id, businessId, {
     name: newName || undefined,
     description: params.description,
-    sortOrder:
-      params.sortOrder != null ? Number(params.sortOrder) : undefined,
+    sortOrder: params.sortOrder != null ? Number(params.sortOrder) : undefined,
   });
 
   return success(
@@ -1185,6 +1184,79 @@ export async function handleSetServiceCompatibilityLogic(
   );
 }
 
+/**
+ * e2e-bug.348 — which decomposition wins, and why it is not simply the LLM's.
+ *
+ * This was `params.compoundSteps ?? decomposeCatalogCompoundPrompt(prompt)`, so
+ * LLM-supplied steps won unconditionally. For
+ * "Create a category Y with three services: A…; B…; C…" the LLM emits
+ * `create_services` and drops the category: all three services land with
+ * `category_id = NULL`, keeping the LLM's literal names ("service A") rather
+ * than the parser's normalised ones — the tell that the deterministic path never
+ * ran. It is fully capable of the job: it yields
+ * `bulk_create_catalog { categoryName: 'Y', services: [A, B, C] }`.
+ *
+ * ## Why this replaces steps instead of replacing the plan
+ *
+ * The obvious fix — prefer the deterministic decomposition whenever it produces
+ * a complete draft — is the "blanket exemption" this ticket records as having
+ * broken four tests, because it also discards the legitimate
+ * "category + services **and** add a package" compound: the deterministic path
+ * yields one step there, the LLM yields two, and preferring the shorter one
+ * silently drops the package.
+ *
+ * So the swap is surgical. Only `create_service` / `create_services` steps are
+ * replaced, only when the deterministic path produced a complete category draft,
+ * and only when the LLM's own plan contains nothing that would create the
+ * category. Every other LLM step keeps its place and order.
+ */
+function isCompleteCatalogDraft(step: CatalogCompoundStep): boolean {
+  const draft = (step.params as { catalogDraft?: unknown } | undefined)
+    ?.catalogDraft as
+    | { categoryName?: unknown; services?: unknown[] }
+    | undefined;
+  return (
+    step.action === 'bulk_create_catalog' &&
+    typeof draft?.categoryName === 'string' &&
+    draft.categoryName.trim().length > 0 &&
+    Array.isArray(draft.services) &&
+    draft.services.length > 0
+  );
+}
+
+export function chooseCatalogCompoundSteps(
+  prompt: string,
+  llmSteps: CatalogCompoundStep[] | undefined,
+): CatalogCompoundStep[] {
+  const deterministic = decomposeCatalogCompoundPrompt(prompt);
+  if (!llmSteps?.length) return deterministic;
+
+  const bulk = deterministic.find(isCompleteCatalogDraft);
+  if (!bulk) return llmSteps;
+
+  // If the model already plans to create the category, it has not lost the link
+  // and there is nothing to repair.
+  const creates = new Set(['bulk_create_catalog', 'create_service_category']);
+  if (llmSteps.some((s) => creates.has(s.action))) return llmSteps;
+
+  const servicey = new Set(['create_service', 'create_services']);
+  if (!llmSteps.some((s) => servicey.has(s.action))) return llmSteps;
+
+  const repaired: CatalogCompoundStep[] = [];
+  let inserted = false;
+  for (const step of llmSteps) {
+    if (servicey.has(step.action)) {
+      if (!inserted) {
+        repaired.push(bulk);
+        inserted = true;
+      }
+      continue;
+    }
+    repaired.push(step);
+  }
+  return repaired;
+}
+
 export async function handleCatalogCompoundLogic(
   deps: CatalogLogicDeps,
   businessId: string,
@@ -1195,9 +1267,10 @@ export async function handleCatalogCompoundLogic(
   resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
   userId?: string,
 ): Promise<CommandResult> {
-  const steps: CatalogCompoundStep[] =
-    (params.compoundSteps as CatalogCompoundStep[] | undefined) ??
-    decomposeCatalogCompoundPrompt(prompt);
+  const steps: CatalogCompoundStep[] = chooseCatalogCompoundSteps(
+    prompt,
+    params.compoundSteps as CatalogCompoundStep[] | undefined,
+  );
 
   if (steps.length < 2) {
     return failure(

@@ -17,7 +17,6 @@ import {
   enrichPublicAssistantParamsFromPrompt,
   enrichBookingTimeHintsFromPrompt,
   isBulkAllAppointmentsPrompt,
-  isRecommendSpecialistsPrompt,
 } from './ai-booking-param-hints.util.js';
 import {
   resolveCustomerMetric,
@@ -686,24 +685,5 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
     });
   });
 
-  describe('isRecommendSpecialistsPrompt', () => {
-    it('detects best rated specialists queries', () => {
-      expect(
-        isRecommendSpecialistsPrompt(
-          'best rated specialists for massage this week',
-        ),
-      ).toBe(true);
-      expect(
-        isRecommendSpecialistsPrompt(
-          'suggest top specialists for haircut on Monday',
-        ),
-      ).toBe(true);
-    });
-
-    it('does not match plain availability', () => {
-      expect(
-        isRecommendSpecialistsPrompt('free slots on Monday for Gevorg'),
-      ).toBe(false);
-    });
-  });
+  describe('isRecommendSpecialistsPrompt', () => {});
 });

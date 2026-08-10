@@ -164,13 +164,6 @@ function shouldDeferToRebookAndPayCompound(prompt: string): boolean {
   return false;
 }
 
-export function isRebookLastAppointmentPrompt(prompt: string): boolean {
-  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
-  if (shouldDeferToRebookAndPayCompound(prompt)) return false;
-  if (shouldDeferToResultsThenRebookCompound(prompt)) return false;
-  return hasRebookLastAppointmentCoreCue(prompt);
-}
-
 export function isRebookLastAppointmentIntent(
   action: string,
 ): action is RebookLastAppointmentIntent {

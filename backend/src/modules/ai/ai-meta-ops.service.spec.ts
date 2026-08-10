@@ -40,8 +40,18 @@ function buildService(overrides: Record<string, any> = {}) {
       autopilot: {
         enabled: true,
         rules: [
-          { id: 'r1', name: 'Auto-fill small gaps', enabled: true, prompt: 'x' },
-          { id: 'r2', name: 'Sunday weekday template', enabled: false, prompt: 'y' },
+          {
+            id: 'r1',
+            name: 'Auto-fill small gaps',
+            enabled: true,
+            prompt: 'x',
+          },
+          {
+            id: 'r2',
+            name: 'Sunday weekday template',
+            enabled: false,
+            prompt: 'y',
+          },
         ],
       },
       macros: [{ id: 'm1', name: 'Monday setup', prompt: 'z' }],
@@ -52,8 +62,18 @@ function buildService(overrides: Record<string, any> = {}) {
       autopilot: {
         enabled: true,
         rules: [
-          { id: 'r1', name: 'Auto-fill small gaps', enabled: true, prompt: 'x' },
-          { id: 'r2', name: 'Sunday weekday template', enabled: false, prompt: 'y' },
+          {
+            id: 'r1',
+            name: 'Auto-fill small gaps',
+            enabled: true,
+            prompt: 'x',
+          },
+          {
+            id: 'r2',
+            name: 'Sunday weekday template',
+            enabled: false,
+            prompt: 'y',
+          },
         ],
         ...patch.autopilot,
       },
@@ -88,7 +108,13 @@ function buildService(overrides: Record<string, any> = {}) {
       tierName: 'Growth',
       isPaid: true,
       subscriptionPlanId: 'plan-1',
-      limits: { tierId: 'growth', tierName: 'Growth', maxProviderSeats: 5, aiCommandsPerMonth: 500, flags: {} },
+      limits: {
+        tierId: 'growth',
+        tierName: 'Growth',
+        maxProviderSeats: 5,
+        aiCommandsPerMonth: 500,
+        flags: {},
+      },
       usage: { providerSeats: 3, aiCommandsThisMonth: 120 },
       flags: {},
       atLimit: { providerSeats: false, aiCommands: false },
@@ -250,7 +276,13 @@ describe('AiMetaOpsService (ai-cmd-dashboard-6.1.4/6.1.5)', () => {
             tierName: 'Solo',
             isPaid: false,
             subscriptionPlanId: null,
-            limits: { tierId: 'solo', tierName: 'Solo', maxProviderSeats: 1, aiCommandsPerMonth: 25, flags: {} },
+            limits: {
+              tierId: 'solo',
+              tierName: 'Solo',
+              maxProviderSeats: 1,
+              aiCommandsPerMonth: 25,
+              flags: {},
+            },
             usage: { providerSeats: 1, aiCommandsThisMonth: 25 },
             flags: {},
             atLimit: { providerSeats: false, aiCommands: true },
@@ -258,7 +290,10 @@ describe('AiMetaOpsService (ai-cmd-dashboard-6.1.4/6.1.5)', () => {
           })),
         },
       });
-      const result = await service.handleExplainAiCapabilities('biz-1', 'owner');
+      const result = await service.handleExplainAiCapabilities(
+        'biz-1',
+        'owner',
+      );
       expect(result.summary).toContain('at your AI command limit');
       expect(result.summary).toContain('25 used of 25 (0 left)');
       expect(result.details).toMatchObject({

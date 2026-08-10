@@ -17,15 +17,16 @@ describe('e2e-bug.267 semicolon move+nearest stays single reschedule', () => {
     { id: 'e3', name: 'Sam' },
   ];
 
-  it.each(
-    E2E267_SINGLE_RESCHEDULE_CASES.map((row) => [row.id, row] as const),
-  )('single-intent gate for %s', (_id, row) => {
-    expect(isSingleRescheduleNearestContinuationPrompt(row.prompt)).toBe(
-      row.expectSingleRescheduleContinuation,
-    );
-    expect(isCompoundPrompt(row.prompt)).toBe(row.expectCompound);
-    expect(isRescheduleExistingAppointmentPrompt(row.prompt)).toBe(true);
-  });
+  it.each(E2E267_SINGLE_RESCHEDULE_CASES.map((row) => [row.id, row] as const))(
+    'single-intent gate for %s',
+    (_id, row) => {
+      expect(isSingleRescheduleNearestContinuationPrompt(row.prompt)).toBe(
+        row.expectSingleRescheduleContinuation,
+      );
+      expect(isCompoundPrompt(row.prompt)).toBe(row.expectCompound);
+      expect(isRescheduleExistingAppointmentPrompt(row.prompt)).toBe(true);
+    },
+  );
 
   it.each(
     E2E267_SINGLE_RESCHEDULE_CASES.filter((r) => r.expectRescue).map(

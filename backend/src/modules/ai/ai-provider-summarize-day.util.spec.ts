@@ -25,7 +25,9 @@ describe('ai-provider-summarize-day.util', () => {
       isSummarizeDayPrompt('Summarize my schedule for the next two weeks'),
     ).toBe(false);
     expect(
-      isGetScheduleSummaryPrompt('Summarize my schedule for the next two weeks'),
+      isGetScheduleSummaryPrompt(
+        'Summarize my schedule for the next two weeks',
+      ),
     ).toBe(true);
   });
 
@@ -46,14 +48,17 @@ describe('ai-provider-summarize-day.util', () => {
     'Summarize my schedule for 2026-07-15',
     'Ամփոփիր իմ գրաֆիկը 15/07/2026 ամսաթվի համար',
     'Кратко опиши моё расписание на 15/07/2026',
-  ])('rescues legacy empty-today schedule prompt: %s (e2e-bug.66)', (prompt) => {
-    expect(isLegacyEmptyTodaySchedulePrompt(prompt)).toBe(true);
-    expect(rescueSummarizeDayIntent(prompt, 'unknown')).toEqual({
-      action: 'summarize_day',
-      rescueReason: 'summarize_day',
-    });
-    expect(isGetScheduleSummaryPrompt(prompt)).toBe(false);
-  });
+  ])(
+    'rescues legacy empty-today schedule prompt: %s (e2e-bug.66)',
+    (prompt) => {
+      expect(isLegacyEmptyTodaySchedulePrompt(prompt)).toBe(true);
+      expect(rescueSummarizeDayIntent(prompt, 'unknown')).toEqual({
+        action: 'summarize_day',
+        rescueReason: 'summarize_day',
+      });
+      expect(isGetScheduleSummaryPrompt(prompt)).toBe(false);
+    },
+  );
 
   it.each(PROVIDER_SUMMARIZE_DAY_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]))(
     'rescues summarize_day from unknown for %s',
@@ -65,6 +70,8 @@ describe('ai-provider-summarize-day.util', () => {
   );
 
   it('returns null for unrelated prompts', () => {
-    expect(rescueSummarizeDayIntent('Show me my appointments', 'unknown')).toBeNull();
+    expect(
+      rescueSummarizeDayIntent('Show me my appointments', 'unknown'),
+    ).toBeNull();
   });
 });

@@ -56,9 +56,9 @@ describe('e2e-bug.297 show me facials keeps face family', () => {
         'list_services',
       );
       expect(enriched.serviceCategory).toBe(expectCategory);
-      expect(enriched.serviceName == null || enriched.serviceName === null).toBe(
-        true,
-      );
+      expect(
+        enriched.serviceName == null || enriched.serviceName === null,
+      ).toBe(true);
 
       const matched = resolveServicesFromCatalogParams(CATALOG, enriched);
       const names = matched.map((s) => s.name).sort();

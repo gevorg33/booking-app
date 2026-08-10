@@ -9,7 +9,10 @@ describe('ai-referral-staff-templates.logic', () => {
     const business = { id: 'biz-1', settings: { ...settings } };
     return {
       businessRepo: {
-        findOne: jest.fn(async () => ({ ...business, settings: { ...settings } })),
+        findOne: jest.fn(async () => ({
+          ...business,
+          settings: { ...settings },
+        })),
         save: jest.fn(async (b: any) => b),
       },
     } as unknown as ReferralStaffTemplatesLogicDeps & {
@@ -35,7 +38,11 @@ describe('ai-referral-staff-templates.logic', () => {
 
     it('clarifies when no fields are provided', async () => {
       const deps = buildDeps();
-      const result = await handleConfigureReferralProgramLogic(deps, 'biz-1', {});
+      const result = await handleConfigureReferralProgramLogic(
+        deps,
+        'biz-1',
+        {},
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
     });
@@ -73,9 +80,9 @@ describe('ai-referral-staff-templates.logic', () => {
         },
       );
       expect(result.success).toBe(true);
-      expect((result.details as any).staffMessageTemplates.templates).toHaveLength(
-        1,
-      );
+      expect(
+        (result.details as any).staffMessageTemplates.templates,
+      ).toHaveLength(1);
       expect(deps.businessRepo.save).toHaveBeenCalled();
     });
 
@@ -83,9 +90,7 @@ describe('ai-referral-staff-templates.logic', () => {
       const deps = buildDeps({
         staffMessageTemplates: {
           enabled: true,
-          templates: [
-            { id: 'a', label: 'A', body: 'Hi', enabled: true },
-          ],
+          templates: [{ id: 'a', label: 'A', body: 'Hi', enabled: true }],
         },
       });
       const result = await handleConfigureStaffMessageTemplatesLogic(
@@ -95,9 +100,9 @@ describe('ai-referral-staff-templates.logic', () => {
       );
       expect(result.success).toBe(true);
       expect((result.details as any).staffMessageTemplates.enabled).toBe(false);
-      expect((result.details as any).staffMessageTemplates.templates).toHaveLength(
-        1,
-      );
+      expect(
+        (result.details as any).staffMessageTemplates.templates,
+      ).toHaveLength(1);
     });
 
     it('clarifies when no fields are provided', async () => {

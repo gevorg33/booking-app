@@ -8,7 +8,6 @@ import {
   extractGapWindowFromPrompt,
   findOpenShiftsInWindow,
   gapDurationMinutes,
-  isFillGapPrompt,
   isProviderOpenShiftsEnabled,
   mapScheduleGapsForOpenShifts,
   normalizeProviderOpenShiftsSettings,
@@ -35,13 +34,6 @@ describe('provider-open-shifts.util (prov-exp-7.3)', () => {
       expect(gapDurationMinutes(scenario.startTime, scenario.endTime)).toBe(
         scenario.expectedMinutes,
       );
-    },
-  );
-
-  it.each(PROVIDER_OPEN_SHIFTS_FILL_PROMPT_SCENARIOS)(
-    'detects fill-gap prompt $id',
-    (scenario) => {
-      expect(isFillGapPrompt(scenario.prompt)).toBe(scenario.expectedMatch);
     },
   );
 

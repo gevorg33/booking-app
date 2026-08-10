@@ -232,9 +232,7 @@ describe('ai-marketing-growth.util', () => {
       expect(switchGuideWithView.summary).toContain(
         'https://app.test/get-app/salon?src=qr&utm_campaign=venue_qr',
       );
-      expect(switchGuideWithView.summary).toContain(
-        "salon's Growth QR",
-      );
+      expect(switchGuideWithView.summary).toContain("salon's Growth QR");
       expect(
         switchGuideWithView.steps.some((step) =>
           step.includes('optischedule://book/salon'),

@@ -182,7 +182,11 @@ import { EnterpriseTrustModule } from '../enterprise-trust/enterprise-trust.modu
 import { StrategyEvalModule } from '../strategy-eval/strategy-eval.module.js';
 import { ExternalDoctorsModule } from '../external-doctors/external-doctors.module.js';
 import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
+import { AiCommandTraceStep } from './entities/ai-command-trace-step.entity.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { EntityResolutionService } from './entity-resolution.service.js';
+import { AiCommandPlannerService } from './ai-command-planner.service.js';
+import { AiPlannerShadowService } from './ai-planner-shadow.service.js';
 import { AiGuideTelemetry } from './entities/ai-guide-telemetry.entity.js';
 import { GuideTelemetryService } from './guide-telemetry.service.js';
 
@@ -216,6 +220,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
       ClinicTestType,
       ClinicTestPanel,
       AiCommandTrace,
+      AiCommandTraceStep,
       AiGuideTelemetry,
     ]),
     forwardRef(() => BookingModule),
@@ -375,6 +380,9 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     CustomerCommandUnderstandingAdapter,
     PublicCommandUnderstandingAdapter,
     AiCommandTraceService,
+    EntityResolutionService,
+    AiCommandPlannerService,
+    AiPlannerShadowService,
   ],
   exports: [
     AiPlatformService,
@@ -448,6 +456,9 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiExplainRtlLayoutService,
     GuideTelemetryService,
     AiCommandTraceService,
+    EntityResolutionService,
+    AiCommandPlannerService,
+    AiPlannerShadowService,
   ],
 })
 export class AiModule {}

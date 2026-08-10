@@ -7,10 +7,7 @@ export type E2e249CheckBookScenario = {
   prompt: string;
   surface: 'dashboard' | 'customer' | 'public' | undefined;
   fromAction: 'create_booking' | 'unknown' | 'check_providers_for_service';
-  expectedAction:
-    | 'create_booking'
-    | 'book_appointment'
-    | 'book_nearest_slot';
+  expectedAction: 'create_booking' | 'book_appointment' | 'book_nearest_slot';
   expectBookingFirstAvailable?: boolean;
   expectRescueReason?: string;
 };
@@ -71,8 +68,7 @@ export const E2E249_DASHBOARD_CREATE_BOOKING_SCENARIOS: readonly E2e249CheckBook
     },
     {
       id: 'check-then-book-semicolon',
-      prompt:
-        'who is free tomorrow for facemassage; book the nearest slot',
+      prompt: 'who is free tomorrow for facemassage; book the nearest slot',
       surface: 'dashboard',
       fromAction: 'create_booking',
       expectedAction: 'create_booking',

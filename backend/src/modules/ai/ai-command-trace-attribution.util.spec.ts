@@ -31,7 +31,9 @@ describe('ai-command-trace-attribution', () => {
     it('returns null when there is no trace or no classify stage', () => {
       expect(extractClassifiedAction(null)).toBeNull();
       expect(extractClassifiedAction([])).toBeNull();
-      expect(extractClassifiedAction([t('normalize', 'passthrough')])).toBeNull();
+      expect(
+        extractClassifiedAction([t('normalize', 'passthrough')]),
+      ).toBeNull();
     });
 
     it('treats status markers as "no action"', () => {
@@ -71,7 +73,9 @@ describe('ai-command-trace-attribution', () => {
         t('narrow_reclassify', 'explain_clinic_services'),
         t('rescue', 'none'),
       ];
-      expect(attributeActionChange(reclassified, 'explain_clinic_services')).toEqual({
+      expect(
+        attributeActionChange(reclassified, 'explain_clinic_services'),
+      ).toEqual({
         classifiedAction: 'list_services',
         changed: true,
         changedBy: 'narrow_reclassify',
@@ -123,7 +127,9 @@ describe('ai-command-trace-attribution', () => {
     });
 
     it('reports no change when classify never ran (cannot attribute)', () => {
-      expect(attributeActionChange([t('normalize', 'passthrough')], 'x')).toEqual({
+      expect(
+        attributeActionChange([t('normalize', 'passthrough')], 'x'),
+      ).toEqual({
         classifiedAction: null,
         changed: false,
         changedBy: null,
@@ -139,7 +145,9 @@ describe('ai-command-trace-attribution', () => {
     });
 
     it('returns null for successes', () => {
-      expect(deriveFailureReason({ success: true, action: 'x', details: {} })).toBeNull();
+      expect(
+        deriveFailureReason({ success: true, action: 'x', details: {} }),
+      ).toBeNull();
     });
 
     it.each([
@@ -160,7 +168,9 @@ describe('ai-command-trace-attribution', () => {
       // A compound that stopped at a step also carries clarify-ish details;
       // the step attribution is the more actionable signal.
       expect(
-        deriveFailureReason(fail({ missing: [], failedStep: 'create_booking' })),
+        deriveFailureReason(
+          fail({ missing: [], failedStep: 'create_booking' }),
+        ),
       ).toBe('compound_step_failed');
     });
   });

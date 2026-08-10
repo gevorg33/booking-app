@@ -61,8 +61,22 @@ import { SELF_SERVICE_BOOKING_DISPATCH_MAP } from './ai-self-service-booking-dis
 import { TOUR_SERVICE_DISPATCH_MAP } from './ai-tour-service-dispatch.build.js';
 import { COMMAND_REGISTRY } from './ai-command-registry.js';
 
-/** Ratchet: registry rows not yet routed through a *-dispatch.build map. Lower, never raise. */
-const UNDISPATCHED_BASELINE = 282;
+/**
+ * Ratchet: registry rows not yet routed through a `*-dispatch.build` map.
+ * Lower, never raise.
+ *
+ * 2026-08-10 (§149, e2e-bug.424): 282 -> 291, the one deliberate raise. Nine
+ * provider explainers were added to the registry so the surface gate would stop
+ * discarding their rescues; each is dispatched by a `case` in
+ * `ai-provider-client-context.logic.ts` or `provider-ai-command.service.ts`,
+ * which is the switch-statement handling the assertion below already accepts.
+ * Verified per command rather than assumed — routing a command that cannot
+ * execute would be worse than leaving it unroutable.
+ *
+ * They are nine more rows wanting a dispatch map, which is what this ratchet is
+ * for; the number to drive down is unchanged in kind.
+ */
+const UNDISPATCHED_BASELINE = 291;
 
 /**
  * Dispatch keys that are deliberate ALIASES of a canonical registry action —
@@ -177,7 +191,9 @@ describe('AI-ROADMAP Phase 1 — command reachability', () => {
   });
 
   it('prints the reachability burn-down', () => {
-    const undispatchable = [...registryIds].filter((id) => !dispatchable.has(id));
+    const undispatchable = [...registryIds].filter(
+      (id) => !dispatchable.has(id),
+    );
     // eslint-disable-next-line no-console
     console.log(
       `[AI-ROADMAP reachability] registry ${registryIds.size} · dispatchable ${dispatchable.size} · ` +

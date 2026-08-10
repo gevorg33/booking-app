@@ -13,7 +13,9 @@ import {
 
 describe('e2e-bug.286 create booking not stolen by create_employee', () => {
   it.each(
-    E2E286_CREATE_BOOKING_NOT_EMPLOYEE_CASES.map((row) => [row.id, row] as const),
+    E2E286_CREATE_BOOKING_NOT_EMPLOYEE_CASES.map(
+      (row) => [row.id, row] as const,
+    ),
   )('%s — detectors', (_id, row) => {
     expect(isCreateEmployeePrompt(row.prompt)).toBe(false);
     expect(isCreateBookingNotEmployeePrompt(row.prompt)).toBe(

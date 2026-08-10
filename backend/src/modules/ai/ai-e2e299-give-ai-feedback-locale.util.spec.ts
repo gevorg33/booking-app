@@ -31,14 +31,16 @@ describe('e2e-bug.299: give_ai_feedback chip/summary labels localize', () => {
       expect(options.find((o) => o.id === 'wrong_date')?.label).toBe(
         expected.wrongDate,
       );
-      expect(
-        buildGiveAiFeedbackSummary('down', undefined, true, locale),
-      ).toBe(expected.feedbackDownChooseReason);
+      expect(buildGiveAiFeedbackSummary('down', undefined, true, locale)).toBe(
+        expected.feedbackDownChooseReason,
+      );
     },
   );
 
   it.each(
-    E2E299_LOCALIZED_LABEL_CASES.filter((c) => c.id !== 'ai-e2e299-hy-clarify-book'),
+    E2E299_LOCALIZED_LABEL_CASES.filter(
+      (c) => c.id !== 'ai-e2e299-hy-clarify-book',
+    ),
   )(
     'details+handler $id',
     async ({
@@ -55,9 +57,7 @@ describe('e2e-bug.299: give_ai_feedback chip/summary labels localize', () => {
         {
           aspect: 'rate_answer',
           rating,
-          ...(reason
-            ? { reason: reason as 'wrong_date' }
-            : {}),
+          ...(reason ? { reason: reason as 'wrong_date' } : {}),
         },
         locale,
       );
@@ -142,8 +142,8 @@ describe('e2e-bug.299: give_ai_feedback chip/summary labels localize', () => {
     expect(localizedFeedbackDownLabel('hy')).not.toBe(
       localizedFeedbackDownLabel('en'),
     );
-    expect(
-      buildGiveAiFeedbackSummary('down', undefined, true, 'ru'),
-    ).not.toBe(buildGiveAiFeedbackSummary('down', undefined, true, 'en'));
+    expect(buildGiveAiFeedbackSummary('down', undefined, true, 'ru')).not.toBe(
+      buildGiveAiFeedbackSummary('down', undefined, true, 'en'),
+    );
   });
 });

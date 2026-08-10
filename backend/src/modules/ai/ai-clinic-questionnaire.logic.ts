@@ -103,7 +103,10 @@ export async function handleCreateQuestionnaireLogic(
       questionnaire,
     });
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not create the questionnaire.');
+    return failure(
+      action,
+      err?.message ?? 'Could not create the questionnaire.',
+    );
   }
 }
 
@@ -124,8 +127,11 @@ export async function handleUpdateQuestionnaireLogic(
   if (!resolved.ok) return resolved.result;
 
   const internalName =
-    typeof params.internalName === 'string' ? params.internalName.trim() : undefined;
-  const title = typeof params.title === 'string' ? params.title.trim() : undefined;
+    typeof params.internalName === 'string'
+      ? params.internalName.trim()
+      : undefined;
+  const title =
+    typeof params.title === 'string' ? params.title.trim() : undefined;
   const introTitle =
     typeof params.introTitle === 'string' ? params.introTitle : undefined;
   const introBody =
@@ -159,11 +165,18 @@ export async function handleUpdateQuestionnaireLogic(
         ...(isActive !== undefined ? { isActive } : {}),
       },
     );
-    return success(action, `Updated the "${questionnaire.title}" questionnaire.`, {
-      questionnaire,
-    });
+    return success(
+      action,
+      `Updated the "${questionnaire.title}" questionnaire.`,
+      {
+        questionnaire,
+      },
+    );
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not update the questionnaire.');
+    return failure(
+      action,
+      err?.message ?? 'Could not update the questionnaire.',
+    );
   }
 }
 
@@ -189,10 +202,17 @@ export async function handlePublishQuestionnaireLogic(
       userId,
       resolved.questionnaire.id,
     );
-    return success(action, `Published the "${questionnaire.title}" questionnaire.`, {
-      questionnaire,
-    });
+    return success(
+      action,
+      `Published the "${questionnaire.title}" questionnaire.`,
+      {
+        questionnaire,
+      },
+    );
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not publish the questionnaire.');
+    return failure(
+      action,
+      err?.message ?? 'Could not publish the questionnaire.',
+    );
   }
 }

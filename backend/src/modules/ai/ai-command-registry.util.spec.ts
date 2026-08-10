@@ -9,7 +9,6 @@ import {
   getCompoundRecipesForSurface,
   getIntentIdsBySurface,
   getRegistryExecutionMode,
-  isIntentAllowedForTier,
   isIntentAllowedOnSurface,
   isRegistryMutating,
   registrySummaryForPrompt,
@@ -41,23 +40,6 @@ describe('ai-command-registry.util', () => {
     expect(resolveHandlerForSurface('list_bookings', 'provider')).toBe(
       'ProviderAiCommandService',
     );
-  });
-
-  it('enforces tier and surface allow-lists', () => {
-    expect(isIntentAllowedForTier('missing_intent', 'owner')).toBe(false);
-    expect(
-      isIntentAllowedForTier('create_booking', 'client', 'dashboard'),
-    ).toBe(false);
-    expect(isIntentAllowedForTier('create_package', 'owner', 'provider')).toBe(
-      false,
-    );
-    expect(isIntentAllowedForTier('create_booking', 'owner', 'dashboard')).toBe(
-      true,
-    );
-    expect(isIntentAllowedForTier('unknown', 'client')).toBe(true);
-    expect(isIntentAllowedOnSurface('create_booking', 'public')).toBe(false);
-    expect(isIntentAllowedOnSurface('book_package', 'customer')).toBe(true);
-    expect(isIntentAllowedOnSurface('book_package', 'public')).toBe(false);
   });
 
   it('resolves compound recipes only for compound-marked prompts', () => {

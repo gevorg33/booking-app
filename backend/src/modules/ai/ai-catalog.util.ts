@@ -32,6 +32,7 @@ import {
 import {
   enrichDeactivateServiceCategoryScopeParamsFromPrompt,
   rescueDeactivateServiceCategoryScopeIntent,
+  isDeactivateServiceCategoryScopePrompt,
 } from './ai-deactivate-service-category-scope.util.js';
 
 export const CATALOG_MUTATE_INTENTS = [
@@ -120,15 +121,21 @@ export function isBulkCreateCatalogPrompt(prompt: string): boolean {
   );
   const hasServiceLines = parseServiceLinesFromText(prompt).length > 0;
   const hasCategoryContext =
-    /\b(?:create|add|adding)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\b/i.test(
+    // e2e-bug.349 — `categories` as well as `category`. "Create categories Y
+    // and Z. Under Y add ..." registered no category context at all, so a
+    // dashboard catalog request was left to whatever else would claim it.
+    /\b(?:create|add|adding)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?categor(?:y|ies)\b/i.test(
       prompt,
     ) ||
-    /\badding\s+(?:a\s+)?(?:new\s+)?[A-Za-z][\w\s&'-]+\s+category\b/i.test(
+    /\badding\s+(?:a\s+)?(?:new\s+)?[A-Za-z][\w\s&'-]+\s+categor(?:y|ies)\b/i.test(
       prompt,
     ) ||
-    /\bnew\s+[A-Za-z][\w\s&'-]+\s+(?:service\s+)?category\b/i.test(prompt);
+    /\bnew\s+[A-Za-z][\w\s&'-]+\s+(?:service\s+)?categor(?:y|ies)\b/i.test(
+      prompt,
+    );
   if (hasCategoryContext) return hasServiceLines || hasCountedServices;
-  if (!/\b(?:create|add)\s+(?:category|catalog)\b/i.test(prompt)) return false;
+  if (!/\b(?:create|add)\s+(?:categor(?:y|ies)|catalog)\b/i.test(prompt))
+    return false;
   return hasServiceLines;
 }
 
@@ -263,6 +270,14 @@ export function extractDeactivateServiceNameFromPrompt(
     const name = match?.[1]
       ?.replace(/^["']|["']$/g, '')
       .replace(/\s+service$/i, '')
+      // e2e-bug.430 — drop a dangling "from the" the lazy capture swallowed.
+      //
+      // The third pattern ends at `\s+service\b`, so "Disable Deluxe Facial
+      // from the service catalog" captures everything up to the *second*
+      // occurrence of the word: "Deluxe Facial from the". The second pattern
+      // already stops at `from`; this one cannot, because the service word it
+      // anchors on comes after.
+      .replace(/\s+from(?:\s+(?:the|our|my|your))?$/i, '')
       .trim();
     if (
       name &&
@@ -331,9 +346,7 @@ const CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE =
 
 const CATEGORY_NAME_TRAILING_EXTRA = `(?:${CATEGORY_NAME_TRAILING_POLITENESS}|${CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE})`;
 
-export function stripTrailingCategoryNamePoliteness(
-  name: string,
-): string {
+export function stripTrailingCategoryNamePoliteness(name: string): string {
   let out = name.trim();
   // Repeat: "kindly please" / "please kindly" / stacked softeners and
   // placeholder-count clauses in any order.
@@ -342,7 +355,10 @@ export function stripTrailingCategoryNamePoliteness(
     'iu',
   );
   for (let i = 0; i < 4; i++) {
-    const next = out.replace(trailing, '').replace(/[.?!]+$/g, '').trim();
+    const next = out
+      .replace(trailing, '')
+      .replace(/[.?!]+$/g, '')
+      .trim();
     if (next === out) break;
     out = next;
   }
@@ -903,7 +919,23 @@ export function rescueCatalogIntent(
     }
     return {
       action: 'deactivate_service',
-      rescueReason: 'deactivate_service',
+      // e2e-bug.430 — say *which* deactivation this is, even when the action
+      // needed no correcting.
+      //
+      // `rescueDeactivateServiceCategoryScopeIntent` above returns null when the
+      // classifier already said `deactivate_service`, on the reasonable ground
+      // that there is no action to change. But the reason is not only a record
+      // of a correction — it names the shape of the request, and
+      // "hide all hair services" is a category-wide deactivation whether or not
+      // the classifier got there unaided. Seven eval cases asserted the scoped
+      // reason and got the generic one.
+      //
+      // The params were already right: this branch builds them with the same
+      // `enrichDeactivateServiceCategoryScopeParamsFromPrompt`. Only the label
+      // was wrong.
+      rescueReason: isDeactivateServiceCategoryScopePrompt(prompt)
+        ? 'deactivate_service_category_scope'
+        : 'deactivate_service',
       params,
     };
   }
@@ -959,7 +991,9 @@ function normalizeServiceLineName(raw: string): string {
   // first entry when the raw prompt (not the split services text) is scanned.
   const afterColon = name.split(':').pop()?.trim();
   if (afterColon) name = afterColon;
-  const withoutConnector = name.replace(/^(?:and|or|plus|&|и|плюс|և)\s+/i, '').trim();
+  const withoutConnector = name
+    .replace(/^(?:and|or|plus|&|и|плюс|և)\s+/i, '')
+    .trim();
   if (withoutConnector) name = withoutConnector;
   const withoutDescriptor = name.replace(/^services?\s+/i, '').trim();
   if (withoutDescriptor) name = withoutDescriptor;

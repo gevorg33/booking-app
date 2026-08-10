@@ -56,9 +56,9 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
     expect(
       isSetRetailSalesLinesPrompt('Replace the retail cart with 3 candles'),
     ).toBe(true);
-    expect(isSetRetailSalesLinesPrompt('Update retail lines to 1 shampoo')).toBe(
-      true,
-    );
+    expect(
+      isSetRetailSalesLinesPrompt('Update retail lines to 1 shampoo'),
+    ).toBe(true);
     expect(isSetRetailSalesLinesPrompt('Add shampoo to this booking')).toBe(
       false,
     );
@@ -74,8 +74,7 @@ describe('ai-provider-exp-3.util (prov-exp-5.3)', () => {
       isRemoveRetailFromBookingPrompt('Remove shampoo from this booking'),
     ).toBe(true);
     expect(
-      rescueProviderExp3Intent('Remove the serum from cart', 'unknown')
-        ?.action,
+      rescueProviderExp3Intent('Remove the serum from cart', 'unknown')?.action,
     ).toBe('remove_retail_from_booking');
   });
 

@@ -15,7 +15,7 @@ import {
 } from './ai-book-with-gift-card.fixtures.js';
 import { isExplainPublicBookingCheckoutPrompt } from './ai-explain-public-booking-checkout.util.js';
 import { BOOK_WITH_GIFT_CARD_MULTILINGUAL_SCENARIOS } from './ai-book-with-gift-card-multilingual.fixtures.js';
-import { isGiftCardCheckoutCompoundPrompt as isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
+import { isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
 import { isGiftCardCheckoutCompoundPrompt } from './ai-gift-card-payments-hints.util.js';
 
 const HY_RU_BOOK_GIFT_CARD_CUE =

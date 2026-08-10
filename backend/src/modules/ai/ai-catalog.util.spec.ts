@@ -157,9 +157,9 @@ describe('ai-catalog.util', () => {
         expect(extractDeactivateServiceNameFromPrompt(prompt)).toBe(
           serviceName,
         );
-        expect(rescueCatalogIntent(prompt, 'remove_service_from_cart')?.action).toBe(
-          'deactivate_service',
-        );
+        expect(
+          rescueCatalogIntent(prompt, 'remove_service_from_cart')?.action,
+        ).toBe('deactivate_service');
         expect(
           rescueCatalogIntent(prompt, 'unassign_employee_services')?.action,
         ).toBe('deactivate_service');
@@ -194,9 +194,7 @@ describe('ai-catalog.util', () => {
     it('e2e-bug.251 — catalog category named X is create_service_category', () => {
       const prompt = 'Add a new catalog category named QA Nails';
       expect(isCreateServiceCategoryPrompt(prompt)).toBe(true);
-      expect(
-        rescueCatalogIntent(prompt, 'import_services_from_menu'),
-      ).toEqual({
+      expect(rescueCatalogIntent(prompt, 'import_services_from_menu')).toEqual({
         action: 'create_service_category',
         rescueReason: 'service_category',
       });

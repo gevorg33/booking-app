@@ -30,7 +30,11 @@ export function isShowAppointmentsPrompt(prompt: string): boolean {
     return false;
   }
 
-  if (/\b(?:show|list|display|view)\b.{0,40}\b(?:appointment|booking)/i.test(lower)) {
+  if (
+    /\b(?:show|list|display|view)\b.{0,40}\b(?:appointment|booking)/i.test(
+      lower,
+    )
+  ) {
     return true;
   }
   if (/\bwho\s+(?:do\s+i\s+see|am\s+i\s+seeing)\b/i.test(lower)) {
@@ -45,7 +49,11 @@ export function isShowAppointmentsPrompt(prompt: string): boolean {
   if (/\blist\s+my\s+(?:morning|afternoon|evening)\b/i.test(lower)) {
     return true;
   }
-  if (/\bshow\s+me\s+(?:today|tomorrow)\s+(?:morning|afternoon|evening)\b/i.test(lower)) {
+  if (
+    /\bshow\s+me\s+(?:today|tomorrow)\s+(?:morning|afternoon|evening)\b/i.test(
+      lower,
+    )
+  ) {
     return true;
   }
 

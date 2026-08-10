@@ -1,3 +1,4 @@
+import { isClarifyResult } from './ai-clarify.util.js';
 import { randomUUID } from 'node:crypto';
 import {
   redactEmbeddedPhiFromPrompt,
@@ -19,6 +20,8 @@ import {
   attributeActionChange,
   deriveFailureReason,
 } from './ai-command-trace-attribution.util.js';
+import { buildPlanTraceFields } from './ai-command-plan.trace.js';
+import type { PlanOutcome } from './ai-command-planner.service.js';
 
 export { AI_COMMAND_TRACE_PIPE_MARKER };
 
@@ -47,6 +50,20 @@ export type RecordAiCommandTraceInput = {
   tokenCostUsd?: number;
   pipelineTrace?: PipelineTrace[];
   traceId?: string;
+  /**
+   * AI-ROADMAP Phase 3 — present only when the planner produced this result.
+   * Absent on legacy single-action rows, which is how the shadow rollout is
+   * measured: `plan_outcome IS NOT NULL` selects planner-handled messages.
+   */
+  planOutcome?: PlanOutcome;
+  /**
+   * AI-ROADMAP Phase 1 / §50 — conversation key derived from the replayed
+   * history. Optional because it is genuinely absent for anonymous visitors,
+   * not because callers may forget it.
+   */
+  sessionId?: string | null;
+  /** User-turn number within that conversation, 1-based. */
+  sessionTurn?: number | null;
 };
 
 export function redactCommandTracePrompt(prompt: string): string {
@@ -72,8 +89,22 @@ export function resolveCommandTraceOutcome(
 ): AiCommandTraceOutcome {
   if (result.action === 'security_blocked') return 'security_blocked';
   if (result.details?.requiresExecutionConfirmation === true) return 'approval';
+  // e2e-bug.411 — `isClarifyResult`, not a fourth private definition of the
+  // same question.
+  //
+  // This branch used to test `details.needsClarification` alone. Handlers
+  // overwhelmingly do not set that key: across `modules/ai` there are **646**
+  // occurrences of `clarify: true` in 178 files against **19** of
+  // `needsClarification: true`. So a handler that asked the user a question was
+  // recorded as having *failed*, and the customer surface's 31.1% failure rate
+  // counts an unknown share of questions as defects.
+  //
+  // `isClarifyResult` already existed for exactly this, and its doc comment
+  // names the caller: "exported so the guide fallback and **the trace writer**
+  // can both branch on one definition instead of each re-deriving it from a
+  // different flag". The trace writer was the one re-deriving it.
   if (
-    result.details?.needsClarification === true ||
+    isClarifyResult(result) ||
     result.action === 'clarify' ||
     result.action === 'unknown'
   ) {
@@ -138,5 +169,10 @@ export function buildAiCommandTraceRow(
       outcome === 'executed' || !input.result.summary
         ? null
         : redactCommandTracePrompt(input.result.summary),
+    ...buildPlanTraceFields(input.planOutcome),
+    // §50. `?? null` rather than omitted: the column is nullable and an
+    // anonymous visitor's null is meaningful data, not a missing value.
+    sessionId: input.sessionId ?? null,
+    sessionTurn: input.sessionTurn ?? null,
   };
 }

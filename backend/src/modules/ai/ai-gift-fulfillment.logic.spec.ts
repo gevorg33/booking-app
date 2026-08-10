@@ -308,11 +308,9 @@ describe('ai-gift-fulfillment.logic', () => {
 
   it('cancels orders and extends cancel window', async () => {
     const deps = buildDeps();
-    const cancelNoReason = await handleCancelGiftCardOrderLogic(
-      deps,
-      'biz-1',
-      { giftCardId: 'gc-1' },
-    );
+    const cancelNoReason = await handleCancelGiftCardOrderLogic(deps, 'biz-1', {
+      giftCardId: 'gc-1',
+    });
     expect(cancelNoReason.success).toBe(false);
     expect(cancelNoReason.details).toMatchObject({
       clarify: true,
@@ -1027,13 +1025,13 @@ describe('ai-gift-fulfillment.logic', () => {
             : action === 'cancel_gift_card_order'
               ? { giftCardId: 'gc-1', reason: 'Test cancellation' }
               : action === 'print_packing_slip' ||
-                action === 'start_card_preparation' ||
-                action === 'mark_delivered' ||
-                action === 'mark_out_for_delivery' ||
-                action === 'accept_delivery' ||
-                action === 'notify_delay'
-              ? { giftCardId: 'gc-1' }
-              : {};
+                  action === 'start_card_preparation' ||
+                  action === 'mark_delivered' ||
+                  action === 'mark_out_for_delivery' ||
+                  action === 'accept_delivery' ||
+                  action === 'notify_delay'
+                ? { giftCardId: 'gc-1' }
+                : {};
       const result = await handleFulfillmentCompoundLogic(
         deps,
         'biz-1',
@@ -1851,7 +1849,10 @@ describe('ai-gift-fulfillment.logic', () => {
 
     it('fails when business is not found', async () => {
       const deps = buildDeps({
-        businessRepo: { findOne: jest.fn(async () => null), save: jest.fn() } as any,
+        businessRepo: {
+          findOne: jest.fn(async () => null),
+          save: jest.fn(),
+        } as any,
       });
       const result = await handleUpdateGiftCardSettingsLogic(deps, 'biz-1', {
         defaultExpiryMonths: 6,
@@ -1908,12 +1909,9 @@ describe('ai-gift-fulfillment.logic', () => {
         { requestId: 'req-1', resolution: 'approve' },
       );
       expect(result.success).toBe(true);
-      expect(deps.giftCardOrderService.resolveChangeRequest).toHaveBeenCalledWith(
-        'biz-1',
-        'req-1',
-        'approve',
-        undefined,
-      );
+      expect(
+        deps.giftCardOrderService.resolveChangeRequest,
+      ).toHaveBeenCalledWith('biz-1', 'req-1', 'approve', undefined);
     });
 
     it('handles errors gracefully', async () => {

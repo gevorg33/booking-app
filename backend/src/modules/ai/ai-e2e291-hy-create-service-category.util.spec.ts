@@ -31,9 +31,7 @@ describe('e2e-bug.291 HY create_service_category ≠ explain_clinic_services', (
         action: 'create_service_category',
         rescueReason: 'service_category',
       });
-      expect(
-        rescueCatalogIntent(row.prompt, 'unknown'),
-      ).toMatchObject({
+      expect(rescueCatalogIntent(row.prompt, 'unknown')).toMatchObject({
         action: 'create_service_category',
       });
 

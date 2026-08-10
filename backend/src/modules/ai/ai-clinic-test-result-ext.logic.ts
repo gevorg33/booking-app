@@ -434,7 +434,10 @@ export async function handleTransitionSpecimenLogic(
       { specimen: updated },
     );
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not transition the specimen.');
+    return failure(
+      action,
+      err?.message ?? 'Could not transition the specimen.',
+    );
   }
 }
 
@@ -450,10 +453,14 @@ export async function handleExplainLabResultHistoryLogic(
       ? params.resultId.trim()
       : undefined;
   if (!resultId) {
-    return failure(action, 'Which lab result should I show the change history for? Provide resultId.', {
-      clarify: true,
-      missing: ['resultId'],
-    });
+    return failure(
+      action,
+      'Which lab result should I show the change history for? Provide resultId.',
+      {
+        clarify: true,
+        missing: ['resultId'],
+      },
+    );
   }
 
   try {
@@ -462,22 +469,30 @@ export async function handleExplainLabResultHistoryLogic(
       userId,
       resultId,
     );
-    const history = await deps.clinicLabChangeHistoryService.listResultChangeHistory(
-      businessId,
-      resultId,
-      access.ctx,
-      access.bookingAccess,
-    );
-    if (history.length === 0) {
-      return success(action, `No change history recorded for result ${resultId} yet.`, {
+    const history =
+      await deps.clinicLabChangeHistoryService.listResultChangeHistory(
+        businessId,
         resultId,
-        count: 0,
-        history: [],
-      });
+        access.ctx,
+        access.bookingAccess,
+      );
+    if (history.length === 0) {
+      return success(
+        action,
+        `No change history recorded for result ${resultId} yet.`,
+        {
+          resultId,
+          count: 0,
+          history: [],
+        },
+      );
     }
     const lines = history
       .slice(0, 10)
-      .map((entry) => `• ${entry.action} by ${entry.editedBy?.fullName ?? 'staff'} (${entry.date})`);
+      .map(
+        (entry) =>
+          `• ${entry.action} by ${entry.editedBy?.fullName ?? 'staff'} (${entry.date})`,
+      );
     return success(
       action,
       `Change history for result ${resultId} (${history.length}):\n${lines.join('\n')}`,

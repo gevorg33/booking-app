@@ -54,9 +54,7 @@ export const E2E190_TEAM_WIDE_STAYS_PROVIDERS = [
  * e2e-bug.190 — never hard-remap check_availability → check_providers_for_service.
  * Public-only handler owns the label on the live assistant gateway.
  */
-export function resolveCustomerAvailabilityActionLabel(
-  action: string,
-): string {
+export function resolveCustomerAvailabilityActionLabel(action: string): string {
   return action;
 }
 

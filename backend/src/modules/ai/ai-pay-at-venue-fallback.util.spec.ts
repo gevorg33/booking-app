@@ -9,7 +9,6 @@ import {
   parsePayAtVenueFallbackFromPrompt,
   rescuePayAtVenueFallbackIntent,
   buildPayAtVenueFallbackNavigate,
-  isExplicitPayCashAtVisitWithoutFallbackPrompt,
 } from './ai-pay-at-venue-fallback.util.js';
 import { isExplicitPayCashAtVisitPrompt } from './ai-cash-payment-checkout.util.js';
 import { isConsumerDiagnoseStripeCheckoutFailurePrompt } from './ai-diagnose-stripe-checkout-failure.util.js';
@@ -46,14 +45,6 @@ describe('ai-pay-at-venue-fallback.util (ai-cmd-customer-4.18.2)', () => {
         'pay_at_venue_fallback',
       ),
     ).toBeNull();
-  });
-
-  it('does not steal pay_cash_at_visit direct prompts', () => {
-    expect(isPayAtVenueFallbackPrompt('Pay cash at visit')).toBe(false);
-    expect(isExplicitPayCashAtVisitPrompt('Pay cash at visit')).toBe(true);
-    expect(
-      isExplicitPayCashAtVisitWithoutFallbackPrompt('Pay cash at visit'),
-    ).toBe(true);
   });
 
   it('does not steal diagnose failure prompts', () => {

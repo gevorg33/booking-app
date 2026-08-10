@@ -21,13 +21,12 @@ import { enrichRankSessionPickFromPrompt } from './ai-rank-session-pick.util.js'
 import { isFirstAvailableBookingPrompt } from './booking-first-available.semantic.util.js';
 import { isTeamWideProviderAvailabilityQuery } from './team-wide-availability.semantic.util.js';
 import { isAnyProviderBookingPrompt } from './any-provider-booking.semantic.util.js';
-import { isRecommendSpecialistsPrompt } from './recommend-specialists.semantic.util.js';
 import { extractServiceFromPrompt } from './ai-structural-extractors.js';
 import { normalizeAvailabilityServiceCategory } from './ai-flexible-availability.util.js';
 import { stripLeadingServiceRankAdjectives } from './ai-service-rank-discovery.util.js';
 import { findServiceLookupSynonymTokenInPrompt } from './ai-service-lookup-synonyms.util.js';
 
-export { isAnyProviderBookingPrompt, isRecommendSpecialistsPrompt };
+export { isAnyProviderBookingPrompt };
 
 const PUBLIC_ASSISTANT_SERVICE_ACTIONS = new Set([
   'check_availability',
@@ -84,9 +83,7 @@ export function applyPromptMentionedServiceOverrideToParams(
         ...base,
         serviceNames: null,
         serviceName: null,
-        serviceCategory: normalizeAvailabilityServiceCategory(
-          familyMatchToken,
-        ),
+        serviceCategory: normalizeAvailabilityServiceCategory(familyMatchToken),
       };
       delete next.serviceId;
       delete next.serviceRank;

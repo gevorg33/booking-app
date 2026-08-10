@@ -59,21 +59,22 @@ describe('e2e-bug.287 anybody-open check-only → check_providers_for_service', 
     }
   });
 
-  it.each(
-    E2E287_NAMED_CHECK_AVAILABILITY.map((row) => [row.id, row] as const),
-  )('named/browse $id stays/remaps to check_availability', (_id, row) => {
-    expect(isCheckProvidersForServicePrompt(row.prompt)).toBe(false);
-    const result = rescue.rescue({
-      prompt: row.prompt,
-      action: row.fromAction,
-      params: {},
-      surface: row.surface,
-    });
-    expect(result?.action ?? row.fromAction).toBe(row.expectedAction);
-    if (row.expectRescueReason && result?.rescued) {
-      expect(result.rescueReason).toBe(row.expectRescueReason);
-    }
-  });
+  it.each(E2E287_NAMED_CHECK_AVAILABILITY.map((row) => [row.id, row] as const))(
+    'named/browse $id stays/remaps to check_availability',
+    (_id, row) => {
+      expect(isCheckProvidersForServicePrompt(row.prompt)).toBe(false);
+      const result = rescue.rescue({
+        prompt: row.prompt,
+        action: row.fromAction,
+        params: {},
+        surface: row.surface,
+      });
+      expect(result?.action ?? row.fromAction).toBe(row.expectedAction);
+      if (row.expectRescueReason && result?.rescued) {
+        expect(result.rescueReason).toBe(row.expectRescueReason);
+      }
+    },
+  );
 
   it.each(
     E2E287_PUBLIC_CHECK_AVAILABILITY.map((row) => [row.id, row] as const),

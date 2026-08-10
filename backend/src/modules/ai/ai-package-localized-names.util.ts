@@ -126,12 +126,6 @@ function isCatalogBulkTranslationPrompt(prompt: string): boolean {
   );
 }
 
-export function isSinglePackageLocalizedNameConfigurePrompt(
-  prompt: string,
-): boolean {
-  return isSinglePackageLocalizedNamePrompt(prompt);
-}
-
 export function isConfigurePackageLocalizedNamesPrompt(
   prompt: string,
 ): boolean {

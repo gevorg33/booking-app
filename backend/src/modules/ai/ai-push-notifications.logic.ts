@@ -353,11 +353,9 @@ export async function handleMarkNotificationReadLogic(
       { notificationId: notification.id, title: notification.title },
     );
   } catch {
-    return failure(
-      'mark_notification_read',
-      'Notification not found.',
-      { clarify: true },
-    );
+    return failure('mark_notification_read', 'Notification not found.', {
+      clarify: true,
+    });
   }
 }
 

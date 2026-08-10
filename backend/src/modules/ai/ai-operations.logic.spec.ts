@@ -335,7 +335,14 @@ describe('ai-operations.logic', () => {
       'biz-1',
       'Increase the price of the Massage service by 5 dollars',
       { percentChange: 5, serviceName: 'Massage' },
-      [{ id: 's1', name: 'Massage', price: 20, category: { name: 'Wellness' } } as any],
+      [
+        {
+          id: 's1',
+          name: 'Massage',
+          price: 20,
+          category: { name: 'Wellness' },
+        } as any,
+      ],
     );
     expect(byDollars?.steps[0].params.price).toBe(25);
     const byCategory = prepareUpdateServicePricesPlanLogic(

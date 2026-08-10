@@ -321,8 +321,8 @@ import type { PlanTierId } from '../billing/plan-limits.js';
 import {
   buildExecutionConfirmationResult,
   isExecutionConfirmed,
-  requiresDashboardExecutionConfirmation,
 } from './ai-execution-confirm.util.js';
+import { shouldConfirmBeforeExecute } from './ai-planner-confirmation.util.js';
 import {
   isMetaProductGuideIntent,
   runMetaProductGuideIntent,
@@ -379,6 +379,7 @@ import {
   handleOfferWaitlistSlotLogic,
 } from './ai-waitlist-dashboard.logic.js';
 import { enrichCompoundSubStepBookingHints } from './ai-compound-booking-hints.util.js';
+import { attachCompoundStepAttribution } from './ai-compound-step-outcome.util.js';
 import {
   applyBookingRescheduleActionHints,
   buildRescheduleFirstAvailableNoSlotMessage,
@@ -846,9 +847,8 @@ export class AiCommandService {
         sessionWithRoute?.context as Record<string, unknown> | undefined,
       );
       if (resume) {
-        const clarifyFields = extractClarifyFieldsFromFollowUpPrompt(
-          effectivePrompt,
-        );
+        const clarifyFields =
+          extractClarifyFieldsFromFollowUpPrompt(effectivePrompt);
         return this.executeCompoundIntents(
           businessId,
           resume.confirmationPrompt || effectivePrompt,
@@ -1591,9 +1591,24 @@ export class AiCommandService {
 
     // e2e-bug.161 / e2e-bug.164 — high-risk mutates always require confirmation
     // when not yet confirmed (registry-driven policy, not ad hoc inline lists).
+    //
+    // e2e-bug.404 — planner-routed actions answer to the spec model as well.
+    // `DASHBOARD_EXECUTION_CONFIRM_ACTIONS` covers 59 of the 210 commands
+    // `CommandSpec` says must be confirmed, so the action-name list alone would
+    // let the planner execute `appointment.mark_paid` (T2, money) silently. The
+    // requirement is re-derived from the registry rather than carried from
+    // `decidePlannerRoute`, so it cannot be dropped in transport and fail open.
+    //
+    // Scoped to `candidateSource === 'planner'` on purpose: applying the spec
+    // model to detector traffic is `e2e-bug.405`, a product decision about 13
+    // dashboard commands, and settling it here as a side effect would start
+    // interrupting users on flows that never asked.
     if (
-      requiresDashboardExecutionConfirmation(parsed.action) &&
-      !confirmed
+      shouldConfirmBeforeExecute({
+        action: parsed.action,
+        candidateSource: traceCtx.candidateSource,
+        alreadyConfirmed: confirmed,
+      })
     ) {
       const confirmResult = buildExecutionConfirmationResult(
         parsed.action,
@@ -1651,9 +1666,7 @@ export class AiCommandService {
           userId,
           actorEmail: session?.context?.userEmail as string | undefined,
           actorName: session?.context?.userName as string | undefined,
-          sessionCustomerId: session?.context?.customerId as
-            | string
-            | undefined,
+          sessionCustomerId: session?.context?.customerId as string | undefined,
         });
         if (integrationsResult != null) {
           result = integrationsResult;
@@ -1681,11 +1694,11 @@ export class AiCommandService {
                 userId,
                 employeeId,
                 sessionLastPush: session?.context?.lastPush,
-                sessionOfflineQueueCount:
-                  session?.context?.offlineQueueCount,
+                sessionOfflineQueueCount: session?.context?.offlineQueueCount,
                 sessionOnline: session?.context?.online,
-                sessionScopedEmployeeId: session?.context
-                  ?.scopedEmployeeId as string | undefined,
+                sessionScopedEmployeeId: session?.context?.scopedEmployeeId as
+                  | string
+                  | undefined,
                 sessionCustomerId: session?.context?.customerId as
                   | string
                   | undefined,
@@ -1693,25 +1706,23 @@ export class AiCommandService {
             if (pushNotificationsResult != null) {
               result = pushNotificationsResult;
             } else {
-              const bookingCoreResult = await this.bookingCore.dispatchIntent(
-                {
-                  businessId,
-                  action: parsed.action,
-                  params,
-                  prompt: effectivePrompt,
-                  userId,
-                  employeeId,
-                  resolvedEmployeeName: resolvedEmployee?.name,
-                  employees,
-                  services,
-                  customers,
-                  templates,
-                  timeZone,
-                  lookupCustomerAccessContext:
-                    (session?.context?._accessTier as string | undefined) ??
-                    (session?.context?._actorRole as string | undefined),
-                },
-              );
+              const bookingCoreResult = await this.bookingCore.dispatchIntent({
+                businessId,
+                action: parsed.action,
+                params,
+                prompt: effectivePrompt,
+                userId,
+                employeeId,
+                resolvedEmployeeName: resolvedEmployee?.name,
+                employees,
+                services,
+                customers,
+                templates,
+                timeZone,
+                lookupCustomerAccessContext:
+                  (session?.context?._accessTier as string | undefined) ??
+                  (session?.context?._actorRole as string | undefined),
+              });
               if (bookingCoreResult != null) {
                 result = bookingCoreResult;
               } else {
@@ -1727,19 +1738,22 @@ export class AiCommandService {
                     customers,
                     timeZone,
                     sessionDate:
-                      typeof (session?.context as Record<string, unknown> | undefined)
-                        ?.date === 'string'
-                        ? ((session?.context as Record<string, unknown>).date as string)
+                      typeof (
+                        session?.context as Record<string, unknown> | undefined
+                      )?.date === 'string'
+                        ? ((session?.context as Record<string, unknown>)
+                            .date as string)
                         : undefined,
                     calendarRoute:
-                      typeof (session?.context as Record<string, unknown> | undefined)
-                        ?.route === 'string'
-                        ? ((session?.context as Record<string, unknown>).route as string)
+                      typeof (
+                        session?.context as Record<string, unknown> | undefined
+                      )?.route === 'string'
+                        ? ((session?.context as Record<string, unknown>)
+                            .route as string)
                         : undefined,
                     resolveEmployee: (list, name) =>
                       this.resolveEmployee(list, name),
-                    resolveServices: (list, p) =>
-                      this.resolveServices(list, p),
+                    resolveServices: (list, p) => this.resolveServices(list, p),
                     resolveCustomer: (list, name) =>
                       this.resolveCustomer(list, name),
                     resolveBusinessRow: () =>
@@ -1848,61 +1862,52 @@ export class AiCommandService {
                                     businessId,
                                     action: parsed.action,
                                     params,
-                                    membershipRole:
-                                      session?.context?._membershipRole as
-                                        | string
-                                        | undefined,
+                                    membershipRole: session?.context
+                                      ?._membershipRole as string | undefined,
                                   });
                                 if (metaOpsResult != null) {
                                   result = metaOpsResult;
                                 } else {
-                                const operationsResult =
-                                  await this.operations.dispatchIntent({
-                                    businessId,
-                                    action: parsed.action,
-                                    params,
-                                    prompt: effectivePrompt,
-                                    employees,
-                                    services,
-                                    timeZone,
-                                    userId,
-                                  });
-                                if (operationsResult != null) {
-                                  result = operationsResult;
-                                } else {
-                                  const onboardingResult =
-                                    await this.onboarding.dispatchIntent({
+                                  const operationsResult =
+                                    await this.operations.dispatchIntent({
                                       businessId,
                                       action: parsed.action,
                                       params,
+                                      prompt: effectivePrompt,
+                                      employees,
+                                      services,
+                                      timeZone,
                                       userId,
                                     });
-                                  if (onboardingResult != null) {
-                                    result = onboardingResult;
+                                  if (operationsResult != null) {
+                                    result = operationsResult;
                                   } else {
-                                    const businessDateFormatResult =
-                                      await this.businessDateFormat.dispatchIntent(
-                                        {
-                                          businessId,
-                                          action: parsed.action,
-                                          params,
-                                          prompt: effectivePrompt,
-                                          confirmed:
-                                            isExecutionConfirmed(session),
-                                        },
-                                      );
-                                    if (businessDateFormatResult != null) {
-                                      result = businessDateFormatResult;
+                                    const onboardingResult =
+                                      await this.onboarding.dispatchIntent({
+                                        businessId,
+                                        action: parsed.action,
+                                        params,
+                                        userId,
+                                      });
+                                    if (onboardingResult != null) {
+                                      result = onboardingResult;
                                     } else {
-                                      const clinicTestCatalogResult =
-                                        await this.clinicTestCatalog.dispatchIntent(
-                                          { businessId, action: parsed.action, params, userId },
+                                      const businessDateFormatResult =
+                                        await this.businessDateFormat.dispatchIntent(
+                                          {
+                                            businessId,
+                                            action: parsed.action,
+                                            params,
+                                            prompt: effectivePrompt,
+                                            confirmed:
+                                              isExecutionConfirmed(session),
+                                          },
                                         );
-                                      if (clinicTestCatalogResult != null) {
-                                        result = clinicTestCatalogResult;
+                                      if (businessDateFormatResult != null) {
+                                        result = businessDateFormatResult;
                                       } else {
-                                        const patientClinicalMutationsResult =
-                                          await this.patientClinicalMutations.dispatchIntent(
+                                        const clinicTestCatalogResult =
+                                          await this.clinicTestCatalog.dispatchIntent(
                                             {
                                               businessId,
                                               action: parsed.action,
@@ -1910,216 +1915,283 @@ export class AiCommandService {
                                               userId,
                                             },
                                           );
-                                        if (patientClinicalMutationsResult != null) {
-                                          result = patientClinicalMutationsResult;
+                                        if (clinicTestCatalogResult != null) {
+                                          result = clinicTestCatalogResult;
                                         } else {
-                                          const tourServiceResult =
-                                            await this.tourService.dispatchIntent(
+                                          const patientClinicalMutationsResult =
+                                            await this.patientClinicalMutations.dispatchIntent(
                                               {
                                                 businessId,
                                                 action: parsed.action,
                                                 params,
-                                                prompt: effectivePrompt,
                                                 userId,
                                               },
                                             );
-                                          if (tourServiceResult != null) {
-                                            result = tourServiceResult;
+                                          if (
+                                            patientClinicalMutationsResult !=
+                                            null
+                                          ) {
+                                            result =
+                                              patientClinicalMutationsResult;
                                           } else {
-                                            const businessTaxResult =
-                                              await this.businessTax.dispatchIntent(
+                                            const tourServiceResult =
+                                              await this.tourService.dispatchIntent(
                                                 {
                                                   businessId,
                                                   action: parsed.action,
                                                   params,
                                                   prompt: effectivePrompt,
+                                                  userId,
                                                 },
                                               );
-                                            if (businessTaxResult != null) {
-                                              result = businessTaxResult;
+                                            if (tourServiceResult != null) {
+                                              result = tourServiceResult;
                                             } else {
-                                              const businessCurrencyResult =
-                                                await this.businessCurrency.dispatchIntent(
+                                              const businessTaxResult =
+                                                await this.businessTax.dispatchIntent(
                                                   {
                                                     businessId,
                                                     action: parsed.action,
                                                     params,
                                                     prompt: effectivePrompt,
-                                                    confirmed:
-                                                      isExecutionConfirmed(
-                                                        session,
-                                                      ),
                                                   },
                                                 );
-                                              if (businessCurrencyResult != null) {
-                                                result = businessCurrencyResult;
+                                              if (businessTaxResult != null) {
+                                                result = businessTaxResult;
                                               } else {
-                                                const agentOpsResult =
-                                                  await this.agentOps.dispatchIntent(
+                                                const businessCurrencyResult =
+                                                  await this.businessCurrency.dispatchIntent(
                                                     {
                                                       businessId,
                                                       action: parsed.action,
                                                       params,
-                                                      userId,
+                                                      prompt: effectivePrompt,
+                                                      confirmed:
+                                                        isExecutionConfirmed(
+                                                          session,
+                                                        ),
                                                     },
                                                   );
-                                                if (agentOpsResult != null) {
-                                                  result = agentOpsResult;
+                                                if (
+                                                  businessCurrencyResult != null
+                                                ) {
+                                                  result =
+                                                    businessCurrencyResult;
                                                 } else {
-                                                  const recommendationProductResult =
-                                                    await this.recommendationProduct.dispatchIntent(
+                                                  const agentOpsResult =
+                                                    await this.agentOps.dispatchIntent(
                                                       {
                                                         businessId,
                                                         action: parsed.action,
                                                         params,
-                                                        prompt: effectivePrompt,
+                                                        userId,
                                                       },
                                                     );
-                                                  if (recommendationProductResult != null) {
-                                                    result = recommendationProductResult;
+                                                  if (agentOpsResult != null) {
+                                                    result = agentOpsResult;
                                                   } else {
-                                                    const smallServicesResult =
-                                                      await this.dispatchSmallServices(
-                                                        businessId,
-                                                        parsed.action,
-                                                        params,
-                                                        effectivePrompt,
-                                                        userId,
-                                                        employees,
-                                                        services,
-                                                        customers,
-                                                        session,
+                                                    const recommendationProductResult =
+                                                      await this.recommendationProduct.dispatchIntent(
+                                                        {
+                                                          businessId,
+                                                          action: parsed.action,
+                                                          params,
+                                                          prompt:
+                                                            effectivePrompt,
+                                                        },
                                                       );
-                                                    if (smallServicesResult != null) {
-                                                      result = smallServicesResult;
-                                                    } else
-                                                      switch (parsed.action) {
-          case 'explain_app_feature':
-          case 'guide_user_flow':
-          case 'explain_current_screen':
-            result = await this.dispatchProductGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-            );
-            break;
-          case 'explain_ai_settings':
-          case 'explain_ai_suggestions':
-          case 'explain_assistant_approval':
-            result = await this.dispatchMetaProductGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-              userId,
-            );
-            break;
-          case 'explain_visibility_block':
-          case 'explain_empty_catalog':
-          case 'explain_stripe_not_connected':
-            result = await this.dispatchEmptyStateGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-            );
-            break;
-          case 'create_service': {
-            const createParams = { ...params };
-            enrichCreateServiceParamsFromPrompt(
-              createParams,
-              effectivePrompt,
-              services,
-            );
-            if (
-              Array.isArray(createParams.services) &&
-              createParams.services.length > 1
-            ) {
-              result = await this.handleCreateServices(
-                businessId,
-                createParams,
-                services,
-                userId,
-                effectivePrompt,
-              );
-            } else {
-              result = await this.handleCreateService(
-                businessId,
-                createParams,
-                services,
-                userId,
-                effectivePrompt,
-              );
-            }
-            break;
-          }
-          case 'create_services': {
-            const bulkCreateParams = { ...params };
-            enrichCreateServicesParamsFromPrompt(
-              bulkCreateParams,
-              effectivePrompt,
-            );
-            result = await this.handleCreateServices(
-              businessId,
-              bulkCreateParams,
-              services,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'optimize_schedule':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                // e2e-bug.150 — canonical action, not the raw user prompt.
-                action: 'optimize_schedule',
-                agentType: AgentType.SCHEDULING_OPTIMIZATION,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          case 'resolve_conflicts':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                action: 'resolve_conflicts',
-                agentType: AgentType.CONFLICT_RESOLUTION,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          case 'reassign_cancelled':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                action: 'reassign_cancelled',
-                agentType: AgentType.CANCELLATION_RECOVERY,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          default:
-            result = buildUnwiredDashboardIntentResult(parsed.action, {
-              reasoning: parsed.reasoning,
-              parsed: parsed as unknown as Record<string, unknown>,
-            });
-            break;
-        }
-                                                  }
+                                                    if (
+                                                      recommendationProductResult !=
+                                                      null
+                                                    ) {
+                                                      result =
+                                                        recommendationProductResult;
+                                                    } else {
+                                                      const smallServicesResult =
+                                                        await this.dispatchSmallServices(
+                                                          businessId,
+                                                          parsed.action,
+                                                          params,
+                                                          effectivePrompt,
+                                                          userId,
+                                                          employees,
+                                                          services,
+                                                          customers,
+                                                          session,
+                                                        );
+                                                      if (
+                                                        smallServicesResult !=
+                                                        null
+                                                      ) {
+                                                        result =
+                                                          smallServicesResult;
+                                                      } else
+                                                        switch (parsed.action) {
+                                                          case 'explain_app_feature':
+                                                          case 'guide_user_flow':
+                                                          case 'explain_current_screen':
+                                                            result =
+                                                              await this.dispatchProductGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                              );
+                                                            break;
+                                                          case 'explain_ai_settings':
+                                                          case 'explain_ai_suggestions':
+                                                          case 'explain_assistant_approval':
+                                                            result =
+                                                              await this.dispatchMetaProductGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                                userId,
+                                                              );
+                                                            break;
+                                                          case 'explain_visibility_block':
+                                                          case 'explain_empty_catalog':
+                                                          case 'explain_stripe_not_connected':
+                                                            result =
+                                                              await this.dispatchEmptyStateGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                              );
+                                                            break;
+                                                          case 'create_service': {
+                                                            const createParams =
+                                                              { ...params };
+                                                            enrichCreateServiceParamsFromPrompt(
+                                                              createParams,
+                                                              effectivePrompt,
+                                                              services,
+                                                            );
+                                                            if (
+                                                              Array.isArray(
+                                                                createParams.services,
+                                                              ) &&
+                                                              createParams
+                                                                .services
+                                                                .length > 1
+                                                            ) {
+                                                              result =
+                                                                await this.handleCreateServices(
+                                                                  businessId,
+                                                                  createParams,
+                                                                  services,
+                                                                  userId,
+                                                                  effectivePrompt,
+                                                                );
+                                                            } else {
+                                                              result =
+                                                                await this.handleCreateService(
+                                                                  businessId,
+                                                                  createParams,
+                                                                  services,
+                                                                  userId,
+                                                                  effectivePrompt,
+                                                                );
+                                                            }
+                                                            break;
+                                                          }
+                                                          case 'create_services': {
+                                                            const bulkCreateParams =
+                                                              { ...params };
+                                                            enrichCreateServicesParamsFromPrompt(
+                                                              bulkCreateParams,
+                                                              effectivePrompt,
+                                                            );
+                                                            result =
+                                                              await this.handleCreateServices(
+                                                                businessId,
+                                                                bulkCreateParams,
+                                                                services,
+                                                                userId,
+                                                                effectivePrompt,
+                                                              );
+                                                            break;
+                                                          }
+                                                          case 'optimize_schedule':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    // e2e-bug.150 — canonical action, not the raw user prompt.
+                                                                    action:
+                                                                      'optimize_schedule',
+                                                                    agentType:
+                                                                      AgentType.SCHEDULING_OPTIMIZATION,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          case 'resolve_conflicts':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    action:
+                                                                      'resolve_conflicts',
+                                                                    agentType:
+                                                                      AgentType.CONFLICT_RESOLUTION,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          case 'reassign_cancelled':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    action:
+                                                                      'reassign_cancelled',
+                                                                    agentType:
+                                                                      AgentType.CANCELLATION_RECOVERY,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          default:
+                                                            result =
+                                                              buildUnwiredDashboardIntentResult(
+                                                                parsed.action,
+                                                                {
+                                                                  reasoning:
+                                                                    parsed.reasoning,
+                                                                  parsed:
+                                                                    parsed as unknown as Record<
+                                                                      string,
+                                                                      unknown
+                                                                    >,
+                                                                },
+                                                              );
+                                                            break;
+                                                        }
+                                                    }
                                                   }
                                                 }
                                               }
@@ -2139,7 +2211,7 @@ export class AiCommandService {
                   }
                 }
               }
-              }
+            }
           }
         }
       }
@@ -2614,8 +2686,7 @@ export class AiCommandService {
         params,
         prompt,
       });
-    if (businessHoursLocationResult != null)
-      return businessHoursLocationResult;
+    if (businessHoursLocationResult != null) return businessHoursLocationResult;
 
     const referralStaffTemplatesResult =
       await this.referralStaffTemplates.dispatchIntent({
@@ -2657,8 +2728,7 @@ export class AiCommandService {
             ? session.context.locale
             : undefined,
       });
-    if (packageLocalizedNamesResult != null)
-      return packageLocalizedNamesResult;
+    if (packageLocalizedNamesResult != null) return packageLocalizedNamesResult;
 
     const openaiIntegrationResult = await this.openaiIntegration.dispatchIntent(
       { businessId, action, params, prompt },
@@ -2715,14 +2785,15 @@ export class AiCommandService {
           enrichOfferWaitlistSlotParams(prompt, params),
         );
       case 'create_booking_subscription_credit': {
-        const prepared = await this.bookingDepth.prepareSubscriptionCreditParams(
-          businessId,
-          params,
-          customers,
-          services,
-          (list, name) => this.resolveCustomer(list, name),
-          (list, name) => this.resolveService(list, name) ?? undefined,
-        );
+        const prepared =
+          await this.bookingDepth.prepareSubscriptionCreditParams(
+            businessId,
+            params,
+            customers,
+            services,
+            (list, name) => this.resolveCustomer(list, name),
+            (list, name) => this.resolveService(list, name) ?? undefined,
+          );
         if (!prepared.ok) return prepared.result;
         const bookingResult = await this.bookingCore.handleCreateBooking(
           businessId,
@@ -3013,8 +3084,17 @@ export class AiCommandService {
 
     let pendingCancelBookingIds: string[] | undefined;
     const compoundActions = subIntents.map((s) => s.action);
+    // AI-ROADMAP Phase 1 — per-step telemetry. `mergePlans` copies sub-plan
+    // steps with their ids intact, so recording the ids each sub-intent
+    // contributed makes attribution exact rather than matched by action name
+    // (one message often repeats an action: "cancel Mary's, cancel John's").
+    const planStepIdsByIndex: string[][] = subIntents.map(() => []);
 
-    for (let stepIndex = startIndex; stepIndex < subIntents.length; stepIndex++) {
+    for (
+      let stepIndex = startIndex;
+      stepIndex < subIntents.length;
+      stepIndex++
+    ) {
       const sub = subIntents[stepIndex];
       const parsedParams: Record<string, any> = {
         ...this.completionPipeline.mergeSessionContext(
@@ -3117,6 +3197,11 @@ export class AiCommandService {
       );
 
       if (handoff.status === 'clarify') {
+        attachCompoundStepAttribution(handoff.result, {
+          actions: compoundActions,
+          planStepIdsByIndex,
+          clarifiedAtIndex: stepIndex,
+        });
         // e2e-bug.304 / 305 — attach resume whenever a later step clarifies.
         if (stepIndex > 0) {
           return attachCompoundResumeToClarifyResult(handoff.result, {
@@ -3165,6 +3250,7 @@ export class AiCommandService {
 
       if (plan) {
         plans.push(plan);
+        planStepIdsByIndex[stepIndex] = plan.steps.map((s) => s.id);
         if (parsed.action === 'cancel_bookings') {
           const cancelStep = plan.steps.find(
             (s) => s.action === 'cancel_bookings',
@@ -3177,12 +3263,17 @@ export class AiCommandService {
     }
 
     if (plans.length === 0) {
-      return {
+      const noPlanResult: CommandResult = {
         success: false,
         action: 'compound_intent',
         summary: 'Could not build a plan from the compound command.',
         details: { subIntents },
       };
+      attachCompoundStepAttribution(noPlanResult, {
+        actions: compoundActions,
+        planStepIdsByIndex,
+      });
+      return noPlanResult;
     }
 
     const merged = this.planBuilder.mergePlans(
@@ -3218,6 +3309,10 @@ export class AiCommandService {
       subIntents: subIntents.map((s) => s.action),
       decomposed: true,
     };
+    attachCompoundStepAttribution(result, {
+      actions: compoundActions,
+      planStepIdsByIndex,
+    });
     return result;
   }
 
@@ -3654,7 +3749,11 @@ export class AiCommandService {
           resolvedEmployee?.name,
         );
       case 'analyze_services':
-        return this.bookingCore.handleAnalyzeServices(businessId, effectivePrompt, params);
+        return this.bookingCore.handleAnalyzeServices(
+          businessId,
+          effectivePrompt,
+          params,
+        );
       case 'summarize_staff':
         return this.bookingCore.handleSummarizeStaff(
           businessId,
@@ -3663,7 +3762,11 @@ export class AiCommandService {
           catalog.employees,
         );
       case 'lookup_customer':
-        return this.bookingCore.handleLookupCustomer(businessId, params, catalog.customers);
+        return this.bookingCore.handleLookupCustomer(
+          businessId,
+          params,
+          catalog.customers,
+        );
       case 'summarize_waitlist':
         return this.bookingCore.handleSummarizeWaitlist(businessId, params);
       case 'lookup_service_assignment':
@@ -4013,7 +4116,10 @@ export class AiCommandService {
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
           const statuses =
-            this.bookingCore.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+            this.bookingCore.resolveCalendarVisibilityStatusFilters(
+              params,
+              'hide',
+            ) ?? [];
           const plan = this.planBuilder.buildHideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4042,21 +4148,23 @@ export class AiCommandService {
       }
       case 'unhide_appointments_from_calendar': {
         if (options?.planOnly) {
-          const bookings = await this.bookingCore.findBookingsForCalendarVisibility(
-            businessId,
-            params,
-            catalog.services,
-            catalog.employees,
-            catalog.customers,
-            employeeId,
-            'unhide',
-          );
+          const bookings =
+            await this.bookingCore.findBookingsForCalendarVisibility(
+              businessId,
+              params,
+              catalog.services,
+              catalog.employees,
+              catalog.customers,
+              employeeId,
+              'unhide',
+            );
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
-          const statuses = this.bookingCore.resolveCalendarVisibilityStatusFilters(
-            params,
-            'unhide',
-          );
+          const statuses =
+            this.bookingCore.resolveCalendarVisibilityStatusFilters(
+              params,
+              'unhide',
+            );
           const plan = this.planBuilder.buildUnhideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4575,5 +4683,4 @@ export class AiCommandService {
     }
     return undefined;
   }
-
 }

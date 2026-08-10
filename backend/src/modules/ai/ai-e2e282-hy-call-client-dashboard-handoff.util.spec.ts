@@ -34,9 +34,7 @@ describe('e2e-bug.282: HY call-client FAQ → dashboard handoff (not summarize_c
           action: 'explain_dashboard_only_action',
           rescueReason: 'explain_dashboard_only_action',
         });
-        expect(
-          rescueDashboardHandoffIntent(prompt, 'unknown'),
-        ).toEqual({
+        expect(rescueDashboardHandoffIntent(prompt, 'unknown')).toEqual({
           action: 'explain_dashboard_only_action',
           rescueReason: 'explain_dashboard_only_action',
         });

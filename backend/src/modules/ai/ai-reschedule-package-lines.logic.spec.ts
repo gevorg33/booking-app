@@ -151,11 +151,9 @@ describe('handleReschedulePackageLinesLogic', () => {
     };
     const deps = buildDeps({
       publicCustomerAuthService: {
-        listBookings: jest
-          .fn()
-          .mockResolvedValue({
-            bookings: [visit1, visit2, visit3, otherPackageVisit],
-          }),
+        listBookings: jest.fn().mockResolvedValue({
+          bookings: [visit1, visit2, visit3, otherPackageVisit],
+        }),
       },
     });
     const result = await handleReschedulePackageLinesLogic(

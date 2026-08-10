@@ -78,13 +78,13 @@ describe('Sprint adopt-6.6 — consumer adoption AI scenarios', () => {
               platform: null,
             })),
           },
+        },
+        {
+          provide: getRepositoryToken(Business),
+          useValue: {
+            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
           },
-          {
-            provide: getRepositoryToken(Business),
-            useValue: {
-              findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
-            },
-          },
+        },
       ],
     }).compile();
 

@@ -21,35 +21,36 @@ const clinicBusiness = {
 } as Business;
 
 describe('e2e-bug.198 customer_clinic_compound notify step', () => {
-  it.each(
-    E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const),
-  )('full prompt $id hits BOOK_COMPOUND_BLOCK alone', (_id, row) => {
-    expect(isNotifyWhenResultsReadyPrompt(row.fullPrompt)).toBe(false);
-    expect(isClinicCompoundPrompt(row.fullPrompt, 'customer')).toBe(true);
-  });
+  it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(
+    'full prompt $id hits BOOK_COMPOUND_BLOCK alone',
+    (_id, row) => {
+      expect(isNotifyWhenResultsReadyPrompt(row.fullPrompt)).toBe(false);
+      expect(isClinicCompoundPrompt(row.fullPrompt, 'customer')).toBe(true);
+    },
+  );
 
-  it.each(
-    E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const),
-  )('segment $id is a valid notify prompt', (_id, row) => {
-    expect(isNotifyWhenResultsReadyPrompt(row.notifySegment)).toBe(true);
-  });
+  it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(
+    'segment $id is a valid notify prompt',
+    (_id, row) => {
+      expect(isNotifyWhenResultsReadyPrompt(row.notifySegment)).toBe(true);
+    },
+  );
 
-  it.each(
-    E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const),
-  )('decomposes $id with notify_when_results_ready step', (_id, row) => {
-    const steps = decomposeCustomerClinicCompoundPrompt(row.fullPrompt);
-    expect(steps.map((s) => s.action)).toEqual([
-      'book_nearest_slot',
-      'notify_when_results_ready',
-    ]);
-    const notify = steps[1];
-    expect(notify.params.aspect).toBeTruthy();
-    expect(isNotifyWhenResultsReadyPrompt(notify.segment)).toBe(true);
-  });
+  it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(
+    'decomposes $id with notify_when_results_ready step',
+    (_id, row) => {
+      const steps = decomposeCustomerClinicCompoundPrompt(row.fullPrompt);
+      expect(steps.map((s) => s.action)).toEqual([
+        'book_nearest_slot',
+        'notify_when_results_ready',
+      ]);
+      const notify = steps[1];
+      expect(notify.params.aspect).toBeTruthy();
+      expect(isNotifyWhenResultsReadyPrompt(notify.segment)).toBe(true);
+    },
+  );
 
-  it.each(
-    E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const),
-  )(
+  it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(
     'honors seeded aspect when full prompt is blocked ($id)',
     (_id, row) => {
       const steps = decomposeCustomerClinicCompoundPrompt(row.fullPrompt);
@@ -66,9 +67,7 @@ describe('e2e-bug.198 customer_clinic_compound notify step', () => {
     },
   );
 
-  it.each(
-    E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const),
-  )(
+  it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(
     'logic succeeds with step _prompt under full compound prompt ($id)',
     async (_id, row) => {
       const steps = decomposeCustomerClinicCompoundPrompt(row.fullPrompt);

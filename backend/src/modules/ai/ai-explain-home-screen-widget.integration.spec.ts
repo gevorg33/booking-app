@@ -29,13 +29,13 @@ describe('ai-explain-home-screen-widget integration (ai-cmd-customer-4.13.6)', (
           useValue: {
             getNativePushStatus: jest.fn(async () => ({ registered: false })),
           },
+        },
+        {
+          provide: getRepositoryToken(Business),
+          useValue: {
+            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
           },
-          {
-            provide: getRepositoryToken(Business),
-            useValue: {
-              findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
-            },
-          },
+        },
       ],
     }).compile();
 

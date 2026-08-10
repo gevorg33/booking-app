@@ -28,7 +28,11 @@ describe('e2e-bug.136 — unblock routes to delete_schedule_block', () => {
   it.each(E2E136_DELETE_SCHEDULE_BLOCK_SCENARIOS)(
     'rescues $id → delete_schedule_block',
     ({ prompt, expectedAction }) => {
-      for (const action of ['unknown', 'clear_schedule', 'react_agent'] as const) {
+      for (const action of [
+        'unknown',
+        'clear_schedule',
+        'react_agent',
+      ] as const) {
         const result = rescue.rescue({
           prompt,
           action,

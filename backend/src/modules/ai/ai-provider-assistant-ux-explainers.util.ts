@@ -94,7 +94,7 @@ export function buildExplainOfflineSuggestionsSummary(): string {
 
 export function buildExplainAccessibilitySettingsSummary(): string {
   return [
-    'Text size and tap target size follow your phone\'s system accessibility settings, not a setting inside this app.',
+    "Text size and tap target size follow your phone's system accessibility settings, not a setting inside this app.",
     'On iOS: Settings → Accessibility → Display & Text Size.',
     'On Android: Settings → Accessibility → Display size and text.',
     'The app scales its layout to match whatever your device is set to.',

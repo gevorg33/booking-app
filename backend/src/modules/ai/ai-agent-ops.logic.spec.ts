@@ -19,8 +19,14 @@ function buildDeps(overrides: Record<string, any> = {}): AgentOpsLogicDeps {
         success: false,
         message: 'No rebooking proposals available',
       })),
-      approveAndExecute: jest.fn(async () => ({ id: 't1', status: 'processing' })),
-      retryFailedStep: jest.fn(async () => ({ id: 't1', status: 'processing' })),
+      approveAndExecute: jest.fn(async () => ({
+        id: 't1',
+        status: 'processing',
+      })),
+      retryFailedStep: jest.fn(async () => ({
+        id: 't1',
+        status: 'processing',
+      })),
       ...overrides.agentOrchestrator,
     },
     agentTaskUndo: {
@@ -178,7 +184,9 @@ describe('ai-agent-ops.logic (ai-cmd-dashboard-6.1)', () => {
           undoLatest: jest.fn(async () => ({
             taskId: 't1',
             intent: 'cancel all afternoon',
-            reversedSteps: [{ action: 'cancel_booking', description: 'x', success: true }],
+            reversedSteps: [
+              { action: 'cancel_booking', description: 'x', success: true },
+            ],
           })),
         },
       });
@@ -232,7 +240,12 @@ describe('ai-agent-ops.logic (ai-cmd-dashboard-6.1)', () => {
 
     it('clarifies when taskId is missing', async () => {
       const deps = buildDeps();
-      const result = await handleApproveAgentTaskLogic(deps, 'biz-1', {}, 'user-1');
+      const result = await handleApproveAgentTaskLogic(
+        deps,
+        'biz-1',
+        {},
+        'user-1',
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
     });

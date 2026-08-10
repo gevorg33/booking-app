@@ -21,22 +21,25 @@ describe('e2e-bug.190 check_availability reachable', () => {
 
   it.each(
     E2E190_TEAM_WIDE_STAYS_PROVIDERS.map((row) => [row.id, row] as const),
-  )('does not force team-wide providers into check_availability %s', (_id, row) => {
-    expect(resolveCustomerAvailabilityActionLabel(row.classifiedAction)).toBe(
-      row.expectedAction,
-    );
-    expect(
-      shouldExecuteCheckAvailabilityDeterministically(row.classifiedAction),
-    ).toBe(false);
-    expect(isPublicOnlyAssistantAction(row.expectedAction)).toBe(false);
-  });
+  )(
+    'does not force team-wide providers into check_availability %s',
+    (_id, row) => {
+      expect(resolveCustomerAvailabilityActionLabel(row.classifiedAction)).toBe(
+        row.expectedAction,
+      );
+      expect(
+        shouldExecuteCheckAvailabilityDeterministically(row.classifiedAction),
+      ).toBe(false);
+      expect(isPublicOnlyAssistantAction(row.expectedAction)).toBe(false);
+    },
+  );
 
   it('never remaps check_availability to check_providers_for_service', () => {
     expect(resolveCustomerAvailabilityActionLabel('check_availability')).toBe(
       'check_availability',
     );
-    expect(resolveCustomerAvailabilityActionLabel('check_availability')).not.toBe(
-      'check_providers_for_service',
-    );
+    expect(
+      resolveCustomerAvailabilityActionLabel('check_availability'),
+    ).not.toBe('check_providers_for_service');
   });
 });

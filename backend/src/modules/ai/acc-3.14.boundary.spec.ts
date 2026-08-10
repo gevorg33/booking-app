@@ -22,7 +22,13 @@ describe('acc-3.14 boundary gate', () => {
     );
     expect(content).toContain('acc-3.14');
     expect(content).toContain('./any-provider-booking.semantic.util.js');
-    expect(content).toContain('./recommend-specialists.semantic.util.js');
+    // `./recommend-specialists.semantic.util.js` was asserted here until
+    // 2026-08-08. e2e-bug.354 deleted `isRecommendSpecialistsPrompt`, which had
+    // no production caller, so param-hints no longer imports anything from that
+    // module — the delegation it was asserting has nothing left to delegate.
+    // The rule this gate actually enforces is the loop below: a paraphrase
+    // detector must not be *defined* here. That still holds, and holds more
+    // strongly now the symbol does not exist at all.
     for (const symbol of ACC_3_14_FORBIDDEN_LOCAL_PARAPHRASE_SYMBOLS) {
       expect(content).not.toMatch(new RegExp(`export function ${symbol}\\b`));
     }

@@ -50,9 +50,11 @@ export function isRebookAllFromAgentTaskPrompt(prompt: string): boolean {
 }
 
 export function isUndoLatestAgentTaskPrompt(prompt: string): boolean {
-  return /\bundo\s+(the\s+)?(last|latest)\s+(agent\s+)?(action|task)\b/i.test(
-    prompt,
-  ) || /\brevert\s+(the\s+)?(last|latest)\s+agent\b/i.test(prompt);
+  return (
+    /\bundo\s+(the\s+)?(last|latest)\s+(agent\s+)?(action|task)\b/i.test(
+      prompt,
+    ) || /\brevert\s+(the\s+)?(last|latest)\s+agent\b/i.test(prompt)
+  );
 }
 
 export function rescueAgentOpsIntent(

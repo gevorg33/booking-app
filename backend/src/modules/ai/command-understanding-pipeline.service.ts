@@ -1,4 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { AiCommandPlannerService } from './ai-command-planner.service.js';
+import {
+  decidePlannerRoute,
+  plannerExecuteDomains,
+  RETIRED_DETECTOR_DOMAINS,
+} from './ai-planner-route.util.js';
+import { COMMAND_SPECS } from './ai-command-spec.registry.js';
+import type { AccessTier } from './access-control.matrix.js';
 import { AiPromptNormalizationService } from './ai-prompt-normalization.service.js';
 import { AiSemanticIntentService } from './ai-semantic-intent.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
@@ -51,6 +59,10 @@ import {
   shouldSkipStructuralEnrichAfterSelfVerify,
 } from './ai-intent-structural-enrich-skip.util.js';
 import {
+  evaluateRescueActionChange,
+  describeBlockedSteal,
+} from './ai-rescue-steal-guard.js';
+import {
   applyStructuralIntentEnrichment,
   readStructuralEnrichHints,
   summarizeStructuralEnrichTrace,
@@ -66,6 +78,13 @@ export class CommandUnderstandingPipelineService {
     private readonly fastHeuristics: FastIntentHeuristicsService,
     private readonly semanticIntent: AiSemanticIntentService,
     private readonly intentRescue: AiIntentRescueService,
+    /**
+     * e2e-bug.392 — optional and last so every existing four-argument
+     * construction keeps working. Absent means the planner stage is skipped,
+     * which is the same outcome as the flag being unset.
+     */
+    @Optional()
+    private readonly planner?: AiCommandPlannerService,
   ) {}
 
   async understand(
@@ -83,6 +102,7 @@ export class CommandUnderstandingPipelineService {
     }
 
     this.stageFastHeuristics(input, context, trace, candidates);
+    await this.stagePlannerRoute(input, context, trace, candidates);
 
     const { classified, complexityRoute } = await this.stageClassify(
       input,
@@ -196,6 +216,121 @@ export class CommandUnderstandingPipelineService {
         : context.normalizedPrompt.slice(0, 120),
     );
     return { normalization, context };
+  }
+
+  /**
+   * AI-ROADMAP Phase 8 / e2e-bug.392 — the planner as a routing path.
+   *
+   * Emits an `IntentCandidate` rather than short-circuiting. The candidate then
+   * goes through the same rerank, steal-guard, self-verify and structural-enrich
+   * stages as every other source, which is the point: the planner earns the
+   * route on the existing machinery instead of stepping around safety checks
+   * that were built for good reasons.
+   *
+   * Every failure path is a no-op, so with the flag unset — the default — this
+   * method returns before doing any work and the pipeline is bit-for-bit what it
+   * was. A planner error, a timeout or a declined plan all leave the candidate
+   * list untouched and the detector path decides, exactly as today.
+   *
+   * The confidence carried is the plan's own. It is deliberately not boosted:
+   * if the planner cannot outrank a paraphrase detector on its own number, that
+   * is a finding about whether the slice is ready, and inflating it here would
+   * hide precisely the signal Phase 8 needs.
+   */
+  private async stagePlannerRoute(
+    input: PipelineUnderstandInput,
+    context: PipelineContext,
+    trace: PipelineUnderstandResult['trace'],
+    candidates: IntentCandidate[],
+  ): Promise<void> {
+    const domains = plannerExecuteDomains();
+    if (domains.size === 0 || !this.planner) return;
+
+    const tier = input.sessionContext?._accessTier as AccessTier | undefined;
+    if (!tier) return;
+
+    try {
+      const outcome = await this.planner.plan({
+        businessId: input.businessId,
+        surface: input.surface,
+        tier,
+        message: input.effectivePrompt,
+        userId: input.userId,
+        context: {
+          today: new Date().toISOString().slice(0, 10),
+          timeZone: input.timeZone ?? 'UTC',
+        },
+      });
+      if (outcome.status !== 'executable') {
+        appendPipelineTrace(
+          trace,
+          'planner',
+          'skipped',
+          `planner status ${outcome.status}`,
+        );
+        return;
+      }
+
+      const decision = decidePlannerRoute(
+        outcome.plan,
+        outcome.validation,
+        COMMAND_SPECS,
+        domains,
+      );
+      if (!decision.routed) {
+        appendPipelineTrace(trace, 'planner', 'skipped', decision.reason);
+        return;
+      }
+
+      // e2e-bug.403 — in a retired domain the planner outranks the classifier by
+      // precedence, not by confidence.
+      //
+      // §93 locked `tour` and `guide` against rescue and gave them to the
+      // planner in the same commit, because a domain routed but not locked lets
+      // rescue overrule the planner. The mirror case was missed: locked but
+      // *outranked* lets the classifier's answer stand — and on rescue-dependent
+      // traffic that answer is by definition the one rescue used to override.
+      // Measured on `tour`: routed correctly, lost 3 of 11 on a hundredth of a
+      // point, 97% -> 76%.
+      //
+      // Outside retired domains this is 0 and the ranking is unchanged: the
+      // planner still has to win on its own number, which is what keeps §90's
+      // "it competes, it is not privileged" true everywhere the detectors are
+      // still doing the work.
+      const retired = RETIRED_DETECTOR_DOMAINS.includes(
+        decision.route.domain.toLowerCase(),
+      );
+      candidates.push({
+        action: decision.route.action,
+        confidence: decision.route.confidence,
+        source: 'planner',
+        params: decision.route.params,
+        ...(retired ? { precedence: 1 } : {}),
+        reasoning: `planner routed ${decision.route.command} (${decision.route.domain})${retired ? ', retired domain' : ''}`,
+      });
+      appendPipelineTrace(
+        trace,
+        'planner',
+        decision.route.action,
+        // e2e-bug.404 — the confirmation note is for the trace only. The gate
+        // that acts on it is in `ai-command.service.ts`, re-derived from the
+        // registry, so a route reaching execute without this note still gets
+        // confirmed.
+        `routed ${decision.route.command}${
+          decision.route.requiresConfirmation ? ' (needs confirmation)' : ''
+        }`,
+      );
+    } catch (error) {
+      // Never fail the request because the planner did. The detector path is
+      // still whole and is what would have run anyway.
+      this.logger.warn(
+        `planner routing stage failed, falling through: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      appendPipelineTrace(trace, 'planner', 'skipped', 'planner threw');
+    }
+    void context;
   }
 
   private stageFastHeuristics(
@@ -564,6 +699,43 @@ export class CommandUnderstandingPipelineService {
       rescued,
       Math.max(base.confidence ?? 0, 0.85),
     );
+
+    // AI-ROADMAP Phase 3 — the steal guard. Rescue may enrich params freely,
+    // but it may not swap a real classification for a *different mutating*
+    // command. See `ai-rescue-steal-guard.ts` for the production evidence.
+    const stealDecision = evaluateRescueActionChange({
+      classifiedAction: base.action,
+      rescuedAction: rescued.action,
+      rescueReason: rescued.rescueReason,
+    });
+
+    if (stealDecision.blocked) {
+      // Keep everything rescue extracted; restore the action it tried to take.
+      appendPipelineTrace(
+        trace,
+        'rescue',
+        base.action,
+        describeBlockedSteal({
+          classifiedAction: base.action,
+          rescuedAction: rescued.action,
+          rescueReason: rescued.rescueReason,
+          decision: stealDecision,
+        }),
+      );
+      return {
+        action: base.action,
+        params: mergeSemanticParamHintsOnly(
+          mergeCandidateParams(base.params ?? {}, {
+            ...candidate,
+            action: base.action,
+          }),
+          semanticParamHints,
+        ),
+        reasoning: base.reasoning,
+        confidence: base.confidence ?? 0,
+      };
+    }
+
     candidates.push(candidate);
 
     appendPipelineTrace(

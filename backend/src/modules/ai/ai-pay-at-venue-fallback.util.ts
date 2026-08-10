@@ -132,11 +132,3 @@ export function buildPayAtVenueFallbackNavigate(
     },
   };
 }
-
-/** Guard for pay_cash_at_visit — fallback prompts use pay_at_venue_fallback instead. */
-export function isExplicitPayCashAtVisitWithoutFallbackPrompt(
-  prompt: string,
-): boolean {
-  if (isPayAtVenueFallbackPrompt(prompt)) return false;
-  return isExplicitPayCashAtVisitPrompt(prompt);
-}

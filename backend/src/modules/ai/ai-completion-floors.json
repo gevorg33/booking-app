@@ -1,0 +1,18 @@
+{
+  "_comment": "AI-ROADMAP Phase 9 — ratcheting completion floors. Seeded from 5,362 production traces. Floors sit COMPLETION_FLOOR_MARGIN (2 points) below the measurement so ordinary week-to-week variance is not an incident. Raise with `npm run test:ai-completion-floor:update`; LOWERING one is only possible by editing this file by hand, which is deliberate — a hand edit is reviewable, a script that lowers floors is a ratchet that does not ratchet.",
+  "_measuredAt": {
+    "overall": "64.0% of 5362 calls",
+    "customer": "60.6% of 3703 calls",
+    "dashboard": "67.1% of 1161 calls",
+    "provider": "82.5% of 498 calls"
+  },
+  "_target": "§7 north star: 92% overall.",
+  "generatedAt": "2026-08-07T00:00:00.000Z",
+  "overall": 62.0,
+  "bySurface": {
+    "customer": 58.6,
+    "dashboard": 65.1,
+    "provider": 80.5
+  },
+  "marginUsed": 2
+}

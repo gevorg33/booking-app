@@ -198,10 +198,3 @@ export function rescueProviderSameDayMultiCompoundIntent(
     rescueReason: 'provider_same_day_multi_compound',
   };
 }
-
-export function isProviderSameDayMultiLikePrompt(prompt: string): boolean {
-  return (
-    hasProviderSameDayMultiProviderCue(prompt) &&
-    hasProviderSameDayMultiBlockCue(prompt)
-  );
-}

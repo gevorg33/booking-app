@@ -319,9 +319,35 @@
     "upgrade-all-tenants-plan:dry-run": "nest build && node dist/scripts/upgrade-all-tenants-plan.js --dry-run",
     "fix:loyalty": "nest build && node dist/scripts/recalculate-loyalty-earnings.js",
     "test:ai-detector-freeze": "jest --runInBand --testPathPatterns='ai-detector-freeze'",
-    "test:ai-trace-attribution": "jest --runInBand --testPathPatterns='ai-command-trace-attribution'",
+    "test:ai-inventory": "jest --runInBand --testPathPatterns='(ai-command-inventory|ai-detector-retirement|ai-command-eval.spec-coverage)'",
+    "test:ai-permissions": "jest --runInBand --testPathPatterns='(ai-command-permission|ai-permission-fail-closed|access-control.matrix)'",
+    "test:ai-compound-steps": "jest --runInBand --testPathPatterns='ai-compound-step'",
+    "test:ai-paraphrase": "jest --runInBand --testPathPatterns='(ai-paraphrase-invariance|ai-fewshot-retrieval)'",
+    "test:ai-completion-rate": "jest --runInBand --testPathPatterns='(ai-completion-rate|ai-miss-mining|ai-miss-to-fixture)'",
+    "test:ai-clarify": "jest --runInBand --testPathPatterns='(ai-clarify|ai-slot-filling|ai-topic-change|ai-conversation.util|ai-entity-store|ai-profile-facts|guide-failure-fallback)'",
+    "test:ai-risk-gate": "jest --runInBand --testPathPatterns='(ai-risk-gate|ai-self-verify-gate|ai-post-exec-assert|ai-propose-only)'",
+    "test:ai-entity-resolution": "jest --runInBand --testPathPatterns='(ai-entity-resolution|entity-resolution.service|ai-reparser-ratchet|ai-anaphora)'",
+    "test:ai-plan-executor": "jest --runInBand --testPathPatterns='(ai-plan-executor|ai-plan-response|ai-blast-radius|ai-step-idempotency|ai-saga)'",
+    "test:ai-datetime-resolution": "jest --runInBand --testPathPatterns='(ai-datetime-resolution|ai-date-range-resolution|ai-time-date-regression)'",
+    "test:ai-completion-floor": "jest --runInBand --testPathPatterns='ai-completion-floor'",
+    "gate:ai-completion-floor": "node ../scripts/ai-completion-floor-gate.mjs",
+    "gate:ai-completion-floor:update": "node ../scripts/ai-completion-floor-gate.mjs --update",
+    "test:ai-known-failures": "node ../scripts/ai-known-failures-gate.mjs",
+    "test:ai-known-failures:update": "node ../scripts/ai-known-failures-gate.mjs --update",
+    "build:ai-embeddings": "AI_BUILD_COMMAND_EMBEDDINGS=1 jest --runInBand --testPathPatterns=ai-command-embeddings.build",
+    "build:ai-inventory": "AI_INVENTORY_WRITE=1 jest --runInBand --testPathPatterns='ai-command-inventory.boundary'",
+    "test:ai-trace-attribution": "jest --runInBand --testPathPatterns='(ai-command-trace-attribution|ai-command-trace-session|ai-command-trace.util|ai-command-trace-recorder)'",
     "test:ai-reachability": "jest --runInBand --testPathPatterns='ai-command-reachability'",
-    "test:ai-roadmap-gates": "npm run test:ai-detector-freeze && npm run test:ai-reachability && npm run test:ai-trace-attribution"
+    "test:ai-roadmap-gates": "npm run test:ai-detector-freeze && npm run test:ai-inventory && npm run test:ai-reachability && npm run test:ai-trace-attribution && npm run test:ai-command-spec && npm run test:ai-permissions && npm run test:ai-compound-steps && npm run test:ai-paraphrase && npm run test:ai-completion-rate && npm run test:ai-completion-floor && npm run test:ai-clarify && npm run test:ai-risk-gate && npm run test:ai-entity-resolution && npm run test:ai-datetime-resolution && npm run test:ai-plan-executor && npm run test:ai-command-plan && npm run test:ai-command-planner && npm run test:ai-planner-shadow && npm run test:ai-steal-guard",
+    "test:ai-command-spec": "jest --runInBand --testPathPatterns='(ai-command-spec|ai-command-shortlist|ai-shortlist-confidence-gate|ai-command-embeddings.staleness)'",
+    "test:ai-command-plan": "jest --runInBand --testPathPatterns='ai-command-plan'",
+    "test:ai-command-planner": "jest --runInBand --testPathPatterns='(ai-command-planner|ai-planner-route|ai-planner-confirmation|ai-planner-replay|ai-planner-variable-hints|ai-rerank-precedence)'",
+    "ai:shadow-replay": "AI_SHADOW_REPLAY=1 jest --runInBand --testPathPatterns=ai-planner-shadow-replay",
+    "test:ai-planner-shadow": "jest --runInBand --testPathPatterns='ai-planner-shadow'",
+    "test:ai-steal-guard": "jest --runInBand --testPathPatterns='(ai-rescue-steal-guard|ai-rescue-domain-lock|ai-customer-rescue-applies)'",
+    "test:ai-planner-replay": "AI_REPLAY=1 jest --runInBand --testPathPatterns='ai-planner-replay'",
+    "test:ai-planner-spec-examples": "AI_REPLAY=1 jest --runInBand --testPathPatterns='ai-planner-spec-examples'",
+    "test:ai-time-travel": "TIME_TRAVEL_DAYS=${TIME_TRAVEL_DAYS:-400} node ../scripts/ai-known-failures-gate.mjs"
   },
   "dependencies": {
     "@langchain/core": "^1.1.48",
@@ -412,6 +438,9 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^(\\.{1,2}/.*)\\.js$": "$1"
-    }
+    },
+    "setupFiles": [
+      "<rootDir>/../test/time-travel.setup.cjs"
+    ]
   }
 }

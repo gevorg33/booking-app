@@ -37,9 +37,7 @@ describe('e2e-bug.276 home tab vs home-screen widget', () => {
     'isExplainHomeScreenWidgetPrompt false for $id',
     ({ prompt }) => {
       expect(isExplainHomeScreenWidgetPrompt(prompt)).toBe(false);
-      expect(
-        rescueExplainHomeScreenWidgetIntent(prompt, 'unknown'),
-      ).toBeNull();
+      expect(rescueExplainHomeScreenWidgetIntent(prompt, 'unknown')).toBeNull();
     },
   );
 

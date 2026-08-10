@@ -163,9 +163,7 @@ export function isDeleteExpensePrompt(prompt: string): boolean {
   if (/\b(retail|product|line|inventory|commission)\b/i.test(prompt)) {
     return false;
   }
-  return (
-    /\b(delete|remove)\b/i.test(prompt) && /\bexpenses?\b/i.test(prompt)
-  );
+  return /\b(delete|remove)\b/i.test(prompt) && /\bexpenses?\b/i.test(prompt);
 }
 
 export function isRecordExpensePrompt(prompt: string): boolean {
@@ -240,10 +238,16 @@ export function isCreateCommissionRulePrompt(prompt: string): boolean {
   if (isPayoutExportPrompt(prompt) || isExportCommissionsPrompt(prompt)) {
     return false;
   }
-  if (/\b(delete|remove|revoke)\b/i.test(prompt) && /\bcommission\b/i.test(prompt)) {
+  if (
+    /\b(delete|remove|revoke)\b/i.test(prompt) &&
+    /\bcommission\b/i.test(prompt)
+  ) {
     return false;
   }
-  if (/\b(how much|earned|report|summary)\b/i.test(prompt) && !/\b(set|create|add)\b/i.test(prompt)) {
+  if (
+    /\b(how much|earned|report|summary)\b/i.test(prompt) &&
+    !/\b(set|create|add)\b/i.test(prompt)
+  ) {
     return false;
   }
   return isCreateCommissionRulePromptLoose(prompt);
@@ -251,7 +255,10 @@ export function isCreateCommissionRulePrompt(prompt: string): boolean {
 
 /** e2e-bug.137 — reviews/ratings summary (dashboard). */
 export function isSummarizeReviewsPrompt(prompt: string): boolean {
-  if (/\b(write|leave|post|submit)\b/i.test(prompt) && /\breview\b/i.test(prompt)) {
+  if (
+    /\b(write|leave|post|submit)\b/i.test(prompt) &&
+    /\breview\b/i.test(prompt)
+  ) {
     return false;
   }
   return (
@@ -418,7 +425,13 @@ export function isAddRetailToMyBookingPrompt(prompt: string): boolean {
   );
 }
 
-export function isSetRetailSalesLinesPrompt(prompt: string): boolean {
+/**
+ * e2e-bug.353 - renamed from `isSetRetailSalesLinesPrompt`, also exported by
+ * `ai-provider-exp-3.util.ts` with a different implementation (that one requires
+ * `parseRetailSalesLinesFromPrompt` to yield lines; this one does not). Only the
+ * exp-3 copy is imported elsewhere; this one is used inside this file.
+ */
+export function isSetRetailSalesLinesFinancePrompt(prompt: string): boolean {
   const replaceCue =
     /\b(set|replace|update)\b/i.test(prompt) &&
     /\b(retail\s+)?(?:sales?\s+)?(cart|lines?)\b/i.test(prompt);
@@ -616,7 +629,10 @@ const EXPENSE_CATEGORY_STOPWORDS = new Set([
 const EXPENSE_CATEGORY_HINTS: Array<{ re: RegExp; category: string }> = [
   { re: /\b(supplies?|cleaning|cleaner|janitor)\b/i, category: 'supplies' },
   { re: /\b(rent|lease)\b/i, category: 'rent' },
-  { re: /\b(utilit(?:y|ies)|electric|water|gas|internet)\b/i, category: 'utilities' },
+  {
+    re: /\b(utilit(?:y|ies)|electric|water|gas|internet)\b/i,
+    category: 'utilities',
+  },
   { re: /\b(marketing|ads?|advertising|promo)\b/i, category: 'marketing' },
   { re: /\b(payroll|salary|wages?)\b/i, category: 'payroll' },
   { re: /\b(travel|transport|uber|taxi|flight)\b/i, category: 'travel' },
@@ -654,16 +670,20 @@ export function extractExpenseCategoryFromPrompt(
   if (quoted && !EXPENSE_CATEGORY_STOPWORDS.has(quoted.toLowerCase())) {
     return quoted;
   }
-  const named = prompt.match(
-    /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s+for|\s*$|[.?!])/i,
-  )?.[1]?.trim();
+  const named = prompt
+    .match(
+      /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s+for|\s*$|[.?!])/i,
+    )?.[1]
+    ?.trim();
   if (named && !EXPENSE_CATEGORY_STOPWORDS.has(named.toLowerCase())) {
     return named;
   }
   // "record expense supplies $45" — not "expense today for …"
-  const expense = prompt.match(
-    /\bexpense\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s*$)/i,
-  )?.[1]?.trim();
+  const expense = prompt
+    .match(
+      /\bexpense\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+\$|\s+amount|\s*$)/i,
+    )?.[1]
+    ?.trim();
   if (!expense) return null;
   if (EXPENSE_CATEGORY_STOPWORDS.has(expense.toLowerCase())) return null;
   return expense;
@@ -763,9 +783,11 @@ export function enrichDeleteExpenseParamsFromPrompt(
   if (!next.category) {
     // Only explicit "category …" — avoid "expense I just added" false category.
     const quotedCategory = prompt.match(/\bcategory\s+"([^"]+)"/i)?.[1]?.trim();
-    const namedCategory = prompt.match(
-      /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+expense|\s*$|[.?!])/i,
-    )?.[1]?.trim();
+    const namedCategory = prompt
+      .match(
+        /\bcategory\s+([A-Za-z][\w\s'-]{1,30}?)(?:\s+expense|\s*$|[.?!])/i,
+      )?.[1]
+      ?.trim();
     const category = quotedCategory || namedCategory;
     if (category && !/^(the|a|an|this|that|my|i)$/i.test(category)) {
       next.category = category;
@@ -839,7 +861,7 @@ export function rescueRetailFinanceIntent(
       rescueReason: 'add_retail_to_my_booking',
     };
   }
-  if (isSetRetailSalesLinesPrompt(prompt)) {
+  if (isSetRetailSalesLinesFinancePrompt(prompt)) {
     return {
       action: 'set_retail_sales_lines',
       rescueReason: 'set_retail_sales_lines',
@@ -945,7 +967,7 @@ function classifyRetailFinanceSegment(
   if (isAdjustInventoryPrompt(text)) {
     return { action: 'adjust_inventory', params: base, segment: text };
   }
-  if (isSetRetailSalesLinesPrompt(text)) {
+  if (isSetRetailSalesLinesFinancePrompt(text)) {
     return {
       action: 'set_retail_sales_lines',
       params: { ...base, lines: parseRetailSalesLinesFromPrompt(text) },

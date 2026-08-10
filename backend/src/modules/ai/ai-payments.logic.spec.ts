@@ -942,11 +942,15 @@ describe('ai-payments.logic', () => {
       expect(quote.action).toBe('get_gift_card_quote');
       expect((quote.details as any).quote.total).toBe(55);
 
-      const nonMonetary = await handleGetGiftCardQuoteLogic(buildDeps(), 'biz-1', {
-        cardType: 'package',
-        packageId: 'pkg-1',
-        deliveryMethod: 'digital',
-      });
+      const nonMonetary = await handleGetGiftCardQuoteLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          cardType: 'package',
+          packageId: 'pkg-1',
+          deliveryMethod: 'digital',
+        },
+      );
       expect(nonMonetary.success).toBe(true);
 
       const disabled = await handleGetGiftCardQuoteLogic(
@@ -1321,20 +1325,34 @@ describe('ai-payments.logic', () => {
     // even though the widget's own assistantContext carries an in-progress
     // checkout as pendingCheckoutSessionId (ConsumerBookingAssistant.tsx).
     it('confirm_stripe_payment resolves sessionId from context and fails clean when absent', async () => {
-      const missing = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1');
+      const missing = await handleConfirmStripePaymentLogic(
+        buildDeps(),
+        'biz-1',
+      );
       expect(missing.success).toBe(false);
       expect(missing.summary).toContain('Missing the Stripe checkout session');
-      expect(missing.details).toEqual({ clarify: true, missing: ['sessionId'] });
-
-      const explicit = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1', {
-        sessionId: 'cs_test_explicit',
+      expect(missing.details).toEqual({
+        clarify: true,
+        missing: ['sessionId'],
       });
+
+      const explicit = await handleConfirmStripePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          sessionId: 'cs_test_explicit',
+        },
+      );
       expect(explicit.success).toBe(true);
       expect(explicit.summary).toContain('Payment confirmed');
 
-      const fromPending = await handleConfirmStripePaymentLogic(buildDeps(), 'biz-1', {
-        pendingCheckoutSessionId: 'cs_test_pending',
-      });
+      const fromPending = await handleConfirmStripePaymentLogic(
+        buildDeps(),
+        'biz-1',
+        {
+          pendingCheckoutSessionId: 'cs_test_pending',
+        },
+      );
       expect(fromPending.success).toBe(true);
       expect(fromPending.details?.sessionContext).toEqual({
         paymentMethod: 'online',

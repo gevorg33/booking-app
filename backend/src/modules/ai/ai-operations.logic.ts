@@ -51,7 +51,10 @@ import {
 export interface OperationsLogicDeps {
   bookingRepo: Pick<Repository<Booking>, 'find'>;
   businessRepo: Pick<Repository<Business>, 'findOne'>;
-  orchestration: Pick<CommandOrchestrationService, 'executePlan' | 'approveTask'>;
+  orchestration: Pick<
+    CommandOrchestrationService,
+    'executePlan' | 'approveTask'
+  >;
   planBuilder: OperationalPlanBuilderService;
 }
 

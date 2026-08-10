@@ -45,23 +45,23 @@ describe('ai-provider-visit-status-explainers.util (e2e-bug.244 / ai-cmd-provide
       s.prompt,
     ]),
   )('rescues %s to explain_booking_status_badge', (_id, prompt) => {
-    expect(rescueVisitStatusExplainersIntent(prompt as string, 'unknown')).toEqual(
-      {
-        action: 'explain_booking_status_badge',
-        rescueReason: 'explain_booking_status_badge',
-      },
-    );
+    expect(
+      rescueVisitStatusExplainersIntent(prompt as string, 'unknown'),
+    ).toEqual({
+      action: 'explain_booking_status_badge',
+      rescueReason: 'explain_booking_status_badge',
+    });
   });
 
   it.each(
     PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
   )('rescues %s to explain_floor_status', (_id, prompt) => {
-    expect(rescueVisitStatusExplainersIntent(prompt as string, 'unknown')).toEqual(
-      {
-        action: 'explain_floor_status',
-        rescueReason: 'explain_floor_status',
-      },
-    );
+    expect(
+      rescueVisitStatusExplainersIntent(prompt as string, 'unknown'),
+    ).toEqual({
+      action: 'explain_floor_status',
+      rescueReason: 'explain_floor_status',
+    });
   });
 
   it.each([

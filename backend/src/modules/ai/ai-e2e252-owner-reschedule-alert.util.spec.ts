@@ -24,7 +24,9 @@ describe('e2e-bug.252 owner alert — a customer reschedules', () => {
   });
 
   it.each(
-    E2E252_OWNER_RESCHEDULE_ALERT_SCENARIOS.map((row) => [row.id, row] as const),
+    E2E252_OWNER_RESCHEDULE_ALERT_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('detects toggle for %s', (_id, row) => {
     expect(isToggleBusinessEmailOnCustomerChangePrompt(row.prompt)).toBe(
       row.expectToggle,
@@ -36,9 +38,9 @@ describe('e2e-bug.252 owner alert — a customer reschedules', () => {
       expect(
         rescuePushNotificationsIntent(row.prompt, 'react_agent')?.action,
       ).toBe('toggle_business_email_on_customer_change');
-      expect(
-        rescuePushNotificationsIntent(row.prompt, 'unknown')?.action,
-      ).toBe('toggle_business_email_on_customer_change');
+      expect(rescuePushNotificationsIntent(row.prompt, 'unknown')?.action).toBe(
+        'toggle_business_email_on_customer_change',
+      );
       if (typeof row.enabled === 'boolean') {
         expect(
           extractBusinessEmailOnCustomerChangeToggleFromPrompt(row.prompt),

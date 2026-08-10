@@ -1422,10 +1422,7 @@ export async function handleExplainEnterpriseTrustLogic(
   }
 
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseExplainEnterpriseTrustFromPrompt(
-    effectivePrompt,
-    params,
-  );
+  const parsed = parseExplainEnterpriseTrustFromPrompt(effectivePrompt, params);
   if (!parsed) {
     return failure(
       'explain_enterprise_trust',
@@ -1437,9 +1434,8 @@ export async function handleExplainEnterpriseTrustLogic(
   const settings = await deps.enterpriseTrustService.getSettings(businessId);
 
   if (parsed.aspect === 'documents') {
-    const documents = await deps.enterpriseTrustService.renderDocuments(
-      businessId,
-    );
+    const documents =
+      await deps.enterpriseTrustService.renderDocuments(businessId);
     return success(
       'explain_enterprise_trust',
       `${documents.length} trust document(s) available: ${documents

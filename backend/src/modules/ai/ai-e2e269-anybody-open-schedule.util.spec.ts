@@ -54,9 +54,9 @@ describe('e2e-bug.269 anybody-open-schedule check+book detection', () => {
   it('named-provider exclusion does not catch indefinites (e2e-bug.92/269)', () => {
     const named =
       /\b(?:is|are)\s+(?!anybody\b|anyone\b|someone\b|everybody\b|everyone\b)[A-Za-z][\w\s.'-]{1,40}\s+(?:available|free|open)\b/i;
-    expect(
-      named.test('is anybody open tomorrow morning for massage'),
-    ).toBe(false);
+    expect(named.test('is anybody open tomorrow morning for massage')).toBe(
+      false,
+    );
     expect(named.test('is Gevorg open tomorrow morning for massage')).toBe(
       true,
     );

@@ -535,11 +535,8 @@ describe('ai-marketing-growth.logic', () => {
     );
     expect(startCheckoutFails.success).toBe(false);
     expect(startCheckoutFails.summary).toContain('not configured');
-    const confirmCheckoutMissingSession = await handleConfirmBillingCheckoutLogic(
-      deps,
-      'biz-1',
-      {},
-    );
+    const confirmCheckoutMissingSession =
+      await handleConfirmBillingCheckoutLogic(deps, 'biz-1', {});
     expect(confirmCheckoutMissingSession.success).toBe(false);
     expect(confirmCheckoutMissingSession.details?.clarify).toBe(true);
     const confirmCheckoutOk = await handleConfirmBillingCheckoutLogic(
@@ -556,7 +553,9 @@ describe('ai-marketing-growth.logic', () => {
       buildDeps({
         billingService: {
           confirmCheckoutSession: jest.fn(async () => {
-            throw new Error('Checkout session does not belong to this business');
+            throw new Error(
+              'Checkout session does not belong to this business',
+            );
           }),
         } as any,
       }),

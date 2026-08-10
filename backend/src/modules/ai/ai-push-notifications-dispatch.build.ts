@@ -60,14 +60,16 @@ export function buildPushNotificationsLogicDispatchMap(): ReadonlyMap<
   map.set('offline_queue_status', (deps, ctx) =>
     handleOfflineQueueStatusLogic(deps, {
       ...ctx.params,
-      offlineQueueCount: ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
+      offlineQueueCount:
+        ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
       online: ctx.params.online ?? ctx.sessionOnline,
     }),
   );
   map.set('retry_offline_action', (deps, ctx) =>
     handleRetryOfflineActionLogic(deps, {
       ...ctx.params,
-      offlineQueueCount: ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
+      offlineQueueCount:
+        ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
       online: ctx.params.online ?? ctx.sessionOnline,
     }),
   );

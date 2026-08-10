@@ -67,8 +67,9 @@ export function isChairCloseoutPrompt(prompt: string): boolean {
 export function isRunningLateNotifyPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   const lateCue = /\b(running\s+)?late\b|\brunning\s+behind\b/i.test(lower);
-  const notifyCue =
-    /\b(text|message|notify|let\s+.{0,15}\s+know)\b/i.test(lower);
+  const notifyCue = /\b(text|message|notify|let\s+.{0,15}\s+know)\b/i.test(
+    lower,
+  );
   return lateCue && notifyCue;
 }
 
@@ -101,9 +102,10 @@ export function isPreVisitBriefPrompt(prompt: string): boolean {
 
 export function isEndOfDayClosePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
-  const wrapCue = /\b(wrap|close\s+out)\b.{0,20}\b(today|day|out)\b|\bend\s+of\s+day\b/i.test(
-    lower,
-  );
+  const wrapCue =
+    /\b(wrap|close\s+out)\b.{0,20}\b(today|day|out)\b|\bend\s+of\s+day\b/i.test(
+      lower,
+    );
   const sweepCue = /\bpaid\b/i.test(lower) && /\bno[\s-]?shows?\b/i.test(lower);
   return wrapCue && sweepCue;
 }
@@ -114,8 +116,9 @@ export function isRescheduleAndNotifyPrompt(prompt: string): boolean {
     /\b(move|reschedule|push\s+(?:this|it|her|him|them)\s+(?:appointment|booking|visit)?)\b/i.test(
       lower,
     );
-  const notifyCue =
-    /\b(text|message|notify|let\s+.{0,15}\s+know)\b/i.test(lower);
+  const notifyCue = /\b(text|message|notify|let\s+.{0,15}\s+know)\b/i.test(
+    lower,
+  );
   return moveCue && notifyCue;
 }
 
@@ -153,9 +156,10 @@ export function isPendingConfirmDayPrompt(prompt: string): boolean {
 export function isCheckInStartCompletePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   const checkInCue = /\bcheck(?:ed)?\s*(?:her|him|them)?\s*in\b/i.test(lower);
-  const startCue = /\bstart(?:ed)?\s+(?:the\s+)?(?:service|visit)?\b|\bin\s+progress\b/i.test(
-    lower,
-  );
+  const startCue =
+    /\bstart(?:ed)?\s+(?:the\s+)?(?:service|visit)?\b|\bin\s+progress\b/i.test(
+      lower,
+    );
   const completeCue = /\b(mark(?:ed)?\s+)?(done|complete(?:d)?)\b/i.test(lower);
   return checkInCue && startCue && completeCue;
 }
@@ -165,9 +169,8 @@ export function isRetailCloseoutPrompt(prompt: string): boolean {
   const upsellCue = /\b(recommend|suggest)\b.{0,20}\b(product|upsell)\b/i.test(
     lower,
   );
-  const closeCue = /\bclose\b.{0,20}\b(cash|paid|payment)\b|\bmark\s+paid\b/i.test(
-    lower,
-  );
+  const closeCue =
+    /\bclose\b.{0,20}\b(cash|paid|payment)\b|\bmark\s+paid\b/i.test(lower);
   return upsellCue && closeCue;
 }
 
@@ -233,7 +236,10 @@ export function rescueProviderCompoundRecipeIntent(
   if (isProviderCompoundRecipeIntent(action)) return null;
 
   if (isPushConfirmCheckInPrompt(prompt)) {
-    return { action: 'push_confirm_check_in', rescueReason: 'push_confirm_check_in' };
+    return {
+      action: 'push_confirm_check_in',
+      rescueReason: 'push_confirm_check_in',
+    };
   }
   if (isCancelAndRecoverPrompt(prompt)) {
     return { action: 'cancel_and_recover', rescueReason: 'cancel_and_recover' };

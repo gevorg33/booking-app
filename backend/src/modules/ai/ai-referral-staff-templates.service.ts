@@ -15,9 +15,7 @@ import type { ReferralStaffTemplatesDispatchContext } from './ai-referral-staff-
 export class AiReferralStaffTemplatesService {
   private readonly deps: ReferralStaffTemplatesLogicDeps;
 
-  constructor(
-    @InjectRepository(Business) businessRepo: Repository<Business>,
-  ) {
+  constructor(@InjectRepository(Business) businessRepo: Repository<Business>) {
     this.deps = { businessRepo };
   }
 

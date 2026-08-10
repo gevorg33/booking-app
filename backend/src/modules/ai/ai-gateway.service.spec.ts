@@ -507,26 +507,6 @@ describe('AiGatewayService', () => {
     ).rejects.toThrow(/authenticated user/);
   });
 
-  it('assertIntentAllowed throws for blocked action', () => {
-    const { service } = createService();
-    expect(() =>
-      service.assertIntentAllowed('dashboard', 'staff', 'optimize_schedule'),
-    ).toThrow(ForbiddenException);
-    expect(() =>
-      service.assertIntentAllowed('provider', 'staff', 'payment_sweep'),
-    ).toThrow(ForbiddenException);
-  });
-
-  it('assertIntentAllowed passes for permitted action', () => {
-    const { service } = createService();
-    expect(() =>
-      service.assertIntentAllowed('dashboard', 'owner', 'list_bookings'),
-    ).not.toThrow();
-    expect(() =>
-      service.assertIntentAllowed('provider', 'owner', 'list_bookings'),
-    ).not.toThrow();
-  });
-
   it('learns with details that omit params object', async () => {
     const mocks = createMocks();
     mocks.dashboardCommands.executeCommand = jest.fn(async () => ({

@@ -24,9 +24,7 @@ export function isConfirmPendingBookingPrompt(prompt: string): boolean {
     if (/\ball\b/.test(lower) && /\b(booking|appointment)s?\b/.test(lower)) {
       return true;
     }
-    if (
-      /\b[\w'.-]+'s\s+(?:pending\s+)?(?:booking|appointment)\b/.test(lower)
-    ) {
+    if (/\b[\w'.-]+'s\s+(?:pending\s+)?(?:booking|appointment)\b/.test(lower)) {
       return true;
     }
   }

@@ -145,7 +145,10 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
     list: jest.fn(async () => [
       { id: 'rule-1', employeeId: 'e1', type: 'percent', value: 10 },
     ]),
-    create: jest.fn(async (_biz: string, dto: any) => ({ id: 'rule-2', ...dto })),
+    create: jest.fn(async (_biz: string, dto: any) => ({
+      id: 'rule-2',
+      ...dto,
+    })),
     remove: jest.fn(async () => undefined),
     exportPayoutCsv: jest.fn(async () => ({
       filename: 'payout.csv',
@@ -155,7 +158,12 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
   };
   const reviewsService = {
     summary: jest.fn(async () => [
-      { employeeId: 'e1', employeeName: 'Alex', avgRating: 4.5, reviewCount: 2 },
+      {
+        employeeId: 'e1',
+        employeeName: 'Alex',
+        avgRating: 4.5,
+        reviewCount: 2,
+      },
     ]),
     list: jest.fn(async () => [
       {
@@ -172,8 +180,18 @@ describe('Sprint 33 retail/finance AI scenarios', () => {
       periodDays: 30,
       funnel: {
         steps: [
-          { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
-          { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+          {
+            step: 'app_installed',
+            count: 100,
+            conversionFromPrevious: null,
+            dropOffFromPrevious: null,
+          },
+          {
+            step: 'signed_in',
+            count: 50,
+            conversionFromPrevious: 50,
+            dropOffFromPrevious: 50,
+          },
         ],
         breakdowns: [],
       },

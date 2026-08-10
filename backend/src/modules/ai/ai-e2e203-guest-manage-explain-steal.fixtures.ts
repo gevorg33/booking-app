@@ -33,15 +33,13 @@ export const E2E203_COMPOUND_MUST_WIN: readonly E2E203CompoundCase[] = [
   },
   {
     id: 'hairstyle-without-account-manage',
-    prompt:
-      'Book hairstyle without an account and email me the manage link',
+    prompt: 'Book hairstyle without an account and email me the manage link',
     expectCompound: 'guest_book_and_manage',
     expectOrderedActions: ['book_nearest_slot', 'get_manage_link'],
   },
   {
     id: 'unicorn-guest-book-manage',
-    prompt:
-      'Book as guest a unicorn-laser-trim and email me the manage link',
+    prompt: 'Book as guest a unicorn-laser-trim and email me the manage link',
     expectCompound: 'guest_book_and_manage',
     expectOrderedActions: ['book_nearest_slot', 'get_manage_link'],
   },

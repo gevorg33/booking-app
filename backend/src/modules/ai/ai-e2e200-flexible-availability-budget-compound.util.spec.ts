@@ -72,9 +72,9 @@ describe('e2e-bug.200 flexible availability budget compound service parity', () 
       }
 
       if (row.expectServiceCategory != null) {
-        expect(
-          step0.serviceCategory ?? shared.serviceCategory ?? null,
-        ).toBe(row.expectServiceCategory);
+        expect(step0.serviceCategory ?? shared.serviceCategory ?? null).toBe(
+          row.expectServiceCategory,
+        );
       }
 
       if (row.expectServiceCategory === null && row.expectServiceName) {

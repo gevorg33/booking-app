@@ -79,9 +79,9 @@ describe('ai-guest-manage-visit-compound.util', () => {
     });
 
     it('returns no steps for a non-matching prompt', () => {
-      expect(decomposeGuestManageVisitCompoundPrompt('Cancel my haircut')).toEqual(
-        [],
-      );
+      expect(
+        decomposeGuestManageVisitCompoundPrompt('Cancel my haircut'),
+      ).toEqual([]);
     });
   });
 

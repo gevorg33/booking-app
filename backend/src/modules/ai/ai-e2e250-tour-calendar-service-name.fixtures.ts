@@ -67,7 +67,8 @@ export const E2E250_NO_SERVICE_NAME_SCENARIOS: readonly E2e250TourCalendarServic
     },
     {
       id: 'show-tours-current-week',
-      prompt: 'Show tour bookings with service and pax on the current calendar week',
+      prompt:
+        'Show tour bookings with service and pax on the current calendar week',
       paramsServiceName: 'current calendar week',
       expectServiceName: undefined,
     },

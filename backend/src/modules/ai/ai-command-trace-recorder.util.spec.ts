@@ -141,4 +141,40 @@ describe('ai-command-trace-recorder.util (pipe-1.10.3)', () => {
       'dashboard-create-to-check-providers',
     );
   });
+
+  describe('params on the stamp (e2e-bug.419)', () => {
+    it('records params the caller supplies', () => {
+      // The customer surface writes nothing into `details`, so before this every
+      // one of its trace rows stored `{}` — making "did the command get what the
+      // user said" unanswerable for 99.4% of that traffic.
+      const stamped = stampCommandTraceDetails(
+        {
+          success: true,
+          action: 'claim_referral_code',
+          summary: '',
+          details: {},
+        },
+        { params: { referralCode: 'FRIEND10' } },
+      );
+      expect(stamped.details?.params).toEqual({ referralCode: 'FRIEND10' });
+      expect(extractCommandTraceMetadata(stamped).params).toEqual({
+        referralCode: 'FRIEND10',
+      });
+    });
+
+    it('leaves an existing details.params alone when none is supplied', () => {
+      // The dashboard passes no params in its metadata and must keep whatever
+      // its handlers already put on the result.
+      const stamped = stampCommandTraceDetails(
+        {
+          success: true,
+          action: 'update_bookings',
+          summary: '',
+          details: { params: { date: '2026-08-07' } },
+        },
+        { confidence: 0.9 },
+      );
+      expect(stamped.details?.params).toEqual({ date: '2026-08-07' });
+    });
+  });
 });

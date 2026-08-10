@@ -72,7 +72,10 @@ export function isListProviderReviewsPrompt(prompt: string): boolean {
   if (matchListProviderReviewsScenario(prompt)) return true;
   if (SUBMIT_REVIEW_BLOCK.test(prompt)) return false;
   if (!REVIEWS_READ_CUE.test(prompt)) return false;
-  if (!PROVIDER_SCOPE_CUE.test(prompt) && !extractProviderNameForReviewsPrompt(prompt)) {
+  if (
+    !PROVIDER_SCOPE_CUE.test(prompt) &&
+    !extractProviderNameForReviewsPrompt(prompt)
+  ) {
     return false;
   }
   return true;

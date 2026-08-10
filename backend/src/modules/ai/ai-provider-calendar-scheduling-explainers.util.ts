@@ -13,7 +13,9 @@ function containsCyrillicScript(text: string): boolean {
 }
 
 /** ai-cmd-provider-5.23.2 — what the calendar month view's utilization color bands mean. */
-export function isExplainCalendarUtilizationBandsPrompt(prompt: string): boolean {
+export function isExplainCalendarUtilizationBandsPrompt(
+  prompt: string,
+): boolean {
   const lower = prompt.toLowerCase();
   if (/\b(mark|set|update|block|cancel|reschedule)\b/.test(lower)) return false;
 

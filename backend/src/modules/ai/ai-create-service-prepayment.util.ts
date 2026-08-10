@@ -446,7 +446,9 @@ export function enrichCreateServicePrepaymentParamsFromPrompt(
     ...(line?.price != null && params.price == null
       ? { price: line.price }
       : {}),
-    ...(parsed?.prepaymentMode ? { prepaymentMode: parsed.prepaymentMode } : {}),
+    ...(parsed?.prepaymentMode
+      ? { prepaymentMode: parsed.prepaymentMode }
+      : {}),
     ...(parsed?.depositPercent !== undefined
       ? { depositPercent: parsed.depositPercent }
       : {}),

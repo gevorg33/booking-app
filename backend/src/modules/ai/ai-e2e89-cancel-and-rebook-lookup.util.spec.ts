@@ -67,7 +67,10 @@ describe('e2e-bug.89 cancel_and_rebook must not invent serviceName "next availab
       'cancel my facemassage appointment and book the next available slot instead';
     const cancelParams = decomposeCancelAndRebookCompoundPrompt(prompt)[0]
       .params as Record<string, unknown>;
-    const enriched = enrichCancelMyBookingParamsFromPrompt(cancelParams, prompt);
+    const enriched = enrichCancelMyBookingParamsFromPrompt(
+      cancelParams,
+      prompt,
+    );
     const matched = matchCustomerOwnedBooking(
       [
         {

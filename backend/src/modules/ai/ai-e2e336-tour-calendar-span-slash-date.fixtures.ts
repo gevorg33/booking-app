@@ -16,7 +16,8 @@ export type E2e336LocaleCase = {
 export const E2E336_LOCALE_CASES: readonly E2e336LocaleCase[] = [
   {
     id: 'en-multi-day-span',
-    prompt: 'Why do tours appear across multiple days on the provider calendar?',
+    prompt:
+      'Why do tours appear across multiple days on the provider calendar?',
     expectContains: '8 June 2026',
     forbidSlash: '08/06/2026',
   },

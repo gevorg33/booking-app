@@ -54,9 +54,9 @@ describe('e2e-bug.87 hy guide mixed-script QA gate', () => {
 
   it('live prompt fixture covers 2-step and 3-step guide flows', () => {
     expect(E2E87_LIVE_HY_GUIDE_PROMPTS.length).toBeGreaterThanOrEqual(6);
-    expect(
-      E2E87_LIVE_HY_GUIDE_PROMPTS.some((p) => p.minSteps === 2),
-    ).toBe(true);
+    expect(E2E87_LIVE_HY_GUIDE_PROMPTS.some((p) => p.minSteps === 2)).toBe(
+      true,
+    );
     expect(
       E2E87_LIVE_HY_GUIDE_PROMPTS.some((p) => (p.minSteps ?? 0) >= 3),
     ).toBe(true);
@@ -124,8 +124,14 @@ describe('e2e-bug.87 hy guide mixed-script QA gate', () => {
   });
 
   it.each([
-    ['consumer-app', '../../../../consumer-app/src/assets/guide-flows-i18n.json'],
-    ['provider-app', '../../../../provider-app/src/assets/guide-flows-i18n.json'],
+    [
+      'consumer-app',
+      '../../../../consumer-app/src/assets/guide-flows-i18n.json',
+    ],
+    [
+      'provider-app',
+      '../../../../provider-app/src/assets/guide-flows-i18n.json',
+    ],
   ] as const)(
     'e2e-bug.46: %s guide-flows-i18n.json hy block is clean',
     (_label, relPath) => {
@@ -140,10 +146,7 @@ describe('e2e-bug.87 hy guide mixed-script QA gate', () => {
   );
 
   it('e2e-bug.46: provider canonical hy JSON is clean', () => {
-    const path = join(
-      __dirname,
-      './guide/guide-flow-provider-i18n.hy.json',
-    );
+    const path = join(__dirname, './guide/guide-flow-provider-i18n.hy.json');
     const tree = JSON.parse(readFileSync(path, 'utf8')) as Record<
       string,
       unknown

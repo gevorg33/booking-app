@@ -167,10 +167,7 @@ export function isExplainSpecimenRecollectPrompt(prompt: string): boolean {
 
   if (/\bwhy\b.*\brecollect\b/i.test(lower)) return true;
   if (/\brecollect\b.*\brequired\b/i.test(lower)) return true;
-  if (
-    /\bfailed\s+draw\b/i.test(lower) &&
-    /\bwhat\s+next\b/i.test(lower)
-  ) {
+  if (/\bfailed\s+draw\b/i.test(lower) && /\bwhat\s+next\b/i.test(lower)) {
     return true;
   }
   if (/\bwhy\b.*\bredraw\b/i.test(lower)) return true;

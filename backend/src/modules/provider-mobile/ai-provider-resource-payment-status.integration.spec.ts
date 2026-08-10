@@ -23,7 +23,11 @@ describe('provider AI resource + payment-status dispatch (ai-cmd-provider-6.15.6
   ) {
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
-      completeJson: jest.fn(async () => ({ action, params, reasoning: 'test' })),
+      completeJson: jest.fn(async () => ({
+        action,
+        params,
+        reasoning: 'test',
+      })),
     };
     return createProviderAiCommandHarness({
       llm,

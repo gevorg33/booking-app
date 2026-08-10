@@ -33,12 +33,20 @@ export const PROVIDER_VISIT_STATUS_ELIGIBILITY_SCENARIOS = [
   },
   {
     id: 'blocked-cancelled',
-    booking: { status: BookingStatus.CANCELLED, checkedInAt: null, metadata: null },
+    booking: {
+      status: BookingStatus.CANCELLED,
+      checkedInAt: null,
+      metadata: null,
+    },
     allowed: false,
   },
   {
     id: 'blocked-no-show',
-    booking: { status: BookingStatus.NO_SHOW, checkedInAt: null, metadata: null },
+    booking: {
+      status: BookingStatus.NO_SHOW,
+      checkedInAt: null,
+      metadata: null,
+    },
     allowed: false,
   },
   {

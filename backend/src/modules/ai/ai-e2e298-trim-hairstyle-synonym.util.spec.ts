@@ -15,9 +15,7 @@ import {
   expandServiceLookupQueries,
   findServiceLookupSynonymTokenInPrompt,
 } from './ai-service-lookup-synonyms.util.js';
-import {
-  extractServiceRankServiceCategoryFromPrompt,
-} from './ai-service-rank-discovery.util.js';
+import { extractServiceRankServiceCategoryFromPrompt } from './ai-service-rank-discovery.util.js';
 
 const CATALOG = [...E2E298_SALON_CATALOG];
 

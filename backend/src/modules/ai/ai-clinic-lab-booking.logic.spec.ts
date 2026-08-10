@@ -178,7 +178,9 @@ describe('ai-clinic-lab-booking.logic', () => {
     );
     expect(result.success).toBe(false);
     expect(result.action).toBe('book_lab_collection');
-    expect(String(result.summary)).toMatch(/couldn't find.*unicorn-panel-xyzzy/i);
+    expect(String(result.summary)).toMatch(
+      /couldn't find.*unicorn-panel-xyzzy/i,
+    );
     expect(result.details?.requestedTestName).toBe('unicorn-panel-xyzzy');
   });
 

@@ -107,8 +107,7 @@ export const E2E251_KEEP_IMPORT_SCENARIOS: readonly E2e251CatalogCategoryScenari
     },
     {
       id: 'import-menu-text-lines',
-      prompt:
-        'Import this menu: Facial 60min $50, Haircut 30min $25',
+      prompt: 'Import this menu: Facial 60min $50, Haircut 30min $25',
       expectCreateCategory: false,
       expectImportMenu: true,
     },

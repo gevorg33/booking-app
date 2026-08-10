@@ -21,12 +21,16 @@ describe('dashboard-api-ai-parity (ai-cmd-dashboard-6.19)', () => {
     '%s registers dashboard intents, ai-bulk-internal, or is no-ai',
     (id, entry) => {
       expect(listDashboardParityViolations([entry])).toEqual([]);
-      expect(formatDashboardParityEntryForDocs(entry).length).toBeGreaterThan(0);
+      expect(formatDashboardParityEntryForDocs(entry).length).toBeGreaterThan(
+        0,
+      );
     },
   );
 
   it('flags unknown dashboard intents', () => {
-    expect(listUnknownDashboardIntents(['update_business_profile'])).toEqual([]);
+    expect(listUnknownDashboardIntents(['update_business_profile'])).toEqual(
+      [],
+    );
     expect(
       listUnknownDashboardIntents(['not_a_real_dashboard_intent']),
     ).toEqual(['not_a_real_dashboard_intent']);

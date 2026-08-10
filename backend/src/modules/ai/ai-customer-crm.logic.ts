@@ -340,7 +340,12 @@ export async function handleListCustomerBookingsLogic(
   );
 }
 
-const CUSTOMER_LIST_SEGMENTS = new Set(['vip', 'at_risk', 'high_no_show', 'new']);
+const CUSTOMER_LIST_SEGMENTS = new Set([
+  'vip',
+  'at_risk',
+  'high_no_show',
+  'new',
+]);
 const CUSTOMER_LIST_SORT_BY = new Set(['name', 'createdAt', 'updatedAt']);
 
 /** ai-cmd-dashboard-6.7.5 — GET …/customers/dashboard search+filter+paginate, previously never called by AI. */
@@ -350,23 +355,33 @@ export async function handleListCustomersLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const query: GetCustomersQueryDto = {
-    search: typeof params.searchTerm === 'string' ? params.searchTerm : undefined,
+    search:
+      typeof params.searchTerm === 'string' ? params.searchTerm : undefined,
     email: typeof params.email === 'string' ? params.email : undefined,
     phone: typeof params.phone === 'string' ? params.phone : undefined,
     bookingStatus:
-      typeof params.bookingStatus === 'string' ? params.bookingStatus : undefined,
+      typeof params.bookingStatus === 'string'
+        ? params.bookingStatus
+        : undefined,
     tags:
       typeof params.tags === 'string' && isCustomerTag(params.tags)
         ? params.tags
         : undefined,
-    segment: CUSTOMER_LIST_SEGMENTS.has(params.segment) ? params.segment : undefined,
+    segment: CUSTOMER_LIST_SEGMENTS.has(params.segment)
+      ? params.segment
+      : undefined,
     isVip: typeof params.isVip === 'boolean' ? params.isVip : undefined,
-    sortBy: CUSTOMER_LIST_SORT_BY.has(params.sortBy) ? params.sortBy : undefined,
+    sortBy: CUSTOMER_LIST_SORT_BY.has(params.sortBy)
+      ? params.sortBy
+      : undefined,
     sortOrder:
       params.sortOrder === 'ASC' || params.sortOrder === 'DESC'
         ? params.sortOrder
         : undefined,
-    page: typeof params.page === 'number' && params.page > 0 ? params.page : undefined,
+    page:
+      typeof params.page === 'number' && params.page > 0
+        ? params.page
+        : undefined,
     pageSize:
       typeof params.limit === 'number' && params.limit > 0
         ? Math.min(params.limit, 100)
@@ -379,21 +394,24 @@ export async function handleListCustomersLogic(
 
   const hasFilters = Boolean(
     query.search ||
-      query.email ||
-      query.phone ||
-      query.tags ||
-      query.segment ||
-      query.isVip ||
-      query.bookingStatus,
+    query.email ||
+    query.phone ||
+    query.tags ||
+    query.segment ||
+    query.isVip ||
+    query.bookingStatus,
   );
 
   if (result.customers.length === 0) {
     return success(
       'list_customers',
-      hasFilters
-        ? 'No customers match those filters.'
-        : 'No customers found.',
-      { customers: [], totalItems: 0, page: result.page, pageSize: result.pageSize },
+      hasFilters ? 'No customers match those filters.' : 'No customers found.',
+      {
+        customers: [],
+        totalItems: 0,
+        page: result.page,
+        pageSize: result.pageSize,
+      },
     );
   }
 
@@ -542,11 +560,10 @@ export async function handleUpdateCustomerLogic(
     ]
       .filter(Boolean)
       .join(', ');
-    return success(
-      'update_customer',
-      `Updated ${updated.name}: ${changes}.`,
-      { customerId: updated.id, customerName: updated.name },
-    );
+    return success('update_customer', `Updated ${updated.name}: ${changes}.`, {
+      customerId: updated.id,
+      customerName: updated.name,
+    });
   } catch (err: any) {
     return failure(
       'update_customer',

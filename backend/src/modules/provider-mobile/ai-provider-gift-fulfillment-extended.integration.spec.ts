@@ -30,7 +30,8 @@ describe('provider AI gift fulfillment extended (ai-cmd-provider-5.20)', () => {
       handleExplainGiftCardOrderDetails: jest.fn(async () => ({
         success: true,
         action: 'explain_gift_card_order_details',
-        summary: 'Order gc-1 — service gift card, USD 100.00 (USD 100.00 remaining).',
+        summary:
+          'Order gc-1 — service gift card, USD 100.00 (USD 100.00 remaining).',
         details: { giftCardId: 'gc-1' },
       })),
     };

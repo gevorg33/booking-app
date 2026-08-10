@@ -169,13 +169,19 @@ export async function handleUpdateTestTypeLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'update_test_type';
-  const resolved = await resolveTestTypeOrFail(deps, businessId, params, action);
+  const resolved = await resolveTestTypeOrFail(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (!resolved.ok) return resolved.result;
 
   const roleResult = await resolveRoleOrFail(deps, businessId, userId, action);
   if (!roleResult.ok) return roleResult.result;
 
-  const title = typeof params.title === 'string' ? params.title.trim() : undefined;
+  const title =
+    typeof params.title === 'string' ? params.title.trim() : undefined;
   const price = typeof params.price === 'number' ? params.price : undefined;
   const requiresFasting =
     typeof params.requiresFasting === 'boolean'
@@ -231,7 +237,12 @@ export async function handleDeleteTestTypeLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'delete_test_type';
-  const resolved = await resolveTestTypeOrFail(deps, businessId, params, action);
+  const resolved = await resolveTestTypeOrFail(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (!resolved.ok) return resolved.result;
 
   const roleResult = await resolveRoleOrFail(deps, businessId, userId, action);
@@ -249,7 +260,10 @@ export async function handleDeleteTestTypeLogic(
       { testType },
     );
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not deactivate the test type.');
+    return failure(
+      action,
+      err?.message ?? 'Could not deactivate the test type.',
+    );
   }
 }
 
@@ -304,7 +318,8 @@ export async function handleUpdateTestPanelLogic(
   const roleResult = await resolveRoleOrFail(deps, businessId, userId, action);
   if (!roleResult.ok) return roleResult.result;
 
-  const title = typeof params.title === 'string' ? params.title.trim() : undefined;
+  const title =
+    typeof params.title === 'string' ? params.title.trim() : undefined;
   const price = typeof params.price === 'number' ? params.price : undefined;
   const isActive =
     typeof params.isActive === 'boolean' ? params.isActive : undefined;
@@ -434,6 +449,9 @@ export async function handleImportClinicCatalogCsvLogic(
       { summary },
     );
   } catch (err: any) {
-    return failure(action, err?.message ?? 'Could not import the lab catalog CSV.');
+    return failure(
+      action,
+      err?.message ?? 'Could not import the lab catalog CSV.',
+    );
   }
 }

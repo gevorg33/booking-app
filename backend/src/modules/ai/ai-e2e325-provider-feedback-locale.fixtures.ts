@@ -20,7 +20,8 @@ export const E2E325_PROVIDER_FEEDBACK_LOCALE_CASES: readonly E2e325ProviderFeedb
       locale: 'hy',
       expectUpLabel: 'Օգտակար',
       expectDownLabel: 'Օգտակար չէ',
-      expectThanks: 'Շնորհակալություն — սա օգնում է բարելավել մասնագետի օգնականին։',
+      expectThanks:
+        'Շնորհակալություն — սա օգնում է բարելավել մասնագետի օգնականին։',
       expectReasonWrongClient: 'Սխալ հաճախորդ',
     },
     {

@@ -5,9 +5,12 @@ export const DASHBOARD_LOCATIONS_MUTATE_INTENTS = [
   'update_location',
 ] as const;
 
-export type LocationsIntent = (typeof DASHBOARD_LOCATIONS_MUTATE_INTENTS)[number];
+export type LocationsIntent =
+  (typeof DASHBOARD_LOCATIONS_MUTATE_INTENTS)[number];
 
-const LOCATIONS_INTENT_SET = new Set<string>(DASHBOARD_LOCATIONS_MUTATE_INTENTS);
+const LOCATIONS_INTENT_SET = new Set<string>(
+  DASHBOARD_LOCATIONS_MUTATE_INTENTS,
+);
 
 export function isLocationsIntent(action: string): action is LocationsIntent {
   return LOCATIONS_INTENT_SET.has(action);
@@ -43,9 +46,7 @@ export function resolveLocationFromList<T extends LocationLike>(
     needle === 'primary' ||
     needle === 'hq'
   ) {
-    return (
-      locations.find((entry) => entry.isDefault === true) ?? locations[0]
-    );
+    return locations.find((entry) => entry.isDefault === true) ?? locations[0];
   }
 
   return (
@@ -106,7 +107,10 @@ export function isUpdateLocationPrompt(prompt: string): boolean {
   if (!LOCATION_MUTATE_VERB.test(prompt)) return false;
 
   if (/\b(?:main|default|primary)\s+location\b/i.test(prompt)) return true;
-  if (/\blocation\b/i.test(prompt) && /\b(address|phone|timezone|default|rename)\b/i.test(prompt)) {
+  if (
+    /\blocation\b/i.test(prompt) &&
+    /\b(address|phone|timezone|default|rename)\b/i.test(prompt)
+  ) {
     return true;
   }
   // "Set Downtown's phone number to …" / "Change Uptown Branch address to …"
@@ -177,12 +181,7 @@ export function parseUpdateLocationFromPrompt(
   );
   const locationName = mainCue
     ? 'main'
-    : (
-        possessive?.[1] ??
-        named?.[1] ??
-        makeDefault?.[1] ??
-        ''
-      )
+    : (possessive?.[1] ?? named?.[1] ?? makeDefault?.[1] ?? '')
         .trim()
         .replace(/'s$/i, '');
   if (!locationName) return null;
@@ -190,10 +189,7 @@ export function parseUpdateLocationFromPrompt(
   const addressMatch =
     prompt.match(
       /\baddress\s+to\s+([0-9][\w\s.,'#/-]{2,80}?)(?:\s*[.?!]|$)/i,
-    ) ??
-    prompt.match(
-      /\bat\s+([0-9][\w\s.,'#/-]{2,80}?)(?:\s*[.?!]|$)/i,
-    );
+    ) ?? prompt.match(/\bat\s+([0-9][\w\s.,'#/-]{2,80}?)(?:\s*[.?!]|$)/i);
   const phoneMatch = prompt.match(
     /\b(?:phone|tel)\s*(?:number\s*)?(?:to\s+|is\s+|:\s*)?([+\d][\d\s()-]{6,20})/i,
   );

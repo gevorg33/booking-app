@@ -6841,7 +6841,7 @@ The residual imprecision (the classifier's own date-extraction still sometimes g
 
 ---
 
-## e2e-bug.348 — Case-1 residual: the LLM's own compound decomposition routes "category + services" to `create_services`, losing the category link — **Open**
+## e2e-bug.348 — Case-1 residual: the LLM's own compound decomposition routes "category + services" to `create_services`, losing the category link — **Partial 2026-08-08**
 
 **Found 2026-08-03** while fixing **e2e-bug.347**. After that fix, `"Create a category Y with three services: service A, 30 minutes, $50; …"` now creates all three services (it previously created nothing), but:
 - the category `Y` is **not** created, and all three services land with `category_id = NULL`;
@@ -6856,7 +6856,7 @@ Reproduced identically on 3 consecutive runs, so this is deterministic, not samp
 
 ---
 
-## e2e-bug.349 — dashboard "Create categories Y and Z. Under Y add …" is stolen by the customer-surface `add_services_to_cart` — **Open**
+## e2e-bug.349 — dashboard "Create categories Y and Z. Under Y add …" is stolen by the customer-surface `add_services_to_cart` — **Partial 2026-08-08**
 
 **Found 2026-08-03** while fixing **e2e-bug.347** (this was Case 3 of that report, which the reporter had marked "[to verify]").
 
@@ -7195,3 +7195,4335 @@ After empty-summary locale is fixed, HY `"Բացատրի՛ր մեր կլինիկ
 - [ ] Per-surface accuracy reported separately (dashboard / customer / public / provider) in the eval report, so a fix for one surface can't hide a regression on another — the e2e-bug.171 class was invisible precisely because nothing measured dashboard prompts against customer heuristics.
 - [ ] Live spot-check via the Orchestrix AI widget with both the canonical and paraphrased forms of at least the schedule-creation command family (the exact prompts are recorded in e2e-bug.168–171 above).
 
+### e2e-bug.350 — `rescue` stage swaps one mutating command for another behind a correct classification — **Fixed**
+
+**Found:** 2026-08-04, while implementing AI-ROADMAP Phase 3. Not from a report — from querying
+`ai_command_trace` for what the steal telemetry (§11) had been recording.
+
+**Symptom.** The user asks for one write and a different write runs. 57 production traces:
+
+| classifier decided | rescue ran instead | n |
+| --- | --- | --- |
+| `bulk_create_catalog` | `create_service_category` | 16 |
+| `update_bookings` | `mark_paid` | 11 |
+| `create_service` | `create_employee` | 3 |
+| `create_booking` | `create_employee` | 2 |
+| `adjust_gift_card_balance` | `validate_gift_card` | 2 |
+| `create_service_category` | `import_services_from_menu` | 2 |
+
+The first row **is e2e-bug.347** — "create a category with these services" creating the category and
+dropping the services. The classifier had `bulk_create_catalog` right; `rescue` replaced it with a
+command that has no concept of services. That is why the parsing fixes in e2e-bug.347 could not
+fully close it: the parse was never the whole problem.
+
+**Root cause.** `stageRescue` in `command-understanding-pipeline.service.ts` accepted any rescue
+result as the new action, with no check on what it was replacing. Of 216 action changes by rescue,
+only 48 rescued an `unknown` — its actual job; 168 overrode a real decision.
+
+**Fix.** `backend/src/modules/ai/ai-rescue-steal-guard.ts` — rescue's *action* change is discarded
+when the classifier had a real action, rescue wants a different one, and either side mutates. Its
+*params* are always kept. Read-only→read-only changes are deliberately still allowed (111 traces,
+harmless; they retire with their detectors in Phase 8).
+
+**Verification.** Unit sweep and eval sweep run against a `git stash`ed baseline: failure lists
+byte-identical, so nothing in the corpus depended on a mutating steal — the grandfather allowlist
+ships empty with a ratchet spec. `ai-rescue-steal-guard.pipeline.spec.ts` drives the real pipeline
+to prove the guard actually fires. `npm run test:ai-steal-guard` (22 tests).
+
+See AI-ROADMAP §20.
+
+### e2e-bug.351 — 54 AI test suites fail on a clean tree, so red does not mean red — **Open**
+
+**Found:** 2026-08-04, while establishing a baseline for e2e-bug.350.
+
+`npx jest --testPathPatterns='src/modules/ai/'` on an untouched tree: **54 suites / 112 tests fail**
+(plus ~106 suites in the DB-dependent integration set, which fail with
+`Cannot read properties of undefined (reading 'transaction')`).
+
+**Why it matters.** A red run carries no information. Verifying any AI change currently requires
+stashing the change, running the full sweep, restoring, running again, and diffing the two failure
+lists — roughly 20 minutes per check, and easy to get wrong (two sweeps had to be discarded this
+session because the tree changed underneath a run).
+
+**Fix direction.** AI-ROADMAP Phase 2 owns this: fix or explicitly quarantine each failing suite so
+the AI gate can be made blocking. Quarantine must be an allowlist that can only shrink, not a
+silenced pattern.
+
+### e2e-bug.352 — the Phase 0 detector freeze never scanned four of the detectors it froze — **Fixed**
+
+**Found:** 2026-08-05, while building the Phase 0 detector inventory (AI-ROADMAP §22).
+
+`ai-detector-freeze.boundary.spec.ts` walked `src/modules/ai` only. Four `is*Prompt` detectors live
+elsewhere and were therefore outside the freeze entirely:
+
+| symbol | file |
+| --- | --- |
+| `isFillGapPrompt` | `modules/provider-mobile/provider-open-shifts.util.ts` |
+| `isWhosNextPrompt` | `modules/provider-mobile/provider-ai-sprint19.util.ts` |
+| `isTeamWhosNextPrompt` | `modules/provider-mobile/provider-team-whos-next.util.ts` |
+| `isServiceTierFilterPrompt` | `common/utils/service-rank-metadata.util.ts` |
+
+**Why it matters.** The freeze is the only thing stopping the 786-detector problem from growing
+while Phases 1–3 land. A new paraphrase detector added under `provider-mobile` passed CI, and
+`provider-mobile` is exactly where surface-specific prompt handling tends to accumulate.
+
+**Also found:** the ratchet's `export function is[A-Za-z0-9_]*Prompt` is unanchored, so five symbols
+whose names merely *contain* `Prompt` (`isNlPromptFixtureRow`, `isClinicTestResultExtPromptForIntent`,
+`isExplainPostVisitReviewPromptIntent`, `isSuggestRescheduleFromPushPromptLoose`,
+`isDashboardTotalEarningsPromptHyRu`) were counted as detectors. "786" was never 786 detectors.
+
+**Fix.** Scan root widened to `src`; baseline 786 → **790**. That is four detectors becoming visible,
+not four being added — argued in the spec, since "never raise this number" is otherwise correct.
+`ai-command-inventory.boundary.spec.ts` pins the same 790 and asserts the 5-symbol overcount, so the
+two gates cannot drift apart.
+
+See AI-ROADMAP §22.
+
+### e2e-bug.353 — three detector names are exported from two files each, with different regexes — **Fixed 2026-08-08**
+
+**Found:** 2026-08-05, while building the Phase 0 detector inventory (AI-ROADMAP §22).
+
+| symbol | file A | file B |
+| --- | --- | --- |
+| `isEndOfDaySummaryPrompt` | `ai-push-notifications.util.ts:373` | `ai-provider-end-of-day-summary.util.ts:4` |
+| `isGiftCardCheckoutCompoundPrompt` | `ai-gift-card-payments-hints.util.ts:95` | `ai-gift-card-checkout-compound.util.ts:116` |
+| `isSetRetailSalesLinesPrompt` | `ai-retail-finance.util.ts:421` | `ai-provider-exp-3.util.ts:142` |
+
+Each pair has a different implementation. Which one a call site gets depends purely on which module
+it imports — two functions, one name, different answers for the same prompt. This is the
+ordering-dependence disease of AI-ROADMAP §4 in its purest form, and it is invisible at the call
+site.
+
+**Why it matters now.** Phase 8 deletes detectors in bulk by file. Deleting file A's copy while call
+sites elsewhere import file B's — or vice versa — changes behaviour in a way no test names. The
+inventory flags all six rows `duplicateSymbol: true` so nobody deletes one believing it is the
+implementation their call site resolves to, but the collision itself is unfixed.
+
+**Fix direction.** For each pair, decide which implementation is correct, delete the other, and
+re-point its importers. Worth doing before the domain slice containing either file is retired.
+Not urgent on its own — no production failure is attributed to it yet — but it must not survive
+into Phase 8.
+
+### e2e-bug.354 — thirteen detectors are unreachable from production code — **Fixed 2026-08-08**
+
+**Found:** 2026-08-05, while building the Phase 0 detector inventory (AI-ROADMAP §22).
+
+Nothing outside their own tests calls these. They are exported, tested, counted in the freeze
+baseline, and cannot fire:
+
+`isDashboardPackageMultiCompoundPrompt`, `isE2e192TimedBookPrompt`, `isEmployeeRoleRankPrompt`,
+`isExplicitPayCashAtVisitWithoutFallbackPrompt`, `isFillGapPrompt`, `isGiftCardPaymentsCompoundPrompt`,
+`isHowToDownloadAppCustomerPublicPrompt`, `isMultilingualFirstAvailableBookingPrompt`,
+`isProviderSameDayMultiLikePrompt`, `isRebookLastAppointmentPrompt`, `isRecommendSpecialistsPrompt`,
+`isReschedulePackageLinesPrompt`, `isSinglePackageLocalizedNameConfigurePrompt`.
+
+**Why it matters.** Two readings, and both need checking per symbol:
+
+1. *Dead code* — the detector was superseded and never removed. Free deletion, available now,
+   independent of the planner.
+2. *A wiring bug* — the detector was written for a feature that was never connected, which is the
+   e2e-bug.342 shape (a capability that exists but is unreachable, failing silently). At least two
+   names here (`isRebookLastAppointmentPrompt`, `isRecommendSpecialistsPrompt`) describe commands
+   users plausibly ask for.
+
+**Fix direction.** Triage each against the registry: if the action it names is reachable by another
+path, delete the detector and lower the freeze baseline in the same commit. If it is not reachable
+at all, that is a live coverage gap and belongs with the reachability gate (AI-ROADMAP §12), not the
+detector burn-down.
+
+Query: `jq '.detectors[] | select(.reachableFromProduction == false)' backend/src/modules/ai/ai-command-inventory.json`
+
+### e2e-bug.355 — two permission models disagree on 425 of 3,492 decisions; the registry's is dead — **Fixed 2026-08-08**
+
+**Found:** 2026-08-05, while adding permission checks to `CommandSpec` (AI-ROADMAP §23).
+
+The platform carries two independent answers to "may this tier run this command here":
+
+| Model | Where | Consulted by |
+| --- | --- | --- |
+| `COMMAND_REGISTRY[].tiers` (flat) | `ai-command-registry.types.ts` | `isIntentAllowedForTier` → `AiCommandRegistryService.allowedForTier` → **nothing** |
+| deny-lists per surface/tier | `access-control.matrix.ts` | `isIntentAllowed` → all three surface services. **This one runs.** |
+
+Checked across every registry command × its surfaces × 4 tiers: **425 disagreements of 3,492**
+(dashboard 7, provider 1, customer 45, public 372). 53 are the registry being *more* permissive
+than the gate that runs.
+
+**Why it matters.** The dead model looks authoritative — it is on the registry entry, it has a
+helper, it has a service method, it has tests. Anything that migrates permissions by reading
+`entry.tiers` inherits 425 wrong answers. AI-ROADMAP Phase 1 nearly did exactly that.
+
+**A shape problem, not just stale data.** `entry.tiers` is one flat list for all of a command's
+surfaces. `update_bookings` is `manager`+ on dashboard and `staff`+ on provider; the flat list
+`['manager','owner','staff']` therefore grants `staff` dashboard access that the live gate refuses.
+No amount of correcting the data fixes a shape that cannot state the answer.
+
+Also dead: `AiGatewayService.assertIntentAllowed` — defined, tested, and called by nothing.
+
+**Fix direction.** `CommandSpec.tiers` (per-surface, AI-ROADMAP §23) is the replacement and is
+pinned to the live gate by conformance tests. Delete `entry.tiers`, `isIntentAllowedForTier`,
+`AiCommandRegistryService.allowedForTier` and `assertIntentAllowed` as each domain is ported —
+not before, so nothing is removed while something still reads it.
+
+### e2e-bug.356 — AI permissions are a deny-list, so every new command defaults to allowed for every tier — **Fixed 2026-08-08**
+
+**Found:** 2026-08-05, while adding permission checks to `CommandSpec` (AI-ROADMAP §23).
+
+Both live gates are written as denials:
+
+```ts
+return !DASHBOARD_DENIED_BY_TIER[tier].has(action);
+return !PROVIDER_DENIED_BY_TIER[tier].has(action);
+```
+
+A command absent from the list is permitted. Coverage against the 388 dashboard commands:
+
+| tier | dashboard denied | provider denied |
+| --- | ---: | ---: |
+| client | 123 / 388 | 11 / 144 |
+| staff | 154 / 388 | 5 / 144 |
+| manager | 2 / 388 | 0 / 144 |
+| owner | 0 / 388 | 0 / 144 |
+
+So **234 dashboard commands are available to `staff`, 131 of them mutating**, and 265 to `client`
+(156 mutating) — the latter reachable only because `AiGatewayService` separately refuses `client`
+on the dashboard outright.
+
+**This is not a claim that those 234 are wrong.** Most are ordinary staff work. The claim is that
+they were never decided: every command added since the deny-list was written became available to
+every tier by default, and nothing enumerates them, so the set cannot be reviewed. The `client`
+column is only safe because a blanket check in a different file happens to exist — defence in
+depth that is load-bearing rather than redundant.
+
+**Fix direction.** `CommandSpec.tiers` fails closed (AI-ROADMAP §23): a spec with no tier entry for
+a surface denies. As domains are ported, each command's tiers become an explicit decision recorded
+in one place. The deny-lists should be deleted per domain as its specs land — and the 234 should be
+reviewed at that point, not migrated wholesale.
+
+Reproduce: `isIntentAllowed('dashboard', 'staff', <any action not in DASHBOARD_DENIED_BY_TIER.staff>)` → `true`.
+
+### e2e-bug.357 — AI requests carry no conversation id, so follow-ups cannot be resolved server-side — **Open**
+
+**Found:** 2026-08-05, while adding per-step compound telemetry (AI-ROADMAP §24).
+
+`ai_command_trace` has no `session_id`, and it cannot be given one: nothing in the request
+identifies a conversation. `AiCommandDto` accepts `prompt`, `history` (the client replays prior
+turns on every call), `context`, `confirmed`, `assistantMode` and `guideHandoff`. None of these is
+stable across turns.
+
+**Why it matters.** AI-ROADMAP Phase 6 resolves follow-ups ("move it to 4 instead", "cancel that
+one") against a **session entity store** keyed by conversation. Without a conversation key there is
+nowhere to put that store, so every follow-up must be re-derived from replayed history — which is
+what the entity-memory path does today, keyed by `business_id` alone and therefore shared across
+every concurrent user of that business.
+
+**Not fixable server-side.** A derived key (actor + surface + time bucket) would look like a
+session and silently be wrong at bucket boundaries: "cancel it" binding to the previous
+conversation's subject is worse than not binding at all.
+
+**What the clients need to send.** A `conversationId` (UUID) on `POST /ai/command` and the
+provider/public equivalents, generated when a chat is opened and reused for every turn until the
+user starts a new one. Backend work is then small: add it to `AiCommandDto` and
+`AiGatewayExecuteParams`, persist as `ai_command_trace.session_id`, index it.
+
+Three clients: dashboard web, customer app, provider mobile.
+
+### e2e-bug.358 — 24 eval intents regressed unnoticed while the accuracy gate was permanently red — **Open**
+
+**Found:** 2026-08-05, while refreshing the accuracy baseline (AI-ROADMAP §25).
+
+The committed baseline was written **2026-06-29**: 3,696 cases, 8 failed, 99.78%. The suite today
+has **8,464 cases, 404 failed, 95.23%**. Most of that gap is new coverage, but not all of it.
+
+Comparing per-intent stats for intents whose **case count did not change** — so the comparison is
+like-for-like — **24 intents lost 49 cases that used to pass**:
+
+| intent | was | now | of |
+|---|---:|---:|---:|
+| `lookup_customer` | 0 | **6** | 6 |
+| `summarize_customer_tax_paid` | 0 | 5 | 8 |
+| `configure_privacy_retention` | 0 | 4 | 16 |
+| `summarize_my_appointments` | 0 | 4 | 24 |
+| `compound:none` | 0 | 2 | 7 |
+| `configure_package_localized_names` | 0 | 2 | 30 |
+| `explain_checkout_currency` | 0 | 2 | 11 |
+| `explain_compliance_status` | 0 | 2 | 9 |
+| `explain_notification_currency` | 0 | 2 | 10 |
+| `explain_package_currency` | 0 | 2 | 10 |
+| `explain_package_display_name` | 0 | 2 | 30 |
+| `explain_stripe_tax_charge` | 0 | 2 | 6 |
+| `explain_tenant_currency` | 0 | 2 | 10 |
+| `summarize_my_revenue` | 0 | 2 | 24 |
+| `appointment_reminder_preferences` | 0 | **1** | 1 |
+| `book_package` | 0 | 1 | 7 |
+| `book_with_cash` | 0 | 1 | 4 |
+| `configure_business_languages` | 0 | 1 | 19 |
+| `explain_business_date_format` | 0 | 1 | 14 |
+| `lookup_booking_tax_metadata` | 0 | 1 | 6 |
+| `offer_waitlist_slot` | 0 | 1 | 33 |
+| `open_billing_settings` | 0 | 1 | 33 |
+| `quote_staff_booking_tax` | 0 | 1 | 8 |
+| `summarize_loyalty_program` | 0 | 1 | 33 |
+
+`lookup_customer` and `appointment_reminder_preferences` now fail **100%** of their cases.
+
+**Why nobody saw it.** The gate asserted `report.failed === 0` against a corpus that has never had
+zero failures, so it never passed — and `exitCode` was therefore pinned at 1, leaving the
+per-intent regression check behind `if (exitCode === 0)` as code that had never executed. The gate
+that would have caught these was disabled by the gate's own precondition.
+
+**The remaining +347** are new coverage arriving with known gaps: 244 brand-new intents (3,950
+cases, 293 failed) and 69 existing intents that grew (+809 cases, +55 failures). Those are Phase 9
+burn-down, not regressions.
+
+**Status.** The baseline has been refreshed to 8,464/404 so the ratchet can function at all —
+without that, no comparison is possible and nothing is protected. These 24 are therefore *inside*
+the new baseline and will not fail CI. They are recorded here so refreshing does not equal
+forgiving: each should be triaged and the baseline lowered as they are fixed. The ratchet now
+prevents any 25th.
+
+Reproduce: `npm run test:ai-accuracy` prints the per-intent breakdown; compare against
+`git show HEAD:backend/src/modules/ai/eval/ai-command-eval.baseline.json`.
+
+### e2e-bug.359 — the AI test sweep takes tens of minutes, which is why "red means red" has never been fixed — **Open**
+
+**Found:** 2026-08-05, while building the known-failures gate (AI-ROADMAP §26).
+
+`modules/ai` holds **1,268 spec files**. A full sweep did not complete inside a working session on
+a 10-core machine with 9 saturated jest workers.
+
+**Why this is the root cause, not a side issue.** Phase 2's "fix/quarantine the failing AI suites
+so red means red" has been open since the roadmap was written. The obstacle is not that the
+failures are hard to categorise — it is that *observing* them costs tens of minutes, so:
+
+- nobody iterates on fixes (the loop is too slow to work in);
+- nobody notices new failures (the sweep is not run per-change);
+- proving a change is safe requires stash-run-restore-run-diff, ~2× the sweep cost. This has been
+  done by hand three times on this programme (AI-ROADMAP §20, §23, §24);
+- consequently failures accumulate faster than anyone triages them.
+
+Fixing the runtime is a prerequisite for fixing the redness.
+
+**Contributing factors worth measuring first:**
+- 289 of the spec files are `*.integration.spec.ts` — heavier setup, and many construct full Nest
+  testing modules.
+- Every suite re-imports the AI module graph; `ai-command.service.ts` alone is >4,000 lines and
+  pulls in hundreds of utils.
+- `ts-jest` recompiles per worker with no shared cache configured.
+
+**Fix directions, cheapest first:**
+1. ~~Enable `ts-jest` `isolatedModules` / swc transform — typically the single largest win.~~
+   **Measured 2026-08-08 (§101) and refuted:** same 111-suite sample, cache controlled — plain
+   `ts-jest` 25s warm / 49s cold, `isolatedModules` 21s warm / 55s cold. Within noise, and slower
+   cold. The repo already carries ~1,100 unresolved `tsc` errors in `modules/ai`, so cross-file
+   type-checking during tests was never doing much work. Config reverted, unchanged.
+2. Split the sweep into shards CI runs in parallel jobs (the gate already emits a machine-readable
+   failure set, so shard results merge cleanly).
+3. Audit the heaviest suites (`--verbose` reports per-suite time) — a handful usually dominate.
+
+Blocks: AI-ROADMAP Phase 2 "red means red", and the manifest for
+`scripts/ai-known-failures-gate.mjs`.
+
+### e2e-bug.360 — 8 of 20 documented CommandSpec examples never reach their own command's detector — **Open**
+
+**Found:** 2026-08-06, building generated paraphrase-invariance fixtures (AI-ROADMAP §27).
+
+`CommandSpec.examples` are the command's *documented* phrasings. They seed the planner's few-shots
+and the eval goldens. For the 10 specced commands that have a primary `is*Prompt` detector, **8 of
+20 examples are not matched by that detector**:
+
+| command | example missed | shape |
+|---|---|---|
+| `appointment.mark_paid` | "Sarah paid cash for today's massage" | past-tense statement, not an imperative |
+| `appointment.reschedule_mine` | "can I push my booking to 4pm instead" | question form + synonym verb ("push") |
+| `catalog.deactivate_service` | "stop offering hot stone massage" | synonym verb ("stop offering" vs "deactivate") |
+| `catalog.create_package` | "bundle haircut and beard trim at 15% off" | synonym verb ("bundle" vs "create package") |
+| `catalog.assign_services_category_bulk` | "put all the massages under the Massage category" | synonym verb ("put under" vs "assign") |
+| `catalog.assign_services_category_bulk` | "move haircut and blow dry into Hair Care" | synonym verb ("move into") |
+| `catalog.list_packages` | "what packages do we sell" | question form |
+| `catalog.list_subscription_plans` | "what subscriptions do we offer" | question form |
+
+**The interesting part is what does *not* fail.** The same fixtures vary casing, whitespace,
+trailing punctuation, politeness prefixes, filler and question marks: **0 of 116 variants break**.
+
+So the detector layer is **not** brittle to surface form. It is brittle to having been written from
+a single phrasing — every miss above is a past-tense statement, a question, or a synonym verb the
+regex author did not happen to think of.
+
+Two consequences:
+
+1. **Input normalisation will not help.** Phase 4's resolution layer normalises casing, dates and
+   whitespace; none of that touches this. Do not expect it to move this number.
+2. **These gaps are downstream of everything.** The examples feed the planner's few-shots and the
+   eval corpus, so a phrasing the platform documents but cannot recognise is missing from training
+   signal, evaluation, and runtime alike.
+
+**Fix direction.** Not "add more regex alternations" — that is the treadmill the roadmap exists to
+end. These are the cases the planner should own: each is unambiguous to a reader, and each is
+already written down as the command's own example. Prioritise these domains for Phase 8 detector
+retirement, and use these 8 as acceptance cases for the planner taking `catalog` over.
+
+Held at 8 by the ratchet in `ai-paraphrase-invariance.spec.ts`; `npm run test:ai-paraphrase` prints
+the list.
+
+### e2e-bug.361 — the 27% AI failure rate is a customer-surface problem, and nothing said so — **Open**
+
+**Found:** 2026-08-06, building the completion-rate dashboard (AI-ROADMAP §28).
+
+AI-ROADMAP §1.1 breaks the platform's 27% command-failure rate down **by action only**. Split by
+surface, on the same 5,362 traces:
+
+| surface | calls | share of traffic | completion | failure |
+|---|---:|---:|---:|---:|
+| **customer** | 3,703 | **69%** | **60.6%** | **31.1%** |
+| dashboard | 1,161 | 22% | 67.1% | 19.7% |
+| provider | 498 | 9% | **82.5%** | 13.7% |
+
+The customer surface carries **69% of all traffic at the worst completion rate**, and provider —
+the same underlying commands, a different entry point — is **22 points better**.
+
+**Why it matters for planning.** §7's north star is `executed / all`, so it is dominated by whatever
+customer does. Roadmap work aimed at dashboard commands (where most of the specced pilot commands
+live) will barely move the headline number. Any plan to reach ≥92% has to be mostly a
+customer-surface plan.
+
+**Worth investigating, in order:**
+1. Is it the commands or the surface? The worst customer actions (`compound_intent` 65.7% failure,
+   `confirm_my_booking_details` 76.1%, `claim_referral_code` 100%) are largely customer-only, so
+   this may be a command-mix effect rather than a surface defect. `ai_command_completion_by_action`
+   splits by surface and answers this directly.
+2. `claim_referral_code` fails **96 of 96** calls and is customer-only. AI-ROADMAP §9 open decision
+   7 already flags it as possibly a quick win independent of the roadmap; it alone is 6.6% of all
+   customer failures.
+3. Provider's 82.5% suggests the same commands *can* complete. Compare `mark_paid` and
+   `reschedule_booking` across surfaces before assuming the customer path needs new capability
+   rather than a fix.
+
+Query: `SELECT * FROM ai_command_completion_by_surface;` and
+`SELECT * FROM ai_command_completion_by_action WHERE surface = 'customer' ORDER BY failed DESC;`
+
+**Caveat:** `top_failure_reason` is NULL on all historical rows — `failure_reason` derives from
+`result.details`, which the trace never persisted, so the *cause* of these failures is not
+recoverable from existing data. Post-2026-08-03 traffic will carry it.
+
+### e2e-bug.362 — AI entity resolution silently picks the first match on ties — **Partially fixed 2026-08-08**
+
+**Found:** 2026-08-06, building the Phase 4 resolution layer (AI-ROADMAP §29).
+
+`fuzzyMatchByName` (`ai-orchestration.helpers.ts`) is the platform's main name→entity resolver. It
+is a five-tier cascade of `.find(...)` calls returning `T | undefined`:
+
+```ts
+items.find((i) => i.name.toLowerCase() === lower)          // exact
+  || items.find((i) => i.name.toLowerCase().includes(lower))
+  || items.find((i) => lower.includes(i.name.toLowerCase()))   // ← dangerous
+  || items.find((i) => /* token prefix */)
+```
+
+**Verified against the live function**, all four of these return a confident-looking entity:
+
+| input | result | consequence |
+|---|---|---|
+| two customers both named "John Smith" | first row | depends on database ordering; user never asked |
+| "John" with employees John Smith and John Baker | John Smith | the other John is never mentioned |
+| "John Smith" with an employee named "Jo" | **Jo** | third tier: the *query* contains the name |
+| "massage" with Deep Tissue and Swedish Massage | Deep Tissue | books a different service at a different price |
+
+The third row is the sharpest: `lower.includes(item.name)` means any short name is a substring of
+almost any prompt. An employee called "Jo", "Al" or "Ed" can absorb bookings meant for anyone.
+
+**Why the caller cannot defend itself.** The return type carries no confidence, so there is no
+signal to branch on — a caller that wanted to clarify has nothing to test. This violates §7 working
+agreement 5 ("below-threshold entity resolution clarifies; it never guesses") at the type level,
+not just in behaviour.
+
+**Also:** `resolveEmployees` drops names it cannot match. *"Cancel for John and Mary"* with an
+unknown Mary silently becomes *"cancel for John"* — a partial execution reported as success, the
+same family as e2e-bug.136/.348/.256.
+
+**Fix.** `ai-entity-resolution.util.ts` (AI-ROADMAP §29) returns `resolved | ambiguous | not_found`
+with a tier, a score and the tied candidates, and refuses ties regardless of confidence. It is
+**not yet wired**: adopting it converts silent wrong answers into clarifications, which needs
+Phase 6's clarify path to land somewhere. Migrate the ≥4 call sites then, not before.
+
+Reproduce: `npm run test:ai-entity-resolution` — the boundary spec drives both resolvers over the
+same inputs and prints the divergence.
+
+### e2e-bug.363 — "tomorrow" resolves to the wrong day every evening, in every timezone — **Open**
+
+**Found:** 2026-08-06, building the Phase 4 date resolver (AI-ROADMAP §30).
+
+`resolveTomorrowDateKey` — duplicated verbatim in `ai-payments.util.ts:807` and
+`ai-compound-booking-context.util.ts:21`:
+
+```ts
+const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+return tomorrow.toISOString().slice(0, 10);
+```
+
+`toISOString()` is **UTC**. Once UTC has rolled past midnight and the business has not, this
+returns the day *after* the business's tomorrow. Measured across all 24 UTC hours:
+
+| timezone | hours wrong | local window |
+|---|---:|---|
+| America/Los_Angeles | **7 / 24** | 17:00–23:59 |
+| America/New_York | 4 / 24 | 20:00–23:59 |
+| Asia/Yerevan | 4 / 24 | 20:00–23:59 |
+| Europe/London | 1 / 24 | 23:00–23:59 |
+
+**Every timezone is affected, always during the local evening** — prime booking time. A customer
+saying "book me tomorrow" at 9pm gets booked two days out.
+
+**Impact.** `ai-compound-booking-context.util.ts:104` sets `base.date` from it whenever a prompt
+says "tomorrow", so it feeds compound booking flows directly.
+
+**Why it survived:**
+
+1. **The call site had the timezone and did not pass it.** Line 104 calls
+   `resolveTomorrowDateKey()` with no arguments; line 107 passes `timeZone` to
+   `extractSingleIsoDayFromPrompt`. The correct value was in scope, one line away.
+2. **It is duplicated**, so a fix to one copy leaves the other.
+3. **The test pins `2026-06-05T12:00:00Z`** (`ai-payments.util.spec.ts:195`) — midday UTC, the one
+   time of day where the defect cannot appear. Any evening hour would have caught it.
+
+Point 3 generalises: a single-input test for a time-dependent function tests the input, not the
+function.
+
+**Fix direction.** `ai-datetime-resolution.util.ts` (AI-ROADMAP §30) resolves in the business
+timezone using calendar arithmetic rather than epoch addition — `resolveTomorrow({ now, timeZone })`.
+Replace both copies and pass the timezone already in scope. Also worth auditing: 15 other sites do
+hand-rolled day arithmetic (`setDate(getDate() + n)` / `+ 86400000`), which have the same DST and
+timezone exposure.
+
+Reproduce: `npm run test:ai-datetime-resolution` — the suite asserts the new resolver's answer and
+that the legacy expression disagrees, for three timezones and across all 24 UTC hours.
+
+### e2e-bug.364 — a space before "pm" makes the AI book twelve hours early — **Open**
+
+**Found:** 2026-08-06, building the Phase 4 time resolver (AI-ROADMAP §31).
+
+`extractTimeSlotFromPrompt` (`ai-structural-extractors.ts:104`) tries a bare `HH:MM` pattern
+**before** its am/pm pattern:
+
+```ts
+const at24 = prompt.match(/\b(?:at|@)\s*(\d{1,2}):(\d{2})\b/i);   // 1
+if (at24) return normalizeTime24(...);                             //    returns here
+const bare24 = prompt.match(/\b(\d{1,2}):(\d{2})\b/);              // 2
+if (bare24) return normalizeTime24(...);                           //    or here
+const amPm = prompt.match(/...(am|pm|a\.m\.|p\.m\.)\b/i);          // 3  ← never reached
+```
+
+In `"3:30 pm"` the `\b` after `(\d{2})` is satisfied by the **space**, so rule 1 matches "at 3:30"
+and returns. The meridiem is never read. In `"3:30pm"` there is no word boundary between "0" and
+"p", so rules 1–2 fail and rule 3 runs correctly.
+
+**A single space decides whether PM means PM:**
+
+| prompt | returns | correct | error |
+|---|---|---|---|
+| `at 3:30pm` | 15:30 | 15:30 | — |
+| `at 3:30 pm` | **03:30** | 15:30 | 12 hours early |
+| `book for 6:45 p.m.` | **06:45** | 18:45 | 12 hours early |
+| `9:30 pm` | **09:30** | 21:30 | 12 hours early |
+| `at 12:00 am` | **12:00** | 00:00 | noon instead of midnight |
+
+Four of eight ordinary phrasings tested are wrong. "Book me at 3:30 pm" — with the space almost
+everyone types — schedules 3:30 in the morning.
+
+**Impact.** `extractTimeSlotFromPrompt` feeds `timeSlot` in `ai-book-appointment-params.util.ts:47`,
+i.e. the booking path. A wrong `timeSlot` is a booking at the wrong time, not a failed command, so
+it does not show up as a failure in `ai_command_trace` — it completes successfully and wrongly.
+That is worth emphasising: **this class of bug is invisible in the completion-rate metric**
+(AI-ROADMAP §28) because the command succeeds.
+
+**Fix direction.** `resolveTimeOfDay` in `ai-datetime-resolution.util.ts` (AI-ROADMAP §31) reads the
+meridiem first and returns `ambiguous` for a bare 1–12 hour rather than assuming. Reordering the
+existing rules (meridiem first) would fix the immediate defect without adopting the whole resolver,
+and is the smaller change if a fix is wanted before Phase 6.
+
+Also fix `normalizeTime24`'s 12 am/pm handling: `applyMeridiem` in the new resolver maps 12am→00
+and 12pm→12 explicitly.
+
+Reproduce: `npm run test:ai-datetime-resolution` — asserts the correct answer and that the shipped
+extractor disagrees, for four phrasings.
+
+### e2e-bug.365 — a test hardcodes a date that has now passed, so it fails on the calendar — **Fixed 2026-08-08**
+
+**Found:** 2026-08-06, while extending `resolveDateRange` (AI-ROADMAP §32).
+
+`ai-orchestration.helpers.spec.ts:209` — `resolvePublicAvailabilityDateKeys › uses explicit date
+param when no weekday filter` — asserts `['2026-06-15']`. That date is now in the past, and the
+function under test correctly drops past dates (there is a sibling test, "drops past dates from
+explicit params", asserting exactly that behaviour).
+
+So the suite now contains two tests that contradict each other on today's calendar: one requires
+`2026-06-15` to be returned, the other requires past dates to be dropped.
+
+**Confirmed pre-existing**, not caused by the §32 change: with that change stashed the same single
+test fails (1 failed / 92 passed both ways).
+
+**Why it matters beyond one red test.** It is inside `ai-orchestration.helpers.spec`, which is in
+the quarantine manifest (e2e-bug.351) — so it is currently counted as "known failing" rather than
+"broken by the passage of time". A test that fails because of the date is indistinguishable, in
+that manifest, from one that fails because of a defect.
+
+**Fix.** Inject or freeze the clock. The function already accepts a timezone; it should also accept
+"now" (or the test should use fake timers) so the expectation is stable. Then remove the entry from
+the known-failures manifest.
+
+**Same family, worth sweeping for:** AI-ROADMAP §31 found `ai-payments.util.spec.ts:195` pinning
+`resolveTomorrowDateKey` at exactly `2026-06-05T12:00:00Z` — midday UTC, the one hour of the day at
+which the timezone bug it should have caught cannot appear. Both are time-dependent tests that do
+not control time; one hid a bug, the other became one.
+
+### e2e-bug.366 — the completion-floor gate is not scheduled, so nothing runs it — **Open**
+
+**Found:** 2026-08-07, while shipping §45 (AI-ROADMAP Phase 9).
+
+`scripts/ai-completion-floor-gate.mjs` checks the platform's north-star metric — command completion
+— against committed floors and exits 1 on a breach. It works: run against the live trace table it
+reports 64.0% overall of 5,362 calls against a 62.0% floor, and a deliberately raised floor makes it
+exit 1 with per-scope messages. Nothing invokes it.
+
+This is the same failure §45 exists to fix, one level up. §28 already made completion *measurable*
+through `ai_command_completion_summary`; it went unwatched for the entire programme because watching
+it depended on a person remembering to query a view. A gate that no schedule calls is in exactly
+that position, and will be discovered stale the first time it matters.
+
+**Why it was left out of §45:** cadence and alert destination are ops decisions with an owner, and
+inventing a cron entry nobody owns produces an alert that fires into nowhere — which is worse than
+no alert, because it looks like coverage.
+
+**What it needs:**
+
+- a runner with database access (the gate reads `backend/.env` for `DB_*`, so it needs the same
+  credentials the API has);
+- a check cadence — daily is the obvious default, since the floors are 2 points wide and a real
+  slide takes more than a day to show through 5,362 traces;
+- a **separate, less frequent** cadence for `--update` (weekly or monthly). Ratcheting on every
+  check would lock in one unusually good day as the new standard and make the gate self-inflicted
+  flaky;
+- somewhere for a breach to go. Exit 1 into an unwatched log is the problem restated.
+
+**Fix location:** wherever the repo's other scheduled jobs live; `npm run gate:ai-completion-floor`
+and `npm run gate:ai-completion-floor:update` are already wired in `backend/package.json`.
+
+**Related:** §45 (AI-ROADMAP), §28 (the views), §25 (the accuracy ratchet, which *is* in CI because
+it reads a fixed corpus rather than live traffic).
+
+### e2e-bug.367 — 14 local re-parsers still shadow the `EntityResolutionService` — **Partial 2026-08-08**
+
+**Found:** 2026-08-07, while shipping §46 (AI-ROADMAP Phase 4).
+
+§46 built the single `EntityResolutionService`. The re-parsers it replaces are still in the tree and
+still what the handlers call:
+
+| function | copies | note |
+|---|---|---|
+| `resolveServiceByName` | 7 | 5 byte-identical, 2 variants with a reverse-substring rule |
+| `resolveTomorrowDateKey` | 2 | both are e2e-bug.363 (UTC date, a day late every local evening) |
+| `extractTimeSlotFromPrompt` | 2 | both are e2e-bug.364 (`"3:30 pm"` → `03:30`) |
+| `resolveDateRange` | 2 local | plus the canonical one in `ai-orchestration.helpers.ts` |
+| `resolveServiceIdByName` | 1 | `ai-customer-waitlist.logic.ts` |
+
+**Measured, not assumed.** Against a five-service catalogue (`Massage`, `Deep Tissue Massage`,
+`Hot Stone Massage`, `Facial`, `Hydrating Facial`):
+
+- **3 of 11** ordinary inputs get *different answers* from the two shipped variants — the deciding
+  factor is which file the call site happens to live in. `"  Massage  "` resolves in one and returns
+  `undefined` in the other, because only one trims. `"the facial"` likewise.
+- **5 of 11** are ambiguous (more than one service contains the query) and *every* variant resolves
+  them by **array order** — whichever row the database returned first.
+
+**Why it is not one change.** Adopting the service is a behaviour change, not a refactor: §29's
+resolver returns `ambiguous` and a clarify question where the old code silently picked. Each handler
+needs its clarify path wired before it can switch, and doing fourteen of those in the same diff as
+the new service would mix "new seam" with "fourteen handlers now refuse input they used to guess at".
+
+**Held from growing.** `ai-reparser-ratchet.boundary.spec.ts` pins the list at 14 with a named
+replacement per entry. A new copy fails the gate; so does an entry left in the manifest after its
+function is deleted, so the count cannot be padded.
+
+**Migration order** — the two-copy bug pairs first, since migrating them *fixes* an open bug rather
+than only tidying:
+
+1. `resolveTomorrowDateKey` x2 → `EntityResolutionService.resolveDate` (closes e2e-bug.363)
+2. `extractTimeSlotFromPrompt` x2 → `EntityResolutionService.resolveTime` (closes e2e-bug.364)
+3. the 5 byte-identical `resolveServiceByName` copies → `serviceOrClarify` (drop-in apart from the
+   refusal path)
+4. the 2 `resolveServiceByName` variants and `resolveServiceIdByName` → `serviceOrClarify` (these
+   currently guess via the reverse-substring rule, so expect user-visible change)
+5. the 2 local `resolveDateRange` → `resolveRange`
+
+**Related:** §46, §29–§32 (the resolvers), §37/§38 (the clarify path adoption depends on),
+e2e-bug.363, e2e-bug.364, e2e-bug.169.
+
+### e2e-bug.368 — the saga engine has no handler wiring, so nothing is actually compensated — **Open**
+
+**Found:** 2026-08-07, while shipping §47 (AI-ROADMAP Phase 5).
+
+§47 built the compensation model and the saga engine, and declared `compensation` on all 14 mutating
+`CommandSpec`s. Neither half is connected to execution:
+
+1. **Nothing captures pre-write state.** `planCompensation` takes a `CaptureMap` keyed by step id.
+   The executor never builds one, so in production every `kind: 'inverse'` compensation resolves to
+   `missing_capture` and is stranded. This is the safe failure — it refuses rather than "undoing" an
+   appointment to `undefined` — but it means the reversible commands are currently no better off
+   than the irreversible ones.
+2. **There is no transaction boundary around `StepRunner`.** `groupByAggregate` computes which steps
+   could share a transaction, and nothing opens one. The cheap path — where a same-aggregate failure
+   rolls back with no compensation, no cancelled row and no customer email — is entirely unused.
+
+**Consequence today:** a multi-step plan that fails midway leaves its earlier writes standing,
+exactly as before §47. What changed is that the system can now *describe* what it left behind.
+
+**What it needs:**
+
+- a pre-execution read per step, driven by the spec's `compensation.captures`, feeding the
+  `CaptureMap`. `appointment.reschedule` needs `originalStart` read *before* the write — a capture
+  gathered afterwards is the most plausible way to build a rollback that quietly does nothing;
+- a transaction opened per `TransactionGroup` so same-aggregate failures never reach the saga;
+- `compensate()` called on a failed `executePlan` result, and `describeStranded()` surfaced in the
+  user-facing response.
+
+**Explicitly not a bug:** 6 of the 14 mutating specs declare `none` or `manual` — `mark_paid` because
+a refund is a new financial event rather than an undo, the bulk commands because per-row pre-state
+was never captured. Those stay stranded by design, and §47's `partially_rolled_back` status exists to
+report them honestly. Do not "fix" them by inventing inverses.
+
+**Related:** §47, §33 (the DAG executor this extends), §41 (post-exec assertion), AI-ROADMAP Phase 5
+and Phase 7's rollback item.
+
+### e2e-bug.369 — stale clarification bindings have no expiry in the live pipeline — **Open**
+
+**Found:** 2026-08-07, while shipping §48 (AI-ROADMAP Phase 6).
+
+§48 built `detectTopicChange` and `invalidateStaleBindings`. Neither is called by the gateway, and
+two of the inputs they need do not exist yet:
+
+- **`pendingCreatedAt`** — §38's `PendingClarification` round-trips through the client but carries no
+  timestamp, so nothing can tell whether a pending question is ten seconds or ten days old.
+- **`turnsElapsed`** — likewise no turn counter.
+
+**Consequence today:** a pending clarification has no expiry whatsoever. If a user is asked "which
+appointment?", ignores it, and returns later with an unrelated message, the binding is still live.
+`applyClarifyAnswer` will merge whatever they say next into the old plan if it looks like a value.
+For a T1 command such as `appointment.cancel_mine` that means cancelling a row the user never named
+— and per §47, cancellation is declared irreversible: the customer has already been emailed.
+
+**Also still dropped:** `CommandPlan.topicChanged` is set by the planner prompt and read by
+`ai-command-plan.decode.ts`, and outside §48's pure util nothing consumes it. The model has been
+answering that question on every request for as long as the field has existed and the answer has
+been discarded every time.
+
+**What it needs:**
+
+- add `createdAt` and `turnIndex` to the `PendingClarification` envelope (§38 already round-trips it
+  through the client, so this is a field addition, not new infrastructure);
+- call `invalidateStaleBindings` before `applyClarifyAnswer` in the gateway, and drop the pending
+  state when it returns `invalidated`;
+- surface `decision.notice` in the response — dropping a clarification silently leaves the user
+  answering a question that no longer exists.
+
+**Do not** substitute prompt similarity for the structural signals. §48 measured it against 40 real
+consecutive pairs: the corpus is trilingual and a message paired with its own translation scores
+**0.00**, so lexical overlap detects language rather than subject.
+
+**Related:** §48, §38 (the round-trip envelope), §37 (clarify), §47 (why a wrong mutation is not
+recoverable), e2e-bug.357 (the session-store blocker this deliberately routes around).
+
+### e2e-bug.370 — the anaphora resolver is not wired into the planner — **Open**
+
+**Found:** 2026-08-07, while shipping §49 (AI-ROADMAP Phase 4).
+
+§49 built `resolveAnaphora` and `bindAnaphorToReference`. Nothing calls them, so every anaphoric
+prompt still reaches the handlers unresolved.
+
+**Why this one is worth doing before the other unwired utils.** The measurement behind §49 found the
+commonest anaphoric prompt in the corpus, by a wide margin, is:
+
+> "cancel my Swedish massage booking and rebook **it** for next Friday instead"
+
+That is a compound command, and §42 measured `compound_intent` at **0%** accuracy — the worst
+capability on the platform. 82% of the 110 anaphoric prompts sampled carry their referent in the same
+message, which is exactly what this resolver handles. It needs no session store and no client change.
+
+**What it needs:**
+
+- after the planner produces steps, run `resolveAnaphora(message, steps, i, specs)` for each step
+  whose variables are incomplete;
+- on `resolved`, apply `bindAnaphorToReference` — it emits the `$sN.field` form §33's executor
+  already understands and adds the `dependsOn` edge, so no new wiring mechanism is involved;
+- on `ambiguous`, emit the clarify rather than executing. The candidates are already in the result;
+- on `no_referent`, leave the plan as-is — the planner's own extraction may still be right.
+
+**Do not** treat `not_applicable` as a failure. 12% of anaphor-shaped matches are expletives ("is it
+possible to cancel my booking?", "it says my email is invalid"), and binding those to an entity would
+invent a reference the user never made and then act on it.
+
+**Cross-turn anaphora is deliberately out of scope.** Of 110 sampled prompts only 7 lacked an
+in-message referent, and reading all 7, exactly one ("yes, cancel them all") is genuine cross-turn.
+Building the §3.4 session entity store to serve ~1% is not justified by this data; it stays with
+e2e-bug.357.
+
+**Related:** §49, §33 (the `$sN.field` executor), §42 (`compound_intent` at 0%), §47 (why a wrong
+mutation is not recoverable), §48 (the same refuse-rather-than-guess asymmetry), e2e-bug.357.
+
+### e2e-bug.371 — AI entity memory is shared across every user of a business — **Open**
+
+**Found:** 2026-08-07, while deriving a conversation key for §50.
+
+`AiEntityMemoryService` reads and writes one alias map per business:
+
+```ts
+async getEntityMemory(businessId: string): Promise<EntityMemory>
+async buildMemoryContextBlock(businessId: string): Promise<string>
+```
+
+and the stored shape carries personal names:
+
+```ts
+export interface EntityMemoryEntry {
+  employeeName?: string | null;
+  serviceName?: string | null;
+  customerName?: string | null;
+  templateName?: string | null;
+}
+```
+
+There is no user dimension. Every customer of a salon contributes to, and is served from, the same
+alias map, and `buildMemoryContextBlock` injects it into the prompt context. A `customerName` one
+person's conversation resolved can therefore surface in another person's AI context at the same
+business.
+
+`employeeName` and `serviceName` are business-level facts and sharing them is defensible.
+`customerName` is not.
+
+**Why it blocks Phase 6.** The roadmap's entity store (§3.4) is meant to be keyed by *session*. If it
+is built on top of this service it inherits the business-wide keying and turns a shared alias map
+into a shared *resolved-reference* store, which is strictly worse. §50 supplies the missing key —
+`deriveConversationIdentity` — so the fix is available rather than theoretical.
+
+**What it needs:**
+
+- key entity memory by `(businessId, userId)` at minimum, or by the §50 conversation id for
+  session-scoped entries;
+- split the shape: business-level aliases (`employeeName`, `serviceName`, `templateName`) can stay
+  shared; `customerName` must be per-user;
+- backfill/expire the existing shared map rather than migrating it wholesale into one user's scope.
+
+**Note on anonymous surfaces.** §50 deliberately returns a null conversation id for visitors with no
+`userId`, precisely so this class of sharing cannot be recreated: two strangers opening with the same
+sentence must not land in one store.
+
+**Related:** §50, §3.4 (the three memory tiers), e2e-bug.357 (rescoped), e2e-bug.91 (the existing
+`_entityMemoryBlock` leak fixtures, which guard the *response* but not the *store*).
+
+### e2e-bug.372 — the few-shot retriever is not wired into the planner prompt — **Open**
+
+**Found:** 2026-08-07, while shipping §52 (AI-ROADMAP Phase 3 / Phase 9).
+
+§52 built `buildFewShotPool`, `buildFewShotIndex`, `selectFewShots` and `renderFewShots`. Nothing
+calls them, so the planner prompt still carries only the static spec examples.
+
+**Why this one has a decision attached, unlike the other unwired utils.** Retrieval needs an
+embedding of the *incoming* prompt. That is a model call on the hot path of every user message, so
+wiring it is not purely mechanical:
+
+- embed on every request (simplest, adds latency and cost to all traffic), or
+- embed only when the planner's top-2 margin is narrow (§4 guardrail 3 already computes that), or
+- cache embeddings per normalised prompt — the corpus has heavy repetition, so a cache would likely
+  absorb most of it.
+
+The middle option is probably right: few-shots help most exactly where the planner is uncertain, and
+that is the only place worth paying for them.
+
+**What it needs:**
+
+- build the pool once at startup from `COMMAND_SPECS` + the eval corpus + accumulated confirmed
+  misses, and embed it offline (it is static between deploys);
+- embed the incoming prompt under whichever policy is chosen above;
+- call `selectFewShots` with the **same shortlist** the planner is given, so few-shots cannot
+  reintroduce a command that surface/permission filtering removed;
+- append `renderFewShots(...)` to the planner prompt.
+
+**Do not switch the pool to the trace table.** This is the finding §52 exists around. Joining 3,433
+executed traces against the eval baseline:
+
+| executed traces, by their intent's eval accuracy | rows | share |
+|---|---|---|
+| intent scores >=90% | 2,342 | 68.2% |
+| intent scores <90% | 238 | 6.9% |
+| intent absent from the eval entirely | 853 | 24.8% |
+
+`compound_intent` alone contributes 139 executed rows at **0%** eval accuracy. `outcome: 'executed'`
+means the handler returned success, not that the right handler was chosen — and a routing few-shot
+teaches exactly the latter.
+
+**Do not add a lexical fallback either.** §48 measured this corpus as trilingual; token overlap
+scores a message against its own translation at 0.00, so a lexical path would appear to work while
+retrieving nothing useful for Armenian or Russian prompts.
+
+**Related:** §52, §50 (why this was never pgvector-blocked), §5 (in-memory cosine decision), §44
+(confirmed misses feeding the pool), §48 (the trilingual finding), §4 (guardrails 1 and 3),
+§42 (`compound_intent` at 0%).
+
+### e2e-bug.373 — the session entity store is never written to — **Open**
+
+**Found:** 2026-08-07, while shipping §53 (AI-ROADMAP Phase 6 / §3.4 tier 2).
+
+§53 built `createEntityStore`, `recordResolution`, `lookupEntity`, `pruneEntityStore` and
+`clearEntityStore`. Nothing calls `recordResolution`, so the store is always empty and follow-ups
+like "move it to 4 instead" have nothing to resolve against.
+
+**It has to be written at resolution time, and both after-the-fact sources were measured and fail:**
+
+1. **`ai_command_trace.params`** — now has `session_id`, so reading refs back out looked free. Only
+   **224 of 5,362** rows have non-empty params (4.2%), and they hold mostly the wrong half of the
+   mapping: `serviceName` 137 vs `serviceId` 38, `employeeName` 108 vs `employeeId` 36.
+   `redactCommandTraceParams` strips internal params and redacts PHI — correct for telemetry, fatal
+   here.
+2. **`AiEntityMemoryService`** — keyed by `businessId` alone with `customerName` in its entries
+   (e2e-bug.371). Layering on it would promote an alias-sharing bug into an id-sharing one.
+
+**What it needs:**
+
+- `EntityResolutionService` (§46) records a ref whenever it returns `status: 'resolved'` — that is
+  the one place in the codebase where a name becomes an id, so it is the only correct write point;
+- the store round-trips through the §38 envelope alongside the pending clarification, keyed by the
+  §51 conversation id (it is small — `MAX_ENTITY_REFS` is 12);
+- §48's `invalidateStaleBindings` calls `clearEntityStore` on a topic change, so "cancel it" after a
+  subject switch cannot reach the previous topic's rows;
+- §49's anaphora resolver consults `lookupEntity` for the ~6% of anaphora with no in-message
+  referent, having exhausted the intra-message path first.
+
+**Note the ordering with e2e-bug.371.** They are independent: §53 is a separate tier and does not
+build on the business-keyed service. 371 should still be fixed, but it does not block this.
+
+**Related:** §53, §46 (the write point), §48 (staleness and clearing), §49 (the reader), §51 (the
+key), §3.4 (the three tiers), e2e-bug.371, e2e-bug.370.
+
+### e2e-bug.374 — the profile-facts read model is never called — **Open**
+
+**Found:** 2026-08-07, while shipping §54 (AI-ROADMAP Phase 6 / §3.4 tier 3).
+
+§54 built `deriveProfileFacts`, `applyProfileDefault` and `renderProfileFacts`. Nothing calls them.
+
+**Why this is not purely mechanical.** The derivation needs the customer's booking history at
+classify time, and the gateway makes no such query today. Options:
+
+- query per request (simplest; an extra round trip on every message);
+- query only on surfaces where it pays — the facts are customer-preference shaped, and §28 measured
+  customer as 69% of traffic at the worst completion rate, so that is also where the value is;
+- cache per (businessId, customerId) with a short TTL — booking history changes rarely, and this is
+  a read model so a stale cache is only as wrong as its age.
+
+The middle option looks right: dashboard and provider surfaces are staff acting on *other people's*
+bookings, where "your usual provider" is meaningless.
+
+**What it needs:**
+
+- fetch `bookings` (employee_id, service_id) for the requesting customer;
+- read `locale` from `users` — do **not** store a second copy;
+- call `deriveProfileFacts`, append `renderProfileFacts(...)` to the classifier context;
+- use `applyProfileDefault` only where a slot is genuinely unfilled.
+
+**Do not turn this into a table.** That is the §54 finding. `users.locale` already exists, and
+default-provider is derivable — running the derivation over the live `bookings` table produced a fact
+for **18 of 19** eligible customers with 1 correctly rejected as too mixed. A persisted copy is a
+cached aggregate that is wrong the moment the next booking lands, with nothing to recompute it.
+
+**Do not let a default override an explicit choice.** `applyProfileDefault` already refuses, and the
+behaviour is mutation-tested, but any call site that reimplements the fallback must preserve it:
+"book me with anyone" is a stated preference, not an empty slot.
+
+**Related:** §54, §3.4 (the three tiers), §28 (customer surface traffic and completion),
+e2e-bug.371 (per-user keying, the same underlying gap), e2e-bug.373.
+
+### e2e-bug.375 — spec-level reasoning uses a 5% view of the command surface — **Fixed 2026-08-08**
+
+**Found:** 2026-08-07, while porting the `catalog` slice (AI-ROADMAP §56).
+
+§47 declared `catalog.create_category`'s compensation `manual`, with this reasoning in the source:
+
+> "There is no delete-category command in the registry, and `catalog.deactivate_service` retires a
+> *service* — it cannot remove a category."
+
+`delete_service_category` **is** in the registry and always has been. The search that produced that
+conclusion covered the 16 commands that had `CommandSpec`s, not the 696 entries in
+`COMMAND_REGISTRY`. §56 corrected the declaration to `kind: 'inverse'` targeting the now-specced
+`catalog.delete_category`.
+
+**The instance is fixed; the class is not.** After §56, **34 of 696** commands are specced — about
+5%. Any reasoning of the form "no command exists that does X", conducted against `COMMAND_SPECS`,
+is being conducted against a 5% sample and will keep producing confident wrong answers. The failure
+mode is quiet: a `manual` compensation looks like a considered decision, not a missed lookup.
+
+**Until the port completes:**
+
+- check `COMMAND_REGISTRY` (696 entries), never `COMMAND_SPECS` (34), when asking whether a
+  capability exists;
+- when a spec's compensation is `none` or `manual` because "nothing can undo it", verify against the
+  registry and record the registry id checked;
+- the conformance rule "every inverse names a command that exists" cannot catch this — it validates
+  the inverses that *are* declared, and this error class is a missing declaration.
+
+**Candidates worth re-auditing** once more of the port lands: the 6 mutating specs currently
+declaring `none`/`manual`. `catalog.deactivate_service` in particular claims "no command can
+reactivate a retired service" — `activate_package` and `activate_subscription_plan` exist for their
+own types, so a service equivalent may too.
+
+**Related:** §56 (the port), §47 (the wrong declaration), e2e-bug.355 (the other registry/spec
+divergence), AI-ROADMAP Phase 1.
+
+### e2e-bug.376 — `explain_payment_status` is a read registered as a mutation — **Fixed 2026-08-08**
+
+**Found:** 2026-08-07, while porting the `payments` slice (AI-ROADMAP §57).
+
+The registry entry:
+
+```json
+{"id":"explain_payment_status","surfaces":["provider"],"mutating":true,
+ "executionMode":"simple_mutate","apiModule":"payments","handler":"AiPaymentsService"}
+```
+
+Every other `explain_*` command in the payments module is a read. This one reports whether a booking
+has been paid — the classifier fixtures describe it as "paid/pending only" — and there is no write in
+that description.
+
+**Consequences of the misdeclaration:**
+
+- `executionMode: 'simple_mutate'` routes it through the write path, so it can attract confirmation
+  and T1 risk handling a read does not need;
+- it is counted among the 341 `mutating: true` registry entries, which is the denominator for risk
+  and blast-radius reporting;
+- under the spec model it must declare a compensation (§47's conformance rule applies to every
+  mutating spec), so a read now carries a `kind: 'none'` declaration that reads as meaningful and
+  is not.
+
+**Where it comes from is not yet pinned down.** The literal `'explain_payment_status'` appears exactly
+once in `ai-command-registry.build.ts`, inside `PROVIDER_EXCLUSIVE_INTENTS`, whose binding declares
+`apiModule: 'provider-mobile'`, `handler: 'ProviderAiCommandService'` and does not list it in
+`mutateIntents`. The built entry says `apiModule: 'payments'`, `handler: 'AiPaymentsService'`,
+`mutating: true`. So a second registration path reaches it — probably a spread or `.filter()` over
+another const — and `bindingByIntent.set` is last-write-wins. **That path should be found before
+changing anything**, because if two bindings claim this intent, the same may be true of others and
+the fix is structural rather than a one-line edit.
+
+**What §57 did instead:** specced it as declared (T1, `none` compensation, comment pointing here).
+Declaring it T0 would have made the spec disagree with the registry, and the conformance suite —
+correctly — fails on that.
+
+**Related:** §57, §47 (the compensation requirement), e2e-bug.355 (the other registry/spec
+divergence), e2e-bug.375 (reasoning from the 11% of commands that are specced).
+
+### e2e-bug.377 — `book_walk_in_gap` creates a booking with no confirmation gate — **Open**
+
+**Found:** 2026-08-07, while porting the `staff/schedule` slice (AI-ROADMAP §59).
+
+`ai-provider-open-shifts.logic.ts` — the handler creates a real booking:
+
+```ts
+const booking = await deps.bookingService.create(
+  businessId,
+  ...
+```
+
+The registry entry says otherwise:
+
+```json
+{"id":"book_walk_in_gap","surfaces":["provider"],"mutating":false,
+ "executionMode":"read_only","apiModule":"provider-open-shifts"}
+```
+
+**Consequences.** `mutating: false` gives it `executionMode: 'read_only'` and T0 risk, which means:
+
+- **no confirmation gate** — a provider prompt such as "quick book a trim now" creates a customer
+  booking with no preview and no confirm step, while every other booking-creating command requires
+  one;
+- no post-execution assertion (§41 applies to T2/T3);
+- no compensation requirement, so nothing declares how it would be undone;
+- it is missing from the 341 `mutating: true` entries that risk and blast-radius reporting count.
+
+**This is the dangerous direction.** e2e-bug.376 (`explain_payment_status`) is a *read* registered as
+a *write* — wasteful, gating a read too strictly. This is the reverse, and it removes a gate from a
+write.
+
+**The fix is a registry change, not a spec change.** Adding `book_walk_in_gap` to the appropriate
+`mutateIntents` list makes it `simple_mutate` and restores the gate. That is a live behaviour change
+— bookings that currently complete in one turn would start asking for confirmation — so it wants a
+deliberate decision rather than being folded into a porting change.
+
+**What §59 did instead:** specced it as declared (T0) with the contradiction written into the spec
+and a pointer here. Declaring it T1 unilaterally would fail the conformance suite, hiding the defect
+behind a red test instead of surfacing it as a ticket.
+
+**Worth auditing alongside:** the other three `provider-open-shifts` reads
+(`suggest_waitlist_for_gap`, `list_rebooking_candidates`, `draft_waitlist_offer_message`) are
+genuinely read-only by name, but the same module produced this one, so they deserve a handler check.
+
+**Related:** §59, e2e-bug.376 (the opposite direction), §41 (post-exec assertion), §47 (compensation
+requirement for mutating specs), AI-ROADMAP §3.3 (the confirmation gate).
+
+### e2e-bug.378 — two provider commands deny `staff` while permitting `client` — **Open**
+
+**Found:** 2026-08-07, while porting the `provider-mobile` slice (AI-ROADMAP §63).
+
+On the provider surface, `isIntentAllowed` resolves these two to `['client', 'manager', 'owner']`:
+
+- `coordinate_waitlist_offer` — decide which waitlisted customer to offer a freed slot to
+- `team_whos_next` — report which team member is next up
+
+**`staff` is excluded. `client` is not.**
+
+**Verified twice.** The tier maps in `ai-command-spec.provider.ts` are computed from the live gate
+(`isIntentAllowed` plus the gateway's dashboard-client refusal), and
+`ai-command-spec.conformance.spec.ts` then re-derives them independently and asserts agreement. Both
+agree on this ordering, so it is what the running system does rather than a transcription error.
+
+**Why it looks wrong.** Both commands are operational: deciding who gets a cancelled slot, and seeing
+whose turn it is on the floor. `staff` is the tier that performs operations — every comparable
+command in the slice (`mark_visit_complete`, `confirm_pending_booking`, `mark_specimen_collected`)
+permits it. Meanwhile `client` on the provider surface is the least-privileged tier and has no
+plausible reason to coordinate a waitlist.
+
+The likely cause is an omission in the capability matrix rather than a deliberate rule — `client` is
+probably present because the provider surface grants it broadly, and `staff` was simply never added.
+
+**What it needs:** confirm with whoever owns the capability matrix whether `staff` should be
+permitted (almost certainly yes), then add it. If the exclusion *is* deliberate, it needs a comment
+saying why, because nothing currently explains it.
+
+**Not fixed in §63 on purpose:** the spec must match the running system or the conformance suite
+fails, so "correcting" the spec would hide the defect behind a red test rather than surfacing it.
+Same reasoning as e2e-bug.376 and e2e-bug.377.
+
+**Related:** §63, e2e-bug.355 (registry tiers disagreeing with the gate), e2e-bug.376, e2e-bug.377,
+AI-ROADMAP §4 guardrail 1.
+
+### e2e-bug.379 — the parallel lists the spec port was meant to replace are still there — **Open**
+
+**Found:** 2026-08-07, on completing the Phase 1 port (AI-ROADMAP §66).
+
+The roadmap item read:
+
+> "Port the remaining ~688 registry entries domain by domain, **deleting each hand-maintained
+> parallel list as its domain lands**."
+
+The porting half is done — **696 of 696 commands are specced** across §56–§66. The deleting half has
+not started. `ai-command-spec.types.ts` opens by naming the problem the specs exist to solve:
+
+> "Today a command's definition is smeared across ~6 places: the registry seed, a dispatch map, the
+> classifier schema, a coverage list, a promotion list, and a domain util."
+
+All six are still present. Adding `CommandSpec` without removing them means a command is now declared
+in **seven** places rather than six — the port has, so far, made the smearing marginally worse rather
+than better. The benefit is real but deferred: it arrives when the parallel lists go.
+
+**Why it was right to stop here anyway.** Deleting a list is a live behaviour change per domain, and
+doing it inside a porting change would have mixed "declare 696 commands" with "change how 696
+commands are dispatched". The conformance suite is what makes the deletions safe to do one at a time,
+and it only became complete at 696.
+
+**What it needs, in order:**
+
+1. generate the registry rows FROM the specs and delete the seed — the conformance suite becomes
+   tautological at that point and should itself be deleted, as its own header says;
+2. derive the dispatch map from `spec.handler`;
+3. derive the classifier schema from `spec.description` + `spec.examples`;
+4. derive the coverage and promotion lists from `spec.risk` and §42's accuracy join;
+5. retire the domain utils per Phase 8.
+
+**Related:** §66 (port complete), §56–§65 (the slices), e2e-bug.355 (the registry `tiers` field,
+which the port measured as disagreeing with reality for 400 of 696 commands and which step 1 would
+delete outright), AI-ROADMAP Phase 8.
+
+### e2e-bug.380 — 449 of 559 documented spec examples do not reach their own command — **Open**
+
+**Found:** 2026-08-07, measuring Phase 8's eval-coverage blocker (AI-ROADMAP §69).
+
+280 of 696 commands have no eval coverage. Their specs carry **559 hand-written example phrasings**.
+Run against the deterministic harness asserting `rescuedAction`:
+
+| | |
+|---|---|
+| examples | 559 |
+| route to their own command | **110 (20%)** |
+| do not | **449 (80%)** |
+
+**These are not adversarial inputs.** They are the phrasings each command's own spec documents as
+what a user would say, and the `CommandSpec` contract states they seed both the planner few-shots
+and the eval goldens. A command whose own example does not reach it is a command that likely does
+not work from natural language at all.
+
+**Scope caveat, stated because it matters.** This is the *untested tail* — commands with no eval
+coverage, which is a biased sample. §29 measured 8 of 20 spec examples missing their detector on a
+general sample; 80% on the least-tested 280 commands is consistent with that, not in conflict, but
+the platform-wide rate is somewhere between.
+
+**What it is not evidence of.** A failure here means no detector routes the phrasing. It does not
+mean the planner cannot — the deterministic harness only exercises the rescue path (7,187 of 8,509
+existing cases assert `rescuedAction`, 57 assert `action`). Planner readiness is measurable only
+through §19's shadow comparison.
+
+**What it needs:**
+
+- triage by domain — the four Phase 8 slice-ready domains (§68) first, since those are where
+  detector deletion starts and a non-routing example there is a gap the planner must cover;
+- for each failing example, decide whether the *example* is unrealistic or the *routing* is missing.
+  §44's miss→fixture pipeline handles the second; the first is a spec edit;
+- do **not** "fix" this by deleting the failing examples. They are the documentation of what the
+  command is for, and removing them would make the number look better while making the specs worse.
+
+**Related:** §69, §68 (retirement readiness), §52 (examples as few-shot seeds), §44 (miss→fixture),
+§29 (the earlier 8-of-20 measurement), e2e-bug.360.
+
+### e2e-bug.381 — the planner returns an empty plan for most real prompts — **Superseded 2026-08-08**
+
+**Found:** 2026-08-07, replaying historical traffic through the planner (AI-ROADMAP §70).
+
+Replaying 25 randomly sampled `executed` traces through `buildPlannerMessages` →
+`decodePlanResponse` → `validatePlan`:
+
+| outcome | n |
+|---|---|
+| agreed with the recorded action | 1 |
+| disagreed | 2 |
+| response failed to decode | **0** |
+| **plan not executable** | **22** — of which **18 are empty plans** |
+
+The model returns well-formed JSON containing **no steps**. It is not misrouting and it is not
+producing malformed output; it declines to plan at all.
+
+**Why this blocks everything downstream.** Phase 8 retires 555 detectors in favour of the planner.
+A planner that produces no plan for roughly three quarters of real prompts cannot replace them. The
+same fact undercuts §19's shadow rollout and §42's propose-only promotion path.
+
+**Why it was invisible until now.** Two reasons, both worth recording:
+
+1. `AI_PLANNER_SHADOW_SURFACES` has **never been set** — not in `.env`, not in any config. §19's
+   shadow has been disabled since it shipped, which is why `ai_command_plan_shadow_disagreement`
+   has 0 rows and no trace carries `plan_outcome`.
+2. The deterministic eval corpus does not test the planner. §69 measured that 7,187 of 8,509 cases
+   assert `rescuedAction` — they exercise the rescue path. The planner could return nothing forever
+   and the corpus would stay green.
+
+**What to investigate first**, in order of likelihood:
+
+- **shortlist size.** `buildPlannerShortlist` filters 696 specs by surface and tier. If the
+  resulting prompt is too large, or too small, the model may have nothing plausible to choose. Log
+  the shortlist length alongside the empty plans;
+- **prompt instruction.** The planner prompt may make "no steps" the safe answer for anything
+  uncertain. §4 guardrail 3 wants a clarify, not an empty plan — check they are distinguishable;
+- **model.** The replay used `gpt-4o-mini` via `OPENAI_MODEL`. Confirm which model production would
+  use; a smaller model failing to emit structured plans would explain the shape exactly.
+
+**How to reproduce:** `AI_SHADOW_REPLAY=1 AI_SHADOW_REPLAY_LIMIT=50 npm run ai:shadow-replay`. Costs
+one completion per prompt.
+
+**Sample caveat:** 25 prompts, randomly drawn from executed traces. Enough to establish that empty
+plans dominate; not enough for per-domain rates.
+
+**Related:** §70 (the replay harness), §19 (the shadow that never ran), §69 (why the eval corpus
+could not have caught this), §68 (retirement readiness), §42 (propose-only), AI-ROADMAP Phase 8.
+
+### e2e-bug.381 — diagnosis (2026-08-07)
+
+Both free hypotheses confirmed, and they compound.
+
+**1. The shortlist is 26× the specified size.** AI-ROADMAP §5 line 358 specifies a "10–15 command
+shortlist". Measured:
+
+| surface / tier | shortlist | prompt |
+|---|---|---|
+| dashboard / owner | **388** | ~16,700 tokens |
+| dashboard / staff | 234 | ~10,500 |
+| customer / client | 204 | ~9,000 |
+| provider / staff | 139 | ~6,300 |
+| public / client | 137 | ~6,200 |
+
+`buildPlannerShortlist` filters by surface and permission (§4 guardrail 1) and stops. Nothing
+narrows further.
+
+**2. The prompt correctly tells the model to give up rather than guess.**
+`ai-command-plan.prompt.ts`: *"If a request does not match any listed command, do NOT substitute a
+similar one — add a plain-language note to `unresolved` instead."*
+
+**Confirmed, not inferred:** instrumenting the replay shows **11 of 12** empty plans carry
+`unresolved` notes. The model is following the instruction.
+
+**Conclusion: the planner is behaving as designed against an impossible prompt.** Do not "fix" this
+by loosening the instruction — that trades empty plans for wrong plans, which is the steal problem
+§4 exists to remove, reintroduced one layer up.
+
+**The fix is e2e-bug.372.** §52 built embedding retrieval that ranks and caps candidates; wiring it
+is the missing narrowing step the planner design always assumed. Target 10–15 per §5.
+
+**Third hypothesis not yet tested:** model choice. The replay used `gpt-4o-mini` via `OPENAI_MODEL`.
+Worth confirming what production configures, but the shortlist finding is sufficient on its own.
+
+### e2e-bug.382 — planner shortlist retrieval has ~55% recall — **Superseded 2026-08-08**
+
+**Found:** 2026-08-07, measuring the narrowing wired in §73.
+
+Narrowing the permission-filtered shortlist from 388 commands to 15 leaves the **correct command out
+of the shortlist more often than not**.
+
+**Recall vs limit** (143 real prompts, embeddings only, no completions):
+
+| limit | 15 | 25 | 40 | 60 | 100 |
+|---|---|---|---|---|---|
+| recall | 54% | 55% | 59% | 61% | 64% |
+
+Nearly 7× the prompt size buys ten points, so the **ranking** is weak rather than the cut-off. No
+limit setting makes narrowing safe.
+
+**Effect on planning** (60 real prompts, with completions):
+
+| | narrowing off | narrowing on (15) |
+|---|---|---|
+| empty plans | 72% | 28% |
+| wrong command | ~8% | **38%** |
+
+By AI-ROADMAP §4 a wrong command is worse than no command — the planner exists to stop substitution.
+So narrowing is shipped behind `AI_PLANNER_NARROW_SHORTLIST`, **off**.
+
+**Ruled out: language.** §48 established the corpus is trilingual, the obvious suspect. At limit 15,
+ASCII prompts recall 56% and non-ASCII 53%. Not the cause.
+
+**Hypotheses, in order:**
+
+1. **Embedding dimensionality.** 256 was chosen so the 696-vector cache is 1.5MB rather than ~10MB —
+   a file-size decision, not an accuracy one. Rebuild at 1,536 and re-run the recall sweep. Cheap:
+   embeddings only, no completions. **Do this first.**
+2. **Match text.** `commandMatchText` is `description + examples`. Descriptions were written to
+   disambiguate for a human reader and may be too uniform to separate 388 items by cosine.
+3. **Hybrid retrieval.** Embedding rank plus a lexical signal, so an exact word match cannot be
+   ranked out. Note §48's finding that lexical alone fails on this corpus — it is a supplement, not
+   a replacement.
+
+**How to reproduce:** the recall sweep is embeddings-only and takes about a minute. It was run as a
+throwaway spec; re-add it if iterating.
+
+**Related:** §73 (what shipped), §72 (the narrowing itself), §71 (the diagnosis this corrects), §5
+(the 10–15 target), §48 (trilingual corpus), e2e-bug.381.
+
+### e2e-bug.382 — hypothesis results (2026-08-07, §74)
+
+Both cheap hypotheses tested on a **fixed** 143-prompt sample (`ORDER BY md5(prompt_raw)`), so the
+three configurations are directly comparable.
+
+| limit | 15 | 25 | 40 | 60 | 100 |
+|---|---|---|---|---|---|
+| **256 dims, description + examples** (shipped) | **45%** | **45%** | **47%** | **48%** | 49% |
+| 1,536 dims, description + examples | 36% | 38% | 40% | 41% | 50% |
+| 256 dims, examples only | 36% | 37% | 37% | 40% | 50% |
+
+**Hypothesis 1 (dimensionality) — refuted and inverted.** 1,536 is worse than 256 below limit 100.
+The 1.5MB cache is also the more accurate one.
+
+**Hypothesis 2 (match text) — refuted.** Dropping the prose description and matching utterance
+against utterance loses nine points. The description carries signal.
+
+**Methodological note.** The first 1,536 run appeared to score 36% against 54%, but that 54% came
+from a `random()` sample and the 36% from a deterministic one — not comparable. Re-measuring 256 on
+the identical sample gave 45%. **Sample variance at n=143 is ~±9 points**, the same magnitude as the
+effects under test, so all future comparisons must reuse the fixed sample.
+
+**Remaining hypothesis 3 — hybrid retrieval.** Embedding rank plus a lexical signal, so an exact
+word match cannot be ranked out. §48 measured that lexical alone fails on this trilingual corpus
+(a message and its own translation score 0.00), so it has to supplement the embedding rather than
+replace it. This is materially more work than hypotheses 1 and 2 and should be a deliberate decision.
+
+**Worth considering instead:** that narrowing is the wrong tool. Two of three levers moved nothing,
+which suggests embedding similarity over 388 short command descriptions may simply not separate them.
+The planner's empty-plan problem (e2e-bug.381) may need a different attack — for example letting the
+planner ask for a domain first and shortlisting within it, which uses the §66 domain structure rather
+than a vector space.
+
+### e2e-bug.382 — hypotheses 3 and 4 (2026-08-07, §75)
+
+**Domain-first shortlisting — refuted.** 25 domains, fixed 143-prompt sample: top-1 recall 18%,
+top-2 26%, top-3 42% (at 39 commands). Direct command retrieval gets 47% at 40. Domain texts average
+30-79 commands together and lose the signal.
+
+**Model choice — refuted as a cause.** n=40, narrowing on: `gpt-4o-mini` 40% empty / 13 wrong;
+`gpt-4o` 48% empty / 4 wrong. The stronger model refuses more and guesses less, which is correct per
+§4. The model is fine; its inputs are not.
+
+### The corrected framing
+
+| configuration | truth in shortlist | empty plans | wrong |
+|---|---|---|---|
+| no narrowing (388) | 100% | **72%** | ~8% |
+| narrowed to 15 | ~45% | **40%** | 33% |
+
+With the full list the correct command is *always* present and the planner still returned empty 72%
+of the time. Shrinking to 15 nearly halved that. So **both** size and recall matter, and they pull
+against each other. The target is **high recall at a small list size** — not either alone.
+
+This partially rehabilitates §71: list size was hurting. §73 read "narrowing didn't fix it" as a
+refutation, when the honest reading is "narrowing helped and introduced a second problem".
+
+### Remaining options
+
+1. **Hybrid embedding + lexical.** §48 rules out lexical alone (trilingual corpus, translations score
+   0.00), so it supplements rather than replaces.
+2. **Two-stage planner.** Ask the model to name a domain, then shortlist within it. Note this is
+   *not* what §75 refuted — that tested picking a domain by cosine. The model has never been asked to
+   do it, and the model is the component currently behaving well.
+
+Option 2 is cheaper to test and uses the component that is working. Recommended first.
+
+### e2e-bug.383 — `CommandSpec.domain` is module-derived, not concept-derived — **Open**
+
+**Found:** 2026-08-07, testing two-stage planner routing (AI-ROADMAP §76).
+
+The 25-domain taxonomy created across §56–§66 records which `apiModule` a command was filed under,
+not what the command does. It contains near-duplicates:
+
+| duplicate pair | counts | why |
+|---|---|---|
+| `booking` / `appointment` | 79 / 8 | same concept; `appointment` is the Phase 1 pilot, `booking` the `public-booking` module |
+| `provider` / `provider2` | 65 / 14 | split by the module name `provider-exp-2` |
+| `clinic` / `clinical` | 48 / 12 | `clinic-test-results` vs `patient-clinical-profiles` |
+| `payment` / `commerce` | 42 / 52 | overlapping money concepts |
+| `schedule` / `operations` | 32 / 71 | overlapping scheduling |
+
+§66 observed that "`ai-command` was never a domain — it is the label left on everything that did not
+get one". That reasoning was applied to the catch-all and to nothing else.
+
+**Why it is not cosmetic.** `ai-saga.util.ts` uses `domain` as the transaction aggregate:
+
+```ts
+/** The aggregate a step touches. `domain` is the aggregate root here. */
+return specFor(specs, step.command)?.domain ?? 'unknown';
+```
+
+A plan touching `appointment.create` and `booking.cancel_with_token` is grouped as two aggregates
+when it is one. §47's cheap path — same-aggregate failures rolling back in one transaction with no
+compensation, no cancelled rows, no emails — silently degrades into a saga. That is a correctness
+bug in the transaction model caused by a naming decision.
+
+It also feeds:
+
+- §67's `RESCUE_ACTION_LOCKED_DOMAINS`, which locks rescue per domain;
+- §68's per-domain retirement slices, whose "slice-ready" boundaries are currently arbitrary.
+
+**Measured impact on routing.** Asking a model to pick the right domain scored **28% top-1** on 60
+real prompts, with misses like `provider -> provider2` and `appointment -> booking`. The model was
+being asked which sprint a feature shipped in. Two-stage routing is *untested*, not refuted.
+
+**What it needs:**
+
+1. agree a concept taxonomy — likely 12–15 domains, merging the pairs above;
+2. remap `domain` across the eight spec files. Mechanical: `domain` is not part of the command id,
+   and the conformance suite does not assert on it, so nothing breaks by construction;
+3. re-run the §47 saga tests — grouping behaviour will change, which is the point;
+4. re-run the §76 stage-1 measurement and the §74 recall sweep. Both should improve: coherent domain
+   texts stop averaging unrelated commands together.
+
+**Do this before e2e-bug.382.** It is upstream of the retrieval work and fixes a real bug regardless
+of whether either retrieval approach ends up viable.
+
+**Related:** §76, §66 (where the reasoning was first stated), §47 (transaction grouping), §67, §68,
+e2e-bug.382.
+
+### e2e-bug.382 — composition refuted; recommend pausing retrieval work (2026-08-08, §78)
+
+Composing the two partial results — model picks domains, then embedding narrows within them — is
+**worse than either part**. Fixed 60-prompt sample:
+
+| approach | domain recall | final recall @ 15 |
+|---|---|---|
+| embedding over all permitted (baseline) | — | **40%** |
+| top-1 domain -> embed | 23% | 22% |
+| top-2 domains -> embed | 50% | 22% |
+| top-3 domains -> embed | 63% | 25% |
+
+Stage 1 hands stage 2 an easier problem (68 related commands instead of 388) and stage 2 still loses
+the answer at the same rate. **The embedding does not improve when the candidate set shrinks or
+becomes more homogeneous** — it is not a scale problem.
+
+### Everything tried
+
+| hypothesis | result |
+|---|---|
+| shortlist size | partly right (388→15 halved empty plans), not the cause |
+| embedding dimensionality | refuted, inverted — 256 beats 1,536 |
+| match text | refuted — examples-only loses 9 points |
+| domain-first by cosine | refuted — 18% top-1 |
+| model choice | refuted as cause — stronger model refuses more, guesses less |
+| taxonomy (e2e-bug.383) | **real bug, fixed** — routing 28%→58%, recall unchanged |
+| composition | refuted — worse than either part |
+
+All recall measurements land between 22% and 49%.
+
+### Recommendation
+
+**Stop tuning retrieval.** Seven attempts have moved recall by a few points at most. The next session
+should not adjust more parameters of the same approach.
+
+**The untested direction is structural.** With the full 388-command list the correct command is always
+present and the planner still returned empty 72% of the time — a flat list overwhelms the model. The
+same model picks correctly among 16 coherent domains 58% of the time at top-2. So try **presenting
+all 388 grouped by domain** rather than filtering to 15: recall stays 100% by construction, and the
+problem becomes navigation rather than selection. That is a change to `buildPlannerMessages`, not to
+retrieval, and nothing tried so far has tested it.
+
+Measure it the same way: `AI_SHADOW_REPLAY_LIMIT=60 npm run ai:shadow-replay`, watching empty plans
+*and* wrong commands together — moving one at the expense of the other is the trap this whole
+investigation kept falling into.
+
+### e2e-bug.382 — grouping beats narrowing (2026-08-08, §79)
+
+**Measurement flaw found and fixed first.** The replay sampled prompts with `ORDER BY random()`, so
+every run compared different prompts. The same configuration produced **25% and 40% empty plans** on
+consecutive n=40 runs — a spread larger than any difference between configurations. Every comparative
+claim in §70–§78 was therefore unfalsifiable. The replay now uses `ORDER BY md5(prompt_raw)`.
+
+**First matched comparison**, same 40 prompts, one variable:
+
+| | narrowed to 15 (flat) | **grouped, all 388** |
+|---|---|---|
+| agreed | 1 (2.5%) | **8 (20%)** |
+| empty plans | 25 (63%) | **16 (40%)** |
+| wrong command | 13 (33%) | 15 (38%) |
+
+Grouping gives 8× the agreement and cuts empty plans by a third. Recall is 100% by construction, so
+the model is never asked to choose from a list that excludes the answer.
+
+**Caveats.** 20% agreement is not good enough to retire detectors — Phase 8 stays blocked. And n=40
+cannot separate 38% from 33% on wrong commands; that gap is inside the noise. The agreement and
+empty-plan gaps are large enough to act on.
+
+**Next:**
+
+1. larger matched run (n=150 on the fixed sample) to confirm the gap holds;
+2. if it does, enable `AI_PLANNER_GROUPED_SHORTLIST` by default and re-baseline;
+3. then revisit whether narrowing adds anything *on top of* grouping — probably not, but it is now
+   cheap to test properly.
+
+Both flags default off; nothing in production has changed.
+
+### e2e-bug.384 — `validatePlan` calls a zero-step plan executable — **Open**
+
+**Found:** 2026-08-08, sampling planner disagreements (AI-ROADMAP §81).
+
+```
+validatePlan(specs, { steps: [], unresolved: [] },   ...) -> executable: true,  problems: []
+validatePlan(specs, { steps: [], unresolved: ['x'] }, ...) -> executable: false, problems: []
+```
+
+A plan with no steps is not executable — there is nothing to execute — and §33's `executePlan`
+already refuses it with "Plan has no steps". So the validator and the executor disagree about the
+same plan, and which answer you get depends on whether the model happened to explain itself.
+
+**It corrupted the measurements.** Empty plans took one of two paths: noted ones were counted as
+"not executable", silent ones fell through to the command comparison, compared `(none)` against the
+recorded action, and were counted as **wrong commands**. Reclassifying a 50-prompt run:
+
+| | as reported | actual |
+|---|---|---|
+| wrong command | 21 (42%) | **3 (6%)** |
+| empty, silent | — | 18 (36%) |
+
+Every claim in §70–§79 about narrowing or grouping "trading empty plans for wrong commands" was
+reading this artefact.
+
+**Fix:** return `executable: false` for a zero-step plan, with a problem code so the reason is
+visible — the planner producing nothing is a distinct outcome from a plan that fails validation, and
+both differ from a clarify.
+
+**Check while fixing:** whether anything downstream relies on an empty plan validating, particularly
+`ai-planner-shadow.service.ts` and the §42 propose-only path.
+
+**Related:** §81, §33 (the executor that already refuses these), §70–§79 (measurements to re-read
+once fixed).
+
+### e2e-bug.385 — the tour/guide slice is stuck at 84%, and spec edits make it worse — **Superseded 2026-08-08**
+
+**Found:** 2026-08-08, attempting to close the retirement gap (AI-ROADMAP §82).
+
+The `tour`+`guide` slice (15 `legacy_paraphrase` detectors, 168 live traces) is the planner's best
+ground: **38/45 correct (84%)**, 91% producing a usable plan, against a global 12% correct. But 84%
+is below §42's 90% bar, so the detectors cannot be retired.
+
+**Three configurations, same 45 prompts:**
+
+| configuration | correct | no plan |
+|---|---|---|
+| **baseline** | **38** | **4** |
+| + multilingual examples | 31 | 10 |
+| + multilingual examples + "not X" descriptions | 26 | 18 |
+
+Reverting restored 38/4 exactly; the worst configuration reproduced across two runs. Causation is
+established.
+
+**What failed and why it looked right.** Every trace for `list_tour_calendar_week` — 121 of the 168 —
+is Armenian or Russian, and the specs offered only English examples. Adding the real phrasings
+verbatim should have helped. It cost seven points.
+
+The negative-framing result at least has a mechanism: a model whose dominant failure is *declining*
+gets one more reason to decline, and precision moved as that predicts (wrong 3→1) while recall
+collapsed. **The multilingual-examples result has no mechanism I can defend.**
+
+**The remaining gap is small and specific:** 4 prompts producing no plan (`list_tour_calendar_week`,
+`explain_rtl_layout`, `explain_tour_calendar_span`, `retry_failed_network_action`) and 3 wrong,
+including `list_tour_calendar_week -> tour.list_upcoming_departures` — a real confusion between "this
+week's calendar" and "upcoming departures".
+
+**Do not retry** adding examples or disambiguating descriptions to these four commands; both are
+measured negative. Untried:
+
+1. why non-English examples hurt — worth understanding before any multilingual spec work anywhere,
+   since §48 established the whole corpus is trilingual;
+2. whether the 90% bar is right for a slice whose detectors it would replace — the detectors route
+   these ~100%, so 84% is a real regression regardless of the bar;
+3. retiring behind a flag (`AI_RETIRE_TOUR_GUIDE`) so the mechanism exists and can be switched on
+   when the gap closes.
+
+**Related:** §82, §81, §68 (slice-readiness), §42 (the 90% bar), §48 (trilingual corpus).
+
+### e2e-bug.386 — public-only specs hide 23.1% of real traffic from the planner — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, measuring recall@k for the planner shortlist (AI-ROADMAP §83).
+
+`CommandSurface` is `dashboard | provider | customer | public`. The `ai_command_trace` table records
+`customer` 3,703, `dashboard` 1,161, `provider` 498 — and **`public` zero times in 5,362 rows**.
+
+137 specs declare `public`. **17 declare it instead of `customer`.** Because `isSpecAllowedForTier`
+is exact membership and not hierarchical (same root cause as `e2e-bug.378`), every one of those
+commands is unreachable from the customer app — the surface carrying 69% of all traffic.
+
+| executed traces | count | share |
+|---|---|---|
+| reachable today | 2,373 | 69.1% |
+| **denied — spec is public-only** | **794** | **23.1%** |
+| denied — other | 20 | 0.6% |
+| no spec (`compound_intent`) | 246 | 7.2% |
+
+Ten commands, all customer-facing: `booking.help` (232), `booking.list_services` (199),
+`booking.recommend_specialists` (178), `booking.check_availability` (74), `booking.list_providers`
+(34), `booking.find_services_under_budget` (33), `appointment.book_public` (21),
+`booking.find_evening_weekend_slots` (12), `booking.business_info` (6),
+`booking.list_public_promotions` (5).
+
+**Why this invalidates earlier measurements.** Every planner run in §70–§82 used a candidate set
+missing a quarter of real traffic on the dominant surface. Empty plans were partly the planner
+correctly declining to invent a command that was not in its list. Any accuracy number taken before
+this is fixed is a lower bound on an unknown.
+
+**Two fixes, both widening a permission boundary — needs a decision:**
+
+1. add `customer` to `surfaces` on the 17 public-but-not-customer specs. Explicit, auditable,
+   per-spec. `appointment.book_public` is a **mutation**, so it wants its own look rather than being
+   swept in with nine reads;
+2. make `isSpecAllowedForTier` treat `public` as a subset of `customer` — a logged-in customer can do
+   anything an anonymous visitor can. One change, but it silently re-gates all 137 specs declaring
+   `public`.
+
+**Prerequisite question:** should `public` exist? A surface with zero traffic is dead or misnamed. If
+the runtime cannot emit it, 137 specs are gated on a constant.
+
+**Do not** treat this as a retrieval problem. §83 measured recall@15 at **81%** on prompts whose
+command is actually permitted, median rank 3 — the ranking is fine.
+
+**Related:** §83, §82, §78, `e2e-bug.378` (same exact-membership root cause), `e2e-bug.385`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §84). Option 1 of the two listed above.
+
+The conformance suite settled the safety question before the fix landed. It asserts spec tiers
+against `isIntentAllowed` — the gate that actually runs — separately from spec surfaces against the
+registry. Adding `customer: ['client']` to all 17 specs left the **tiers assertion green** and failed
+only the surfaces one: the running gate already permitted every one of these on `customer`, which is
+how the 794 traces executed. A stale declaration was hiding them; no access boundary moved.
+
+Applied in two places, because the conformance gate requires spec and registry to agree:
+
+- 17 specs in `ai-command-spec.booking.ts`, `.appointment.ts`, `.core.ts`;
+- one binding at the head of `LEGACY_CORE_BINDINGS` in `ai-command-registry.build.ts`. Registered
+  **first** deliberately — `register` unions surfaces but overwrites `bindingByIntent`, so going
+  first adds `customer` without changing any handler. `ai-command-inventory.json` regenerated.
+
+| | before | after |
+|---|---|---|
+| reachable traces | 69.1% | **92.3%** |
+| denied | 23.7% | **0.6%** |
+| planner truth-in-shortlist | 43% | **79%** |
+
+Gates green: 3,791 across 19.
+
+**Follow-on, not this ticket:** 77 of 150 replayed prompts still return an **empty plan**, 49 of them
+silent (no `unresolved` note). With the right command in the shortlist 79% of the time, that is the
+next thing to explain — and it is not retrieval, shortlist size (§83) or spec wording (§82), all of
+which are now measured dead ends. Tracked as `e2e-bug.387`.
+
+### e2e-bug.387 — the planner declines half of all prompts, and half of those silently — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, after `e2e-bug.386` removed the retrieval blocker (AI-ROADMAP §84).
+
+Replaying 150 real prompts with the surface fix in place:
+
+| | |
+|---|---|
+| truth in shortlist | 118/150 (79%) |
+| **empty plan** | **77/150 (51%)** |
+| — of which **silent** (no `unresolved` note) | **49** |
+| — of which annotated | 28 |
+| agreed with the recorded action | 33 |
+| disagreed | 20 |
+
+The planner is shown the correct command roughly four times in five and still produces nothing half
+the time. **49 silent refusals are the sharpest part**: the prompt instructs it to say when it cannot
+map a message, and in those cases it returns neither a plan nor a reason.
+
+**Four explanations are already measured dead:**
+
+- retrieval quality — 79% truth-in-shortlist, median rank 3 (§83, §84);
+- shortlist size — recall@40 buys three points over recall@15 for 2.7x the prompt (§83);
+- spec wording — adding examples and disambiguating descriptions both regressed routing (§82);
+- validation — `e2e-bug.384` fixed the empty-plan-is-executable bug, so these are genuine refusals
+  and not a measurement artefact.
+
+**Untried, in the order worth trying:**
+
+1. read the raw completions for the 49 silent cases. Nothing in this programme has yet looked at what
+   the model actually returns when it declines — every measurement has been of decoded output;
+2. check whether the refusal correlates with language. §48 established the corpus is trilingual and
+   §82 found an Armenian prompt ranking its true command 378/388, so the two known
+   non-English-related findings both point the same way;
+3. test the system prompt's refusal instruction directly — "do not substitute a similar command, say
+   you could not map it" may be over-weighted now that the shortlist is accurate. It was written when
+   the shortlist was 388 commands wide and substitution was the real risk.
+
+**Related:** §84, §83, §82, `e2e-bug.386`, `e2e-bug.384`, `e2e-bug.381`.
+
+### e2e-bug.388 — the plan contract's `id` field ate the command id — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, reading raw planner completions for the first time (AI-ROADMAP §85).
+
+`PLAN_OUTPUT_CONTRACT` asked for:
+
+```
+"id": "s1",
+"command": "<one of the command ids listed above, exactly>",
+```
+
+A field named `id`, beside a field whose description says "command **ids**". gpt-4o-mini resolved the
+collision by putting the command id into `id` and omitting `command` entirely:
+
+```json
+{"steps":[{"id":"booking.list_services","variables":{},"confidence":1.0,"dependsOn":[]}],
+ "unresolved":[],"topicChanged":false}
+```
+
+`decodePlanStep` reads `record.command`, found nothing, dropped the step, and left `unresolved`
+empty — which downstream is indistinguishable from the planner refusing to map the message
+(`e2e-bug.387`). **57 of 150** replayed prompts were this shape; 19 were that exact response.
+
+**Fixed in three places:**
+
+1. the label is now `stepId`, `command` is listed first, and one line states which is which
+   (`ai-command-plan.prompt.ts`);
+2. dropped steps are recorded in `unresolved`, so an unreadable response never again looks like a
+   refusal (`ai-command-plan.decode.ts`);
+3. when `command` is absent and the label contains a dot, the label is read as the command. Command
+   ids are `domain.verb`, step labels are `s1` — a dotted label cannot be a label, so this is
+   syntactic recovery, not semantic invention. The decoder still owns no command list: a recovered id
+   naming nothing real fails `validatePlan` as `unknown_command`, and a test pins that.
+
+**Effect**, same fixed 150-prompt sample:
+
+| | before | after |
+|---|---|---|
+| agreed with recorded action | 33 (22%) | **69 (46%)** |
+| empty plans | 77 | **29** |
+| silent empty plans | 49 | **1** |
+
+8 regression tests added to `ai-command-plan.decode.spec.ts`. Gates: 3,799, all green.
+
+**Worth remembering:** §70–§84 all measured *decoded* output and none printed the raw completion. The
+empty-plan rate they were chasing was largely this. One `console.log` would have ended the sequence
+fifteen sections earlier.
+
+### e2e-bug.389 — a side note refuses the whole plan — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, re-measuring the tour/guide retirement slice (AI-ROADMAP §86).
+
+`ai-command-plan.validate.ts:295`:
+
+```ts
+executable: blocking.length === 0 && plan.unresolved.length === 0,
+```
+
+Given "List upcoming tour departures **with pax and remaining capacity**", the planner returns
+`tour.list_upcoming_departures` — the correct command, every variable valid, `problems: []` — and
+notes the unmappable part in `unresolved`. The plan is refused.
+
+**8 of 45** prompts in the tour/guide slice are exactly this. It is the single thing holding the slice
+at **89% routed against §42's 90% bar**; retrieval is at 98% since §86.
+
+The behaviour also reads badly in the trace: `executable: false` with an empty `problems` array gives
+no reason at all for the refusal.
+
+Phase 6 specifies clarify as a **first-class outcome** — `unresolved` is meant to produce a targeted
+question, not a silent whole-plan refusal. Options, in preference order:
+
+1. execute the valid steps and surface the unresolved note as a caveat (matches §35's "honest partial
+   success", which already exists for execution);
+2. route to clarify, asking only about the unresolved part, keeping the plan pending (Phase 6's
+   multi-turn slot filling already merges a clarify answer into a pending plan);
+3. keep refusing, but record a problem code so the trace explains itself.
+
+3 is the floor and should happen regardless. Do not do nothing: an empty `problems` list on a
+non-executable plan is unreadable.
+
+**Related:** §86, §84, `e2e-bug.384` (the other `executable` defect).
+
+### e2e-bug.390 — nothing ties the embedding cache to the spec text — **Open**
+
+**Found:** 2026-08-08, explaining §82's reverted change (AI-ROADMAP §86).
+
+`ai-command-embeddings.json` is checked in and built from `commandMatchText(spec)` — description plus
+examples — by `npm run build:ai-embeddings`. Nothing runs it automatically and no gate detects it is
+stale.
+
+The cost is already on the record. §82 added the real Armenian and Russian phrasings to four specs,
+did not rebuild, measured a seven-point drop, reverted a correct change, and wrote it up as having no
+defensible mechanism. §86 re-ran the identical edit with the cache rebuilt: truth-in-shortlist
+**64% → 98%**, correct **40% → 71%**.
+
+A stale cache fails in the worst available way — silently, with plausible numbers, in the direction
+that argues against the change that would fix it.
+
+**Fix:** store a hash of the concatenated `commandMatchText` of all specs in the cache file, and add a
+boundary spec asserting it matches the live specs. Cheap, and it converts a silent wrong answer into
+a named failure telling the developer which command to rebuild for.
+
+**Related:** §86, §82, §83, `e2e-bug.385`.
+
+### e2e-bug.385 — superseded by AI-ROADMAP §86
+
+**Both** of this ticket's findings were measurement artefacts, and its guidance was wrong.
+
+- the **84%** was measured through the `e2e-bug.388` decoder collision, which silently discarded valid
+  plans;
+- the **"multilingual examples regressed routing"** result came from editing spec examples without
+  rebuilding the embedding cache they feed (`e2e-bug.390`). The added Armenian reached the prompt and
+  never reached retrieval, so the run measured a longer prompt with none of the benefit.
+
+Re-run with both corrected, the identical edit gave truth-in-shortlist **64% → 98%**, correct
+**40% → 71%**, routed **56% → 89%**.
+
+**The instruction "do not retry adding examples or disambiguating descriptions" was wrong on the
+examples half and should be disregarded.** Adding real traffic phrasings to specs is Phase 9's
+prescribed loop and it works — provided `npm run build:ai-embeddings` runs afterwards.
+
+The negative-framing half still stands: "this is not X" descriptions did hurt, and the reason given in
+§82 (a planner whose dominant failure is declining does not need another reason to decline) survives.
+
+The slice is now blocked by one thing only: `e2e-bug.389`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §87). Options 1 and 3 from the list above, split by risk tier.
+
+`executable` no longer consults `plan.unresolved` unconditionally. A plan that is T0 throughout and
+needs no confirmation executes and carries the note; a plan that mutates or needs confirmation still
+blocks and routes to clarify. The note is recorded as a new `unresolved_notes` problem code in both
+cases, so option 3 — a refusal that explains itself — is satisfied regardless of which branch is
+taken.
+
+`describePlanClarification` already appended unresolved items to its question, so blocked mutations
+keep asking about the right thing; a test pins that.
+
+| tour/guide slice | before | after |
+|---|---|---|
+| correct and executable | 32 (71%) | **40 (89%)** |
+| no plan | 11 | **2** |
+
+7 regression tests in `ai-command-plan.validate.spec.ts`. Gates 3,806, green.
+
+**The slice is now one prompt short of retirement:** 88.9% against `PROPOSE_ONLY_ACCURACY_BAR = 90`.
+Remaining failures are 2 no-plan and 3 wrong, two of which are the known
+`list_tour_calendar_week` vs `tour.list_upcoming_departures` confusion. Tracked in `e2e-bug.391`.
+
+### e2e-bug.391 — tour/guide slice one prompt short of the bar — **Fixed 2026-08-08**
+
+AI-ROADMAP §88.
+
+**First, the labels were checked rather than assumed.** The two confusable commands share a handler
+and declare no variables, so only prose separates them. The traces show `list_tour_calendar_week`
+covering last, next and this week, and absorbing prompts that say "departures" while meaning the
+calendar. The scoring labels were right; two spec descriptions were not.
+
+**What worked:** sharpening `tour.list_upcoming_departures` ("a running forward schedule with no
+particular week in view") and `guide.retry_failed_network_action` ("attempted and failed", to separate
+it from `guide.resume_booking_draft` which is "started and left"). Both positive, neither by contrast
+with another command — §82's negative framing is still bad.
+
+**What did not, and is worth remembering:** rewriting `tour.list_calendar_week` to state its real
+scope — accurate, and verified against the traces — cost **nine points** (89% → 80%, retrieval
+44/45 → 38/45). The longer calendar-heavy text diluted its vector into `tour.explain_calendar_span`
+and Armenian calendar prompts routed there. Reverted, with the reasoning left in a comment on the
+spec so nobody "fixes" it again.
+
+| | before | accurate-description attempt | kept |
+|---|---|---|---|
+| truth in shortlist | 44/45 | 38/45 | **45/45** |
+| correct | 40 (88.9%) | 36 (80.0%) | **42 (93.3%)** |
+| **held-out (20 unseen)** | — | — | **20/20 (100%)** |
+
+The held-out arm is the one that counts: the specs were edited with the first 45 in view.
+
+**Consequence:** the slice clears `PROPOSE_ONLY_ACCURACY_BAR = 90` on both arms, so the 15
+`legacy_paraphrase` detectors in `tour` and `guide` are retirement-ready — the first slice in Phase 8
+to get there. Bulk deletion proposed, not performed.
+
+**Remaining 3 failures:** 2 are "List tour departures next week" → `tour.list_upcoming_departures`,
+where the only known fix is the description that regressed everything else; 1 is "how are tour service
+colors assigned", labelled `explain_tour_calendar_span`, which is probably a mislabelled trace.
+
+### e2e-bug.392 — the planner has no execution path — **Open**
+
+**Found:** 2026-08-08, attempting the tour/guide detector retirement (AI-ROADMAP §89).
+
+`ai-gateway.service.ts`, in the trace-recording tail:
+
+```ts
+// Started AFTER the response is built and the trace is queued, so it can
+// add no latency; disabled unless the surface is listed in
+// AI_PLANNER_SHADOW_SURFACES; and it can never affect `opts.result`.
+this.plannerShadow?.runInBackground({ ... });
+```
+
+The planner is an observer. `AI_PLANNER_SHADOW_SURFACES` is unset (§70) so it does not even observe.
+**No live request has ever been routed by it.**
+
+This blocks every Phase 8 slice, not just tour/guide. The recipe — "planner passes eval →
+shadow-compare → bulk-delete detectors" — assumes the planner is serving by deletion time. All 15
+tour/guide detectors are `wiredInRescue: true, reachableFromProduction: true`, and §69 measured the
+deterministic corpus asserting `rescuedAction` 7,187 times against `action` 57: for these commands the
+detector is the route. Deleting them removes routing and replaces it with nothing.
+
+**Also wider than it looks.** The slice detectors are load-bearing outside the slice —
+`isListTourCalendarWeekPrompt` is imported by `semantic-steal-guard.util.ts` and used as a negative
+guard in `ai-upcoming-tour-departures.util.ts` and `ai-tour-service.util.ts`. Eleven non-spec files
+reference just four of the fifteen symbols.
+
+**Required sequence:**
+
+1. wire `AiCommandPlannerService` into the gateway as a routing path behind
+   `AI_PLANNER_EXECUTE_DOMAINS`, default off, with the existing detector path as fallback on empty
+   plan — so the flag is reversible and the failure mode is today's behaviour;
+2. enable for `tour`+`guide`, confirm live requests are served and compare against the 93% the
+   offline replay predicts;
+3. then delete the detectors, treating the steal-guard and cross-detector references as part of that
+   change.
+
+**Related:** §89, §88, §70, §69, §67.
+
+**Partially fixed 2026-08-08** (AI-ROADMAP §90) — the seam exists; the flag has not been turned on.
+
+Built: `ai-planner-route.util.ts` (pure decision + `AI_PLANNER_EXECUTE_DOMAINS` parser) and a
+`stagePlannerRoute` in `CommandUnderstandingPipelineService` that emits an `IntentCandidate` with
+`source: 'planner'`. The planner service is injected `@Optional()` and last, so every existing
+four-argument construction still works.
+
+The planner **competes** rather than short-circuits: its candidate goes through rerank, steal-guard,
+self-verify and structural-enrich like any other source, and carries the plan's own confidence
+unboosted. If it cannot outrank a paraphrase detector on its own number, that is the signal Phase 8
+needs, not a bug to paper over.
+
+Every failure path — flag unset, planner absent, planner throws, plan declined, any of the five
+route conditions — leaves the candidate list untouched. It can add a route, never remove one.
+
+15 tests; added to `test:ai-command-planner` so the gate chain covers them (3,821 green).
+
+**Step 2, still open:** enable `AI_PLANNER_EXECUTE_DOMAINS=tour,guide` and check the running system
+against the 93% held-in / 100% held-out the offline replay predicts — in particular whether the
+planner's confidence actually wins the rerank. Only then is deleting the 15 detectors the mechanical
+step Phase 8 describes, and the steal-guard/cross-detector references from §89 are part of that
+change.
+
+### e2e-bug.393 — the decisive retirement measurement has never been run — **Open**
+
+**Found:** 2026-08-08, running step 2 of the planner cutover (AI-ROADMAP §91).
+
+Every accuracy number in §68-§91 scores the planner against `ai_command_trace.action` — **what
+today's detectors and classifier produced**. Against that label the planner can at best tie, and every
+disagreement counts as a regression. Measured that way, enabling
+`AI_PLANNER_EXECUTE_DOMAINS=tour,guide` today gives **0 gains and 1 regression in 45**.
+
+That is not an argument against the planner. It is an argument that the corpus cannot answer the
+question being asked of it.
+
+**The question that matters:** of the **34 slice traces where `action_changed_by = 'rescue'`** — the
+only ones the detectors actually decided — how many does the planner recover with the detectors
+disabled? The other 134 (80%) were routed by the classifier alone and survive the deletion untouched.
+
+**Method:** replay those 34 with the detector path disabled and `AI_PLANNER_EXECUTE_DOMAINS=tour,guide`,
+comparing against the recorded final action. Small, cheap, and the first measurement in this programme
+that is not circular.
+
+**Related:** §91, §90, §89 (which put the at-risk share at 100%; the traces say 20%), §69.
+
+**Fixed 2026-08-08** (AI-ROADMAP §92).
+
+34 rescue-dependent traces, 11 distinct prompts, each reranked against the **classifier's own**
+candidate — the competition the planner actually faces once detectors are gone.
+
+| | prompts | traces |
+|---|---|---|
+| **recovered** | **10/11** | **33/34 (97.1%)** |
+| lost — no route | 0 | 0 |
+| lost — rerank | 0 | 0 |
+| lost — wrong command | 1 | 1 |
+
+The planner routed every one and won every rerank. The single loss is "List tour departures next
+week" → `tour.list_upcoming_departures`, the confusion §88 left alone because the description that
+fixes it regressed everything else.
+
+**Retirement cost, quantified:**
+
+| | cost |
+|---|---|
+| delete detectors, planner off | 34 traces (20.2%) |
+| delete detectors, planner on | **1 trace (0.6%)** |
+
+Enabling the planner alone is pure downside (§91: 0 gains, 1 regression in 45). Deleting alone costs
+20%. Together, 0.6%. It is one operation, not two steps.
+
+### e2e-bug.394 — the slice detectors cannot be deleted, only disarmed — **Open**
+
+**Found:** 2026-08-08, executing the tour/guide retirement (AI-ROADMAP §93).
+
+Phase 8's exit is "zero `legacy_paraphrase` remaining; rescue cannot alter `action`". The second half
+is now true for `tour` and `guide`. The first half is not reachable the way the roadmap assumes.
+
+The 15 slice detectors have **128 references across 31 files**, and the majority are *other* detectors
+using them as negative guards — `if (isListTourCalendarWeekPrompt(prompt)) return null;` — so that
+non-tour commands do not fire on tour prompts. Affected non-slice files include
+`ai-confirm-my-booking-details.util.ts` (8 refs), `ai-list-my-upcoming-appointments.util.ts` (6),
+`ai-explain-preparation-notes.util.ts` (6), `semantic-steal-guard.util.ts` (4),
+`ai-add-booking-to-calendar.util.ts`, `ai-book-another-service.util.ts`,
+`ai-explain-abnormal-result-flag.util.ts`.
+
+Delete the predicates and those guards vanish, and every one of those detectors starts competing for
+tour/guide prompts. **§92's 0.6% cost was measured with the guards in place** (planner vs classifier
+only) and does not license that change.
+
+**What has to happen first:** the guard call sites need a disambiguation that does not depend on a
+paraphrase detector — the obvious candidate is asking the registry whether the prompt's best spec is
+in another domain, which is what the planner already computes. Until then a retired slice is a
+*disarmed* slice, not a deleted one, and Phase 8's exit wording overstates what is achievable.
+
+**Related:** §93, §92, §89.
+
+### e2e-bug.395 — thirteen of fourteen remaining slices are blocked on one thing — **Open**
+
+**Found:** 2026-08-08, generalising §92's measurement to every domain (AI-ROADMAP §94).
+
+| domain | traces | recovered | no route |
+|---|---|---|---|
+| **tour** | 34 | **97%** | 0 |
+| push | 18 | 83% | 1 |
+| commerce | 11 | 18% | 6 |
+| catalog | 22 | 9% | **20** |
+| booking | 34 | 6% | **16** |
+| operations | 30 | 3% | 9 |
+| business / clinic / customer / marketing / payment / guide / compliance | 59 | 0% | 25 |
+| **total** | **216** | **25.5%** | **76** |
+
+**The failure is coverage, not accuracy.** 76 of 121 prompts produce no routable plan; only 20 produce
+a wrong one. Catalog is the extreme at 20 of 22.
+
+**Why slice 1 is not a template.** `tour` succeeded because it is small and lexically distinctive, and
+because §84-§88 spent four sections on its retrieval specifically — Armenian examples plus an
+embedding-cache rebuild that helped `tour` and nothing else. Repeating that thirteen times is not "a
+day per slice"; it is twelve more §82s.
+
+**What to do instead:** break down the 76 no-routes by rejection reason (`decidePlannerRoute` already
+names every one: `not_executable`, `not_single_step`, `needs_confirmation`, `unknown_command`,
+`no_legacy_alias`) and by whether the truth was in the shortlist. That distinguishes a retrieval
+problem from a planner-declining problem from a seam-too-strict problem, and it is one pass over data
+already collected. `not_single_step` alone is a known contributor (§91).
+
+**Related:** §94, §93, §92, §86, §85.
+
+### e2e-bug.396 — retrieval is unfixed for twelve domains — **Open**
+
+**Found:** 2026-08-08, decomposing §94's 76 no-routes (AI-ROADMAP §95).
+
+**54 of 121** rescue-dependent prompts (45%) have the true command missing from the 15-command
+shortlist, and **39 of the failures** are in that group — the single largest bucket.
+
+§86 fixed exactly this for `tour`: put the real traffic phrasings (Armenian and Russian) into the spec
+examples, then run `npm run build:ai-embeddings`, because the cache is built from
+`commandMatchText` = description + examples. Truth-in-shortlist went **64% → 98%**.
+
+That was never run for the other twelve domains. The mechanism is proven, mechanical, and low-risk.
+
+**Method:** for each domain, pull its most frequent real prompts from `ai_command_trace`, add
+representative phrasings (not verbatim test-set copies — §88's held-out arm exists for this reason) to
+the matching specs, rebuild the cache, re-measure truth-in-shortlist.
+
+**Land `e2e-bug.390` with it** — the gate tying a hash of `commandMatchText` to the cache file — so the
+cache cannot silently go stale again. §82 reverted a correct change for exactly that reason.
+
+**Related:** §95, §94, §86, §83.
+
+### e2e-bug.397 — Phase 8's back half is blocked on Phase 4 — **Open**
+
+**Found:** 2026-08-08, decomposing §94's 76 no-routes (AI-ROADMAP §95).
+
+Of 46 `not_executable` rejections, **23 are `invalid_variables`** and 6 more are
+missing/unknown variables. The planner names the correct command and produces values its own schema
+rejects — `Создай категорию каталога с названием QA312RUP-178`, `Add a new catalog category named QA
+Nails`, `Delete service QA Test Trim`.
+
+**Why slice 1 gave no warning of this:**
+
+| | risk | variables |
+|---|---|---|
+| tour slice (retired, 97%) | **T0 only** | **none** |
+| whole corpus | T0 60, T1 44, T2 14, T3 3 | 35 of 121 take variables |
+
+Slice 1 was the easiest slice that exists. Half the remaining corpus mutates.
+
+**This is not detector-retirement work.** It is Phase 4 resolution quality, and Phase 4 is marked
+complete in the roadmap. This is the first evidence that its output does not survive contact with
+Phase 8's requirements. Retiring a mutating command's detector cannot happen until the planner can
+fill that command's variables legally, and no classification work moves that number.
+
+**Suggested re-slicing:** Phase 8 by **risk tier** rather than by domain. The T0 commands across all
+thirteen remaining domains are one tractable slice; the mutating ones are a Phase 4 dependency and
+should be tracked as such rather than as thirteen stuck domains.
+
+**Related:** §95, §94, Phase 4.
+
+**Partial 2026-08-08** (AI-ROADMAP §96) — mechanism confirmed, ceiling found.
+
+| | |
+|---|---|
+| commands with a retrieval gap | 34 → **29** |
+| prompts whose truth misses the shortlist | 54/121 → **48/121** |
+
+**Provenance filter was essential.** Mining the most frequent prompts per failing command offered
+`customer.my_subscriptions` the phrasing "cancel my subscription" and
+`booking.check_multi_service_availability` a checkout-fields question — those labels came from rescue,
+the layer being replaced. Restricting to `action_changed_by IS NULL` + `outcome='executed'` +
+`confidence >= 0.9`, and excluding compound prompts, cut 25 candidates to 13; two more were rejected
+on reading.
+
+**Why it does not replicate §86:** `tour` gained 64% → 98% because four commands carried 121 of its
+168 traces. The rest of the corpus has no such head — 29 commands worth one or two prompts each, and
+only 13 with usable example data. There is no corpus-wide version of a fix that depended on
+concentration.
+
+`e2e-bug.390`'s staleness gate landed with it, as planned.
+
+**Still open:** the remaining 48. Example-mining has hit its ceiling; these need either more traffic
+per command or a different retrieval approach (larger k was measured dead in §83; a hybrid
+lexical+embedding scorer is untried and would suit the long tail, where a command's *name* often
+appears verbatim in the prompt).
+
+**Second pass 2026-08-08** (AI-ROADMAP §97) — lexical identity bonus.
+
+`lexicalIdentityScore` scores how much of a command's identity (id + description) the message states
+verbatim, added to cosine as a bonus. Additive so a zero-overlap command keeps its cosine — which is
+every non-Latin prompt in the corpus (§48), and the reason rank-fusion was rejected.
+
+| | truth in shortlist |
+|---|---|
+| before §96 | 67/121 (55%) |
+| after example mining | 73/121 (60%) |
+| **after lexical bonus** | **76/121 (63%)** |
+
+Weight 0.25, not the higher-scoring 0.5: 0.5 gains one more on net but breaks a prompt that worked,
+and `ai-command-shortlist.util.ts` states that losing the right command is worse than keeping a wrong
+one.
+
+**Both levers are now spent.** 45 prompts remain and they are the genuinely hard tail — no
+concentration to mine, no obvious keywords to match. Options not yet tried: a larger embedding model
+or width (§83 measured k, not width); per-domain shortlists so a command competes only against its
+own domain; or accepting that retrieval has a floor and putting the effort into `e2e-bug.397`'s
+variable quality instead, which blocks more traffic.
+
+**Fixed 2026-08-08** (AI-ROADMAP §98) — and the diagnosis in this ticket was wrong.
+
+Recording the declared type beside the produced value showed the cause immediately:
+
+```
+catalogDraft  declared=object   got="create a category QA312RUP-1785624173 with..."  x18
+serviceNames  declared=string[] got="beard trim"                                     x6
+price         declared=number   got="80"                                             x1
+```
+
+`renderShortlist` emitted variables as **bare names** — `required: catalogDraft`. The type was in the
+spec and never shown. Given no type, the model returned a restatement of the request.
+
+| | rejections |
+|---|---|
+| bare names | 28 |
+| one level deep | 72 (nested fields empty) |
+| **recursive, depth 3** | **4** |
+
+The intermediate result is the instructive one: told the outer shape, the model produced it exactly
+and left the array items empty. A worse number describing better behaviour.
+
+All 4 survivors are `missing:appointment` / `datetime` / `customer` on prompts that omit the
+information — the planner correctly refusing to invent an id.
+
+**End-to-end recovery only moved 25.5% → 27.8%**, because §95's 46 `not_executable` rejections had
+three overlapping causes (`unresolved_notes` 24, `invalid_variables` 23, `low_confidence` 21) and
+clearing one leaves the others holding the same prompts. Wrong-command rose 20 → 23: prompts that
+used to fail on variables now route far enough to be wrong.
+
+**Withdrawn:** this ticket's claim that Phase 8's mutating half is blocked on Phase 4. It was blocked
+on a prompt-rendering bug. Whether Phase 4 gates anything is now an open question, not a measured
+finding.
+
+**Next, by size:** `unresolved_notes` (24) and `low_confidence` (21) are now the two largest buckets
+in the `not_executable` group and neither has been investigated.
+
+### e2e-bug.398 — the confidence field was a range, not a value — **Fixed 2026-08-08**
+
+AI-ROADMAP §99. `PLAN_OUTPUT_CONTRACT` showed:
+
+```
+"confidence": 0.0-1.0,
+```
+
+Not valid JSON, not a value. **14 of 18 sub-threshold steps came back as exactly `0`** — not doubt,
+just the model copying something unusable. `coerceConfidence` also defaults a missing field to 0 (
+correctly, so an unreadable confidence cannot let a mutating step through), which made the two cases
+indistinguishable.
+
+Replaced with `"confidence": 0.9` plus one sentence.
+
+| | before | after |
+|---|---|---|
+| steps below the 0.6 gate | 18 | **8** |
+| steps at exactly 0 | 14 | **0** |
+
+The remaining 8 are genuine self-reported uncertainty — the gate working as designed.
+
+**Third contract-literal bug in the same string**, after `e2e-bug.388`'s `id`/`command` collision.
+`PLAN_OUTPUT_CONTRACT` is prose pretending to be JSON, and every deviation from a copyable literal has
+cost measurable accuracy. Worth auditing the whole string on that principle rather than waiting for
+the next one to surface.
+
+### e2e-bug.399 — the planner and the resolver have never been connected — **Open**
+
+**Found:** 2026-08-08, reading the `unresolved_notes` rejections (AI-ROADMAP §99).
+
+The notes are specific:
+
+```
+"No specific appointment ID provided to reschedule."
+"The appointment ID for Karo Mazmanyan's appointment on 5 June is not..."
+"Specific time for 'tomorrow afternoon' is not defined."
+```
+
+`appointment.reschedule` declares `appointmentId` **required** with `resolver: 'appointment'`. The
+spec already records that a resolver supplies it. But:
+
+- the planner prompt renders only `appointmentId (string)`;
+- rule 4 says *"If a value is missing from the message, leave the variable out. Do not guess names,
+  dates, prices or ids."*;
+- **`resolver` appears zero times in the generated prompt.**
+
+The planner is asked for an id, forbidden from inventing one, and never told that anything downstream
+can find it. Refusing is the only correct move available to it. The deadlock is in what the specs
+render, not in the model.
+
+**Shape of the fix:** for a variable carrying a resolver, ask the planner for the *human reference* it
+heard — "Karo Mazmanyan's appointment on 5 June at 9:50" — and let `EntityResolutionService` turn that
+into an id. Requires: rendering resolver-backed variables differently in the shortlist, a rule
+permitting a natural-language value for them, and `validatePlan` treating a resolver-backed variable
+as satisfied by a reference rather than an id.
+
+**Note the history.** §95 inferred this was a Phase 4 dependency from indirect evidence; §98 withdrew
+that after finding a rendering bug instead. It returns here on direct evidence and with a third
+mechanism: not resolution quality, but a missing connection between two layers that both already
+exist.
+
+**Related:** §99, §98, §95, Phase 4.
+
+**Fixed 2026-08-08** (AI-ROADMAP §100).
+
+`isDashboardIntentAllowed` / `isProviderIntentAllowed` now consult `CommandSpec.tiers` — which fails
+closed (§23) — and fall back to the deny-list only when no spec covers the action.
+
+Measured before changing anything, across every registry command on both surfaces:
+
+| surface/tier | spec agrees | spec would deny | no spec |
+|---|---:|---:|---:|
+| dashboard/client | 0 | **265** | **0** |
+| dashboard/staff | 234 | 0 | **0** |
+| dashboard/manager+owner | 774 | 0 | **0** |
+| provider (all tiers) | 557 | 0 | **0** |
+
+`no spec = 0` is what made this a switch rather than a migration. The fallback stays for pipeline
+pseudo-actions (`compound_intent`), which are not registry commands.
+
+**One delta, a tightening:** `dashboard/client` 265 → 0. Those were reachable only because
+`AiGatewayService` separately refuses `client` on the dashboard — the load-bearing defence in depth
+this ticket named. It is now redundant.
+
+**Not done here, deliberately:** the 234 staff commands are still allowed. This ticket said review
+them as domains land rather than migrate wholesale, and that stands. What changed is that they are
+allowed *because a spec says so*, in one place, rather than because nobody listed them — and new
+commands fail closed.
+
+Side effect: the conformance suite's pinned registry-disagreement list fell **400 → 167**, and its
+comment claiming the list only grows was corrected.
+
+6 regression tests in `ai-permission-fail-closed.spec.ts`, wired into `test:ai-permissions`.
+Gates 3,852, green.
+
+**Profiled 2026-08-08** (AI-ROADMAP §101). The third fix direction was the right one; it was listed last.
+
+All 1,033 non-integration AI suites: **3,078s of worker time** (~51 min CPU, ~6 min wall at 9
+workers), 66 failing suites.
+
+| suite | time | share |
+|---|---:|---:|
+| `ai-command-eval.spec.ts` | **355s** | 11.5% |
+| `ai-command-eval.accuracy-gate.spec.ts` | **282s** | 9.2% |
+| `ai-command-eval.cases.spec.ts` | 134s | 4.3% |
+| `ai-command-eval.spec-coverage.spec.ts` | 58s | 1.9% |
+| **four eval suites** | **829s** | **27%** |
+| top 20 | 1,210s | 39% |
+
+The cost is concentrated, not diffuse. The top two run the same 8,509-case corpus twice — tracked as
+`e2e-bug.400`.
+
+### e2e-bug.400 — the two heaviest suites evaluate the same corpus twice — **Open**
+
+**Found:** 2026-08-08, profiling the AI sweep (AI-ROADMAP §101).
+
+- `ai-command-eval.spec.ts` → `runDeterministicEvalSuite(AI_COMMAND_EVAL_DETERMINISTIC_CASES)` — 355s
+- `ai-command-eval.accuracy-gate.spec.ts` → `runAiAccuracyGate({ cases })` →
+  `buildDeterministicAccuracyReport` → **`runDeterministicEvalSuite`**, same 8,509 cases — 282s
+
+Two processes, one corpus, evaluated twice to assert different things about the same results.
+**637s — 21% of the entire AI sweep.**
+
+They were written independently: the harness predates §25's accuracy baseline, and nothing ever
+compared their cost.
+
+**Fix shape:** one corpus run feeding both sets of assertions — either merged into a single suite, or
+the gate consuming a report artifact the harness writes. Merging is simpler; the risk is that these
+are the two most load-bearing gates in the programme, so the change needs its own session and careful
+before/after comparison of what each currently asserts.
+
+**Related:** §101, §25, `e2e-bug.359`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §102) — and the ticket's own framing was wrong.
+
+**First, §101's numbers were off.** `runDeterministicEvalSuite` already filters `requiresLlm`
+internally, so `buildDeterministicAccuracyReport`'s filter is redundant and both paths evaluate
+**8,464** cases, not 8,509.
+
+**The real problem.** Two assertions over that identical corpus:
+
+```ts
+expect(summary.failed).toBe(0);            // ai-command-eval.spec.ts
+expect(report.failed).toBeGreaterThan(0);  // accuracy-gate.spec.ts
+```
+
+Measured: both give `failed = 404`. The harness assertion cannot pass — and does not.
+`ai-command-eval.spec.ts` has been permanently red since `e2e-bug.358` established the 404 debt and
+fixed the *gate* to ratchet it. Nobody noticed because that suite is not in the gate chain.
+
+So the most expensive suite in the AI sweep — **355s, 11.5%** — existed to re-run a corpus the gate
+already runs and then fail on a number the gate deliberately tolerates.
+
+| | before | after |
+|---|---|---|
+| suite | 355s, permanently red | **15s** |
+| AI sweep worker time | 3,078s | **~2,723s** |
+
+**No coverage lost:** the gate asserts strictly more over the same cases — corpus run, baseline
+comparison, and per-intent regression detection.
+
+Contributes to `e2e-bug.351` (two fewer of the 112 clean-tree failures) and `e2e-bug.359` (-11.5%
+sweep time).
+
+**Re-measured 2026-08-08** (AI-ROADMAP §103). The 2026-08-04 figure (54 suites / 112 tests) is stale.
+
+| | |
+|---|---|
+| failing suites | 66 |
+| failing tests | **318** |
+| already quarantined | **311** |
+| **unquarantined** | **7** |
+
+The quarantine mechanism has absorbed nearly all of it. "Fix or explicitly quarantine each failing
+suite" is 98% done.
+
+**One of the 7 was mine.** `access-control.matrix.spec.ts` asserted
+`isDashboardIntentAllowed('manager', action) === true` for every entry in
+`STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS`. `gift_card_balance` is in that list and resolves to
+`customer.gift_card_balance`, whose spec declares no dashboard surface — so §100's spec-driven gate
+denies it there. Production has exactly **one** dashboard trace for it, and it failed. The new denial
+is correct; the assertion conflated "not blocked by the staff deny-list" with "available on the
+dashboard".
+
+**The process failure matters more than the bug:** §100 ran the full gate chain, saw green, and
+shipped — while the spec file for the module it changed was not in that chain. Added to
+`test:ai-permissions`.
+
+**Remaining 6**, all pre-existing and narrow:
+- `ai-e2e279-facial-catalog-synonym.util.spec.ts` (3)
+- `ai-e2e199-haircut-hairstyle-synonym.util.spec.ts` (1)
+- `ai-business-tax-multilingual.util.spec.ts` (1) — Armenian GST rescue
+- `ai-reschedule-package-lines.logic.spec.ts` (1) — per-visit time-of-day preservation
+
+Each is a correctness question, not infrastructure. Closing them makes the AI sweep blockable.
+
+**Fixed 2026-08-08** (AI-ROADMAP §104). `npm run test:ai-known-failures` exits 0.
+
+**First, correcting §103.** I reported 7 unquarantined failures. Six were an artifact of my own
+comparison: `fullName in json.dumps(manifest)` — and `json.dumps` escapes non-ASCII, so the manifest
+held `\u2192`/`\u2194` where test names hold `→`/`↔`. Nearly every quarantined rescue and synonym test
+scored as unquarantined. Recounted by walking the parsed structure: **313 failing, 313 quarantined, 0
+unquarantined.** Only `access-control.matrix.spec.ts` was genuinely unquarantined — the §100
+regression, which stands.
+
+**Five tests genuinely fixed:**
+- four synonym assertions, all the same stale line
+  `expect(expandServiceLookupQueries('massage')).toEqual(['massage'])`. Written when bare "massage"
+  was in no synonym group; `e2e-bug.320` deliberately made it one so "show me massage" would browse
+  the family instead of collapsing onto a tie-break. Inside an `it.each`, so one line failed four
+  times across two suites;
+- one removed in §102.
+
+**The gate already existed** (§26) and implements Phase 2's contract exactly: an unlisted failure is
+red, and a listed test that starts passing must be removed. Full sweep: 103 suites / 458 tests, all
+quarantined; manifest pruned **463 → 440**; exit 0.
+
+**Not added to `test:ai-roadmap-gates`.** The gate takes 529s; the fast chain takes about a minute and
+is what makes iteration possible. Bolting nine minutes onto it would recreate the loop `e2e-bug.359`
+describes. It belongs in CI as a sibling step.
+
+**Fixed 2026-08-08** (AI-ROADMAP §105), following this ticket's own sequencing: delete only once every
+domain is ported. The port finished at §66; §100 made the live gate read `CommandSpec.tiers`.
+
+**Verified dead before deleting** — a closed loop ending in nothing:
+
+| symbol | production callers |
+|---|---|
+| `COMMAND_REGISTRY[].tiers` | one — `isIntentAllowedForTier` |
+| `isIntentAllowedForTier` | one — `allowedForTier` |
+| `AiCommandRegistryService.allowedForTier` | **none** |
+| `AiGatewayService.assertIntentAllowed` | **none** |
+
+All four removed, plus the conformance test that existed only to document the disagreement (and its
+167-entry pinned list). The shape problem goes too: a flat per-command list could never say
+"manager+ on dashboard, staff+ on provider".
+
+**The new gate caught me.** `test:ai-known-failures` — green as of §104 — reported one unlisted
+failure on the very next change: `ai-product-guide.integration.spec.ts` asserted `entry?.tiers`, in an
+integration suite the fast chain does not run. The fast chain was green; I would have shipped it.
+Rewritten to assert `isIntentAllowed(...)`, the question the deleted field was pretending to answer.
+
+Both gates green: red-means-red exit 0 ("failure set matches the manifest exactly"), fast chain 3,866.
+
+**Fixed 2026-08-08** (AI-ROADMAP §106) — and this ticket's fix direction was wrong.
+
+It said "decide which implementation is correct, delete the other". Checking first: **none of the six
+is redundant.** Each is called either inside its own file or by an external importer, and the
+gift-card pair is imported *together* by four files, one copy aliased to
+`isGiftCardCheckApplyBookCompoundPrompt`. Deleting either would have removed live behaviour.
+
+Renamed instead:
+
+| file | new name | why this one moved |
+|---|---|---|
+| `ai-push-notifications` | `isEndOfDaySummaryPushPrompt` | matches the end-of-day *push*; the other matches a provider wrapping up their day |
+| `ai-retail-finance` | `isSetRetailSalesLinesFinancePrompt` | the exp-3 copy additionally requires parsed lines |
+| `ai-gift-card-checkout-compound` | `isGiftCardCheckApplyBookCompoundPrompt` | promotes the alias every call site already used |
+
+**I introduced the ticket's own bug while fixing it.** A blanket regex over
+`ai-book-with-gift-card.util.ts` — which imports both copies — rewrote a call site deliberately using
+the payments-hints version. Four `intent-decomposition` tests caught it (a golden compound decomposed
+to `book_with_gift_card` instead of `apply_gift_card_code` + `choose_payment_method`). One line
+reverted.
+
+That is the ticket's thesis demonstrated: `isGiftCardCheckoutCompoundPrompt(text)` does not say which
+module it came from, so even an edit made specifically to fix the collision got it wrong. A blanket
+rename is precisely the operation the collision makes unsafe.
+
+`EXPECTED_DUPLICATE_DECLARATIONS` **3 → 0**, may only decrease. Both gates green; red-means-red
+reports no new failures across the full 1,333-suite sweep.
+
+**Fixed 2026-08-08** (AI-ROADMAP §107). This ticket asked for per-symbol triage; the trace corpus gave
+it.
+
+| action | traces | executed | via rescue |
+|---|---|---|---|
+| `recommend_specialists` | 198 | 178 | **0** |
+| `pay_at_venue_fallback` | 12 | 7 | **0** |
+| `rebook_last_appointment` | 1 | 0 | 0 |
+| `reschedule_package_lines` / `configure_package_localized_names` | 0 | — | — |
+
+`via rescue = 0` settles it: the two with real traffic route **without** the detector. The other eight
+map to no action and cannot route anything. So this was reading 1 (dead code), not reading 2 (a wiring
+bug) — all thirteen deleted, plus 21 spec files and a dead re-export chain in
+`ai-booking-param-hints.util.ts`.
+
+**Ratchets, moving the intended way for the first time:**
+
+| | before | after |
+|---|---|---|
+| inventory detectors | 785 | **772** |
+| freeze `isPromptDetectors` | 790 | **777** |
+| `legacy_paraphrase` | 555 | **545** |
+| retirement-ready | 318 | **315** |
+
+`READY_FLOOR` fell only because three deleted detectors were ready. Its comment now states that a fall
+there *without* a matching fall in `TOTAL_PARAPHRASE` is the regression it exists to catch.
+
+**The gate caught two stale assertions** the fast chain missed: `acc-3.14.boundary.spec.ts` (asserted
+a delegation import that no longer has anything to delegate) and `ai-command-handler-coverage.spec.ts`
+(a literal source substring, re-wrapped by prettier).
+
+**Self-inflicted churn worth noting:** I ran `prettier --write "src/modules/ai/*.ts"` — wider than the
+files I edited. Already-formatted files were untouched, but files with unformatted *pre-existing
+uncommitted* changes were normalised, `ai-command.service.ts` most visibly (375/286 lines). No
+behaviour change and nothing lost, but it is churn in someone else's working tree. Scope formatting to
+edited files.
+
+### e2e-bug.401 — nothing carries conversation state between turns — **Open**
+
+**Found:** 2026-08-08, tracing what `e2e-bug.373` would actually need (AI-ROADMAP §108).
+
+Non-spec importers of the Phase 6 conversation-state modules:
+
+| module | imported in production by |
+|---|---|
+| `ai-entity-store.util` (§53) | **nothing** |
+| `ai-anaphora.util` (§49) | **nothing** |
+| `ai-profile-facts.util` (§54) | **nothing** |
+| `ai-slot-filling.util` (§38) | `ai-topic-change.util` |
+| `ai-topic-change.util` (§48) | `ai-entity-store.util` |
+
+Every edge points inward. A closed island; the gateway and pipeline reference none of it.
+`PENDING_CLARIFICATION_KEY` appears nowhere outside its own file.
+
+**Consequence for scheduling:** `e2e-bug.369`, `370`, `373` and `374` are not four independent wiring
+tasks. Each is dead on its own without a carrier. `EntityResolutionService` shows it plainly — a
+stateless pass-through with no conversation id and no store, so "record on resolve" has no
+destination.
+
+**What is NOT missing.** `ai-conversation.util.ts` already derives, server-side:
+
+```
+conversationId = 'cv_' + sha256(userId | businessId | first-user-turn anchor)
+turnIndex      = userTurns.length + 1
+```
+
+Real, already used as `session_id` on `ai_command_trace`, and computed from data the gateway has on
+every request — **nothing from the client**. `EntityStore.conversationId` and `EntityRef.turnIndex`
+are exactly those two fields. Earlier work on this programme assumed per-conversation features were
+blocked on a client-supplied id; they are not.
+
+**What it needs:** persistence for an `EntityStore` keyed by `conversationId`, and a load-before /
+save-after around resolution in the gateway.
+
+**Why it is not done here:** the storage choice — a `conversation_entity_store` table versus an
+in-process cache with a TTL — depends on whether the platform runs multi-instance. Guessing produces a
+store that works in development and silently loses state behind a load balancer: the same failure
+class as §89's environment-dependent flag. That is an ops fact with an owner, like `e2e-bug.366`'s
+cadence.
+
+**Related:** §108, §53, §49, §54, §48, §38, `e2e-bug.369`, `370`, `373`, `374`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §109). The ticket asked to "inject or freeze the clock" — the
+injection already existed and was hidden by a type.
+
+`resolvePublicAvailabilityWindows` accepts `options.referenceTodayDateKey`.
+`resolvePublicAvailabilityDateKeys` wraps it and spreads `options` straight through, but declared its
+options as `{ defaultScanDays?: number }`, so the field was unreachable from outside. Widening that
+type is the whole fix; the value was always being forwarded.
+
+Both contradicting tests now pin `FROZEN_TODAY = '2026-06-01'`, and a third asserts the same date is
+dropped against an injected today of `2026-07-01` — guarding the seam, since without the injection its
+result depends on when the suite runs.
+
+**Why now:** the test was in `ai-known-failures.json`, and §104 made that manifest the definition of
+expected red. A test failing on the calendar is indistinguishable there from one failing on a defect,
+and nobody re-reads a quarantined entry. The gate's "entries that now pass must be removed" rule
+shrank the manifest in the same commit: **439 entries, 457 failing tests across 102 suites** (from
+458/103).
+
+**Fixed 2026-08-08** (AI-ROADMAP §110). This ticket's instruction — find the second path before
+changing anything — changed the fix twice, and was worth following.
+
+**First attempt, correct but not the cause.** The provider payments binding passed its own intent list
+as `mutateIntents`, marking both members mutating. Introducing
+`PROVIDER_PAYMENTS_MUTATE_INTENTS = ['collect_cash_confirm']` is right, and the built entry was
+**still** `mutating: true`. Conformance stayed green the whole time, because spec and registry agreed
+with each other — agreement is not correctness.
+
+**The real cause:** `intents: PROVIDER_PAYMENTS_INTENTS` appears **twice** in
+`ai-command-registry.build.ts`, ~350 lines apart, byte-identical in all six fields. `mutateSet` is
+global and additive, so the duplicate re-added the whole list. Deleted.
+
+**The structural worry, answered:**
+- duplicate bindings: `PROVIDER_PAYMENTS_INTENTS` is the only constant bound twice;
+- whole-list-as-mutate-list: three bindings do it, but `SCHEDULING_INTENTS` and `OPERATIONS_INTENTS`
+  contain no read-shaped names, so their declaration is accurate.
+
+One duplicate, one misdeclaration, both here — but the check could have returned three fixes, and
+nothing short of looking would have said which.
+
+**Result:** `explain_payment_status` is `mutating: false` / `read_only`; its spec is **T0 with no
+compensation**, replacing §57's forced T1 + `kind: 'none'` workaround.
+
+The §96 embedding-staleness gate failed on the spec description change and made me rebuild the cache —
+four sections old and already earning its place.
+
+**Partially fixed 2026-08-08** (AI-ROADMAP §111).
+
+**Two of this ticket's four table rows do not reproduce.** "John Smith" with `[Jo, John Smith]`
+returns **John Smith** (tier 1 is exact); "massage" with `[Deep Tissue, Swedish Massage]` returns
+**Swedish Massage** (tier 2 requires the item to contain the query). Both were reasoned from the code
+rather than run. The two tie rows are real.
+
+**The actual defect is worse than described.** `lower.includes(item.name)` is a raw substring test:
+
+| query | employee | result |
+|---|---|---|
+| `book Alice for a haircut` | `Al` | **Al** |
+| `is the salon open` | `Al` | **Al** — s-**al**-on |
+
+An unrelated question resolves to a person because their name sits inside an ordinary word.
+
+**And it is in two tiers.** After anchoring tier 3, a test written for Armenian names failed: `Ան`
+still resolved from `Աննա գրանցիր`. Tier 4's `lower.startsWith(part)` is the same bug one tier down.
+Both now use one word-boundary check built on Unicode letter classes — `\b` is ASCII-only and would
+have failed the very names §48 documented.
+
+**Still open — the ties.** Duplicate names, shared first names, shared service words: word boundaries
+cannot help, because both candidates genuinely match. That needs `resolveEntity`'s "ask, never pick",
+which changes the `T | undefined` contract at all 27 call sites — `e2e-bug.367`'s migration.
+
+§29's silent-pick list drops 4 → 3, with the fixed shape moved to `ai-fuzzy-match-boundary.spec.ts`
+and pinned there.
+
+**Partial 2026-08-08** (AI-ROADMAP §112) — the duplication is gone; the migration is not.
+
+Hashing each `resolveServiceByName` body confirmed this ticket exactly: **5 identical**, 2 genuine
+variants (16 and 12 lines). The five are collapsed into
+`ai-legacy-service-match.util.ts::matchServiceByNameLegacy`.
+
+**This is not the replacement, and the new file says so at the top.** It keeps the silent-pick
+behaviour — 5 of 11 ordinary inputs against a five-service catalogue are ambiguous, and it resolves
+every one by array order. What changes is that adopting `EntityResolutionService.resolveService` for
+those five handlers was five clarify paths to wire and is now **one call site**.
+
+The two variants are untouched: they differ, and merging them would be the behaviour change this
+ticket warns against.
+
+**Manifest 14 → 11.** The ratchet failed immediately on its own "entry left behind after the function
+is deleted" rule and named all five. The count falling is *not* migration progress, and the manifest
+now records that distinction in place, so a future reader does not infer adoption from a smaller
+number.
+
+### e2e-bug.349 — update 2026-08-08 (AI-ROADMAP §113)
+
+**Root cause 1 was already fixed, by §100, and nothing connected the two.**
+`isIntentAllowed('dashboard', tier, 'add_services_to_cart')` is now **false** for staff, manager and
+owner, and true on customer. §100 replaced the deny-list gate with `CommandSpec.tiers`, and
+`booking.add_services_to_cart` declares `surfaces: ['customer','public']`. Under a deny-list, a
+command absent from the list was permitted — exactly how a cart intent won a dashboard request. Now
+pinned by a test so a future permission change cannot undo it quietly.
+
+`isCompoundPrompt` also returns false for the reported prompt today, and deterministic decomposition
+returns null on both surfaces, so the report's specific path is not reachable deterministically
+either.
+
+**Root cause 2 fixed.** `isBulkCreateCatalogPrompt` matched `category\b` in all four cues, so
+"Create **categories** Y and Z…" registered no create-category context — the prompt was never
+recognised as a catalog request, which is what left it available to be claimed. All four now accept
+`categor(?:y|ies)`. Verified both ways: the reported prompt matches, the singular forms still match,
+and "what categories do I have" still does not.
+
+**Still open:** sentence splitting on `.` and the `Under <Category> add <lines>` segment classifier.
+This ticket warns that splitting must be added narrowly to avoid the over-splitting class e2e-bug.347
+had just fixed for `;` — that is its own change with its own risk, not a rider on a regex widening.
+
+### e2e-bug.348 — update 2026-08-08 (AI-ROADMAP §114)
+
+**The line this ticket could not pin** is `ai-catalog.logic.ts:1197`:
+
+```ts
+const steps = (params.compoundSteps as CatalogCompoundStep[] | undefined)
+  ?? decomposeCatalogCompoundPrompt(prompt);
+```
+
+`??` — the model's plan wins whenever it exists. Against the reported prompt the deterministic path
+yields exactly what was missing: `bulk_create_catalog { categoryName: 'Y', services: [A, B, C] }`,
+normalised names and category intact. It was never consulted.
+
+**Why the obvious fix is the one that already failed.** "Prefer deterministic when it yields a
+complete draft" is the blanket exemption this ticket records as breaking four tests: for
+"category + services **and** add a package" the deterministic path yields one step and the model
+yields two, so preferring the shorter plan drops the package — trading a lost category for a lost
+package.
+
+**The swap is surgical.** `chooseCatalogCompoundSteps` replaces only `create_service`/`create_services`
+steps, only when the deterministic draft is complete, and only when the model's plan creates no
+category. Everything else keeps its place and order; the repair inserts at the first service step, so
+ordering is preserved either way.
+
+7 tests, mostly negatives: already-creates-category returned by identity, no-service-step untouched,
+no-complete-draft untouched, and the package preserved in both orderings.
+
+**Still open:** the false-success summary — "Category Y has been successfully created… Online payment
+has been enabled" while `prepayment_mode` is `none`. That is the e2e-bug.136/156 family (summaries
+restating the request rather than the results), a different defect in a different layer; fixing the
+routing does not fix a summary that never consulted the outcome.
+
+### e2e-bug.381 / e2e-bug.382 — both superseded 2026-08-08 (AI-ROADMAP §115)
+
+**Neither describes current behaviour, and both carry fix directions that would waste effort.**
+
+Their figures all come from §70–§79, which ran against two defects found later:
+
+- `e2e-bug.384` — `validatePlan` marked **empty plans executable**, so an empty plan was scored as
+  though it had picked a command;
+- `e2e-bug.388` — `decodePlanStep` discarded well-formed steps whose command id had landed in the
+  label field: **57 of 150** on the sample §85 examined.
+
+So §381's "the model returns well-formed JSON containing no steps" was a fact about the decoder's
+output, not the model's.
+
+**§382 re-measured**, 90 real prompts, both arms sharing one embedding per prompt:
+
+| | right | wrong | no plan |
+|---|---|---|---|
+| narrowing to 15 | 33 (37%) | 8 (9%) | 49 (54%) |
+| **full permitted list** | **43 (48%)** | 9 (10%) | **38 (42%)** |
+
+Narrowing *raises* empty plans by 12 points and moves wrong commands by one prompt — the inverse of
+"halves empty plans, triples wrong commands". The shipped default (off) is right; the reasoning behind
+it was not, and both code comments encoding it have been rewritten, including the one in `plan()`
+claiming "narrowing is the fix; the prompt was never the problem".
+
+§382's "rebuild embeddings at 1,536 dimensions — do this first" targeted a recall problem §83 showed
+was 47% **permission** failure and 19% ranking failure; §84 fixed the permission half (reachability
+69% → 92%).
+
+**Consequence for my own numbers:** §92, §94 and §98 all measured with narrowing **on**, because those
+harnesses call `narrowShortlist` directly. They were taken on the worse arm, so §94's per-domain
+recovery table is a floor rather than a reading. Not restated here — re-running it is its own
+exercise, and quoting an unmeasured correction would repeat the mistake.
+
+### e2e-bug.402 — narrowing is right for some traffic and wrong for the rest — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, re-running §94 without narrowing (AI-ROADMAP §116).
+
+Two measurements, both on fixed code, pointing opposite ways:
+
+| population | narrowed (15) | full permitted list |
+|---|---|---|
+| 90 prompts sampled from all executed traces | 37% right | **48% right** |
+| 121 rescue-dependent prompts (§94's set) | **25.5% recovered** | 21.8% recovered |
+
+Per-domain, the split is sharper still: `push` recovers **83%** narrowed and **0%** on the full list —
+18 traces where the right command is findable among 15 candidates and lost among 388. `operations` and
+`business` go the other way (3% → 20%, 0% → 21%).
+
+`AI_PLANNER_NARROW_SHORTLIST` is a single global boolean, so whichever way it is set is wrong for one
+of these populations. It currently ships **off**, which is right for ordinary traffic and wrong for
+the traffic Phase 8 cares about — the cases the detectors had to rescue.
+
+**What this needs:** a rule that varies, chosen by measurement. Candidates: narrow per domain
+(`push` yes, `operations` no); narrow only when the top retrieval score clears a threshold; or send a
+narrowed list *plus* the full list under a heading. Not another global flip — the evidence says no
+single setting is correct.
+
+**Do not** re-derive either number from a single aggregate. §382 drew a global conclusion from one
+population and shipped a flag on it for months; this ticket exists because the same aggregate hides
+opposite behaviours.
+
+**Related:** §116, §115, §94, `e2e-bug.382`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §117) — by making the decision per prompt rather than per deployment.
+
+A per-domain rule is impossible: the domain is only known after routing. The top retrieval score is
+available before, and separates the populations cleanly (197 prompts, embeddings only):
+
+| top score | truth still in top 15 |
+|---|---|
+| 0.0–0.4 | 48% (n=123) |
+| 0.4–0.5 | 88% (n=33) |
+| **0.5+** | **100%** (n=41) |
+
+`NARROW_MIN_TOP_SCORE = 0.5` — the cut never lost the right command above it. 0.4 narrows more (38% vs
+21% of prompts) at 95% retention, rejected because the module's stated invariant is that losing the
+right command is worse than keeping a wrong one.
+
+**Measured against both fixed arms, 60 prompts per population:**
+
+| population | gated | always | never |
+|---|---|---|---|
+| general | **48%** | 38% | 47% |
+| rescued | **28%** | 28% | 20% |
+
+Narrowing now ships **on** (`AI_PLANNER_NARROW_SHORTLIST=0` to force off), reversing e2e-bug.382's
+flag on evidence rather than on its corrupted figures.
+
+**A latent defect it exposed:** `validatePlan` was being given the narrowed shortlist, so a legal
+command that simply missed the top 15 was reported `unknown_command` instead of `surface_violation` —
+a retrieval miss and a permission violation looked identical in the trace, and the user was told "I
+don't have a command for that" about a command that exists. Validation now runs against the full
+catalogue; permission is re-derived there, so nothing is widened.
+
+### e2e-bug.403 — the rerank compares two incomparable confidences — **Fixed 2026-08-08**
+
+**Found:** 2026-08-08, re-measuring per-domain recovery on the shipping configuration (AI-ROADMAP §118).
+
+`mergeAndRerankIntentCandidates` decides between the planner and the classifier by sorting on
+`confidence`. But:
+
+- the **classifier's** number is a calibrated score, and for the tour slice it clusters at exactly
+  **0.90 / 0.95**;
+- the **planner's** is an LLM self-report, anchored by the contract's example value.
+
+§99 set that example to `"confidence": 0.9` — correctly, because the previous `0.0-1.0` was not a
+value and the model was emitting `0` for 14 of 18 sub-threshold steps. The side effect is that the
+planner now reports ~0.9 into a comparison against 0.90–0.95.
+
+**Measured effect.** The `tour` slice routes the right command and loses the rerank on 3 of 11
+prompts: **97% → 76%**, identical across three consecutive runs (76/76/76), so this is deterministic,
+not sampling. It is the reason Phase 8 currently has **zero** retirement-ready slices rather than one.
+
+**Do not fix by raising the example to 0.95.** That wins the comparison without making it meaningful,
+and the next classifier recalibration silently reverses it. §90 deliberately declined to boost the
+planner's confidence because the two scales have no shared meaning; §99 then pinned one of them.
+
+**Candidates, needing evidence rather than a constant:**
+1. rank by **source precedence** inside domains the planner owns (`RETIRED_DETECTOR_DOMAINS`), so a
+   retired slice does not re-run a popularity contest it was meant to end;
+2. **calibrate** planner confidence onto the classifier's scale from the trace corpus — both numbers
+   exist per prompt, so the mapping is measurable;
+3. **stop competing**: once a domain is locked (§93), the classifier candidate for it is arguably not
+   a candidate at all.
+
+**Related:** §118, §117, §99, §90, `e2e-bug.395`.
+
+**Fixed 2026-08-08** (AI-ROADMAP §119) — option 1/3 from the list above, which turned out to be the
+same thing.
+
+**The missing half of §93's coupling.** §93 locked `tour` and `guide` against rescue *and* routed them
+by the planner together, because a routed-but-unlocked domain lets rescue overrule the planner. The
+mirror case was missed: **locked but outranked** lets the classifier's answer stand — and on
+rescue-dependent traffic that is by definition the answer rescue existed to override. Locking without
+ranking does not retire a slice; it hands it to the rejected answer.
+
+`IntentCandidate.precedence` (default 0) now sorts above confidence, and only a planner route in a
+`RETIRED_DETECTOR_DOMAINS` domain sets it.
+
+| domain | §118 | with precedence |
+|---|---|---|
+| **tour** | 76% | **97%** |
+| everything else | — | unchanged to the trace |
+| total | 27.3% | 30.6% |
+
+**Not fixed by raising §99's example to 0.95**, which would also have won these prompts. That wins the
+comparison rather than admitting it is invalid, and the next classifier recalibration reverses it
+silently. Precedence states the actual claim — in a retired domain this is not a matter of degree —
+and leaves §90's "it competes, it is not privileged" true everywhere the detectors still work.
+
+**No routing improved.** The 3.3-point total is entirely `tour`, and it comes from no longer
+discarding a correct route on a tie-break. `e2e-bug.395` is unchanged.
+
+### e2e-bug.399 — update 2026-08-08 (AI-ROADMAP §120): fix attempted, reverted, blocked
+
+Rendering the resolver in the shortlist and adding a rule ("put what the user actually said there —
+that is not guessing an id") **did what it was meant to** and **measured worse**:
+
+| | §119 | resolvers named |
+|---|---|---|
+| `missing_variables` | 4 | **2** |
+| recovery | **30.6%** | **28.7%** |
+
+`reject:needs_confirmation` came out at **24**. Plans that previously died at `missing_variables` now
+carry their variables, become executable, and are declined by `decidePlannerRoute`'s fourth condition.
+
+Reverted. `PlannerVariableHint.resolver` is kept — it is a derived view of the spec, and omitting a
+declared field made the view lie — but nothing renders it.
+
+Kept the revert rather than arguing the change is right despite the number: §82, §115 and §116 are all
+this programme deciding by reasoning and being wrong.
+
+**Blocked on `e2e-bug.404`** — the seam's no-confirmation rule. That rule is correct; routing a T2
+through a path that skips its confirmation would be worse than any accuracy figure. The seam needs a
+confirmation path before resolver-backed mutating commands can route at all.
+
+### e2e-bug.404 — the routing seam cannot carry a command that needs confirming — **Open**
+
+**Found:** 2026-08-08 (AI-ROADMAP §120).
+
+`decidePlannerRoute` declines any plan where `validatePlan` reports `requiresConfirmation`, because
+§90 scoped the seam to naming the action and left execution — including the confirm handshake — to the
+existing path.
+
+That was right, and it is now the binding constraint: **24 of 121** rescue-dependent prompts are
+declined for this reason once their variables are filled, and every T1+ command with
+`confirm: 'always'` or a T2/T3 tier is unroutable by the planner regardless of how well it plans.
+
+**Do not** relax the condition. The fix is to give the seam a confirmation path — the planner names
+the action *and* the existing confirm flow runs — which is a change to how a routed plan reaches
+execution, not to what may route.
+
+**Related:** §120, §90, `e2e-bug.399`.
+
+### e2e-bug.405 — two models disagree about what must be confirmed — **Measured 2026-08-08**
+
+**Found:** 2026-08-08, checking whether the routing seam skips the confirm handshake (AI-ROADMAP §121).
+
+It does not: `ai-command.service.ts:1594` gates on the **action name** at execute time, so a
+planner-routed action meets the same gate as a detector-routed one. But comparing the two models of
+"must this be confirmed?":
+
+| | |
+|---|---|
+| specs requiring confirmation (`confirm: 'always'`, or T2/T3 via `ALWAYS_CONFIRM_TIERS`) | **210** |
+| of those, present in `DASHBOARD_EXECUTION_CONFIRM_ACTIONS` | 59 |
+| **absent** | **151** |
+
+Absences include `appointment.mark_paid` (**T2**, money), `payment.buy_gift_card` (T2),
+`catalog.assign_services_category_bulk` (**T3**, bulk). 97 are dashboard commands, where that list is
+the only gate — there is no customer, provider or public equivalent.
+
+**Not a claim of a live vulnerability.** §13 lints at author time that every T2/T3 spec declares
+`confirm: 'always'`, so the spec side may be policy the runtime never adopted rather than a rule the
+runtime breaks. Which is authoritative is precisely what is unestablished. What is certain is that the
+**detector path routes all 151 today**, so whatever the answer is, it already holds in production —
+the planner is not the risk, it is the reason anyone looked.
+
+**Method:** the same one that settled `e2e-bug.355` — check what the running system does, per command,
+rather than which list looks more official. If the runtime is right, the specs are over-declaring and
+`requiresConfirmation` needs narrowing. If the specs are right, 151 commands mutate without the
+confirmation their tier demands, and that is a security fix.
+
+**Blocks `e2e-bug.404`:** relaxing `decidePlannerRoute`'s no-confirmation condition before this is
+settled would let the planner route a T2 money operation the runtime does not gate. That condition is
+the only thing currently preventing it.
+
+**Related:** §121, §120, §90, §13, `e2e-bug.355`, `e2e-bug.404`.
+
+**Measured 2026-08-08** (AI-ROADMAP §122). `ai_command_trace.outcome` carries an `approval` value, so
+the corpus answers directly which model runs.
+
+| group | commands with traffic | executed | approvals |
+|---|---|---|---|
+| **in** `DASHBOARD_EXECUTION_CONFIRM_ACTIONS` | 18 | 23 | **24** |
+| **absent** | 31 | **211** | **0** |
+
+The gate fires where it applies and the spec model has never been enforced.
+
+**Most of the gap is not a defect.** The 211 split T1 80 / T2 116 / T3 15, and the T2 bulk is
+customer-surface payment — `pay_online` (25), `apply_gift_card_code` (24), `pay_cash_at_visit` (17),
+`buy_gift_card` (13). Those confirm by being a checkout; a payment sheet is the user assenting, and an
+AI "are you sure?" in front of it confirms the same act twice. The gate is named `requiresDashboard…`
+precisely because it was never meant to cover those surfaces. `ALWAYS_CONFIRM_TIERS` applies "T2
+always confirms" as a blanket rule and is right about the risk, wrong about who already consented.
+
+**The real residue — dashboard executions, where that list is the only gate:**
+
+| | |
+|---|---|
+| dashboard specs requiring confirm, absent from the gate | 97 |
+| **executed on dashboard at least once** | **13 commands, 36 traces** |
+
+```
+13x T3 operations.optimize_schedule    3x T2 commerce.delete_expense
+ 6x T2 commerce.record_expense         2x T1 marketing.deactivate_promo_code
+ 4x T1 operations.block_schedule       1x T2 appointment.mark_paid   (+7 at 1 each)
+```
+
+**Not auto-added to the gate.** Whether an operation warrants interrupting a user is a product
+decision, the specs demonstrably over-declare, and picking 13 commands by traffic in a corpus that
+stopped on 2026-08-03 is not the same as deciding policy. The list is short enough to review — that
+review is the remaining scope, along with narrowing `requiresConfirmation` so the spec model stops
+asserting something the runtime never does.
+
+**Fixed 2026-08-08** (AI-ROADMAP §123). The premise is obsolete — 696/696 specced since §66 — so what
+remained was auditing the declarations made during the 5% era.
+
+**190** of 341 mutating specs declare `none`/`manual`. **4** give a reason asserting something does not
+exist:
+
+| spec | verdict against all 696 |
+|---|---|
+| `provider.add_client_note` — "No delete-note command exists" | **correct** (6 note commands, none deletes) |
+| `clinical.add_customer_staff_note` | **correct** |
+| `agent.undo_latest_task` — "no undo of an undo" | self-consistent |
+| `commerce.explain_gift_card_order_details` | **the registry was wrong** |
+
+**The fourth was a lead.** Six specs admit in their own text that the registry calls them mutating and
+they have no write — all `e2e-bug.376`'s cause, a binding passing its whole intent list as
+`mutateIntents`.
+
+**Why §110 missed them:** it matched read *verbs* (`explain_`, `list_`, `get_`…) and these are nouns —
+`revenue_forecast`, `staff_service_matrix`, `delivery_queue`. It also said three bindings used their
+full list as `mutateIntents`; a structural match finds four, plus the duplicate §110 deleted.
+
+Five fixed via explicit read-only lists excluded from the bindings, specs corrected to **T0, no
+compensation**.
+
+**`staff_service_matrix` deliberately not fixed.** Its spec describes a read, but it is listed
+explicitly in two inline mutate arrays and in `DASHBOARD_EXECUTION_CONFIRM_ACTIONS`, and production
+shows it taking the approval path. Reclassifying on the strength of a description would remove a
+confirmation gate. Left for `e2e-bug.405`'s review, with the reasoning recorded beside the list it is
+absent from.
+
+### e2e-bug.368 — update 2026-08-08 (AI-ROADMAP §124): still unwired, still unsizable
+
+**The seams are supplied by nobody.** `executePlan` is live (5 call sites in
+`ai-booking-core.service.ts`, 2 in `provider-ai-command.service.ts`), but `captureState` and
+`runCompensation` appear only inside `ai-plan-executor.util.ts`. Both guarded blocks are therefore
+unreachable in production:
+
+```ts
+if (wanted.length > 0 && options.captureState)                    // never true
+status === 'partial' && options.specs && options.runCompensation  // never true
+```
+
+§55 built the seams; nothing was threaded through them. Third instance of this shape after §89 (the
+planner) and §108 (Phase 6), all found by asking who calls the thing.
+
+**Exposure, as far as it can be sized:** compound_intent — **235 failed**, 139 executed, 6 clarified.
+Multi-step plans fail 63% of the time.
+
+**What matters is unmeasurable.** Compensation only matters for failures *after* a successful write,
+and `result_summary` — the column carrying "Stopped at step N" — is empty on all 5,362 rows.
+
+**It is not dead telemetry.** The recorder stores a summary for every non-executed outcome and the
+logic is correct. The column was added by migration `20260815120000` (**2026-08-15**); the last trace
+is **2026-08-03**. It postdates the corpus by twelve days. Recorded here because "this telemetry is
+dead" was one step away and would have sent someone to fix a working recorder.
+
+**So this cannot be prioritised yet.** The work is real — a pre-write read per step driven by
+`compensation.captures`, plus a transaction per `TransactionGroup` — but whether it is urgent depends
+on how many of the 235 wrote first, and that number does not exist until traffic resumes.
+
+### e2e-bug.379 — update 2026-08-08 (AI-ROADMAP §125): step 1 sized
+
+**Coverage is complete.** All 696 registry entries resolve to a spec via `id` or alias; none is
+orphaned. Conformance already pins `surfaces`, `handler` and `mutating`, so those are reproducible
+today.
+
+**What `CommandSpec` cannot yet produce:**
+
+| registry field | entries | status |
+|---|---|---|
+| `apiModule` | 696 | must be added |
+| `compoundStep` | 609 | must be added |
+| `sprint` | 596 | must be added (traceability) |
+| `surfaceHandlers` | 16 | must be added (optional) |
+| `label` | 696 | derivable (`id.replace(/_/g,' ')`) |
+| `executionMode` | 696 | **not** derivable — see below |
+
+Step 1 is therefore **four fields**, one needed by 16 commands and one purely traceability. Bounded,
+not open-ended.
+
+**`executionMode` has a counterexample.** 695 of 696 follow `mutating ? <mutate> : 'read_only'`. The
+exception is `provider.coordinate_waitlist_offer` — T0, `mutating: false`, `executionMode:
+'orchestration'`: a read that runs as a multi-step orchestration. Deriving the mode from `mutating`
+would silently demote it. One counterexample in 696 is precisely the density at which a derivation
+passes review and then breaks something.
+
+**Not attempted here:** adding four fields across 696 specs is mechanical but large, and it edits the
+file the conformance suite validates *against* — the thing that makes every other deletion in this
+ticket safe. It wants its own change and its own review.
+
+### e2e-bug.360 — update 2026-08-08 (AI-ROADMAP §126)
+
+The 9 documented examples the detector layer misses were run through the planner:
+
+| | |
+|---|---|
+| routed to the correct command | **9 / 9** |
+| also executable | 8 / 9 |
+
+The one non-executable is `appointment.mark_paid` on "Sarah paid cash for today's massage" — routed
+correctly, blocked by `unresolved_notes`, which is §87's rule working: a T2 money command with an
+unpinned detail should not execute.
+
+**The test is contaminated and the number should not be quoted as held-out evidence.** These nine
+strings are the specs' own `examples`, and `commandMatchText` is `description + examples` — so they
+are *in the embedding cache being searched*. Retrieval is being tested on its own training text.
+
+What it does show is the stage after retrieval: given a shortlist containing the answer, the model
+picked correctly nine times from nine, including two phrasings of one command and one ("put all the
+massages under the Massage category") whose noun belongs to a different command.
+
+**Narrow honest claim:** on the phrasings this ratchet tracks, the planner does not lose to the
+detector, and the failure the ratchet counts does not reproduce through the planner path.
+
+**On the ratchet itself:** it measures the *detector* layer, so for domains locked by §93 it no longer
+describes anything users hit. It will not reach zero by being fixed — it reaches zero when Phase 8
+completes. Left in place, since detectors are still the live routing for twelve domains.
+
+### e2e-bug.395 — update 2026-08-08 (AI-ROADMAP §127): push 67% → 83%, still short
+
+`push` and `commerce` were the only slices near the bar. Diagnosed per prompt:
+
+**push** — 6 prompts, one command, `truthIn=y` on all: retrieval fine. Four routed, two did not, and
+the split was legible — "Alert me whenever a customer **reschedules**" routed, "…**cancels**" did not.
+Both spec examples said reschedule/changes; a cancellation is a customer changing a booking and
+nothing said so.
+
+Fixed by adding two cancellation phrasings from real traffic (`action_changed_by IS NULL` — the
+classifier's own confident labels), deliberately **not** the prompts under measurement. Description
+untouched, per §88.
+
+| | before | after |
+|---|---|---|
+| push | 67% (12/18) | **83% (15/18)** |
+
+**commerce** is not one problem: a retrieval miss, a `needs_confirmation` reject (blocked by
+`e2e-bug.404`), and two `not_executable` that read as correct refusals ("Delete the nonexistent
+xyz123 expense").
+
+**Stopped at 83% deliberately.** The last failure is "Tell me if a customer reschedules their visit" —
+a construction no example covers. A third example would probably clear 90%, and on a six-prompt slice
+that is fitting to the test; §126 had just flagged the same contamination happening by accident.
+
+**Also worth saying:** 90% on n=6 is not a meaningful threshold. Six prompts cannot separate 83% from
+100%. That is a property of the slice, not of the planner, and it applies to every small domain in
+this table.
+
+### e2e-bug.406 — the retirement bar cannot be met by any slice — **Open**
+
+**Found:** 2026-08-09, checking §127's passing remark that "90% on n=6 is not a meaningful threshold"
+(AI-ROADMAP §128).
+
+95% Wilson intervals on the §119 per-domain recovery table, trace-weighted:
+
+| domain | traces | point | 95% CI |
+|---|---|---|---|
+| **tour** | 33/34 | 97% | **85-99%** |
+| push | 15/18 | 83% | 61-94% |
+| commerce | 7/11 | 64% | 35-85% |
+| everything else | 0-6 of 56 | 0-21% | well below |
+
+**No domain's lower bound reaches 90%, `tour` included.** Structurally: a 95% lower bound at or above
+90% requires **n >= 35 traces with zero failures**. The largest slice has 34 traces and one failure, so
+it cannot clear the bar even scoring perfectly.
+
+**This does not overturn `tour`'s retirement.** §92's evidence stands on its own: 33/34 recovery on
+exactly the traffic detectors decided, against a measured 20% loss from deleting them with nothing
+behind. That comparison never needed a threshold.
+
+**It does mean "clears §42's 90% bar" was a stronger claim than the data supports**, and it was written
+that way in §88, §92, §118, §119 and §127.
+
+**The bar is out of its design range.** `PROPOSE_ONLY_ACCURACY_BAR = 90` gates against the 8,509-case
+deterministic corpus, where 90% is sharp. Per-domain rescue-dependent samples are 6-34 traces. More
+data is not obtainable: traffic stopped 2026-08-03 and the whole rescue-dependent population is 216
+traces.
+
+**Two defensible replacements:**
+1. state the interval — retire when the 95% lower bound clears a *lower* threshold (~70%), which
+   `tour` passes at 85% and nothing else approaches;
+2. compare against the alternative rather than a constant — retire when planner recovery beats
+   detector-deletion loss by a margin. This is what §92 measured and what actually decided `tour`, and
+   it matches the real decision: retirement is planner-versus-nothing, not planner-versus-a-number.
+
+**Related:** §128, §127, §92, §42, `e2e-bug.395`.
+
+### e2e-bug.404 — the planner seam's missing confirmation path — **Fixed 2026-08-09**
+
+**Was:** `decidePlannerRoute` condition 4 declined every plan requiring confirmation. §120 measured
+`reject:needs_confirmation` at **24 of 121** rescue-dependent prompts — the binding constraint on
+every mutating command the planner could name.
+
+**Why relaxing it alone would have been unsafe.** `CommandSpec` requires confirmation for **210**
+commands; the runtime gate `DASHBOARD_EXECUTION_CONFIRM_ACTIONS` names **59**. The 151-command gap
+includes `appointment.mark_paid` (T2, money) and `catalog.assign_services_category_bulk` (T3).
+
+**Checked the easy explanation first and it was wrong.** `isMutatingSpec` is just `risk !== 'T0'`, so
+a sensitive *read* looks like a write — but only 2 of the 151 are genuine reads
+(`customer.export_data`, `commerce.export_analytics_report`). A verb heuristic flagged 6 and 4 were my
+own false positives (`adjust_`, `claim_`, `collect_`, and *filing* a breach `report` all mutate).
+
+**Fix:** new `ai-planner-confirmation.util.ts` with `shouldConfirmBeforeExecute`, called from the
+execute gate in `ai-command.service.ts`. It **re-derives** the spec requirement from the registry
+rather than carrying a boolean from the route through the `IntentCandidate` to the gate — a field
+dropped on any hop fails open, executing a T2 silently. Fails closed on an unknown action. Scoped to
+`candidateSource === 'planner'`, so detector traffic is byte-identical; applying the spec model
+everywhere is `e2e-bug.405`, a product decision.
+
+Extracted as a pure function rather than left inline because **nothing constructs `AiCommandService`
+in a test** — inline, the safety property would have been asserted by comment only. 8 tests hold it.
+
+**Caveat worth repeating:** 24 unblocked rejections are **not** 24 more completed commands. All 24
+require confirmation, so the user now gets a correctly-routed command that asks. The end-to-end
+recovery delta is unmeasured (needs a 121-prompt replay).
+
+**Verified:** fast chain 3,889/0 (+13, new spec added to `test:ai-command-planner`); red-means-red
+exit 0, manifest exact; lint clean.
+
+**Unblocks:** `e2e-bug.399`. **Related:** §129, §120, §121, §122, `e2e-bug.405`.
+
+### e2e-bug.399 — update 2026-08-09 (AI-ROADMAP §130): re-measured with the blocker gone, still negative
+
+§129 removed `decidePlannerRoute`'s confirmation condition — the gate §120 blamed for this ticket's
+revert. Rather than close 399 on that prediction, I rebuilt the replay harness and tested it.
+
+**Baseline reproduced §119's 30.6% exactly**, which is what makes the rest comparable.
+
+| run | recovery | prompts OK |
+|---|---|---|
+| baseline | 30.6% | 27 |
+| baseline, repeat | **32.4%** | 28 |
+| resolvers rendered | **30.1%** | 27 |
+
+| comparison | prompts changing verdict | OK flips |
+|---|---|---|
+| baseline vs baseline | **3** | 1 |
+| baseline vs resolvers | **14** | 4 |
+
+**The change is real and is not an improvement.** 13-14 prompts move against a 3-prompt noise floor.
+`unresolved_notes` falls 31 -> 27 as intended, but five prompts move from `not_executable` to
+`not_single_step` — the added rule makes the model split work into steps it cannot route.
+
+**§129 did recover §120's loss** (28.7% -> 30.1%), so §120's mechanism was right. Its conclusion was
+not: the change never beat doing nothing, so removing the gate could not make it pay.
+
+**"Blocked on e2e-bug.404" is withdrawn.** The deadlock is real; instructing the model about the
+resolver is not the fix. A third attempt should work at execute time — resolve the reference after
+routing — rather than at prompt time.
+
+**Also learned:** trace-weighting amplifies noise (one prompt carries up to 4 traces, so a single flip
+moves recovery two points). Prompt-weighted, all three runs are 27/28/27. Two-point differences in
+trace-weighted recovery — which §119, §120 and the §128 table all quote — are not evidence without a
+repeat run.
+
+**Related:** §130, §129, §120, §99, `e2e-bug.407`.
+
+### e2e-bug.407 — the replay harness is rebuilt from scratch every time — **Open**
+
+**Found:** 2026-08-09, rebuilding it for the fifth time (AI-ROADMAP §130).
+
+§115, §116, §119, §120 and §130 all needed the same measurement: replay the 121 rescue-dependent
+prompts (`action_changed_by='rescue'`, 216 traces) through embed → `narrowShortlist` →
+`buildPlannerMessages` → `gpt-4o-mini` → `decodePlanResponse` → `validatePlan` → `decidePlannerRoute`,
+and bucket the verdicts. Each one rebuilt it as a throwaway `zz-*.spec.ts` and deleted it after.
+
+**Why it matters:** every rebuild can silently differ — a different model, temperature, shortlist
+setting or truth column changes the number without changing its name. §130's figures are only known to
+be comparable to §119's because the baseline happened to land on 30.6% again. That was luck, not
+method.
+
+**Wanted:** a checked-in script under `backend/scripts/` holding the corpus query, the verdict
+buckets, and a repeat-run mode so the noise floor is measured every time rather than assumed.
+
+**Related:** §130, §119, `e2e-bug.399`.
+
+### e2e-bug.407 — the replay harness, checked in — **Fixed 2026-08-09**
+
+**Was:** rebuilt from scratch and deleted five times (§115, §116, §119, §120, §130). §130's numbers
+were only known to be comparable to §119's because the baseline happened to reproduce 30.6%.
+
+**Shipped:** `ai-planner-replay.util.ts` — the corpus query, the tier rule, the per-prompt replay
+through the real pure stages, and the summary/churn arithmetic. Reporting deliberately stays in the
+caller. `ai-planner-replay.manual.spec.ts` runs it, `describe.skip` unless `AI_REPLAY=1`:
+
+- `REPLAY_LIMIT=3` — smoke run that does not cost 121 completions, and says in its own output that a
+  limited run is not a measurement;
+- `REPLAY_RUNS=2` — replays twice and prints the churn, so the noise floor is measured not assumed.
+
+12 unit tests cover the arithmetic (in `test:ai-command-planner`), including that a short second run
+compares only the overlap — counting missing prompts as churn would understate the noise floor this
+exists to protect. Smoke-run end to end: 0 of 3 prompts changed verdict between identical runs.
+
+**Building it found an existing sibling.** `ai-planner-shadow-replay.spec.ts` has been in the tree
+since §70 with the same mechanism, answering a different question. Reading it first found two things
+my throwaway had wrong: the access tier comes from the **surface**, not `role` (a customer-surface
+owner is gated as `client`, and `isSpecAllowedForTier` is exact membership), and sampling must be
+deterministic (random samples made §70-§78 unfalsifiable). **Neither changed §130** — that corpus is
+all dashboard and never sampled. Checked, not assumed.
+
+**Related:** §131, §130, `e2e-bug.409`.
+
+### e2e-bug.408 — a source file grep could not read — **Fixed 2026-08-09**
+
+**Found:** 2026-08-09, when searching `ai-command-shortlist.util.ts` for `EMBEDDING_MODEL` returned
+nothing — repeatedly — for a constant declared on line 47 (AI-ROADMAP §131).
+
+`file` gave the reason: the file was **binary**. §96's `commandMatchTextHash` uses `\x00` and `\x01` as
+field delimiters and they had been written into the source as literal control bytes instead of escape
+sequences. A single NUL byte makes `grep` treat the file as binary and skip it **silently** — no
+error, no warning, just no matches — in a codebase where grep is the primary way anything is found.
+
+**Fix:** `\u0000` / `\u0001` escapes. The string values are identical, confirmed by the embedding
+staleness gate still matching its stored hash.
+
+**Related:** §131, §96.
+
+### e2e-bug.409 — the shadow replay spec still duplicates the shared mechanics — **Open**
+
+`ai-planner-shadow-replay.spec.ts` embeds, narrows, builds, decodes and validates with its own copy of
+the logic now shared in `ai-planner-replay.util.ts`, so the two can still drift on exactly the things
+that change a number without changing its name.
+
+**Not migrated as part of `e2e-bug.407` on purpose:** it is opt-in, **no gate covers it**, and
+rewriting working code that nothing would catch breaking is not a safe side effect. It wants its own
+change, with a smoke run before and after to prove the numbers did not move.
+
+**Related:** §131, §70.
+
+### e2e-bug.380 — update 2026-08-09 (AI-ROADMAP §132): triaged into two defects
+
+The ticket's own next step was to decide, per failing example, whether the example is unrealistic or
+the routing is missing. That is deterministic and free, so it should have come before anything else
+was built on the 80% headline.
+
+| | examples |
+|---|---|
+| **nothing routes it** (`got none`) | **343 (76%)** |
+| **a different command claims it** | **106 (24%)** |
+
+Unclaimed needs routing built; stolen needs a detector narrowed. Stealing is diffuse — `create_booking`
+10, `reschedule_booking` 7, `show_appointments` 5, long tail.
+
+**By domain** (unclaimed / stolen): operations 59/16, clinic **55/5**, commerce 51/10, provider 29/15,
+booking 21/12, **customer 16/18**, compliance 6/0. `customer` is the only contested domain; `clinic` is
+almost purely absent. Opposite work, and the aggregate would have sent both to the same place.
+
+**The "unrealistic example" hypothesis was tested and dropped.** Sampled unclaimed examples read:
+"delete the Wellness category", "activate the Bridal package", "turn the monthly plan back on", "put
+Gevorg on the Gold membership", "why is my total this much". Ordinary phrasings.
+
+**Risk tier does not predict failure** — T0 20%, T1 18%, T2 21%, T3 21%. Hard commands would fail more
+if difficulty were the cause; flatness fits 343 commands having no detector at all.
+
+**Reframes retirement risk.** Deletion cannot cost anything for the 343 that route to nothing today —
+the planner starts from `none` and can only match or improve. Exposure is the 106 contested plus the
+110 that pass. 185 of 280 uncovered commands have **zero** routing examples and are unreachable from
+natural language regardless of Phase 8. `tour` and `guide` appear nowhere in the table: the retired
+domains have no eval-uncovered commands.
+
+**Made permanent:** the split is a test in `ai-command-eval.spec-coverage.spec.ts` with a **ceiling of
+106 on the stolen half**, which may only fall. Only that half can regress from someone else's change —
+a widened detector claiming another command's documented phrasing is the failure mode §44's
+miss→fixture pipeline is most likely to introduce, and nothing was watching for it.
+
+**Still open:** building routing for the 343, and narrowing the detectors behind the 106.
+
+**Related:** §132, §69, §68, §52, §44, §29.
+
+### e2e-bug.410 — claim_referral_code had never once succeeded — **Fixed 2026-08-09**
+
+**Found:** 2026-08-09, breaking `e2e-bug.361`'s customer-surface failure rate down by action
+(AI-ROADMAP §133). 96 traces, 96 failures, 0 successes.
+
+Every stored attempt:
+
+```
+prompt: "I want to claim referral code FRIEND25"
+params: {}
+action_changed_by: (none)
+```
+
+The classifier named the action correctly **every time**. The handler is correct too — it reads
+`params.referralCode` and, finding none, replies *"What referral code would you like to claim?"* to a
+user who has just typed the code.
+
+**The extractor already existed and was already tested.**
+`enrichClaimReferralCodeParamsFromPrompt` was called from exactly one place, the **rescue** path in
+`ai-intent-rescue.service.ts`. `rescueClaimReferralCodeIntent` returns null when the action is already
+`claim_referral_code`, so the enrichment only ran when the classifier had been **wrong** about the
+action — and it never was. Getting the action right is what broke it.
+
+**Fix:** `handleClaimReferralCodeLogic` now takes the `prompt`, as eleven sibling handlers in the same
+file already do, and enriches params from it. Against all 96 stored prompts the extractor yields a
+code for **96 of 96**.
+
+Stated precisely: those 96 now reach `claimCustomerReferralCode` with the code the user typed, instead
+of being turned away. Whether each claim then succeeds depends on whether the code is valid — the
+service's business, not something this corpus answers.
+
+**Also:** the spec declared `variables: {}`, so the planner had no way to know the command takes an
+argument. Now declared, **optional** — "use my invite code" is one of its own documented examples and
+names no code.
+
+**Tests:** the four real production prompts as cases, plus "must not invent a code when none is
+present" and "an explicit param wins over the prompt" (24/24 in
+`ai-rewards-and-referral-claim.logic.spec.ts`).
+
+**Related:** §133, `e2e-bug.361`.
+
+### e2e-bug.411 — the failure rate counts questions as failures — **Fixed 2026-08-09**
+
+**Found:** 2026-08-09, working `e2e-bug.361`'s second broken command (AI-ROADMAP §134).
+`find_soonest_appointment`'s handler is in good shape; its unhappy paths are a question ("Specify
+which service...") and a truthful "no slot available". Both recorded as `outcome = 'failed'`.
+
+`resolveCommandTraceOutcome` tested `details.needsClarification` alone. Handlers do not use that key:
+
+| key | occurrences | files |
+|---|---|---|
+| `details.clarify: true` | **646** | 178 |
+| `details.needsClarification: true` | **19** | — |
+
+A handler asking the user a question was recorded as having **failed** — about 34 call sites out of 35.
+
+**The canonical predicate already existed.** `isClarifyResult` in `ai-clarify.util.ts` handles all
+three shapes, and its doc comment names the caller: *"exported so the guide fallback and the trace
+writer can both branch on one definition instead of each re-deriving it from a different flag."* The
+trace writer was the one re-deriving it. Same shape as `e2e-bug.410`.
+
+**Fix:** `resolveCommandTraceOutcome` calls `isClarifyResult`. A test holds the boundary —
+`{ reason: 'card_declined' }` must stay `failed`, since reclassifying real failures would hide defects
+behind a friendlier label.
+
+**It cannot correct history.** The trace table stores `params`, not `details`, so stored rows cannot be
+recomputed. `e2e-bug.361`'s 31.1%, the 27% platform rate and §133's per-action rates all count an
+unknown share of questions as defects — **upper bounds, not estimates**. §133's ranking survives
+(clarify-misclassification does not explain `check_availability` 3.9% against `claim_referral_code`
+100%), but the absolute numbers need re-measuring once traffic resumes.
+
+**Also:** the fast chain reported 3,903 before and after adding three fixtures, which revealed
+`ai-command-trace.util.spec.ts` was in **no gate** while its two siblings were. Added to
+`test:ai-trace-attribution`; chain now 3,918.
+
+**Related:** §134, §133, `e2e-bug.361`, `e2e-bug.410`, §100.
+
+### e2e-bug.412 — compound step telemetry never reached the customer surface — **Fixed 2026-08-09**
+
+**Found:** 2026-08-09, working `e2e-bug.361`'s third command (AI-ROADMAP §135). `compound_intent` is
+222 failures of 338 — the customer surface's largest single bucket.
+
+**Decomposition is not the problem.** Both gates are deterministic, so they run against the real
+prompts for free: of 338 stored compound prompts, **332 decompose to 2+ steps**, 6 fail
+`isCompoundPrompt`, and **0** decompose to fewer than 2. The failures are in executing the steps. The
+dominant constituent is `book_nearest_slot` — in 148 of the 222 failed compounds, and 45.1% failing
+standalone. That is an association, not an attribution, because the parent trace records only that the
+whole compound failed.
+
+**Which is the finding.** `ai_command_trace_step` exists for exactly this question — table, two views,
+extraction, recorder — and is fed from `details._compoundSteps`, attached by
+`attachCompoundStepAttribution`. That is called from **`ai-command.service.ts` only**.
+`executeCustomerCompoundFromSteps` never called it, so the customer surface would have produced zero
+step rows when traffic resumed.
+
+**It could not simply be attached.** `buildCompoundStepOutcomes` infers outcomes from plan step ids and
+the execution timeline, and no plan ids means `not_planned`. The customer path has no planner — it
+dispatches handlers in a loop — so attaching with empty ids would have marked every step never-planned
+and filled `ai_command_compound_silent_drop` (the honest-partial-success view) with compounds that
+dropped nothing.
+
+**Fix:** `CompoundStepAttribution.directOutcomes`, for paths that executed the steps and therefore know
+rather than infer. Attached on both the failure and the success path — success rows are the
+denominator, without which `ai_command_compound_step_failure` shows every sub-intent at 100%.
+
+**A bug I wrote and caught:** I validated `directOutcomes` with `.filter()`. They are positional, so
+dropping a bad entry slides every later outcome onto an earlier sub-intent — misattributing a failure
+to the wrong step, the one thing this table exists to get right. My own test passed because the bad
+entry happened to be last. Now mapped to `undefined` (a hole falls back to inference), with the guard
+test putting the bad entry **first**.
+
+**Checked, not claimed:** the loop caps at `steps.slice(0, 4)` and no stored prompt decomposes past
+four (254 two-step, 74 three-step, 4 four-step), so the cap drops nothing on observed traffic.
+
+**Related:** §135, `e2e-bug.361`, `e2e-bug.347`.
+
+### e2e-bug.413 — stage attribution is blind on most of the platform — **Open**
+
+**Found:** 2026-08-09, checking whether rescue fires on the customer surface (AI-ROADMAP §136).
+
+| surface | traces | with `pipeline_trace` |
+|---|---|---|
+| dashboard | 1,161 | 1,006 (87%) |
+| customer | 3,703 | **262 (7%)** |
+| provider | 498 | **3 (0.6%)** |
+
+`attributeActionChange` walks the pipeline trace and needs a `classify` entry to compare the final
+action against. With no trace there is no attribution, so `action_changed_by` and `classified_action`
+are null **by construction** for 93% of customer traffic and 99% of provider traffic — whatever
+actually decided the action.
+
+**Consequence:** every stage-attribution analysis is blind on the surface carrying 69% of traffic —
+which stage chose an action, which detector stole it, how often rescue helps. §132's steal analysis and
+§133's per-action ranking both rest on this data.
+
+It also nearly produced a false finding: the raw numbers read as "rescue has never fired outside the
+dashboard", which is not what they show.
+
+**Related:** §136, §134 (the same class of trap), `e2e-bug.414`.
+
+### e2e-bug.414 — rescue proposes customer-surface corrections that never happen — **Open**
+
+**Found:** 2026-08-09 (AI-ROADMAP §136), triaging `confirm_my_booking_details` (102 failures of 134).
+
+Most of its failures are other commands' prompts — "I want to leave a review for my last visit",
+"I want to pay online for my facemassage booking", "Explain why Stripe is required". Several other
+commands' classifier rules already say *"NOT confirm_my_booking_details"*, so the over-claiming is
+known.
+
+Running `AiIntentRescueService.rescue()` directly over all 102 failing prompts with the action the
+classifier produced and `surface: 'customer'`:
+
+| | prompts |
+|---|---|
+| rescue proposes a different action | **40** |
+| rescue leaves it alone | 62 |
+
+The 40: `guide_user_flow` 8, `explain_subscription_vs_one_time` 6, `check_providers_for_service` 6,
+`leave_visit_review` 3, `explain_manage_booking_context` 3, `report_booking_problem` 3, and a tail.
+The 62 are genuinely this command ("confirm my booking details", "What did I just book?") and fail for
+a separate reason.
+
+**In production none of it happens.** Restricted to traces that carry a pipeline trace (see
+`e2e-bug.413`), rescue changed the action **0 of 262** times on customer against **216 of 1,006
+(21.5%)** on dashboard. At n=262 with zero events the 95% upper bound is ~1.4%.
+
+The customer surface uses the same `CommandUnderstandingPipelineService` and the same `stageRescue`,
+so the capability is reachable and simply does not act.
+
+**Cause not established.** Candidates: the direct call passes empty params and no session context,
+which the pipeline does not; a later stage may overrule the rescued action; the steal-guard may block
+it. Three different explanations, evidence for none — not guessed at here.
+
+**Related:** §136, §132, `e2e-bug.361`, `e2e-bug.413`.
+
+### e2e-bug.413 — customer surface records no pipeline trace — **Fixed 2026-08-09**
+
+**Was:** `pipeline_trace` present on 87% of dashboard traces, **7% of customer**, **0.6% of provider**
+(AI-ROADMAP §136). `attributeActionChange` needs a `classify` entry in that trace, so
+`action_changed_by` and `classified_action` were null by construction for almost all traffic.
+
+**Cause:** `buildGatewayCommandTraceInput` reads the trace from `result.details.pipelineTrace`. The
+dashboard service has stamped it since §1.1 via `finalizeCommandTraceResult`.
+`CustomerAiCommandService.executeCommand` mentioned `pipelineTrace` **once**, in the `blocked` branch —
+one of about forty exits.
+
+**Fix (AI-ROADMAP §137):** `executeCommand` is now a thin wrapper around the former body, which
+receives a **per-call** sink and fills it immediately after `understand` returns — before the
+`blocked` and `clarify` exits, which are the paths most worth attributing. The wrapper stamps whatever
+comes back.
+
+- **Wrapped, not stamped at 40 returns:** the next return added to a 40-exit method would go untraced
+  silently and nothing would fail.
+- **Per-call sink, not an instance field:** the obvious shortcut is `private lastTrace`, which on a
+  service handling parallel requests is a cross-request leak into telemetry.
+
+**No end-to-end test:** nothing constructs `CustomerAiCommandService` — see `e2e-bug.415`. §129's
+extract-a-pure-function answer does not apply, because the property is "every exit is stamped", which
+is a property of the method's shape. The wrapper is what makes it true: there is one exit now.
+
+**Does not fix history.** The 3,441 untraced customer rows stay unattributable, so §132's steal
+analysis and §133's ranking keep their caveat.
+
+**Related:** §137, §136, §134, `e2e-bug.414`.
+
+### e2e-bug.415 — neither main command service can be constructed in a test — **Open**
+
+`AiCommandService` (§129) and `CustomerAiCommandService` (§137) both have no test construction path,
+so behaviour living in their method bodies can only be asserted by comment.
+
+- §129 worked around it by extracting the decision into a pure function
+  (`shouldConfirmBeforeExecute`) — the execute-time confirmation gate, which is load-bearing safety.
+- §137 could not: the property was "every one of ~40 exits is stamped", a property of the method's
+  shape rather than of any extractable function. It holds by construction, not by test.
+
+Both are load-bearing — the confirm gate, and trace attribution for 69% of the platform's traffic.
+
+**Wanted:** a test-module factory with the dependency graph mocked once, the way
+`customer-ai-command.integration.harness.ts` already does for the understanding adapter.
+
+**Related:** §137, §129.
+
+### e2e-bug.414 — update 2026-08-09 (AI-ROADMAP §138): premise withdrawn
+
+The ticket claimed rescue proposes customer-surface corrections that never happen, resting on rescue
+having changed the action **0 of 262** traced customer requests against 21.5% on dashboard.
+
+**That sample could not have shown a rescue.** The 262 traced customer rows are:
+
+| action | outcome | count |
+|---|---|---|
+| `unknown` | clarified | 233 |
+| `error` | failed | 29 |
+
+Exactly what §137 predicted — before `e2e-bug.413`, the only customer exit that stamped a pipeline
+trace was the `blocked` branch. `attributeActionChange` compares the classified action to the final
+one, and a request that never resolved an intent has no action change to attribute. So the 262 were a
+sample of precisely the requests where rescue has nothing to do, and I put a confidence bound on it.
+
+**Re-tested by running the pipeline instead of reading the column.** For all 40 prompts where the
+rescue service proposes a change when asked directly, driving the real
+`CommandUnderstandingPipelineService` with the classifier output production recorded: **40 of 40
+applied**.
+
+**Kept as a test:** `ai-customer-rescue-applies.integration.spec.ts` (in `test:ai-steal-guard`) holds
+four verbatim production prompts and asserts they route to `leave_visit_review`,
+`explain_why_stripe_required` and `pay_online` rather than `confirm_my_booking_details`.
+
+**Still unexplained:** 102 production traces recorded `confirm_my_booking_details` anyway. Candidates
+are session context, prompt normalisation, and the null confidence carried by every one of them —
+none tested. A much narrower question than the ticket asked.
+
+**Related:** §138, §136, §137, `e2e-bug.413`, `e2e-bug.361`.
+
+### e2e-bug.416 — the trace corpus is a QA script, weighted as demand — **Open**
+
+**Found:** 2026-08-10, chasing §138's leftover question (AI-ROADMAP §139). Every candidate difference
+between replay and production was varied — confidence null / low / high, session with `bookingId`,
+session with manage token — and the pipeline applied the rescue in **all** of them (40/40, 37/40 with
+a manage token). `kept` was zero every time. So I looked at what those rows had in common instead.
+
+| | |
+|---|---|
+| traces | 5,362 |
+| distinct businesses | **5** |
+| distinct users | **27** |
+| traces from the largest business | **5,110 (95%)** |
+| distinct prompts | 2,217 |
+| traces repeating an earlier prompt | **4,040 (75%)** |
+
+| prompt | traces | distinct users | days |
+|---|---|---|---|
+| "Help me with this page" | **125** | **0** | 2 |
+| "How do I book an appointment?" | 124 | 1 | 4 |
+| "confirm my booking details" | 24 | 1 | 3 |
+
+A prompt fired 125 times in two days by no identified user is a script. So are customer-surface rows
+recorded with `role = owner` and a null `user_id` — which is what all 102 traces I was chasing are.
+
+**Does not invalidate per-command defect evidence.** `claim_referral_code` failing 96/96 with empty
+params was a real bug with a real cause and would be one at any volume. The routing and telemetry
+findings in §134-§138 are statements about code paths, established by reading and running the code;
+the traces only pointed at them.
+
+**Does invalidate every traffic-weighted claim:** "customer carries 69% of traffic", the per-action
+volume ranking in §133, and the trace-weighting throughout §92, §119, §128 and §130 weight by how
+often the script ran a prompt. `e2e-bug.361`'s framing — that the north star is mostly a
+customer-surface problem — rests on that 69%.
+
+**Why it went unnoticed:** nothing about a row says "synthetic". The corpus is real output from the
+real system on real prompts, which is why it has been so good at finding defects. It only misleads
+when counted — and a completion-rate metric is counting. The shape is one `count(distinct)` away and
+nobody ran it, including me, across a dozen sections.
+
+**Resolution:** label it rather than discard it. The corpus is a **defect finder**, not a **priority
+signal**; anything quoted as the second needs traffic that does not exist yet.
+
+**Related:** §139, §138, §128, `e2e-bug.361`, `e2e-bug.406`.
+
+### e2e-bug.380 — update 2026-08-10 (AI-ROADMAP §140): the planner reaches 301 of the 343
+
+§132 said the 343 unclaimed examples "need routing built". Literally that means 343 new
+`legacy_paraphrase` detectors — the layer Phase 8 exists to delete. So the question is whether the
+planner already reaches them.
+
+**301 of 343 = 87.8%**, against detectors reaching 0 by construction.
+
+| verdict | examples |
+|---|---|
+| OK | **301** |
+| `reject:not_executable` | 36 (35 `unresolved_notes`) |
+| wrong command | 4 |
+| `reject:not_single_step` | 2 |
+
+Per domain: marketing 17/17, integration 16/16, push 11/11, compliance 6/6, booking 20/21, catalog
+16/17, customer 15/16, provider 26/29, operations 53/59, commerce 42/51, clinic 41/55.
+
+**Discount it heavily.** `renderShortlist` emits each command's examples verbatim as `e.g. "…"`, and
+`commandMatchText` — the embedding index text — is `description + examples`. For these prompts both
+the retriever and the model had the exact string. This is a **ceiling on planner reach**, not an
+estimate, and must not be quoted beside §130's 30.6%: those are near-opposite conditions (prompts the
+detectors already failed on, versus each command's canonical phrasing). Rerun filed as
+`e2e-bug.417`.
+
+**What survives:** the plumbing works end to end for 301 commands with no detector — retrieval
+surfaces them from 696, permissions keep them, `validatePlan` passes, `decidePlannerRoute` routes. They
+are unreachable by the layer being retired, not unreachable. And the **42 failures failed while being
+shown the answer**, which makes them the stronger signal: 35 are `unresolved_notes`, the same resolver
+deadlock as §99/§120/§130, now visible with no traffic weighting at all.
+
+**Immune to `e2e-bug.416`:** one example, one case, truth is the command whose spec documents it. This
+measures the registry, not a QA script's distribution.
+
+**Related:** §140, §132, §139, `e2e-bug.417`, `e2e-bug.399`.
+
+### e2e-bug.417 — how much of §140's 87.8% was contamination — **Measured 2026-08-10**
+
+Three arms over the same 343 unclaimed spec examples, one variable at a time:
+
+| arm | reaches | `empty_plan` | `unresolved_notes` |
+|---|---|---|---|
+| **as shipped** — example rendered, retrieval on | 301/343 = **87.8%** | 3 | 35 |
+| **example held out**, retrieval on | 212/343 = **61.8%** | 24 | 102 |
+| **example held out, retrieval off** | 186/343 = **54.2%** | 91 | 129 |
+
+- Showing the model the command's own phrasing: **26 points**.
+- Removing retrieval on top: a further **7.6**, with `empty_plan` tripling to 91 — the signature of a
+  388-command prompt, not of the holdout.
+
+The first holdout run changed both at once and could not be attributed; that is why there are three
+arms. Reporting 54.2% as "the uncontaminated number" would have blamed the holdout for a cost that
+mostly belongs to prompt size.
+
+**Use 61.8%** — the shipped configuration minus the contamination that mattered. Still mildly
+optimistic: `commandMatchText` is `description + examples`, so the embedding index still contains the
+held-out string. Removing that needs 343 re-embeddings and is a stated residual, not a correction.
+
+**Detectors reach 0% of these by construction** (they are §132's unclaimed 343), so the planner reaches
+about six in ten commands that today have no natural-language route at all.
+
+**The blocker is `e2e-bug.399` again**, for the fourth time: `unresolved_notes` is **102 of 343** — 30%
+of cases and by far the largest failure mode, against only 27 wrong commands. And it shows up in the
+one population `e2e-bug.416` cannot touch: no traffic weighting, truth defined by the registry. Worth
+roughly **30 points of planner reach**, a far stronger case for an execute-time resolver than the
+rescue corpus ever made.
+
+**Related:** §141, §140, §132, `e2e-bug.399`, `e2e-bug.416`.
+
+### e2e-bug.418 — 6% of the command registry declares its inputs — **Open**
+
+**Found:** 2026-08-10, testing §141's claim that its 102 planner refusals were the resolver deadlock
+(AI-ROADMAP §142). They are not — and neither is the obvious replacement hypothesis.
+
+| | refused (102) | reached (212) | registry |
+|---|---|---|---|
+| resolver-backed **required** variable | **3** | 7 | — |
+| declares **no variables at all** | 99 (97.1%) | 193 (91.0%) | **655 (94.1%)** |
+
+Both groups sit on the base rate, so empty variables do not explain the refusals. **The cause of those
+102 is unknown** and is recorded as such.
+
+**The base rate is the finding:**
+
+| | specs |
+|---|---|
+| declare at least one variable | **41** |
+| declare none | **655** |
+
+Of the 655, **297 are mutating** — T1 163, T2 109, T3 25 — including
+`payment.adjust_gift_card_balance`, a T2 money command whose spec says it takes nothing.
+`appointment.reschedule` is one of the 41 and fully declared, which is why `e2e-bug.399` was written
+about it: the one command anybody examined closely is unrepresentative.
+
+**This is the general case of `e2e-bug.410`.** `claim_referral_code` declared `variables: {}` while its
+handler read `params.referralCode`; 96 users were asked for a code they had just typed. 654 commands
+have the same shape.
+
+**And it is what `e2e-bug.379` counted as done** — 696/696 by spec count, 41/696 by declared inputs,
+while `CommandSpec` is described throughout the roadmap as the single source of truth for what a
+command takes.
+
+**Where to start:** the **134 T2/T3** specs. That is where money and bulk operations are, and it is
+also the set `validatePlan` and the confirmation model already treat as highest risk.
+
+**Related:** §142, §141, `e2e-bug.410`, `e2e-bug.399`, `e2e-bug.379`.
+
+### e2e-bug.419 — the customer surface never recorded its params — **Fixed 2026-08-10**
+
+**Found:** 2026-08-10, trying to generalise §133's detection method for `e2e-bug.418` (AI-ROADMAP
+§143). The signature that found `claim_referral_code` was "high failure rate, every trace with empty
+params". Generalised, it returns twenty commands — because on the customer surface it always matches.
+
+| surface | traces | params empty |
+|---|---|---|
+| dashboard | 1,161 | 83.5% |
+| provider | 498 | 98.2% |
+| **customer** | 3,703 | **99.4%** |
+
+`extractCommandTraceMetadata` reads params from
+`details.partialParams ?? enrichedParams ?? previewParams ?? params`. The dashboard's handlers write
+those; the customer service writes none. The column is a constant on that surface, not a measurement.
+
+Third instance of one root cause, after `failure_reason` (§134) and `pipeline_trace` (§136/§137): the
+customer path was never wired into the telemetry the dashboard has had since §1.1.
+
+**Cost to `e2e-bug.410`:** two of its three stated facts are unreadable on this surface — "params
+arrived empty", and "`action_changed_by = (none)` on all 96". The fix still stands, on code reading:
+`enrichClaimReferralCodeParamsFromPrompt` is called from exactly one place, the rescue path, and
+`rescueClaimReferralCodeIntent` returns null when the action is already `claim_referral_code`. 96 of 96
+ending in the handler's clarify branch is consistent with that. What was wrong was saying the empty
+params *showed* it.
+
+**Fix:** `stampCommandTraceDetails` writes `params`, supplied through §137's per-call sink.
+`?? result.details?.params` keeps every existing caller byte-identical — the dashboard passes none and
+falls through to what its handlers already wrote. Two tests, including that an existing
+`details.params` is not overwritten.
+
+**Does not** make the `e2e-bug.418` audit possible on the existing corpus. Static handler tracing was
+tried and abandoned: it located 37 of 134 T2/T3 handlers and found 2 undeclared reads — too weak to
+act on.
+
+**Related:** §143, §137, §136, §134, `e2e-bug.410`, `e2e-bug.418`.
+
+### e2e-bug.420 — the provider surface had the same telemetry gaps — **Fixed 2026-08-10**
+
+**Found:** 2026-08-10, checking whether §137's and §143's customer-surface gaps applied to provider
+(AI-ROADMAP §144). They do, identically: `pipelineTrace` appears **once** in
+`provider-ai-command.service.ts`, inside the `blocked` branch, out of **233** returns.
+
+| | provider traces |
+|---|---|
+| total | 498 |
+| with `pipeline_trace` | **3 (0.6%)** |
+| with empty params | **98.2%** |
+
+**Fix:** §137's pattern — `executeCommand` wraps the former body, a per-call sink carries the pipeline
+trace, confidence and resolved params back out, filled before the `blocked` and `clarify` exits.
+
+**Turned up two things:**
+
+1. The detector inventory records each detector's **enclosing function**, so renaming the body to
+   `runCommand` moved three entries and `ai-command-inventory.boundary` failed — correctly.
+   Regenerated with `npm run build:ai-inventory`, the path its own failure message names. §137's
+   identical rename did not trip it because that method contains no detectors.
+2. `provider-mobile` is outside the known-failures sweep — see `e2e-bug.421`.
+
+**Related:** §144, §137, §143, `e2e-bug.421`.
+
+### e2e-bug.421 — "red means red" does not cover provider-mobile — **Open**
+
+`scripts/ai-known-failures-gate.mjs` runs with `--testPathPatterns=modules/ai/`. `provider-mobile` is a
+different directory, so its 11 current failures are outside the manifest entirely — the sweep that has
+caught five of my regressions this programme would not have caught one there.
+
+`e2e-bug.420` had to be verified by hand instead: copy the file, reverse the edits programmatically,
+re-run. **9 failures before, 9 after** in the affected suites, so none were mine. That is the check the
+manifest does automatically for `modules/ai`.
+
+**Not free to fix:** the manifest grows by whatever `provider-mobile` currently fails, and those
+entries need the same "red means red" discipline — each one understood — rather than being swept in as
+accepted.
+
+**Related:** §144, §359 (sweep runtime), `e2e-bug.420`.
+
+### e2e-bug.421 — provider-mobile joins "red means red" — **Fixed 2026-08-10**
+
+§144 found `provider-mobile` outside the sweep with 11 failures no gate reported. The manifest's whole
+point is that every entry is understood, so widening the pattern meant triaging all 11 rather than
+importing them as accepted.
+
+**Ten were calendar rot:**
+
+- `provider-time-off.util`, `provider-self-block.util` — fixtures naming `2026-06-20`, future when
+  written; both utils reject anything more than a day before `Date.now()`. The assertions read
+  `undefined` rather than a date complaint because the builder returns `null` on a validation error.
+- `provider-booking-customer-context` — `isWinBackCustomer` compares against `new Date()` with a
+  90-day threshold; the fixture's `2026-05-01` visit crossed it, adding a `win_back` badge the expected
+  snapshot omits.
+
+Fixed by freezing the clock, not by moving to relative dates: the literal dates make the expected ISO
+strings readable, and a fixture computed from `Date.now()` becomes a second implementation of the code
+under test.
+
+**The eleventh was a stub that outlived its refactor.** `provider-ai-sprint22` asserts the classifier
+prompt carries `_entityMemoryBlock` / `_conversationSummary` / `_ragContextBlock`. It could not pass —
+the harness passed the literal `'Harness provider classifier context'` to `deps.classify`. Production
+builds them properly via `buildProviderClassifierAppendix`; context building moved into
+`ProviderCommandUnderstandingAdapter` during the understand-pipeline delegation and the stub did not
+follow. Had this been swept in as accepted, it would have read as "provider does not thread
+intelligence blocks" for as long as anyone trusted the manifest.
+
+**Sweep widened:** `AI_FAILURES_PATTERN` defaults to `modules/(ai|provider-mobile)/`. **1,339 -> 1,432
+suites**, **33,655 -> 34,456 tests**, failures unchanged at **102 suites / 457 tests**, manifest exact.
+
+**Related:** §145, §144, `e2e-bug.422`.
+
+### e2e-bug.422 — fixtures rot against the calendar and nothing flags it — **Open**
+
+Four provider-mobile suites broke purely because time passed (§145). Each was fixed by freezing the
+clock, but the next fixture written with a literal near-future date will rot identically and surface
+months later as a mystery failure — exactly how these did.
+
+**Wanted:** a lint or gate that flags date literals in fixtures whose suite does not freeze time.
+
+**Related:** §145, `e2e-bug.421`.
+
+### e2e-bug.422 — a detector for tests that read the calendar — **Fixed 2026-08-10**
+
+A lint cannot find this class: **340** files under `modules/ai` and `modules/provider-mobile` contain an
+ISO date literal and only **8** freeze the clock, because almost all those dates are inert. Flagging
+them would report 332 non-problems.
+
+**Built `test/time-travel.setup.cjs`** — shift what the process believes *now* is, re-run, and anything
+that changes verdict was reading the calendar:
+
+```
+TIME_TRAVEL_DAYS=400 npm run test:ai-known-failures
+```
+
+- Shifts `Date` rather than using `jest.useFakeTimers()`, which also replaces `setTimeout` and would
+  produce failures about timers rather than dates.
+- Only zero-argument `new Date()` and `Date.now()` move; `new Date('2026-06-20')` is untouched, since a
+  fixture's literal must keep meaning what it says. Verified: at +400, `now` reads 2027-09-13 and the
+  literal still reads 2026-06-20.
+- Unset or `0` is a no-op, so normal runs are unaffected. Sweep still exits 0.
+
+**Found 10 tests** the manifest does not list — nine future rot (`e2e-bug.423`), one live flake fixed
+in §146.
+
+**Related:** §146, §145, `e2e-bug.423`.
+
+### e2e-bug.423 — nine tests will fail on a date, four within a week — **Open**
+
+Found by `e2e-bug.422`'s detector, sorted by when they fire:
+
+| offset | newly failing |
+|---|---|
+| **+7 days** | **4** — `ai-self-service-booking.logic` (x3), `ai-list-my-upcoming-appointments.logic`, `ai-e2e289-tour-calendar-week-locale` |
+| **+30 days** | **9** — adds `provider-mobile-time-off` (x2), `provider-mobile-self-block`, `ai-booking-depth.util`, a second `ai-list-my-upcoming-appointments.logic` |
+| +90 / +180 / +400 | 9 |
+
+The provider integration suites are the same rot §145 fixed in their unit-level siblings, so the fix is
+known: freeze the clock rather than move to relative dates, which turns a fixture into a second
+implementation of the code under test.
+
+"Breaks in seven days" is a different priority from "breaks eventually", which is why the list is
+sorted by when rather than by file.
+
+**Related:** §146, §145, `e2e-bug.422`.
+
+### e2e-bug.423 — nine date-dependent tests — **Fixed 2026-08-10**
+
+All nine fixed by freezing the clock (`Date` only — `setTimeout` and friends stay real, so this changes
+what the code thinks today is and nothing about how it runs).
+
+| suite | why | frozen to |
+|---|---|---|
+| `ai-list-my-upcoming-appointments.logic` | visits on 2026-08-15 / 08-22 asserted as two upcoming | 2026-08-01 |
+| `ai-self-service-booking.logic` | June 2026 bookings; once past, five assertions change meaning at once | 2026-06-01 |
+| `ai-e2e289-tour-calendar-week-locale` | tour week starting 2026-08-03 | **2026-08-04** |
+| `ai-booking-depth.util` | bare "June 5" rolls to next year once past — correct behaviour, asserted as `2026-06-05` | 2026-06-01 |
+| `provider-mobile-time-off` | requests from 2026-06-01; service refuses past dates | 2026-05-20 |
+| `provider-mobile-self-block` | blocks on 2026-08-09 / 08-20 | 2026-08-08 |
+
+**`ai-e2e289` needed a second attempt.** Frozen to 2026-08-01 it failed immediately: the fixture's week
+begins 2026-08-03, so from the 1st it is *next* week and the summary reads differently. A freeze date
+has to land **inside** the window the fixture describes, not merely before it. Caught because three of
+the four failures in that batch were known manifest entries and the fourth was not — the check the
+manifest exists to make possible.
+
+**Result:**
+
+```
+TIME_TRAVEL_DAYS=400 npm run test:ai-known-failures
+[AI-ROADMAP red-means-red] 102 failing suites · 457 failing tests · manifest 457
+✓ Failure set matches the manifest exactly.
+```
+
+Identical to a normal run — the suite is indifferent to the date across 1,432 suites and 34,457 tests.
+
+**Does not prevent new rot.** A fixture written tomorrow with a literal near-future date will rot the
+same way; the detector finds it, nothing stops it. Running the time-travel sweep on a schedule is the
+remaining half, and there is no scheduled job in this repository to attach it to.
+
+**Related:** §147, §146, §145, `e2e-bug.422`.
+
+### e2e-bug.358 — update 2026-08-10 (AI-ROADMAP §148): lookup_customer fixed, 0/6 → 6/6
+
+Two independent faults, both "the right code existed and something upstream got there first".
+
+**1. The richer branch was unreachable.** `ai-booking-core.service.ts` narrows to the named appointment
+only when `params.bookingContext === true` arrives with a provider, time or date. The rescue branch
+that sets exactly that sat *after* `tryRescueDashboardCustomerRead`, whose `isLookupCustomerPrompt` arm
+returns `lookup_customer` with nothing but `customerName`. Four of six cases had the right action and
+failed only on the missing params. Extracted as `lookupCustomerWithBookingContext`, called from both
+sites rather than copied into the earlier one.
+
+**2. An availability rescue answering "who is this customer".**
+`rescueExplainProviderAvailabilityIntent` claimed two cases. Three attempts, each scored against the
+8,464-case corpus:
+
+| attempt | `lookup_customer` | collateral |
+|---|---|---|
+| reorder the chain, pre-empt on booking-context | 6/6 | −1 each to `admin_delete_customer_data`, `explain_any_provider_option` |
+| narrow with `isLookupCustomerPrompt` | 4/6 | −1 to `admin_delete_customer_data` |
+| **guard inside the availability util** | **6/6** | **none** |
+
+Reordering pre-empts every branch below the insertion point, and two legitimately owned their prompts.
+Guarding inside the util also covers all **five** call sites; guarding one branch fixed only the two
+cases reachable from that chain.
+
+**Result:** corpus 95.23% → **95.3%** (8,066/8,464), no regressed intents, baseline ratcheted. Manifest
+**457 → 445** failing tests, 102 → **101** suites.
+
+**Phase 8 freeze moved 545 → 544** — `isCustomerBookingContextPrompt` now blocks another detector, so
+the inventory reclassified it `legacy_paraphrase` → `routing_shape`. A third legitimate way that number
+falls, alongside deletion, and the direction Phase 8 wants. `READY_FLOOR` untouched and still passing.
+
+**Remaining:** 23 intents, roughly 43 cases, led by `appointment_reminder_preferences` (1/1),
+`summarize_customer_tax_paid` (5 of 8) and `configure_privacy_retention` (4 of 16).
+
+**Related:** §148, §25, `e2e-bug.400`.
+
+### e2e-bug.424 — nine provider commands unroutable, because the registry had no entry — **Fixed 2026-08-10**
+
+**Found:** 2026-08-10, working `e2e-bug.358`'s remaining failures (AI-ROADMAP §149). The largest
+cluster was not the regressed intents: nine `explain_*` provider commands sat at **exactly 0%** across
+**241 eval cases**, 61% of all remaining deterministic failures. Nine intents failing completely is one
+bug, not nine.
+
+**The trace, each step checked:**
+
+| | |
+|---|---|
+| `isExplainTodayTimelinePrompt("Walk me through my day")` | **true** |
+| detector wired into the rescue chain | **yes**, two call sites |
+| `runRescueUnknownPhase(...)` direct | returns **`explain_today_timeline`** |
+| `rescue(...)` full pipeline | **`none`** |
+
+Between the last two sits `acceptRescueForSurface` → `isIntentAllowedOnSurface` → `COMMAND_REGISTRY`,
+where none of the nine had an entry. The pipeline produced the right answer and discarded it, on every
+request, silently. None has a `CommandSpec` either.
+
+This is `e2e-bug.379`'s parallel lists at their most expensive: a command can have a detector, a
+handler and eval coverage while being invisible to the list that decides whether its surface may use
+it.
+
+**Fix:** nine ids added to `PROVIDER_EXCLUSIVE_INTENTS`. **398 → 147** deterministic failures; corpus
+**95.30% → 98.26%**; all nine 0% → 100%; no regressed intents; manifest **445 → 286**.
+
+**Two gates pushed back, both correctly.** Phase 8's freeze 544 → 548 (four detectors now attributable
+to a registered intent — no detector code written). Reachability 282 → 291, the one deliberate raise of
+a "lower, never raise" ratchet: its assertion accepts switch-statement handling, and all nine were
+verified per command to have real handlers before registering — routing a command that cannot execute
+would be worse than leaving it unroutable.
+
+**Process note:** I regenerated the manifest while the reachability gate was still red, so a
+now-passing test entered it and the next sweep failed on a stale entry. Harmless — "the list only
+shrinks" caught my own ordering mistake — but the order is: fix the gates, then update the manifest.
+
+**Related:** §149, §148, `e2e-bug.358`, `e2e-bug.379`, `e2e-bug.418`.
+
+### e2e-bug.425 — compound_intent discarded on every surface — **Fixed 2026-08-10**
+
+After `e2e-bug.424`, the largest remaining cluster was `compound_intent`: **48 of 48** eval cases
+failing with `got none`, the same signature and the same cause one level along.
+
+`acceptRescueForSurface` asks `isIntentAllowedOnSurface('compound_intent', …)`, which is `false` on
+**every** surface — it is not in `COMMAND_REGISTRY` and should not be. `compound_intent` is a routing
+outcome meaning "this message contains several requests"; its *steps* are the commands, and each is
+surface-checked when dispatched. The decomposer produced the right verdict and the gate discarded it.
+
+**Fix:** listed beside `unknown` / `error` / `security_blocked`, the pseudo-actions already exempted for
+the same reason. Registering it as a command would have put it into command lists, dispatch
+reachability and the spec inventory, none of which it belongs in.
+
+**147 → 99** deterministic failures; **98.26% → 98.83%**; manifest **286 → 273**; no regressed intents.
+
+**Related:** §150, `e2e-bug.424`, `e2e-bug.426`, `e2e-bug.427`.
+
+### e2e-bug.426 — the decomposer over-claims a single-command phrasing — **Open**
+
+`create_booking_subscription_credit`'s documented example "book them using their membership" now routes
+to `compound_intent`. It names one command, so this is a misroute.
+
+**Not new.** The decomposer has always read that phrasing as two steps; `e2e-bug.425`'s surface gate was
+discarding the result before anything could observe it. It became visible the moment compounds started
+routing.
+
+Surfaced by §132's stolen ceiling on its first real test — 106 → 107, raised with the reason attached
+rather than quietly absorbed.
+
+**Related:** §150, §132, `e2e-bug.425`.
+
+### e2e-bug.427 — routing accuracy nearly promoted a compound to autonomous — **Fixed 2026-08-10**
+
+`e2e-bug.425` took `compound_intent`'s eval accuracy from 0% to 100%. `resolveExecutionMode` promotes on
+accuracy, so a **multi-step command** would have moved from `propose_only` to `autonomous` with nothing
+about its execution having changed.
+
+The corpus asserts `rescuedAction` — which command a prompt reaches. For most commands that stands in
+for both routing and execution; for a compound it says only that the message was recognised as
+multi-step. §135 is the counter-evidence: compound failures on real traffic are dominated by one
+constituent step (`book_nearest_slot`, in 148 of 222 failed compounds), which no `rescuedAction`
+assertion can see.
+
+**Fix:** `EXECUTION_UNPROVEN_BY_EVAL` plus a new verdict reason `execution_unproven`, holding it in
+`propose_only` while reporting its real accuracy — rather than pretending the number is lower than it
+is. The number is right; it is measuring a different thing.
+
+**Related:** §150, §135, `e2e-bug.425`.
+
+### e2e-bug.428 — two category extractors skipped their own guards — **Fixed 2026-08-10**
+
+With the routing clusters gone (`e2e-bug.424`, `.425`), the largest remaining mechanical group was seven
+`compoundStepParams[0].params.serviceCategory` mismatches in two shapes:
+
+```
+expected "styling",  got "affordable"
+expected "facial",   got "facials"
+```
+
+Both are one line, in two files. `extractBudgetDiscoverServiceCategory` and
+`extractRankDiscoverServiceCategory` each begin:
+
+```ts
+const fromList = enrichListServicesParamsFromPrompt(prompt, {});
+if (fromList.serviceCategory) return fromList.serviceCategory;   // guards skipped
+```
+
+Every other path in those functions runs `SERVICE_CATEGORY_BLOCKLIST` — which already contains
+`"affordable"`, the price adjective that precedes the real category in "affordable styling options" —
+and, in the budget file, `normalizeBudgetServiceCategory`, which singularises. The one path most likely
+to produce a category was the one that skipped the checks written for it.
+
+Only those two sites exist; verified rather than assumed.
+
+**Result:** 99 → **93** deterministic failures, 98.83% → **98.90%**, the
+`list_services+check_providers_for_service+create_booking` recipe **89.74% → 97.44%**, manifest
+**273 → 271**, no regressed intents.
+
+**Why they outlived the routing work:** they present as a param mismatch inside a recipe already
+scoring 89.74%, so every intent-ranked cluster view buried them. They became visible only once the 0%
+intents were gone — an argument for re-clustering after each fix rather than working a list written
+once.
+
+**Related:** §151, `e2e-bug.425`, `e2e-bug.358`.
+
+### e2e-bug.429 — "checkout" counted as a tour topic — **Fixed 2026-08-10**
+
+`fix_checkout_validation_error` was the largest remaining cluster (9 of 29), and **8 of those 9** were
+taken by `diagnose_tour_capacity` on prompts with no tour in them:
+
+> "Checkout won't accept my email even though it's there" · "Privacy checkbox validation error blocks
+> checkout confirm" · "Cannot complete checkout — validation error on contact fields"
+
+`isDiagnoseTourCapacityPrompt` requires a checkout-rejection cue **and** a tour capacity topic — but the
+topic test listed `checkout|booking page`, so the two conditions collapsed into one.
+
+**Four attempts, each scored against the 8,464-case corpus:**
+
+| attempt | failures | effect |
+|---|---|---|
+| remove `checkout` from the topic test | 90 | fixes 8, **costs 5 tour cases** |
+| add `tour` / `fully booked` / `date full` | 89 | costs 2 tour, 2 `explain_tour_day_slots` |
+| the word `tour` alone | 87 | costs 2 tour |
+| **exclude checkout form-field complaints** | **86** | **fixes 8, costs nothing** |
+
+The first three ask "which words prove a tour". The last asks what separates the populations, which the
+prompts answer: the stolen ones name the *field* the form rejected; the kept ones name what is *full*.
+
+Positive vocabulary could not have worked — "Ինչու checkout-ը չի ընդունում 15/08/2026-ը Mountain Trek-ի
+համար" names its tour only by name, so no word list reaches it, while a negative test on form fields
+leaves it alone.
+
+**Result:** 93 → **86** failures, 98.90% → **98.98%**, `fix_checkout_validation_error` 68.97% →
+**93.1%**, `diagnose_tour_capacity` back to **100%**, no regressed intents.
+
+**Related:** §152, §151, `e2e-bug.358`.
+
+### e2e-bug.430 — deactivate_service: a mislabelled reason and a greedy capture — **Fixed 2026-08-10**
+
+Largest remaining cluster at 8 of 16; two unrelated faults sharing an intent.
+
+**Seven — the reason described the correction, not the request.** Category-wide prompts ("Hide all hair
+services from public catalog") asserted `rescueReason: deactivate_service_category_scope` and got the
+generic `deactivate_service`. `isDeactivateServiceCategoryScopePrompt` returns **true** for all seven
+(checked first); the scoped rescue never runs because it opens with
+`if (action === 'deactivate_service') return null`. That is reasonable for an action needing no
+correction — but a reason is not only a record of a correction. It names the shape of the request, and
+that shape is the difference between deactivating one service and a whole category. Fixed where the
+label is written; the branch already built its params with the scope-aware enricher, so only the label
+was wrong.
+
+**One — a greedy capture.** "Disable Deluxe Facial from the service catalog" gave
+`serviceName: "Deluxe Facial from the"`. The pattern anchors on `\s+service\b`, the prompt has that
+word twice, and the capture ran to the second. A later pattern reads it correctly but matches after.
+Stripped the tail in the same idiom as the existing `\s+service$` strip.
+
+**Result:** `deactivate_service` **50% → 100%**; 86 → **78** deterministic failures; 98.98% →
+**99.08%**; no regressed intents.
+
+**A false start, recorded:** the first attempt fixed the reason in `ai-catalog.util.ts` and moved
+nothing (86 before, 86 after) — a producer in `ai-intent-rescue.service.ts` fires first. Both now label
+correctly, but the `ai-catalog.util.ts` pair (reason and extractor) are the same corrections on a
+sibling path this corpus does not exercise. Kept because the defect is identical and the path is live
+in production; **unverified**, not counted as fixes.
+
+**Related:** §153, §152, `e2e-bug.358`.
+
+### e2e-bug.431 — explain_business_tax took the customer tax-paid cases — **Fixed 2026-08-10**
+
+Largest remaining cluster: `summarize_customer_tax_paid` at 5 of 8, all five stolen by
+`explain_business_tax`.
+
+> "How much tax has Jane paid across her appointments?" · "What tax did Maria pay on her booking
+> history?" · "Across Jane's paid visits, how much VAT did she pay in total?"
+
+Each names a customer and asks what *they* paid — none is about the business's tax settings.
+`isSummarizeCustomerTaxPaidPrompt` returns **true** for all five (checked first), so the detector was
+right and something upstream answered.
+
+`isExplainBusinessTaxPrompt` already declines three sibling intents (`set_service_tax_rate`,
+`explain_stacked_tax`, `configure_business_tax`). `summarize_customer_tax_paid` was simply missing from
+that list. One line, in the file's own convention.
+
+**A near-miss, recorded not fixed:** the same function declines appointment-scoped prompts via
+`/\b(appointment|…)\b/`, which does **not** match "appointments" — the word four of these five prompts
+use. The new exclusion makes it moot; widening a second pattern in the same change would have made
+neither attributable.
+
+**Result:** 78 → **73** deterministic failures, 99.08% → **99.14%**, that intent 37.5% → **100%**, no
+regressed intents. Manifest **271 → 265** tests, 98 → **97** suites.
+
+**Related:** §154, §152, `e2e-bug.358`.
+
+### e2e-bug.432 — "retention" is two different words — **Fixed 2026-08-10**
+
+Largest remaining cluster: `configure_privacy_retention` at 4 of 16, all four taken by
+`summarize_customers`.
+
+> "Set customer PII retention to 730 days" · "Set audit log retention to 7 years"
+
+Both are configuration, and both were answered with a customer report — the user asked to change a
+setting and got analytics.
+
+`isCustomerRetentionRatePrompt` matched the **bare word**: `/\bretention\b/i.test(prompt) || …`.
+Customer retention is analytics (do customers come back); data retention is a setting. Guarded by the
+sibling detector `isConfigurePrivacyRetentionPrompt` rather than by listing PII and audit-log
+vocabulary, so the two stay in step.
+
+**I patched the wrong predicate first.** `isCustomerRetentionPrompt` in `ai-dashboard-ops.util.ts` has
+the identical homonym, and fixing it changed nothing — **73 failures before, 73 after**. Asking the
+rescue service what reason it actually returned gave `customer_retention_rate`, not
+`customer_retention`: a different producer, in a different file, one letter apart in the reason
+string. One probe, run first, would have saved the wrong fix. The dashboard-ops guard is kept (the
+homonym there is real) and recorded as **unverified**.
+
+**Result:** 73 → **69** deterministic failures, 99.14% → **99.18%**, that intent 75% → **100%**, no
+regressed intents. Manifest **265 → 262**.
+
+**Related:** §155, §154, §153, `e2e-bug.358`.
+
+### e2e-bug.371 — shared alias map could act on the wrong person — **Mitigated 2026-08-10**
+
+First item of the sequenced debt plan; the only one with a privacy consequence rather than a
+correctness one.
+
+`AiEntityMemoryService` keys one alias map per **business**, with no user dimension. Every user
+contributes to it and is served from it, and the stored shape carries `customerName`.
+
+**Two paths out — the ticket described only the first:**
+
+1. `formatEntityMemoryContextBlock` printed `customer=<name>` into the classifier context of whoever
+   asked next — disclosure.
+2. `applyEntityMemoryToParams` wrote `customerName` **and** `waitlistCustomerName` into **command
+   params**, so one person's customer could be *acted on* in another person's request. "offer slot to
+   john" filling `waitlistCustomerName: 'John Smith'` from a stranger's conversation is a waitlist
+   offer to the wrong person. Found by reading the util rather than the service.
+
+**Live exposure:**
+
+| | |
+|---|---|
+| businesses with a stored alias map | 4 |
+| stored aliases | **211** |
+| carrying a `customerName` | **16** |
+
+**Fix:** `stripSharedEntityMemoryPii`, applied on **write** (`mergeEntityMemory`) and on **read** (the
+formatter and the param filler no longer touch `customerName`). Both sides deliberately: stopping
+writes alone leaves the 16 stored names reachable; filtering reads neutralises them with no migration.
+
+`employeeName`, `serviceName` and `templateName` are business-level facts and stay shared — pinned by a
+test that still fills them from the map.
+
+**Two tests were pinning the vulnerability** — one asserted `customer=John` renders, the other that
+`waitlistCustomerName` gets filled from a `customerName` alias. Both now assert the opposite and name
+what they guard. A test that pins a leak is worse than no test: it makes the fix look like a
+regression.
+
+**Outstanding:**
+
+- [ ] purge the 16 stored `customerName` values — a data decision, deliberately not done silently
+- [ ] per-user memory if the capability is wanted; needs a user dimension (`e2e-bug.401`)
+
+**Verified:** `ai-entity-memory` + `ai-settings` 34/34; fast chain 3,943/0; sweep exit 0 (97 suites /
+262 tests); lint clean.
+
+**Related:** §156, `e2e-bug.401`.
+
+### e2e-bug.416 — the corpus is labelled — **Labelled 2026-08-10, write-time marker outstanding**
+
+Second item of the sequenced plan, and the precondition for the rest: every traffic-weighted decision
+was inheriting a false weighting.
+
+**Done.** `AI-ROADMAP` **§0.0 — "How to read the numbers in this document"**, placed above the
+executive summary rather than at §139 where it was written, because a caveat nobody reaches is not a
+caveat. It names the corpus shape (5 businesses, 27 users, 95% one business, 75% repeated prompts,
+"Help me with this page" 125× in 2 days with zero distinct users) and tabulates exactly which figures
+to distrust:
+
+| where | what to distrust |
+|---|---|
+| §1.1, `e2e-bug.361` | "customer carries 69% of traffic" |
+| §133 | the per-action ranking by volume (the failure rates stand) |
+| §92, §119, §128, §130 | trace-weighted recovery |
+| §128 | per-domain sample sizes |
+
+The caveat is repeated inline on **§128, §130 and §133** — the three whose numbers still decide
+something.
+
+**Deliberately not done: rewriting history.** Sections written before §139 quote these figures without
+the caveat and are left as written; they record what was believed when the decision was taken. §0.0 is
+the correction that applies to all of them.
+
+**Two rules recorded:** prefer prompt-weighted counts over trace-weighted ones (§130's two *identical*
+runs scored 30.6% and 32.4% while both landed on 27 and 28 prompts), and prioritise by defect
+evidence, never volume, until real traffic exists.
+
+**Outstanding — needs an owner.** Marking synthetic traffic at write time, so this is answerable by
+query instead of forensics. I did not add the column: the QA harness is external and nothing in this
+repo would set it, and a capability nobody calls is the precise failure mode of `e2e-bug.392`, `.368`,
+`.369`, `.370`, `.373`, `.374` and `.424`. Building a seventh would be a poor answer to a ticket about
+misleading evidence.
+
+**Related:** §0.0, §139.
+
+### e2e-bug.433 — "dates displayed" read as a provider's name — **Fixed 2026-08-10**
+
+Wave 1, resuming the accuracy loop at 69 failures. Clustering by **error kind** rather than intent
+found one detector responsible for **17 of the 69** — a quarter of everything left, across eight
+victim intents.
+
+| prompt | "provider name" extracted |
+|---|---|
+| How are dates displayed in the dashboard? | **dates displayed** |
+| Why are amounts shown in dram (֏)? | **amounts shown** |
+| Is VAT included in the amount we collected? | **VAT included** |
+| Why did Stripe charge $113 with GST and PST lines? | **GST** |
+| Show what Spa Day package is titled in Armenian | **titled** |
+| Who is the expert in men's fades? | **the expert** |
+
+**Why one bad capture defeats everything.** `isExplainProviderAvailabilityPrompt` blocks booking
+verbs, soonest-slot asks, ranking and specialty reads — all *below* the line that treats a successfully
+extracted name as proof of a named-schedule question. And `PROVIDER_NAME_BLOCKLIST` is exact-match on
+single words, so nothing multi-word and no acronym was ever tested against it.
+
+**Fix:** `looksLikeProviderName` — no blocklisted token **anywhere** ("the expert" fails on "the"), at
+most three tokens, and one token reading as a proper noun (initial capital, not ALL-CAPS: admits
+"Maria" and "Anna Smith", rejects "GST" and "VAT included").
+
+**One deliberate exception:** a prompt typed entirely in lower case carries no capitalisation signal,
+so a single token passes. "when is maria free?" is a real thing to type, and without a catalogue there
+is nothing better to check against. Written as a rule so it is not mistaken for an oversight later.
+
+**Result:** 69 → **51** failures, 99.18% → **99.40%**, **ten intents improved, none regressed** —
+`explain_notification_currency`, `explain_tenant_currency`, `explain_checkout_currency`,
+`explain_business_date_format`, `explain_package_display_name`, `explain_public_booking_checkout` and
+`search_retail_sku` all to 100%. Manifest **262 → 246**, 97 → **92** suites.
+
+**Still open from this cluster:** two of the 17 are not parsing failures. "Same time with Maria
+instead" extracts **Maria** correctly and belongs to `switch_provider_same_time` — a sibling exclusion
+of the §154 kind, left separate so both stay attributable.
+
+**Related:** §157, §151, §154, `e2e-bug.358`.

@@ -139,7 +139,9 @@ describe('ai-execution-confirm.util', () => {
   describe('e2e-bug.158 — update_service_duration_buffer requires confirmation', () => {
     it('gates duration updates like update_service_prices (facemassage incident)', () => {
       expect(
-        requiresDashboardExecutionConfirmation('update_service_duration_buffer'),
+        requiresDashboardExecutionConfirmation(
+          'update_service_duration_buffer',
+        ),
       ).toBe(true);
       expect(
         requiresDashboardExecutionConfirmation('update_service_prices'),

@@ -54,6 +54,14 @@ export type PipelineStage =
   /** pipe-1 understand phase */
   | 'normalize'
   | 'fast_heuristics'
+  /**
+   * e2e-bug.392 — the §15 planner contributing a routing candidate.
+   *
+   * Distinct from the completion-phase `plan` stage below, which is where an
+   * already-chosen action gets its execution plan. This one is upstream and
+   * decides *which* action, gated per domain by `AI_PLANNER_EXECUTE_DOMAINS`.
+   */
+  | 'planner'
   | 'classify'
   | 'confidence_gate'
   | 'semantic_match'

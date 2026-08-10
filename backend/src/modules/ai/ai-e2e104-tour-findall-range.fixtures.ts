@@ -14,7 +14,8 @@ export const E2E104_TOUR_FINDALL_RANGE_SCENARIOS = [
   },
   {
     id: 'e2e-bug-104-same-day-capacity-lookup',
-    prompt: 'Why did checkout reject 4 people for the mountain trek on 20/08/2026?',
+    prompt:
+      'Why did checkout reject 4 people for the mountain trek on 20/08/2026?',
     dateKey: '2026-08-20',
   },
 ] as const;

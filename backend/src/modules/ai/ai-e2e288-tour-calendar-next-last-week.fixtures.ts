@@ -95,7 +95,8 @@ export const E2E288_UPCOMING_NEGATIVES: readonly E2e288TourWeekCase[] = [
   },
   {
     id: 'e288-neg-span-explain',
-    prompt: 'Why do tours appear across multiple days on the provider calendar?',
+    prompt:
+      'Why do tours appear across multiple days on the provider calendar?',
     expectCalendarWeek: false,
     expectUpcoming: false,
   },

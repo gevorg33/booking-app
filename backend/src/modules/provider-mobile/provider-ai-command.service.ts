@@ -1,3 +1,5 @@
+import { stampCommandTraceDetails } from '../ai/ai-command-trace-recorder.util.js';
+import type { PipelineTrace } from '../ai/command-completion.types.js';
 import {
   Injectable,
   Logger,
@@ -379,6 +381,16 @@ interface ParsedIntent {
   reasoning: string;
 }
 
+/**
+ * Carries what the understand pipeline learned back out to `executeCommand`,
+ * which stamps it onto the result (e2e-bug.420). Created per call.
+ */
+type ProviderTraceSink = {
+  pipelineTrace?: PipelineTrace[];
+  confidence?: number;
+  params?: Record<string, unknown>;
+};
+
 @Injectable()
 export class ProviderAiCommandService {
   private readonly logger = new Logger(ProviderAiCommandService.name);
@@ -446,12 +458,50 @@ export class ProviderAiCommandService {
     private emptyStateGuide: AiProductGuideEmptyStateService,
   ) {}
 
+  /**
+   * e2e-bug.420 — stamp the pipeline trace and resolved params onto the result.
+   *
+   * The same gap §137 and §143 found on the customer surface, in the same shape:
+   * `pipelineTrace` appeared exactly once in this file, inside the `blocked`
+   * branch, out of 233 returns. The corpus shows the consequence — **3 of 498**
+   * provider traces carry a pipeline trace (0.6%) and **98.2%** store empty
+   * params, so nothing about which stage decided a provider action, or what that
+   * action received, was ever recorded.
+   *
+   * Wrapped rather than stamped at each exit, and the sink is per call so
+   * concurrent requests cannot see each other's trace — see §137 for both.
+   */
   async executeCommand(
     businessId: string,
     userId: string,
     prompt: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     context?: Record<string, unknown>,
+  ): Promise<ProviderCommandResult> {
+    const sink: ProviderTraceSink = {};
+    const result = await this.runCommand(
+      businessId,
+      userId,
+      prompt,
+      history,
+      context,
+      sink,
+    );
+    if (!sink.pipelineTrace) return result;
+    return stampCommandTraceDetails(result, {
+      pipelineTrace: sink.pipelineTrace,
+      confidence: sink.confidence,
+      params: sink.params,
+    });
+  }
+
+  private async runCommand(
+    businessId: string,
+    userId: string,
+    prompt: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    context?: Record<string, unknown>,
+    sink: ProviderTraceSink = {},
   ): Promise<ProviderCommandResult> {
     if (!(await this.llm.isAvailableForBusiness(businessId))) {
       const fallback = await runAiUnavailableStaticGuideFallback({
@@ -567,11 +617,7 @@ export class ProviderAiCommandService {
       assistantMode: context?.assistantMode as 'guide' | 'act' | undefined,
     });
     // e2e-bug.266 — "Ինչպե՞ս եմ…" is my_stats, not a product-guide tour.
-    if (
-      guideMatch.matched &&
-      guideMatch.intent &&
-      !isMyStatsPrompt(prompt)
-    ) {
+    if (guideMatch.matched && guideMatch.intent && !isMyStatsPrompt(prompt)) {
       return this.attachProviderSession(
         await this.dispatchProviderAppGuideIntent(
           businessId,
@@ -717,6 +763,12 @@ export class ProviderAiCommandService {
           narrowShortlist,
         ),
     });
+
+    // Before the blocked/clarify exits, which are the paths most worth
+    // attributing and return long before dispatch.
+    sink.pipelineTrace = understood.trace;
+    sink.confidence = understood.confidence;
+    sink.params = understood.params;
 
     if (understood.status === 'blocked') {
       return {
@@ -878,7 +930,7 @@ export class ProviderAiCommandService {
       rescueReason = mobileFix.rescueReason;
     }
 
-    if ((parsed.action as string) === 'add_retail_to_my_booking') {
+    if (parsed.action === 'add_retail_to_my_booking') {
       parsed.action = 'add_retail_to_booking';
       rescueReason = 'retail_action_alias';
     }
@@ -1061,7 +1113,9 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
-          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
+          typeof context?.bookingId === 'string'
+            ? context.bookingId
+            : undefined,
         );
         break;
       case 'mark_visit_in_progress':
@@ -1071,7 +1125,9 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
-          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
+          typeof context?.bookingId === 'string'
+            ? context.bookingId
+            : undefined,
         );
         break;
       case 'mark_multi_service_step_done':
@@ -1081,7 +1137,9 @@ export class ProviderAiCommandService {
           parsed.params,
           userId,
           context?.confirmed === true,
-          typeof context?.bookingId === 'string' ? context.bookingId : undefined,
+          typeof context?.bookingId === 'string'
+            ? context.bookingId
+            : undefined,
           prompt,
         );
         break;
@@ -1282,7 +1340,10 @@ export class ProviderAiCommandService {
       case 'suggest_retail_upsell':
         result = await this.retailFinance.handleSuggestRetailUpsell(
           businessId,
-          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
           prompt,
         );
         break;
@@ -1453,7 +1514,10 @@ export class ProviderAiCommandService {
       case 'my_resource_assignments':
         result = await this.scheduleResources.handleMyResourceAssignments(
           businessId,
-          { ...parsed.params, sessionEmployeeId: scopedEmployeeId ?? undefined },
+          {
+            ...parsed.params,
+            sessionEmployeeId: scopedEmployeeId ?? undefined,
+          },
         );
         break;
       case 'block_resource_unavailable':
@@ -1653,9 +1717,10 @@ export class ProviderAiCommandService {
         });
         break;
       case 'explain_app_update_gate':
-        result = await this.pushNotifications.handleProviderExplainAppUpdateGate(
-          parsed.params,
-        );
+        result =
+          await this.pushNotifications.handleProviderExplainAppUpdateGate(
+            parsed.params,
+          );
         break;
       case 'dismiss_push':
         result = await this.pushNotifications.handleDismissPush({
@@ -2028,16 +2093,17 @@ export class ProviderAiCommandService {
           );
         break;
       case 'notify_patient_book_lab': {
-        const pushResult = await this.clinicLabBooking.handlePushLabBookingToPatient(
-          businessId,
-          userId,
-          {
-            ...parsed.params,
-            sessionEmployeeId: scopedEmployeeId ?? undefined,
-          },
-          prompt,
-          context?.confirmed === true,
-        );
+        const pushResult =
+          await this.clinicLabBooking.handlePushLabBookingToPatient(
+            businessId,
+            userId,
+            {
+              ...parsed.params,
+              sessionEmployeeId: scopedEmployeeId ?? undefined,
+            },
+            prompt,
+            context?.confirmed === true,
+          );
         result = { ...pushResult, action: 'notify_patient_book_lab' };
         break;
       }
@@ -2055,12 +2121,13 @@ export class ProviderAiCommandService {
         );
         break;
       case 'explain_clinic_task':
-        result = await this.providerClinicTasksAndResults.handleExplainClinicTask(
-          businessId,
-          userId,
-          parsed.params,
-          prompt,
-        );
+        result =
+          await this.providerClinicTasksAndResults.handleExplainClinicTask(
+            businessId,
+            userId,
+            parsed.params,
+            prompt,
+          );
         break;
       case 'open_patient_chart': {
         let chartParams = { ...parsed.params } as Record<string, unknown>;
@@ -2087,12 +2154,13 @@ export class ProviderAiCommandService {
             }
           }
         }
-        const chartResult = await this.clinicPatientChart.handleExplainPatientChart(
-          businessId,
-          userId,
-          chartParams,
-          prompt,
-        );
+        const chartResult =
+          await this.clinicPatientChart.handleExplainPatientChart(
+            businessId,
+            userId,
+            chartParams,
+            prompt,
+          );
         result = { ...chartResult, action: 'open_patient_chart' };
         break;
       }
@@ -2126,9 +2194,8 @@ export class ProviderAiCommandService {
           );
         break;
       case 'gift_card_creation_queue':
-        result = await this.giftFulfillment.handleGiftCardCreationQueue(
-          businessId,
-        );
+        result =
+          await this.giftFulfillment.handleGiftCardCreationQueue(businessId);
         break;
       case 'start_card_preparation':
         result = await this.giftFulfillment.handleStartCardPreparation(
@@ -2244,7 +2311,13 @@ export class ProviderAiCommandService {
       return this.handlePushConfirmCheckIn(businessId, userId, prompt, context);
     }
     if (isCancelAndRecoverPrompt(prompt)) {
-      return this.handleCancelAndRecover(businessId, userId, prompt, access, context);
+      return this.handleCancelAndRecover(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isClinicDrawFlowPrompt(prompt)) {
       return this.handleClinicDrawFlow(businessId, userId, prompt, context);
@@ -2253,40 +2326,112 @@ export class ProviderAiCommandService {
       return this.handleClinicDrawPatient(businessId, userId, prompt, context);
     }
     if (isPushMarkPaidClosePrompt(prompt)) {
-      return this.handlePushMarkPaidClose(businessId, userId, prompt, access, context);
+      return this.handlePushMarkPaidClose(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isManagerFloorSweepPrompt(prompt)) {
-      return this.handleManagerFloorSweep(businessId, userId, prompt, access, context);
+      return this.handleManagerFloorSweep(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isPendingConfirmDayPrompt(prompt)) {
-      return this.handlePendingConfirmDay(businessId, userId, prompt, access, context);
+      return this.handlePendingConfirmDay(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isCheckInStartCompletePrompt(prompt)) {
-      return this.handleCheckInStartComplete(businessId, userId, prompt, access, context);
+      return this.handleCheckInStartComplete(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isRetailCloseoutPrompt(prompt)) {
-      return this.handleRetailCloseout(businessId, userId, prompt, access, context);
+      return this.handleRetailCloseout(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isGapWalkInBookPrompt(prompt)) {
-      return this.handleGapWalkInBook(businessId, userId, prompt, access, context);
+      return this.handleGapWalkInBook(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isNoShowRecoverPrompt(prompt)) {
-      return this.handleNoShowRecover(businessId, userId, prompt, access, context);
+      return this.handleNoShowRecover(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isEndOfDayClosePrompt(prompt)) {
-      return this.handleEndOfDayClose(businessId, userId, prompt, access, context);
+      return this.handleEndOfDayClose(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isGapWaitlistFillPrompt(prompt)) {
-      return this.handleGapWaitlistFill(businessId, userId, prompt, access, context);
+      return this.handleGapWaitlistFill(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isRescheduleAndNotifyPrompt(prompt)) {
-      return this.handleRescheduleAndNotify(businessId, userId, prompt, access, context);
+      return this.handleRescheduleAndNotify(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isRunningLateNotifyPrompt(prompt)) {
-      return this.handleRunningLateNotify(businessId, userId, prompt, access, context);
+      return this.handleRunningLateNotify(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isChairCloseoutPrompt(prompt)) {
-      return this.handleChairCloseout(businessId, userId, prompt, access, context);
+      return this.handleChairCloseout(
+        businessId,
+        userId,
+        prompt,
+        access,
+        context,
+      );
     }
     if (isMultiServiceBriefPrompt(prompt)) {
       return this.handleMultiServiceBrief(businessId, userId, prompt, context);
@@ -2382,7 +2527,8 @@ export class ProviderAiCommandService {
       summary: 'Could not mark you running late.',
       details: { clarify: true },
     };
-    if (!lateStep.success) return { ...lateStep, action: 'running_late_notify' };
+    if (!lateStep.success)
+      return { ...lateStep, action: 'running_late_notify' };
 
     const messageStep = (await this.providerExp3.handleIntent(
       businessId,
@@ -2709,7 +2855,10 @@ export class ProviderAiCommandService {
         prompt,
       );
     if (!queueStep.success) {
-      return { ...queueStep, action: 'clinic_draw_flow' } as ProviderCommandResult;
+      return {
+        ...queueStep,
+        action: 'clinic_draw_flow',
+      };
     }
 
     const chartParams = { ...params, ...(queueStep.details ?? {}) };
@@ -2738,7 +2887,7 @@ export class ProviderAiCommandService {
         chart: chartStep.details,
         collect: collectStep.details,
       },
-    } as ProviderCommandResult;
+    };
   }
 
   private async handlePushConfirmCheckIn(
@@ -2860,11 +3009,17 @@ export class ProviderAiCommandService {
         success: false,
         action: 'check_in_start_complete',
         summary: `${checkInStep.summary} ${progressStep.summary}`,
-        details: { checkIn: checkInStep.details, progress: progressStep.details },
+        details: {
+          checkIn: checkInStep.details,
+          progress: progressStep.details,
+        },
       };
     }
 
-    const completeParams = { ...progressParams, ...(progressStep.details ?? {}) };
+    const completeParams = {
+      ...progressParams,
+      ...(progressStep.details ?? {}),
+    };
     const completeStep = await this.handleMarkVisitComplete(
       businessId,
       access,
@@ -2874,7 +3029,8 @@ export class ProviderAiCommandService {
     );
 
     return {
-      success: checkInStep.success && progressStep.success && completeStep.success,
+      success:
+        checkInStep.success && progressStep.success && completeStep.success,
       action: 'check_in_start_complete',
       summary: `${checkInStep.summary} ${progressStep.summary} ${completeStep.summary}`,
       details: {
@@ -2929,7 +3085,11 @@ export class ProviderAiCommandService {
       };
     }
 
-    const paidParams = { ...addParams, ...(addStep.details ?? {}), _prompt: prompt };
+    const paidParams = {
+      ...addParams,
+      ...(addStep.details ?? {}),
+      _prompt: prompt,
+    };
     const paidStep = await this.providerBooking.handleMarkPaid(
       businessId,
       paidParams,
@@ -3082,11 +3242,12 @@ export class ProviderAiCommandService {
   ): Promise<ProviderCommandResult> {
     const params: Record<string, unknown> = { ...context, _prompt: prompt };
 
-    const groupsStep = await this.providerBooking.handleListMyMultiServiceGroups(
-      businessId,
-      prompt,
-      { ...params },
-    );
+    const groupsStep =
+      await this.providerBooking.handleListMyMultiServiceGroups(
+        businessId,
+        prompt,
+        { ...params },
+      );
     if (!groupsStep.success) {
       return { ...groupsStep, action: 'multi_service_brief' };
     }
@@ -3920,8 +4081,7 @@ export class ProviderAiCommandService {
       return {
         success: false,
         action: 'update_provider_profile',
-        summary:
-          'What should I update on your profile — title or avatar URL?',
+        summary: 'What should I update on your profile — title or avatar URL?',
         details: { clarify: true, missing: ['title', 'avatarUrl'] },
       };
     }
@@ -4238,9 +4398,7 @@ export class ProviderAiCommandService {
     employeeId: string | undefined,
     customerName: string,
   ): Promise<
-    | { bookingId: string }
-    | { clarify: ProviderCommandResult }
-    | null
+    { bookingId: string } | { clarify: ProviderCommandResult } | null
   > {
     const day = toIsoDay(todayDisplay());
     const range = this.resolveDateRange({ date: day });
@@ -4379,14 +4537,14 @@ export class ProviderAiCommandService {
     const promptHasStep = parsedFromPrompt?.stepIndex != null;
     const promptHasService = !!parsedFromPrompt?.serviceName;
     const stepIndex = promptHasStep
-      ? parsedFromPrompt!.stepIndex!
+      ? parsedFromPrompt.stepIndex!
       : promptHasService
         ? null
         : typeof params.stepIndex === 'number'
           ? params.stepIndex
           : null;
     const serviceName = promptHasService
-      ? parsedFromPrompt!.serviceName
+      ? parsedFromPrompt.serviceName
       : promptHasStep
         ? undefined
         : typeof params.serviceName === 'string' && params.serviceName.trim()
@@ -4462,7 +4620,11 @@ export class ProviderAiCommandService {
       success: true,
       action: 'search_patient',
       summary: formatPatientSearchResultsText(query, result.patients),
-      details: { query, patients: result.patients, count: result.patients.length },
+      details: {
+        query,
+        patients: result.patients,
+        count: result.patients.length,
+      },
     };
   }
 
@@ -4476,9 +4638,14 @@ export class ProviderAiCommandService {
   ): Promise<ProviderCommandResult> {
     if (!params.date) params.date = toIsoDay(todayDisplay());
     const employeeId = this.providerMobile.getScopedEmployeeId(access);
-    const matched = await this.findMatchingBookings(businessId, employeeId, params, {
-      excludeCancelled: true,
-    });
+    const matched = await this.findMatchingBookings(
+      businessId,
+      employeeId,
+      params,
+      {
+        excludeCancelled: true,
+      },
+    );
     const bookings = matched.filter((b) => b.status === BookingStatus.PENDING);
 
     if (bookings.length === 0) {
@@ -5569,7 +5736,8 @@ export class ProviderAiCommandService {
     }
 
     const hasExplicitBookingId =
-      typeof params.bookingId === 'string' && params.bookingId.trim().length > 0;
+      typeof params.bookingId === 'string' &&
+      params.bookingId.trim().length > 0;
     if (hasExplicitBookingId) {
       where.id = params.bookingId;
     } else {

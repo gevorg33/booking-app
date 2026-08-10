@@ -150,10 +150,12 @@ export const E2E83_LIVE_CASES = [
   },
   {
     id: 'gift-card-apply-still-works',
-    description: 'Real gift-card apply prompts still route to apply_gift_card_code',
+    description:
+      'Real gift-card apply prompts still route to apply_gift_card_code',
   },
   {
     id: 'promo-and-refer-controls',
-    description: 'Bare promo apply + refer-a-friend stay off claim_referral_code',
+    description:
+      'Bare promo apply + refer-a-friend stay off claim_referral_code',
   },
 ] as const;

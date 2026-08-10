@@ -1,6 +1,4 @@
-import {
-  gatePublicAssistantActionLogic,
-} from './ai-platform.logic.js';
+import { gatePublicAssistantActionLogic } from './ai-platform.logic.js';
 import {
   intentAllowlistIncludes,
   readRegistryIntentList,
@@ -20,7 +18,9 @@ describe('e2e-bug.90 public assistant intents gate never throws on undefined all
     expect(readRegistryIntentList(undefined)).toBeUndefined();
     expect(readRegistryIntentList(null)).toBeUndefined();
     expect(readRegistryIntentList([])).toBeUndefined();
-    expect(readRegistryIntentList(['list_services'])).toEqual(['list_services']);
+    expect(readRegistryIntentList(['list_services'])).toEqual([
+      'list_services',
+    ]);
   });
 
   it('resolvePublicAssistantIntentAllowlistFrom falls back when registry is undefined', () => {
@@ -101,7 +101,9 @@ describe('e2e-bug.90 public assistant intents gate never throws on undefined all
 
   it('PUBLIC_ONLY_ASSISTANT_ACTIONS leaf covers every e2e90 discovery action', () => {
     for (const action of E2E90_DISCOVERY_ACTIONS) {
-      expect(PUBLIC_ONLY_ASSISTANT_ACTIONS.includes(action as never)).toBe(true);
+      expect(PUBLIC_ONLY_ASSISTANT_ACTIONS.includes(action as never)).toBe(
+        true,
+      );
     }
   });
 

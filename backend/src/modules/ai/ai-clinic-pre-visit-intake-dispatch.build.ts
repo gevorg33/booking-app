@@ -32,7 +32,12 @@ export function buildClinicPreVisitIntakeLogicDispatchMap(): ReadonlyMap<
     ),
   );
   map.set('staff_submit_intake_answers', async (deps, ctx) =>
-    handleStaffSubmitIntakeAnswersLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleStaffSubmitIntakeAnswersLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
 
   return map;

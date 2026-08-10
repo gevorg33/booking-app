@@ -26,6 +26,39 @@ export const COMMAND_TRACE_OUTCOME_SCENARIOS: CommandTraceOutcomeScenario[] = [
     expectedOutcome: 'clarified',
   },
   {
+    // e2e-bug.411 — the shape 646 call sites across 178 files actually use.
+    // Only `needsClarification` (19 sites) was recognised, so every handler
+    // asking the user a question was recorded as a failure.
+    id: 'clarified-clarify-key',
+    result: {
+      success: false,
+      action: 'claim_referral_code',
+      details: { clarify: true, missing: ['referralCode'] },
+    },
+    expectedOutcome: 'clarified',
+  },
+  {
+    id: 'clarified-structured-request',
+    result: {
+      success: false,
+      action: 'find_soonest_appointment',
+      details: { clarifyRequest: { field: 'serviceName' } },
+    },
+    expectedOutcome: 'clarified',
+  },
+  {
+    // The boundary: a real failure must stay a failure. Reclassifying these
+    // would hide defects behind a friendlier label, which is the opposite of
+    // what this change is for.
+    id: 'failed-not-a-question',
+    result: {
+      success: false,
+      action: 'pay_online',
+      details: { reason: 'card_declined' },
+    },
+    expectedOutcome: 'failed',
+  },
+  {
     id: 'approval-preview',
     result: {
       success: true,

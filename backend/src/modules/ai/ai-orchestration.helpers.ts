@@ -392,6 +392,28 @@ export function getRequestedEmployeeNames(params: {
   return [];
 }
 
+/**
+ * Does the query mention this name as a whole word?
+ *
+ * Word boundaries are computed on Unicode letters rather than `\b`, which is
+ * ASCII-only and would break the Armenian and Russian names §48 documented
+ * across this corpus.
+ */
+function queryMentionsName(query: string, name: string): boolean {
+  if (!name) return false;
+  let from = 0;
+  for (;;) {
+    const at = query.indexOf(name, from);
+    if (at === -1) return false;
+    const before = query[at - 1];
+    const after = query[at + name.length];
+    const isLetter = (ch: string | undefined) =>
+      ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
+    if (!isLetter(before) && !isLetter(after)) return true;
+    from = at + 1;
+  }
+}
+
 export function fuzzyMatchByName<T extends { name: string }>(
   items: T[],
   name: string,
@@ -403,14 +425,31 @@ export function fuzzyMatchByName<T extends { name: string }>(
   return (
     items.find((item) => item.name.toLowerCase() === lower) ||
     items.find((item) => item.name.toLowerCase().includes(lower)) ||
-    items.find((item) => lower.includes(item.name.toLowerCase())) ||
+    // e2e-bug.362 — the query may contain the item's name, but only as a WORD.
+    //
+    // This tier was a raw `lower.includes(item.name)`, which meant any short
+    // name matched almost any sentence: an employee called "Al" was returned
+    // for "is the salon open" (s-**al**-on) and for "book Alice for a haircut".
+    // Both were confident-looking matches for someone the user never named.
+    //
+    // Anchoring to word boundaries keeps the tier doing its job — "book me a
+    // haircut with Al" still resolves — while requiring the name to actually
+    // appear as a word rather than as letters inside one.
+    items.find((item) => queryMentionsName(lower, item.name.toLowerCase())) ||
     items.find((item) =>
       item.name
         .toLowerCase()
         .split(/\s+/)
         .some(
           (part) =>
-            part === lower || part.startsWith(lower) || lower.startsWith(part),
+            part === lower ||
+            // "Joh" → "John Baker": the item's token starts with the query.
+            part.startsWith(lower) ||
+            // e2e-bug.362, second instance. This was `lower.startsWith(part)`,
+            // which matched any query merely BEGINNING with a shorter name —
+            // an employee "Ան" resolved from "Աննա գրանցիր" (Anna). Same defect
+            // as tier 3, one tier down, and the ticket only named tier 3.
+            queryMentionsName(lower, part),
         ),
     )
   );
@@ -893,10 +932,7 @@ export function enrichListServicesParamsFromPrompt(
       cleaned.serviceCategory,
     );
   }
-  if (
-    typeof cleaned.serviceName === 'string' ||
-    cleaned.serviceName === null
-  ) {
+  if (typeof cleaned.serviceName === 'string' || cleaned.serviceName === null) {
     cleaned.serviceName = sanitizeListServicesFilterValue(cleaned.serviceName);
   }
   if (Array.isArray(cleaned.serviceNames)) {
@@ -1101,6 +1137,75 @@ export function resolveDateRange(
       end: end.format('YYYY-MM-DD'),
     };
   };
+
+  // AI-ROADMAP Phase 4 — multi-unit relative ranges. Added to this resolver
+  // rather than a new one: `resolveDateRange` is already timezone-correct
+  // (unlike the `resolveTomorrowDateKey` family, e2e-bug.363), and a second
+  // range parser would be the fifth re-parser Phase 4 exists to remove.
+  const numberWords: Record<string, number> = {
+    a: 1,
+    an: 1,
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+  };
+  const countFrom = (raw: string): number | null => {
+    const digits = Number(raw);
+    if (Number.isInteger(digits) && digits > 0) return digits;
+    return numberWords[raw] ?? null;
+  };
+
+  // "the next fortnight" is exactly two weeks; spelling it out avoids a
+  // separate branch.
+  const fortnight = /\bnext\s+fortnight\b|\bfortnight\b/i.test(lower);
+  const nextUnits = lower.match(
+    /\bnext\s+(\d{1,2}|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(day|week|month)s?\b/,
+  );
+  if (fortnight || nextUnits) {
+    const count = fortnight ? 2 : countFrom(nextUnits![1]);
+    const unit = fortnight ? 'week' : nextUnits![2];
+    if (count !== null) {
+      // Inclusive of today, so "the next 3 weeks" is 21 days starting now —
+      // the reading a user checking their diary expects.
+      const end =
+        unit === 'month'
+          ? today.add(count, 'month').subtract(1, 'day')
+          : today
+              .add(count * (unit === 'week' ? 7 : 1), 'day')
+              .subtract(1, 'day');
+      return {
+        start: today.format('YYYY-MM-DD'),
+        end: end.format('YYYY-MM-DD'),
+      };
+    }
+  }
+
+  // "the rest of the month" starts today, not on the 1st.
+  if (
+    /\b(?:rest|remainder|balance)\s+of\s+(?:the\s+|this\s+)?month\b/i.test(
+      lower,
+    )
+  ) {
+    return {
+      start: today.format('YYYY-MM-DD'),
+      end: today.endOf('month').format('YYYY-MM-DD'),
+    };
+  }
+  if (/\b(?:rest|remainder)\s+of\s+(?:the\s+|this\s+)?week\b/i.test(lower)) {
+    return {
+      start: today.format('YYYY-MM-DD'),
+      end: weekRange(0).end,
+    };
+  }
 
   if (/\blast week\b/i.test(lower)) return weekRange(-1);
   if (/\bthis week\b/i.test(lower)) return weekRange(0);
@@ -2124,11 +2229,21 @@ export function resolvePublicAvailabilityWindows(
 }
 
 /** Resolve ISO day keys for public customer availability (weekday names, ranges, single dates). */
+/**
+ * e2e-bug.365 — `referenceTodayDateKey` is forwarded, not dropped.
+ *
+ * `resolvePublicAvailabilityWindows` has always accepted an injectable "today";
+ * this wrapper simply did not pass it on, so every caller and every test was
+ * pinned to the real clock. A test asserting an explicit future date therefore
+ * became a time bomb: `2026-06-15` passed until that date arrived, then failed
+ * against the sibling test asserting past dates are dropped. Both are correct;
+ * they just cannot both hold on a calendar that moves.
+ */
 export function resolvePublicAvailabilityDateKeys(
   params: Record<string, any>,
   prompt: string | undefined,
   timeZone: string,
-  options: { defaultScanDays?: number } = {},
+  options: { defaultScanDays?: number; referenceTodayDateKey?: string } = {},
 ): string[] {
   return [
     ...new Set(

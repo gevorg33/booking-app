@@ -18,10 +18,9 @@ describe('e2e-bug.279 facial ↔ Face Pilling / facemassage catalog synonym', ()
     'resolveServicesFromCatalogParams $id',
     ({ query, expectNames }) => {
       expect(
-        resolveServicesFromCatalogParams(
-          [...E2E279_SALON_CATALOG],
-          query,
-        ).map((s) => s.name),
+        resolveServicesFromCatalogParams([...E2E279_SALON_CATALOG], query).map(
+          (s) => s.name,
+        ),
       ).toEqual([...expectNames]);
     },
   );
@@ -33,7 +32,15 @@ describe('e2e-bug.279 facial ↔ Face Pilling / facemassage catalog synonym', ()
       for (const alias of mustInclude) {
         expect(expanded).toEqual(expect.arrayContaining([alias]));
       }
-      expect(expandServiceLookupQueries('massage')).toEqual(['massage']);
+      // e2e-bug.320 made bare "massage" a synonym-group member on purpose: without
+      // it, `findServiceLookupSynonymTokenInPrompt` never fired for "show me
+      // massage", the multi-match family guard was skipped, and the query
+      // collapsed onto whichever catalog service tie-broke first. This assertion
+      // predates that and asserted the old, deliberately-removed behaviour.
+      expect(expandServiceLookupQueries('massage')).toEqual([
+        'massage',
+        'massages',
+      ]);
     },
   );
 

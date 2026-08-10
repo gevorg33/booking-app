@@ -12,26 +12,27 @@ export type E2e294ShortTitleCase = {
   maxTitleWords: number;
 };
 
-export const E2E294_FUNNEL_SHORT_TITLE_CASES: readonly E2e294ShortTitleCase[] = [
-  {
-    id: 'ai-e2e294-en-step1-short',
-    locale: 'en',
-    expectedStep1Title: 'Pick a service',
-    maxTitleWords: 4,
-  },
-  {
-    id: 'ai-e2e294-hy-step1-short',
-    locale: 'hy',
-    expectedStep1Title: 'Ընտրեք ծառայություն',
-    maxTitleWords: 4,
-  },
-  {
-    id: 'ai-e2e294-ru-step1-short',
-    locale: 'ru',
-    expectedStep1Title: 'Выберите услугу',
-    maxTitleWords: 4,
-  },
-] as const;
+export const E2E294_FUNNEL_SHORT_TITLE_CASES: readonly E2e294ShortTitleCase[] =
+  [
+    {
+      id: 'ai-e2e294-en-step1-short',
+      locale: 'en',
+      expectedStep1Title: 'Pick a service',
+      maxTitleWords: 4,
+    },
+    {
+      id: 'ai-e2e294-hy-step1-short',
+      locale: 'hy',
+      expectedStep1Title: 'Ընտրեք ծառայություն',
+      maxTitleWords: 4,
+    },
+    {
+      id: 'ai-e2e294-ru-step1-short',
+      locale: 'ru',
+      expectedStep1Title: 'Выберите услугу',
+      maxTitleWords: 4,
+    },
+  ] as const;
 
 export const E2E294_HUMANIZE_CASES = [
   {

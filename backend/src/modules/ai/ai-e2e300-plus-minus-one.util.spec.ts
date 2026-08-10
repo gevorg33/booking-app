@@ -70,7 +70,10 @@ describe('e2e-bug.300: +1 / -1 rate as give_ai_feedback', () => {
     async ({ prompt, expectedRating, expectShowReasonChips }) => {
       const result = await handleGiveAiFeedbackLogic(
         'biz',
-        { lastAssistantReply: 'Slots open tomorrow.', lastAction: 'list_services' },
+        {
+          lastAssistantReply: 'Slots open tomorrow.',
+          lastAction: 'list_services',
+        },
         prompt,
       );
       expect(result.success).toBe(true);

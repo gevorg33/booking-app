@@ -403,7 +403,7 @@ export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
   },
   {
     id: 'multi-service-timeline-else-en',
-    prompt: "What else is on this booking?",
+    prompt: 'What else is on this booking?',
     surface: 'provider' as const,
     expectedAction: 'explain_multi_service_timeline',
   },
@@ -698,7 +698,8 @@ export const PROVIDER_CLIENT_CONTEXT_PROMPT_SCENARIOS = [
   },
   {
     id: 'cancel-policy-client-keep-deposit-en',
-    prompt: 'Does she keep her deposit if she reschedules instead of cancelling?',
+    prompt:
+      'Does she keep her deposit if she reschedules instead of cancelling?',
     surface: 'provider' as const,
     expectedAction: 'explain_cancel_policy_for_client',
   },

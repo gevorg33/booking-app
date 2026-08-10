@@ -62,9 +62,13 @@ async function resolveClinicTask(
   );
   if (!inbox.labFeaturesEnabled) {
     return {
-      error: failure(action, 'Clinic tasks are only available for clinic businesses.', {
-        clinicOnly: true,
-      }),
+      error: failure(
+        action,
+        'Clinic tasks are only available for clinic businesses.',
+        {
+          clinicOnly: true,
+        },
+      ),
     };
   }
 

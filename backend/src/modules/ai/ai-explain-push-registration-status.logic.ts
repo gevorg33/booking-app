@@ -2,7 +2,10 @@ import type { ConsumerPushTokenService } from '../notifications/consumer-push-to
 import type { CommandResult } from './command-completion.types.js';
 
 export interface ExplainPushRegistrationStatusLogicDeps {
-  consumerPushTokenService: Pick<ConsumerPushTokenService, 'getNativePushStatus'>;
+  consumerPushTokenService: Pick<
+    ConsumerPushTokenService,
+    'getNativePushStatus'
+  >;
 }
 
 function failure(

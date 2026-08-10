@@ -155,4 +155,5 @@ export function buildScheduleHandlersDispatchMap(): ReadonlyMap<
 }
 
 /** Registry-driven dispatch table for AiScheduleHandlersService (ai-cmd-ext-0.5). */
-export const SCHEDULE_HANDLERS_DISPATCH_MAP = buildScheduleHandlersDispatchMap();
+export const SCHEDULE_HANDLERS_DISPATCH_MAP =
+  buildScheduleHandlersDispatchMap();

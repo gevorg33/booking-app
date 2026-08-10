@@ -1,6 +1,9 @@
 import type { LocationsService } from '../locations/locations.service.js';
 import type { CommandResult } from './command-completion.types.js';
-import { resolveLocationFromList, type LocationLike } from './ai-locations.util.js';
+import {
+  resolveLocationFromList,
+  type LocationLike,
+} from './ai-locations.util.js';
 
 export interface LocationsLogicDeps {
   locationsService: Pick<LocationsService, 'findAll' | 'create' | 'update'>;
@@ -94,7 +97,12 @@ export async function handleUpdateLocationLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'update_location';
-  const resolved = await resolveLocationOrFail(deps, businessId, params, action);
+  const resolved = await resolveLocationOrFail(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (!resolved.ok) return resolved.result;
 
   const name =

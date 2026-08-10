@@ -111,7 +111,9 @@ describe('e2e-bug.105 tour compound registry examples', () => {
       });
       expect(explain).not.toBeNull();
 
-      const steps = decomposeCustomerTourGroupCheckoutCompoundPrompt(row.prompt);
+      const steps = decomposeCustomerTourGroupCheckoutCompoundPrompt(
+        row.prompt,
+      );
       expect(steps.map((step) => step.action)).toEqual([
         'explain_tour_booking',
         'diagnose_tour_capacity',
@@ -121,7 +123,9 @@ describe('e2e-bug.105 tour compound registry examples', () => {
   );
 
   it.each(
-    E2E105_TOUR_COMPOUND_REGISTRY_SCENARIOS.map((row) => [row.id, row] as const),
+    E2E105_TOUR_COMPOUND_REGISTRY_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )(
     'explain_tour_booking resolves nickname against realistic catalog ($id)',
     async (_id, row) => {
@@ -142,7 +146,9 @@ describe('e2e-bug.105 tour compound registry examples', () => {
       expect(result.success).toBe(true);
       expect(result.action).toBe('explain_tour_booking');
       expect(result.details?.serviceName).toBe(row.catalogName);
-      expect(result.summary).not.toMatch(/Ask about a tour on the booking page/i);
+      expect(result.summary).not.toMatch(
+        /Ask about a tour on the booking page/i,
+      );
       expect(result.summary).not.toMatch(/Could not find a catalog service/i);
     },
   );

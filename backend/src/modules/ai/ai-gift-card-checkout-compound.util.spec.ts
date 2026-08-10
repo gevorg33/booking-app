@@ -11,16 +11,16 @@ import {
   hasGiftCardCheckoutBookCue,
   hasGiftCardCheckoutGiftCue,
   isBookFirstGiftCardCheckoutPrompt,
-  isGiftCardCheckoutCompoundPrompt,
+  isGiftCardCheckApplyBookCompoundPrompt,
   rescueGiftCardCheckoutCompoundIntent,
 } from './ai-gift-card-checkout-compound.util.js';
 import { isBookWithGiftCardPrompt } from './ai-book-with-gift-card.util.js';
 
 describe('ai-gift-card-checkout-compound.util (ai-cmd-customer-4.8.4)', () => {
   it.each(GIFT_CARD_CHECKOUT_CUSTOMER_PROMPTS)(
-    'isGiftCardCheckoutCompoundPrompt customer $id',
+    'isGiftCardCheckApplyBookCompoundPrompt customer $id',
     ({ prompt }) => {
-      expect(isGiftCardCheckoutCompoundPrompt(prompt)).toBe(true);
+      expect(isGiftCardCheckApplyBookCompoundPrompt(prompt)).toBe(true);
     },
   );
 
@@ -66,7 +66,7 @@ describe('ai-gift-card-checkout-compound.util (ai-cmd-customer-4.8.4)', () => {
   it.each(GIFT_CARD_CHECKOUT_NEGATIVE_PROMPTS)(
     'does not match negative prompt $id',
     ({ prompt }) => {
-      expect(isGiftCardCheckoutCompoundPrompt(prompt)).toBe(false);
+      expect(isGiftCardCheckApplyBookCompoundPrompt(prompt)).toBe(false);
       expect(decomposeGiftCardCheckoutCompoundPrompt(prompt)).toEqual([]);
     },
   );
@@ -74,7 +74,7 @@ describe('ai-gift-card-checkout-compound.util (ai-cmd-customer-4.8.4)', () => {
   it('check-balance-only stays on check_gift_card_balance path', () => {
     const prompt = 'Check gift card GCM-ABCD1234 balance';
     expect(hasGiftCardCheckoutBookCue(prompt)).toBe(false);
-    expect(isGiftCardCheckoutCompoundPrompt(prompt)).toBe(false);
+    expect(isGiftCardCheckApplyBookCompoundPrompt(prompt)).toBe(false);
     expect(isBookWithGiftCardPrompt(prompt)).toBe(false);
   });
 
@@ -107,7 +107,7 @@ describe('ai-gift-card-checkout-compound.util (ai-cmd-customer-4.8.4)', () => {
   it('detects heuristic use-code book without fixture id', () => {
     const prompt =
       'Use gift card GCM-HEUR99 and schedule the earliest available manicure';
-    expect(isGiftCardCheckoutCompoundPrompt(prompt)).toBe(true);
+    expect(isGiftCardCheckApplyBookCompoundPrompt(prompt)).toBe(true);
     const steps = decomposeGiftCardCheckoutCompoundPrompt(prompt);
     expect(steps.map((step) => step.action)).toEqual([
       'check_gift_card_balance',

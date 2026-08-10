@@ -83,11 +83,7 @@ export function resolveDocumentDirection(
 export function resolveRtlLayoutLocale(
   params: Record<string, unknown> = {},
 ): string {
-  return (
-    readString(params.locale) ??
-    readString(params._requestLocale) ??
-    'en'
-  );
+  return readString(params.locale) ?? readString(params._requestLocale) ?? 'en';
 }
 
 /** Merge request/session locale into handler params (customer + public). */

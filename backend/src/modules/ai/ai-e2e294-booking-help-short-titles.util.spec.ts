@@ -40,7 +40,9 @@ describe('e2e-bug.294 booking_help short step titles', () => {
       for (const step of guide.steps) {
         expect(wordCount(step.title)).toBeLessThanOrEqual(row.maxTitleWords);
         expect(step.title).not.toMatch(/^(?:Step|Քայլ|Шаг)\s*\d+\s*$/iu);
-        expect(step.title).not.toMatch(/հանրային|на странице|public booking page/iu);
+        expect(step.title).not.toMatch(
+          /հանրային|на странице|public booking page/iu,
+        );
       }
 
       const stepped = buildGuideResponseForMultiTurnStep(

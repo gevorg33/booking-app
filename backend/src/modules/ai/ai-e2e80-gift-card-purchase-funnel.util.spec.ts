@@ -20,7 +20,9 @@ describe('e2e-bug.80 gift-card purchase/quote funnel', () => {
 
   it('customer classifier schema includes dedicated buy_gift_card rules', () => {
     const schema = buildCustomerClassifierSchema();
-    expect(CUSTOMER_BUY_GIFT_CARD_CLASSIFIER_RULES).toMatch(/buy_gift_card: MUTATE/);
+    expect(CUSTOMER_BUY_GIFT_CARD_CLASSIFIER_RULES).toMatch(
+      /buy_gift_card: MUTATE/,
+    );
     expect(schema).toContain(CUSTOMER_BUY_GIFT_CARD_CLASSIFIER_RULES);
     expect(schema).toContain('for myself');
     expect(schema).toContain('physical gift card for 75 dollars');

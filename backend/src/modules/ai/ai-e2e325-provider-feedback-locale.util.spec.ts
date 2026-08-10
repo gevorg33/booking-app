@@ -20,9 +20,9 @@ describe('e2e-bug.325 give_provider_ai_feedback localizes under locale:hy|ru', (
         id: string;
         label: string;
       }>;
-      expect(
-        reasonOptions.find((o) => o.id === 'wrong_client')?.label,
-      ).toBe(expectReasonWrongClient);
+      expect(reasonOptions.find((o) => o.id === 'wrong_client')?.label).toBe(
+        expectReasonWrongClient,
+      );
     },
   );
 
@@ -67,8 +67,8 @@ describe('e2e-bug.325 give_provider_ai_feedback localizes under locale:hy|ru', (
     );
     expect(details.feedbackUpLabel).toBe('Helpful');
     expect(details.feedbackDownLabel).toBe('Not helpful');
-    expect(
-      buildGiveProviderAiFeedbackSummary('up', undefined, false),
-    ).toBe('Thanks — this helps improve the provider assistant.');
+    expect(buildGiveProviderAiFeedbackSummary('up', undefined, false)).toBe(
+      'Thanks — this helps improve the provider assistant.',
+    );
   });
 });

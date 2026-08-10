@@ -28,25 +28,26 @@ describe('e2e-bug.189 list_providers roster (not check_providers_for_service)', 
     },
   );
 
-  it.each(
-    LIST_PROVIDERS_RESCUE_SCENARIOS.map((row) => [row.id, row] as const),
-  )('rescues %s to list_providers', (_id, row) => {
-    expect(rescueListProvidersIntent(row.prompt, row.misclassifiedAction)).toEqual(
-      {
+  it.each(LIST_PROVIDERS_RESCUE_SCENARIOS.map((row) => [row.id, row] as const))(
+    'rescues %s to list_providers',
+    (_id, row) => {
+      expect(
+        rescueListProvidersIntent(row.prompt, row.misclassifiedAction),
+      ).toEqual({
         action: 'list_providers',
         rescueReason: 'list_providers_roster',
-      },
-    );
+      });
 
-    const result = rescue.rescue({
-      prompt: row.prompt,
-      action: row.misclassifiedAction,
-      params: {},
-      surface: row.surface,
-    });
-    expect(result?.action).toBe(row.expectedAction);
-    expect(result?.rescueReason).toBe('list_providers_roster');
-  });
+      const result = rescue.rescue({
+        prompt: row.prompt,
+        action: row.misclassifiedAction,
+        params: {},
+        surface: row.surface,
+      });
+      expect(result?.action).toBe(row.expectedAction);
+      expect(result?.rescueReason).toBe('list_providers_roster');
+    },
+  );
 
   it('does not re-rescue when already list_providers', () => {
     expect(

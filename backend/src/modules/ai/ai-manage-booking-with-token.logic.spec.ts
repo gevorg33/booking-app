@@ -16,7 +16,11 @@ function buildDeps(
     publicBookingService: {} as any,
     publicCustomerBookingService: {
       cancelBookingWithToken: jest.fn(async () => ({
-        booking: { id: 'book-1', status: 'cancelled', service: { name: 'Haircut' } },
+        booking: {
+          id: 'book-1',
+          status: 'cancelled',
+          service: { name: 'Haircut' },
+        },
       })),
       rescheduleBookingWithToken: jest.fn(async () => ({
         booking: {
@@ -46,7 +50,8 @@ function buildDeps(
         canCancel: true,
         canReschedule: true,
         policyMessage: null,
-        manageUrl: 'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
+        manageUrl:
+          'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
         packageVisit: {
           appointments: [
             {
@@ -102,10 +107,14 @@ describe('ai-manage-booking-with-token.logic', () => {
 
   describe('handleExplainManageBookingContextLogic', () => {
     it('summarizes a booking that can still be cancelled or rescheduled', async () => {
-      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'tok-123',
-      });
+      const result = await handleExplainManageBookingContextLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'tok-123',
+        },
+      );
       expect(result.success).toBe(true);
       expect(result.action).toBe('explain_manage_booking_context');
       expect(result.summary).toContain('Haircut with Maria');
@@ -134,12 +143,17 @@ describe('ai-manage-booking-with-token.logic', () => {
         canCancel: false,
         canReschedule: false,
         policyMessage: 'Too close to the appointment time to change online.',
-        manageUrl: 'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
+        manageUrl:
+          'https://app.test/salon/manage?bookingId=book-1&token=tok-123',
       });
-      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'tok-123',
-      });
+      const result = await handleExplainManageBookingContextLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'tok-123',
+        },
+      );
       expect(result.success).toBe(true);
       expect(result.summary).toContain("can't be cancelled or rescheduled");
       expect(result.summary).toContain('Too close to the appointment time');
@@ -176,10 +190,14 @@ describe('ai-manage-booking-with-token.logic', () => {
       (
         deps.publicCustomerBookingService.getManageContext as jest.Mock
       ).mockRejectedValueOnce(new Error('Invalid or expired manage link'));
-      const result = await handleExplainManageBookingContextLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'bad-token',
-      });
+      const result = await handleExplainManageBookingContextLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'bad-token',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.summary).toBe('Invalid or expired manage link');
     });
@@ -232,11 +250,15 @@ describe('ai-manage-booking-with-token.logic', () => {
 
   describe('handleRescheduleBookingWithTokenLogic', () => {
     it('reschedules with explicit startTime', async () => {
-      const result = await handleRescheduleBookingWithTokenLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'tok-123',
-        startTime: '2026-07-10T14:00:00.000Z',
-      });
+      const result = await handleRescheduleBookingWithTokenLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'tok-123',
+          startTime: '2026-07-10T14:00:00.000Z',
+        },
+      );
       expect(result.success).toBe(true);
       expect(
         deps.publicCustomerBookingService.rescheduleBookingWithToken,
@@ -257,10 +279,14 @@ describe('ai-manage-booking-with-token.logic', () => {
     });
 
     it('clarifies when no new time is given', async () => {
-      const result = await handleRescheduleBookingWithTokenLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'tok-123',
-      });
+      const result = await handleRescheduleBookingWithTokenLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'tok-123',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
     });
@@ -268,10 +294,14 @@ describe('ai-manage-booking-with-token.logic', () => {
 
   describe('handleCancelPackageVisitWithTokenLogic', () => {
     it('cancels all lines of a package visit', async () => {
-      const result = await handleCancelPackageVisitWithTokenLogic(deps, 'biz-1', {
-        bookingId: 'book-1',
-        manageToken: 'tok-123',
-      });
+      const result = await handleCancelPackageVisitWithTokenLogic(
+        deps,
+        'biz-1',
+        {
+          bookingId: 'book-1',
+          manageToken: 'tok-123',
+        },
+      );
       expect(result.success).toBe(true);
       expect(result.details?.bookingIds).toEqual(['book-1', 'book-2']);
     });

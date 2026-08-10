@@ -172,12 +172,7 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
   });
 
   // e2e-bug.270 — classifier "this week" must not throw Invalid time value.
-  it.each([
-    'this week',
-    "this week's",
-    'this calendar week',
-    'not-a-date',
-  ])(
+  it.each(['this week', "this week's", 'this calendar week', 'not-a-date'])(
     'handles garbage weekStartDate=%j without throwing',
     async (garbage) => {
       const result = await handleListTourCalendarWeekLogic(

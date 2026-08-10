@@ -59,7 +59,10 @@ import {
 import { enrichConfigureServiceFeaturedParamsFromPrompt } from './ai-configure-service-featured.util.js';
 import { enrichBulkAssignServicesCategoryParamsFromPrompt } from './ai-bulk-assign-services-category.util.js';
 import { enrichConfigurePackageOnlinePaymentParamsFromPrompt } from './ai-configure-package-online-payment.util.js';
-import { enrichDeactivateServiceCategoryScopeParamsFromPrompt } from './ai-deactivate-service-category-scope.util.js';
+import {
+  enrichDeactivateServiceCategoryScopeParamsFromPrompt,
+  isDeactivateServiceCategoryScopePrompt,
+} from './ai-deactivate-service-category-scope.util.js';
 import { enrichServiceDurationBufferParamsFromPrompt } from './ai-service-duration-buffer.util.js';
 import {
   isTotalEarningsPrompt,
@@ -935,8 +938,7 @@ export class AiIntentRescueService {
     if (input.surface === 'dashboard') {
       const ownerAlertEarly = this.tryRescuePushNotifications(prompt, action);
       if (
-        ownerAlertEarly?.action ===
-        'toggle_business_email_on_customer_change'
+        ownerAlertEarly?.action === 'toggle_business_email_on_customer_change'
       ) {
         return ownerAlertEarly;
       }
@@ -1002,8 +1004,7 @@ export class AiIntentRescueService {
       input.surface === 'provider'
         ? null
         : this.tryRescueExplainCancelPolicy(prompt, action);
-    if (explainCancelPolicyBeforeBudget)
-      return explainCancelPolicyBeforeBudget;
+    if (explainCancelPolicyBeforeBudget) return explainCancelPolicyBeforeBudget;
     // e2e-bug.148 — create_product before budget-discovery's price-mention steal.
     const createProductBeforeBudget = this.tryRescueCreateProductEarly(
       prompt,
@@ -1245,7 +1246,9 @@ export class AiIntentRescueService {
     if (notifyRunningLateEarly) return notifyRunningLateEarly;
     // e2e-bug.88 — pay_online before list/confirm steals "pay … for my booking".
     const payOnlineEarly =
-      input.surface === 'provider' ? null : this.tryRescuePayOnline(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescuePayOnline(prompt, action);
     if (payOnlineEarly) return payOnlineEarly;
     const listMyUpcomingAppointmentsEarly =
       input.surface === 'provider'
@@ -1259,7 +1262,9 @@ export class AiIntentRescueService {
     if (confirmMyBookingDetailsEarly) return confirmMyBookingDetailsEarly;
     // e2e-bug.76 — locale before explain_why_sign_in ("what" + "account").
     const myLocaleEarly =
-      input.surface === 'provider' ? null : this.tryRescueMyLocale(prompt, action);
+      input.surface === 'provider'
+        ? null
+        : this.tryRescueMyLocale(prompt, action);
     if (myLocaleEarly) return myLocaleEarly;
     const explainWhySignInEarly = this.tryRescueExplainWhySignIn(
       prompt,
@@ -1697,7 +1702,10 @@ export class AiIntentRescueService {
     if (giftFulfillment) return giftFulfillment;
     // e2e-bug.83 — before payments apply_gift_card_code steals "redeem referral code".
     // (claim_referral already attempted above for promo; keep for gift-card ordering.)
-    const claimReferralCodeLate = this.tryRescueClaimReferralCode(prompt, action);
+    const claimReferralCodeLate = this.tryRescueClaimReferralCode(
+      prompt,
+      action,
+    );
     if (claimReferralCodeLate) return claimReferralCodeLate;
     const payments = this.tryRescuePayments(prompt, action);
     if (payments) return payments;
@@ -1726,8 +1734,10 @@ export class AiIntentRescueService {
     // classify as unknown, so runRescueClassifiedPhase is skipped. Mirror the
     // classified-phase early rescues here for customer/public.
     if (input.surface === 'customer' || input.surface === 'public') {
-      const speakAssistantReplyUnknownEarly =
-        this.tryRescueSpeakAssistantReply(prompt, action);
+      const speakAssistantReplyUnknownEarly = this.tryRescueSpeakAssistantReply(
+        prompt,
+        action,
+      );
       if (speakAssistantReplyUnknownEarly) {
         return speakAssistantReplyUnknownEarly;
       }
@@ -1787,7 +1797,8 @@ export class AiIntentRescueService {
       prompt,
       action,
     );
-    if (summarizeUtilizationUnknownEarly) return summarizeUtilizationUnknownEarly;
+    if (summarizeUtilizationUnknownEarly)
+      return summarizeUtilizationUnknownEarly;
     const reportsCurrencyUnknown = this.tryRescueReportsCurrency(
       prompt,
       action,
@@ -1897,7 +1908,8 @@ export class AiIntentRescueService {
       prompt,
       action,
     );
-    if (createProductBeforeBudgetUnknown) return createProductBeforeBudgetUnknown;
+    if (createProductBeforeBudgetUnknown)
+      return createProductBeforeBudgetUnknown;
 
     const budgetDiscoveryUnknown =
       input.surface === 'provider'
@@ -1998,8 +2010,10 @@ export class AiIntentRescueService {
     if (providerClinicCollectionUnknown) return providerClinicCollectionUnknown;
 
     // e2e-bug.152 — same ordering as classified phase (agent-ops before clinic tasks).
-    const supportInboxBeforeAgentOpsUnknown =
-      this.tryRescueExplainSupportInbox(prompt, action);
+    const supportInboxBeforeAgentOpsUnknown = this.tryRescueExplainSupportInbox(
+      prompt,
+      action,
+    );
     if (supportInboxBeforeAgentOpsUnknown) {
       return supportInboxBeforeAgentOpsUnknown;
     }
@@ -2436,23 +2450,11 @@ export class AiIntentRescueService {
       params,
     );
     if (dashboardCustomerReadUnknown) return dashboardCustomerReadUnknown;
-    if (isCustomerBookingContextPrompt(prompt)) {
-      const ctx = extractCustomerBookingContextFromPrompt(prompt);
-      return {
-        action: 'lookup_customer',
-        params: {
-          ...params,
-          customerName: ctx.customerName ?? params.customerName,
-          employeeName: ctx.employeeName ?? params.employeeName,
-          timeSlot: ctx.timeSlot ?? params.timeSlot,
-          date: ctx.dateHint ?? params.date ?? 'today',
-          bookingContext: true,
-        },
-        reasoning: 'Customer profile with booking context (provider/time).',
-        rescued: true,
-        rescueReason: 'customer_booking_context',
-      };
-    }
+    const customerBookingContext = this.lookupCustomerWithBookingContext(
+      prompt,
+      params,
+    );
+    if (customerBookingContext) return customerBookingContext;
 
     const applyTourPlaybookUnknown = this.tryRescueApplyTourPlaybook(
       prompt,
@@ -2556,8 +2558,11 @@ export class AiIntentRescueService {
         params,
       );
       if (markVisitCompleteUnknownEarly) return markVisitCompleteUnknownEarly;
-      const markVisitInProgressUnknownEarly =
-        this.tryRescueMarkVisitInProgress(prompt, action, params);
+      const markVisitInProgressUnknownEarly = this.tryRescueMarkVisitInProgress(
+        prompt,
+        action,
+        params,
+      );
       if (markVisitInProgressUnknownEarly) {
         return markVisitInProgressUnknownEarly;
       }
@@ -2922,7 +2927,11 @@ export class AiIntentRescueService {
       action,
     );
     if (scheduleResourcesUnknown) return scheduleResourcesUnknown;
-    const customerCrmUnknown = this.tryRescueCustomerCrm(prompt, action, params);
+    const customerCrmUnknown = this.tryRescueCustomerCrm(
+      prompt,
+      action,
+      params,
+    );
     if (customerCrmUnknown) return customerCrmUnknown;
     // e2e-bug.103 / e2e-bug.77 — dashboard booking-depth must not steal customer/public.
     const bookingDepthUnknown =
@@ -4250,8 +4259,7 @@ export class AiIntentRescueService {
       };
     }
     const skipMultiServiceDayCompoundOnPublic =
-      surface === 'public' &&
-      isMultiServiceAvailabilityDiscoveryPrompt(prompt);
+      surface === 'public' && isMultiServiceAvailabilityDiscoveryPrompt(prompt);
     if (!skipMultiServiceDayCompoundOnPublic) {
       const multiServiceDay = rescueMultiServiceDayCompoundIntent(
         prompt,
@@ -4351,11 +4359,7 @@ export class AiIntentRescueService {
     action: string,
     session?: Record<string, unknown> | null,
   ): IntentRescueResult | null {
-    const rescued = rescueManageBookingWithTokenIntent(
-      prompt,
-      action,
-      session,
-    );
+    const rescued = rescueManageBookingWithTokenIntent(prompt, action, session);
     if (!rescued || rescued.action === action) return null;
     const fromPrompt = extractManageLinkCredentialsFromPrompt(prompt);
     const bookingId =
@@ -4412,7 +4416,9 @@ export class AiIntentRescueService {
     let params: Record<string, unknown> = {};
     if ((rescued.action as string) === 'configure_notification_settings') {
       params = enrichNotificationSettingsParamsFromPrompt({}, prompt);
-    } else if ((rescued.action as string) === 'configure_whatsapp_integration') {
+    } else if (
+      (rescued.action as string) === 'configure_whatsapp_integration'
+    ) {
       params = enrichWhatsappIntegrationParamsFromPrompt({}, prompt);
     } else if (
       (rescued.action as string) === 'toggle_business_email_on_customer_change'
@@ -5043,7 +5049,10 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     // e2e-bug.148 — enrich create_product price/name even when already classified.
     if (action === 'create_product') {
-      const enriched = enrichCreateProductParamsFromPrompt({ ...params }, prompt);
+      const enriched = enrichCreateProductParamsFromPrompt(
+        { ...params },
+        prompt,
+      );
       if (enriched.price != null || enriched.productName) {
         return {
           action: 'create_product',
@@ -5080,7 +5089,11 @@ export class AiIntentRescueService {
         { ...params },
         prompt,
       );
-      if (enriched.category || enriched.amount != null || enriched.description) {
+      if (
+        enriched.category ||
+        enriched.amount != null ||
+        enriched.description
+      ) {
         return {
           action: 'record_expense',
           params: enriched,
@@ -5121,6 +5134,47 @@ export class AiIntentRescueService {
     };
   }
 
+  /**
+   * `lookup_customer` carrying the booking the prompt names — e2e-bug.358.
+   *
+   * "Summarize customer Maria Lopez who has a booking with Gevorg today at
+   * 10:00" names a customer *and* which booking is meant. Both facts are
+   * needed: `ai-booking-core.service.ts` only narrows to that appointment when
+   * `params.bookingContext === true` and a provider, time or date came with it.
+   *
+   * This existed, below, as a standalone branch — but `tryRescueDashboardCustomerRead`
+   * runs first and its `isLookupCustomerPrompt` arm returns `lookup_customer`
+   * with nothing but `customerName`, so the richer branch was unreachable for
+   * exactly the prompts it was written for. All six `lookup_customer` eval cases
+   * failed on the missing params; four of them matched the action perfectly.
+   *
+   * Shared rather than duplicated into the earlier arm: two copies of "what does
+   * this prompt say about the booking" is how they drift.
+   */
+  private lookupCustomerWithBookingContext(
+    prompt: string,
+    params: Record<string, unknown>,
+    fallbackCustomerName?: string,
+  ): IntentRescueResult | null {
+    if (!isCustomerBookingContextPrompt(prompt)) return null;
+    const ctx = extractCustomerBookingContextFromPrompt(prompt);
+    return {
+      action: 'lookup_customer',
+      params: {
+        ...params,
+        customerName:
+          ctx.customerName ?? fallbackCustomerName ?? params.customerName,
+        employeeName: ctx.employeeName ?? params.employeeName,
+        timeSlot: ctx.timeSlot ?? params.timeSlot,
+        date: ctx.dateHint ?? params.date ?? 'today',
+        bookingContext: true,
+      },
+      reasoning: 'Customer profile with booking context (provider/time).',
+      rescued: true,
+      rescueReason: 'customer_booking_context',
+    };
+  }
+
   private tryRescueDashboardCustomerRead(
     prompt: string,
     action: string,
@@ -5154,6 +5208,13 @@ export class AiIntentRescueService {
     }
     if (isLookupCustomerPrompt(prompt)) {
       const customerName = extractLookupCustomerNameFromPrompt(prompt);
+      // e2e-bug.358 — when the prompt also names the booking, say so.
+      const withBooking = this.lookupCustomerWithBookingContext(
+        prompt,
+        params,
+        customerName,
+      );
+      if (withBooking) return withBooking;
       return {
         action: 'lookup_customer',
         params: {
@@ -5693,10 +5754,12 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     // e2e-bug.77 — provider-only nests must not steal customer/public prompts
     // (list_upcoming_bookings, show_provider_profile, open_booking_detail, …).
-    const blockProviderNests =
-      surface === 'customer' || surface === 'public';
+    const blockProviderNests = surface === 'customer' || surface === 'public';
 
-    if (!blockProviderNests && isConfigureProviderPushDateFormatPrompt(prompt)) {
+    if (
+      !blockProviderNests &&
+      isConfigureProviderPushDateFormatPrompt(prompt)
+    ) {
       const providerDateFormatEarly = rescueProviderDateFormatIntent(
         prompt,
         action,
@@ -5764,7 +5827,10 @@ export class AiIntentRescueService {
         };
       }
 
-      const providerContext = rescueExplainProviderContextIntent(prompt, action);
+      const providerContext = rescueExplainProviderContextIntent(
+        prompt,
+        action,
+      );
       if (providerContext) {
         return {
           action: providerContext.action,
@@ -6419,11 +6485,15 @@ export class AiIntentRescueService {
     if ((rescued.action as string) === 'explain_service_online_payment_setup') {
       Object.assign(
         rescuedParams,
-        parseExplainServiceOnlinePaymentSetupFromPrompt(prompt, rescuedParams) ??
-          {},
+        parseExplainServiceOnlinePaymentSetupFromPrompt(
+          prompt,
+          rescuedParams,
+        ) ?? {},
       );
     }
-    if ((rescued.action as string) === 'audit_services_missing_online_payment') {
+    if (
+      (rescued.action as string) === 'audit_services_missing_online_payment'
+    ) {
       Object.assign(
         rescuedParams,
         parseAuditServicesMissingOnlinePaymentFromPrompt(
@@ -6538,10 +6608,7 @@ export class AiIntentRescueService {
       params,
     );
     if (privacyDeleteConfirm) {
-      if (
-        privacyDeleteConfirm.action === action &&
-        params.confirm === true
-      ) {
+      if (privacyDeleteConfirm.action === action && params.confirm === true) {
         return null;
       }
       return {
@@ -7353,7 +7420,9 @@ export class AiIntentRescueService {
       isProviderAvailabilityOpenCheckPrompt(prompt)
     ) {
       const availabilitySurface =
-        surface === 'dashboard' || surface === 'customer' || surface === 'public'
+        surface === 'dashboard' ||
+        surface === 'customer' ||
+        surface === 'public'
           ? surface
           : 'public';
       const resolved = resolveAvailabilityIntentFromPrompt(
@@ -7584,7 +7653,7 @@ export class AiIntentRescueService {
       extractManageLinkCredentialsFromPrompt(prompt);
     const hasManageLinkCredsForCollapseRescue = Boolean(
       manageLinkCredsForCollapseRescue.bookingId &&
-        manageLinkCredsForCollapseRescue.manageToken,
+      manageLinkCredsForCollapseRescue.manageToken,
     );
 
     if (
@@ -7854,7 +7923,21 @@ export class AiIntentRescueService {
       params,
       reasoning: 'Catalog soft-delete rescue → deactivate_service',
       rescued: true,
-      rescueReason: 'deactivate_service',
+      // e2e-bug.430 — name the shape of the request, not just the action.
+      //
+      // "Hide all hair services from public catalog" is a category-wide
+      // deactivation; "Disable Deluxe Facial" is one service. Both land here and
+      // both were labelled `deactivate_service`, so the seven scoped cases in
+      // the corpus asserted a reason nothing produced. The params already
+      // distinguish them — this branch builds them with
+      // `enrichDeactivateServiceCategoryScopeParamsFromPrompt` — only the label
+      // did not.
+      //
+      // The same correction is in `ai-catalog.util.ts`'s equivalent branch;
+      // they are separate rescue chains and each must label its own result.
+      rescueReason: isDeactivateServiceCategoryScopePrompt(prompt)
+        ? 'deactivate_service_category_scope'
+        : 'deactivate_service',
     };
   }
 
@@ -7979,8 +8062,11 @@ export class AiIntentRescueService {
     }
     const scheduling = this.tryRescueScheduling(prompt, action, params);
     if (scheduling) return scheduling;
-    const createBookingNotEmployee =
-      this.tryRescueCreateBookingNotEmployee(prompt, action, params);
+    const createBookingNotEmployee = this.tryRescueCreateBookingNotEmployee(
+      prompt,
+      action,
+      params,
+    );
     if (createBookingNotEmployee) return createBookingNotEmployee;
     const staffOperations = this.tryRescueStaffOperations(prompt, action);
     if (staffOperations) return staffOperations;
@@ -8148,9 +8234,7 @@ export class AiIntentRescueService {
     // check_availability), and never let a secondary surface remap after the
     // caller surface already produced a fix-or-confirm decision.
     const primaryAvailabilitySurface: AvailabilityDisambiguationSurface =
-      surface === 'dashboard' ||
-      surface === 'customer' ||
-      surface === 'public'
+      surface === 'dashboard' || surface === 'customer' || surface === 'public'
         ? surface
         : 'dashboard';
     const secondaryAvailabilitySurfaces = (

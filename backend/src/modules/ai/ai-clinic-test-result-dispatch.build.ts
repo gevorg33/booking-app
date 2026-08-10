@@ -40,7 +40,11 @@ export function buildClinicTestResultDispatchMap(): ReadonlyMap<
     ),
   );
   map.set('transition_specimen', async (service, ctx) =>
-    service.handleTransitionSpecimen(ctx.businessId, ctx.userId ?? '', ctx.params),
+    service.handleTransitionSpecimen(
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('explain_lab_result_history', async (service, ctx) =>
     service.handleExplainLabResultHistory(
@@ -70,4 +74,5 @@ export function buildClinicTestResultDispatchMap(): ReadonlyMap<
 }
 
 /** Registry-driven dispatch table for AiClinicTestResultService (ai-cmd-ext-0.5). */
-export const CLINIC_TEST_RESULT_DISPATCH_MAP = buildClinicTestResultDispatchMap();
+export const CLINIC_TEST_RESULT_DISPATCH_MAP =
+  buildClinicTestResultDispatchMap();

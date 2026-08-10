@@ -42,9 +42,9 @@ describe('ai-explain-support-inbox.util (e2e-bug.139)', () => {
     expect(
       isExplainSupportInboxPrompt('Create a support ticket about billing'),
     ).toBe(false);
-    expect(isCreateSupportTicketPrompt('Create a support ticket about billing')).toBe(
-      true,
-    );
+    expect(
+      isCreateSupportTicketPrompt('Create a support ticket about billing'),
+    ).toBe(true);
     expect(isListAgentTasksPrompt('Show me pending AI agent tasks')).toBe(true);
     expect(
       rescueExplainSupportInboxIntent(

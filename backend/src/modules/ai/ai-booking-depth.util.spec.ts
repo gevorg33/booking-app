@@ -36,6 +36,38 @@ import {
   BOOKING_DEPTH_INTENTS,
 } from './ai-booking-depth.util.js';
 
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * A bare "June 5" is resolved against the current year, and rolls to the next
+ * one once that date is past — correct behaviour, but it means the assertion
+ * `2026-06-05` only holds while today is before it.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+const FROZEN_NOW = new Date('2026-06-01T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('ai-booking-depth.util', () => {
   describe('prompt classifiers', () => {
     it('detects subscription, cash, package, and multi-service prompts', () => {

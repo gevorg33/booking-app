@@ -19,7 +19,9 @@ describe('e2e-bug.305: mid-step compound clarify action=compound_intent', () => 
           summary: `I need one more detail for ${clarifyAction}.`,
           details: {
             needsClarification: true,
-            missing: [{ field: 'timeSlot', label: 'Start time', message: 'required' }],
+            missing: [
+              { field: 'timeSlot', label: 'Start time', message: 'required' },
+            ],
           },
         },
         {

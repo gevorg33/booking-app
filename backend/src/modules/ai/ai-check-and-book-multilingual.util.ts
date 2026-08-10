@@ -125,25 +125,6 @@ export function isMultilingualFindSoonestAppointmentPrompt(
   );
 }
 
-/** First-available flexible booking in hy/ru/translit (rescue + enrichment). */
-export function isMultilingualFirstAvailableBookingPrompt(
-  prompt: string,
-): boolean {
-  if (
-    MULTILINGUAL_BOOK_VERBS.test(prompt) &&
-    MULTILINGUAL_AVAILABILITY_OR.test(prompt)
-  ) {
-    return true;
-  }
-  if (!MULTILINGUAL_FLEXIBLE_SLOT.test(prompt)) return false;
-  return (
-    MULTILINGUAL_BOOK_VERBS.test(prompt) ||
-    /\b(find|get|reserve|schedule|grab)\b/i.test(prompt) ||
-    MULTILINGUAL_SLOT_NOUNS.test(prompt) ||
-    MULTILINGUAL_SERVICE_HINT.test(prompt)
-  );
-}
-
 /** Latin catalog names embedded in hy/ru prompts (e.g. permanent lashes-ի համար). */
 export function extractMultilingualServiceNameFromPrompt(
   prompt: string,

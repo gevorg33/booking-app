@@ -16,8 +16,7 @@ export const E2E292_CREATE_CATEGORY_CASES: readonly E2e292RuCreateCategoryCase[]
   [
     {
       id: 'e292-ru-canonical-catalog-nazvaniem',
-      prompt:
-        'Добавь категорию каталога с названием RUCat E2E292-a пожалуйста',
+      prompt: 'Добавь категорию каталога с названием RUCat E2E292-a пожалуйста',
       expectCreateCategory: true,
       expectBulk: false,
       expectedCategoryName: 'RUCat E2E292-a',
@@ -77,8 +76,7 @@ export const E2E292_CREATE_CATEGORY_CASES: readonly E2e292RuCreateCategoryCase[]
 export const E2E292_KEEP_BULK_CASES: readonly E2e292RuCreateCategoryCase[] = [
   {
     id: 'e292-keep-en-bulk-hair',
-    prompt:
-      "Create category Hair with Women's cut 60m $65, Men's cut 30m $35",
+    prompt: "Create category Hair with Women's cut 60m $65, Men's cut 30m $35",
     expectCreateCategory: false,
     expectBulk: true,
   },

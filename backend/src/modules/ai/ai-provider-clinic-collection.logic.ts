@@ -388,7 +388,8 @@ export async function handleExplainSpecimenRecollectLogic(
     target.id,
   );
 
-  const customerName = target.customerName ?? parsed.customerName ?? 'The patient';
+  const customerName =
+    target.customerName ?? parsed.customerName ?? 'The patient';
   return success(
     'explain_specimen_recollect',
     formatSpecimenRecollectText(customerName, specimen),

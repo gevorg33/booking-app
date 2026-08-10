@@ -88,7 +88,9 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
       );
       expect(preview.success).toBe(false);
       expect(preview.details?.requiresConfirmation).toBe(true);
-      expect(d.customerPrivacyService.deleteCustomerData).not.toHaveBeenCalled();
+      expect(
+        d.customerPrivacyService.deleteCustomerData,
+      ).not.toHaveBeenCalled();
 
       const confirmed = await handlePrivacyDeleteLogic(
         privacyDeps(),

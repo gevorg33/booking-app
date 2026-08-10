@@ -181,7 +181,9 @@ export class AiBusinessTaxService {
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a business-tax intent. */
-  dispatchIntent(ctx: BusinessTaxDispatchContext): Promise<CommandResult | null> {
+  dispatchIntent(
+    ctx: BusinessTaxDispatchContext,
+  ): Promise<CommandResult | null> {
     return dispatchBusinessTaxLogicIntent(this.deps, ctx);
   }
 }

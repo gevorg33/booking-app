@@ -102,14 +102,21 @@ export function extractHideLimitFromPrompt(prompt: string): number | null {
 }
 
 export function extractTimeSlotFromPrompt(prompt: string): string | null {
-  const at24 = prompt.match(/\b(?:at|@)\s*(\d{1,2}):(\d{2})\b/i);
-  if (at24) return normalizeTime24(`${at24[1]}:${at24[2]}`);
-
-  const bare24 = prompt.match(/\b(\d{1,2}):(\d{2})\b/);
-  if (bare24) return normalizeTime24(`${bare24[1]}:${bare24[2]}`);
-
+  // e2e-bug.364: the am/pm branch MUST come first. The bare-24h pattern
+  // `\b(\d{1,2}):(\d{2})\b` matches "3:30" inside "at 3:30 pm" — the trailing
+  // `\b` is satisfied by the space before "pm" — so it returned 03:30, twelve
+  // hours early, and the am/pm branch below it never ran. "3:30pm" (no space)
+  // was correct, so a single space decided whether a booking was morning or
+  // afternoon.
   const amPm = prompt.match(
-    /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i,
+    // Dotted forms first: alternation is ordered, and `am|pm` would otherwise
+    // match the "a"/"p" of "a.m."/"p.m." and leave the dots dangling.
+    //
+    // `(?!\w)` rather than `\b` at the end: a word boundary needs a word
+    // character on one side, and "p.m." ends in a period — so `\b` could never
+    // match the dotted form at all, and "book for 6:45 p.m." fell through to the
+    // bare-24h branch and returned 06:45. Second variant of e2e-bug.364.
+    /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.m\.|p\.m\.|am|pm)(?!\w)/i,
   );
   if (amPm) {
     return parseAmPmClockTime(
@@ -118,6 +125,12 @@ export function extractTimeSlotFromPrompt(prompt: string): string | null {
       amPm[3],
     );
   }
+
+  const at24 = prompt.match(/\b(?:at|@)\s*(\d{1,2}):(\d{2})\b/i);
+  if (at24) return normalizeTime24(`${at24[1]}:${at24[2]}`);
+
+  const bare24 = prompt.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (bare24) return normalizeTime24(`${bare24[1]}:${bare24[2]}`);
 
   const atHourOnly = prompt.match(/\b(?:at|@)\s*(\d{1,2})\b(?!\s*:\d)/i);
   if (atHourOnly) {

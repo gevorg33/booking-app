@@ -450,7 +450,6 @@ export async function handleSummarizeNewRegistrationsLogic(
   }
 }
 
-
 export async function handleHowToDownloadAppLogic(
   deps: MarketingGrowthLogicDeps,
   businessId: string,
@@ -642,12 +641,12 @@ export async function handleStartBillingCheckoutLogic(
   const plan = planId
     ? getPlan(planId)
     : planName
-      ? getActivePlans().find(
+      ? (getActivePlans().find(
           (p) => p.name.toLowerCase() === planName.toLowerCase(),
         ) ??
         getActivePlans().find((p) =>
           p.name.toLowerCase().includes(planName.toLowerCase()),
-        )
+        ))
       : undefined;
 
   if (!plan) {

@@ -156,7 +156,7 @@ describe('ai-clinic-lab-booking.util', () => {
       ),
     ).toBe(false);
     expect(
-      isNotifyPatientBookLabPrompt("Send Maria a link to book her blood draw"),
+      isNotifyPatientBookLabPrompt('Send Maria a link to book her blood draw'),
     ).toBe(false);
   });
 });

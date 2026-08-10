@@ -54,10 +54,12 @@ describe('ai-provider-mark-multi-service-step-done.util (e2e-bug.241 / ai-cmd-pr
   });
 
   it('parses stepIndex and serviceName', () => {
-    expect(parseMarkMultiServiceStepDoneFromPrompt('Finish step 1 of spa day')).toEqual(
-      { stepIndex: 1 },
-    );
-    expect(parseMarkMultiServiceStepDoneFromPrompt('Complete blowdry leg')).toEqual({
+    expect(
+      parseMarkMultiServiceStepDoneFromPrompt('Finish step 1 of spa day'),
+    ).toEqual({ stepIndex: 1 });
+    expect(
+      parseMarkMultiServiceStepDoneFromPrompt('Complete blowdry leg'),
+    ).toEqual({
       serviceName: 'blowdry',
     });
     expect(

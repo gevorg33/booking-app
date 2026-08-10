@@ -346,7 +346,11 @@ function isNonPersonProviderCapture(cleaned: string): boolean {
 function hasNamedProviderCue(prompt: string): boolean {
   if (isSalonOrBusinessAboutPrompt(prompt)) return false;
   if (isDeterminerAboutPrompt(prompt)) return false;
-  if (/\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(prompt)) {
+  if (
+    /\bwho\s+is\s+(?:free|available|open|working|busy|on\s+(?:duty|leave))\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   if (

@@ -50,7 +50,9 @@ export async function resolvePatientClinicalCustomer(
   const needle = name.toLowerCase();
   return (
     customers.find((customer) => customer.name.toLowerCase() === needle) ??
-    customers.find((customer) => customer.name.toLowerCase().includes(needle)) ??
+    customers.find((customer) =>
+      customer.name.toLowerCase().includes(needle),
+    ) ??
     null
   );
 }

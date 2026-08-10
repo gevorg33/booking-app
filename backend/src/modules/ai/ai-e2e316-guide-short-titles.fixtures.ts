@@ -61,9 +61,12 @@ const FORBID_BY_TOPIC: Record<
 > = {
   'consumer-booking-flow': /Any available|add-ons|calendar|confirmation/iu,
   'consumer-packages-gift-cards': /Services or Account|expiry|next booking/iu,
-  'public-booking-professionals': /bios or ratings|open times|toward checkout/iu,
-  'public-booking-services': /from the menu|for each service|continue to checkout/iu,
-  'public-checkout': /cancellation policy|prepayment is required|email or SMS/iu,
+  'public-booking-professionals':
+    /bios or ratings|open times|toward checkout/iu,
+  'public-booking-services':
+    /from the menu|for each service|continue to checkout/iu,
+  'public-checkout':
+    /cancellation policy|prepayment is required|email or SMS/iu,
 };
 
 export const E2E316_PLAYBOOK_SHORT_TITLE_CASES: readonly E2e316PlaybookShortTitleCase[] =

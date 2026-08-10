@@ -33,8 +33,18 @@ function buildDeps(
         valid: true,
         errors: [],
         services: [
-          { serviceId: 'svc-1', name: 'Massage', durationMinutes: 60, price: 80 },
-          { serviceId: 'svc-2', name: 'Facial', durationMinutes: 45, price: 60 },
+          {
+            serviceId: 'svc-1',
+            name: 'Massage',
+            durationMinutes: 60,
+            price: 80,
+          },
+          {
+            serviceId: 'svc-2',
+            name: 'Facial',
+            durationMinutes: 45,
+            price: 60,
+          },
         ],
         totals: {
           blockDurationMinutes: 110,
@@ -87,10 +97,9 @@ describe('ai-self-service-booking.logic — preview_multi_service_cart / suggest
     expect(result.summary).toContain('110 minutes');
     expect(result.summary).toContain('140');
     expect(result.details?.serviceIds).toEqual(['svc-1', 'svc-2']);
-    expect(deps.publicBookingService.previewMultiServiceSelection).toHaveBeenCalledWith(
-      'salon',
-      ['svc-1', 'svc-2'],
-    );
+    expect(
+      deps.publicBookingService.previewMultiServiceSelection,
+    ).toHaveBeenCalledWith('salon', ['svc-1', 'svc-2']);
   });
 
   it('resolves cart service ids from session params', async () => {
@@ -158,9 +167,9 @@ describe('ai-self-service-booking.logic — preview_multi_service_cart / suggest
   });
 
   it('fails gracefully when no block is available', async () => {
-    (deps.publicBookingService.suggestPackageBlock as jest.Mock).mockRejectedValueOnce(
-      new Error('No availability'),
-    );
+    (
+      deps.publicBookingService.suggestPackageBlock as jest.Mock
+    ).mockRejectedValueOnce(new Error('No availability'));
 
     const result = await handleSuggestPackageBlockLogic(deps, 'biz-1', {
       packageName: 'Spa Day',

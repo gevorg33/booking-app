@@ -53,10 +53,7 @@ export function isUpdateMyLocalePrompt(prompt: string): boolean {
   if (!text) return false;
   if (!LANGUAGE_SURFACE.test(text)) return false;
   // "what/which language is my account set to?" is get, not update.
-  if (
-    /\b(what|which)\b/i.test(text) &&
-    /\b(set\s+to|setting)\b/i.test(text)
-  ) {
+  if (/\b(what|which)\b/i.test(text) && /\b(set\s+to|setting)\b/i.test(text)) {
     return false;
   }
   return (

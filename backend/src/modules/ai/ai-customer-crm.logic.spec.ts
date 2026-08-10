@@ -800,9 +800,8 @@ describe('ai-customer-crm.logic', () => {
 
     it('explains a single gift card order', async () => {
       expect(
-        (
-          await handleExplainGiftCardOrderLogic(buildDeps(), 'biz-1', {})
-        ).success,
+        (await handleExplainGiftCardOrderLogic(buildDeps(), 'biz-1', {}))
+          .success,
       ).toBe(false);
       expect(
         (

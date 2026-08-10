@@ -43,11 +43,11 @@ describe('e2e-bug.347: "create category with services" must parse every service 
   });
 
   it('does not invent services for a bare category prompt', () => {
-    expect(parseServiceLinesFromText('Add a new service category called Wellness')).toEqual(
-      [],
-    );
-    expect(isBulkCreateCatalogPrompt('Add a new service category called Wellness')).toBe(
-      false,
-    );
+    expect(
+      parseServiceLinesFromText('Add a new service category called Wellness'),
+    ).toEqual([]);
+    expect(
+      isBulkCreateCatalogPrompt('Add a new service category called Wellness'),
+    ).toBe(false);
   });
 });

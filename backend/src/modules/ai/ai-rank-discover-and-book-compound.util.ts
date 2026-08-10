@@ -84,8 +84,21 @@ function hasBookStepCue(prompt: string): boolean {
 function extractRankDiscoverServiceCategory(
   prompt: string,
 ): string | undefined {
+  // e2e-bug.428 — the same early return as its budget sibling, with the same
+  // consequence: `SERVICE_CATEGORY_BLOCKLIST` exists to stop adjectives like
+  // "affordable" and "premium" being taken for a category, and this path
+  // skipped it.
   const fromList = enrichListServicesParamsFromPrompt(prompt, {});
-  if (fromList.serviceCategory) return fromList.serviceCategory;
+  const fromListCategory =
+    typeof fromList.serviceCategory === 'string'
+      ? fromList.serviceCategory.trim()
+      : '';
+  if (
+    fromListCategory &&
+    !SERVICE_CATEGORY_BLOCKLIST.has(fromListCategory.toLowerCase())
+  ) {
+    return fromListCategory;
+  }
 
   const bookMatch = prompt.match(RANK_BOOK_SERVICE_CATEGORY_PATTERN);
   const rankMatch = prompt.match(RANK_CUE_SERVICE_CATEGORY_PATTERN);

@@ -29,19 +29,44 @@ export function buildClinicTestCatalogLogicDispatchMap(): ReadonlyMap<
   const map = new Map<string, ClinicTestCatalogLogicDispatchHandler>();
 
   map.set('create_test_type', async (deps, ctx) =>
-    handleCreateTestTypeLogic(deps, ctx.businessId, ctx.userId ?? '', ctx.params),
+    handleCreateTestTypeLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('update_test_type', async (deps, ctx) =>
-    handleUpdateTestTypeLogic(deps, ctx.businessId, ctx.userId ?? '', ctx.params),
+    handleUpdateTestTypeLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('delete_test_type', async (deps, ctx) =>
-    handleDeleteTestTypeLogic(deps, ctx.businessId, ctx.userId ?? '', ctx.params),
+    handleDeleteTestTypeLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('create_test_panel', async (deps, ctx) =>
-    handleCreateTestPanelLogic(deps, ctx.businessId, ctx.userId ?? '', ctx.params),
+    handleCreateTestPanelLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('update_test_panel', async (deps, ctx) =>
-    handleUpdateTestPanelLogic(deps, ctx.businessId, ctx.userId ?? '', ctx.params),
+    handleUpdateTestPanelLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId ?? '',
+      ctx.params,
+    ),
   );
   map.set('set_test_panel_items', async (deps, ctx) =>
     handleSetTestPanelItemsLogic(

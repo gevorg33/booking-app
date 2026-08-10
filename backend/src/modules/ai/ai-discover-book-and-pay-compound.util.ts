@@ -23,7 +23,7 @@ import {
 import { hasAvailabilityOrPattern } from './ai-flexible-availability.util.js';
 import { isBookWithGiftCardCompoundPrompt } from './ai-book-with-gift-card.util.js';
 import { isGiftCardCheckoutCompoundPrompt } from './ai-gift-card-payments-hints.util.js';
-import { isGiftCardCheckoutCompoundPrompt as isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
+import { isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
 import { isBudgetDiscoverAndBookCompoundPrompt } from './ai-budget-discover-and-book-compound.util.js';
 import {
   DISCOVER_BOOK_AND_PAY_COMPOUND_PROMPTS,

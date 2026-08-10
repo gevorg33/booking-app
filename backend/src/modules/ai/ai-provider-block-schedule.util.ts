@@ -50,7 +50,10 @@ export function rescueProviderBlockScheduleIntent(
 ): { action: 'block_schedule'; rescueReason: string } | null {
   if (action === 'block_schedule') return null;
   if (isProviderBlockSchedulePrompt(prompt)) {
-    return { action: 'block_schedule', rescueReason: 'provider_block_schedule' };
+    return {
+      action: 'block_schedule',
+      rescueReason: 'provider_block_schedule',
+    };
   }
   return null;
 }

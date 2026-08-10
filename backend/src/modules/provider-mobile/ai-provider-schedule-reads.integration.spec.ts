@@ -88,7 +88,11 @@ describe('list_upcoming_bookings / get_schedule_summary (ai-cmd-provider-6.2)', 
       reasoning: 'harness classified',
     });
 
-    await service.executeCommand(businessId, userId, 'What do I have coming up?');
+    await service.executeCommand(
+      businessId,
+      userId,
+      'What do I have coming up?',
+    );
 
     expect(providerMobile.getUpcomingBookings).toHaveBeenCalledWith(
       businessId,
@@ -128,7 +132,11 @@ describe('list_upcoming_bookings / get_schedule_summary (ai-cmd-provider-6.2)', 
       reasoning: 'harness classified',
     });
 
-    await service.executeCommand(businessId, userId, 'Give me a schedule overview');
+    await service.executeCommand(
+      businessId,
+      userId,
+      'Give me a schedule overview',
+    );
 
     expect(providerMobile.getScheduleSummary).toHaveBeenCalledWith(
       businessId,

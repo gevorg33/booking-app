@@ -30,12 +30,7 @@ describe('e2e-bug.260: strip trailing time window from service names', () => {
 
   it.each(E2E260_OVERRIDE_CASES)(
     '$id — applyPromptMentionedServiceOverrideToParams',
-    ({
-      prompt,
-      params,
-      expectedServiceName,
-      expectedServiceCategory,
-    }) => {
+    ({ prompt, params, expectedServiceName, expectedServiceCategory }) => {
       const next = applyPromptMentionedServiceOverrideToParams(prompt, {
         ...params,
       });

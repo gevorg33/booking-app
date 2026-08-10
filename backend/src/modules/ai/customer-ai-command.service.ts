@@ -1,3 +1,6 @@
+import { stampCommandTraceDetails } from './ai-command-trace-recorder.util.js';
+import type { PipelineTrace } from './command-completion.types.js';
+import type { IntentCandidateSource } from './command-understanding.types.js';
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { resolveLocale, t } from '../../common/i18n/messages.js';
 import { LlmService } from '../../engine/agent/llm.service.js';
@@ -151,6 +154,23 @@ interface ParsedCustomerIntent {
   reasoning: string;
 }
 
+/**
+ * Carries what the understand pipeline learned back out to `executeCommand`,
+ * which stamps it onto the result (e2e-bug.413). Created per call.
+ */
+type CustomerTraceSink = {
+  pipelineTrace?: PipelineTrace[];
+  confidence?: number;
+  candidateSource?: IntentCandidateSource;
+  /**
+   * Resolved params, so the trace records what the command was actually given
+   * (e2e-bug.419). Without this every customer row stores `{}` and any analysis
+   * of "did the command receive what the user said" reads as "no" for all of
+   * them, whatever happened.
+   */
+  params?: Record<string, unknown>;
+};
+
 @Injectable()
 export class CustomerAiCommandService {
   private readonly logger = new Logger(CustomerAiCommandService.name);
@@ -259,11 +279,51 @@ export class CustomerAiCommandService {
     };
   }
 
+  /**
+   * e2e-bug.413 — stamp the pipeline trace onto whatever this returns.
+   *
+   * `buildGatewayCommandTraceInput` reads the trace from `result.details`, and
+   * this service never put it there: only the `blocked` branch did. The result
+   * was that **93% of customer traces** (and 99% of provider) reached
+   * `ai_command_trace` with no `pipeline_trace`, so `attributeActionChange` had
+   * no `classify` entry to compare against and wrote `action_changed_by = null`
+   * by construction — on the surface carrying 69% of the platform's traffic.
+   *
+   * The dashboard has had this since §1.1, via `finalizeCommandTraceResult`.
+   *
+   * Wrapping rather than stamping at each `return`: the body has ~40 exit
+   * points and the next one added would silently go untraced again. The sink is
+   * created per call, so concurrent requests cannot see each other's trace.
+   */
   async executeCommand(
     businessId: string,
     prompt: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
     context?: Record<string, unknown>,
+  ): Promise<CommandResult> {
+    const sink: CustomerTraceSink = {};
+    const result = await this.runCommand(
+      businessId,
+      prompt,
+      history,
+      context,
+      sink,
+    );
+    if (!sink.pipelineTrace) return result;
+    return stampCommandTraceDetails(result, {
+      pipelineTrace: sink.pipelineTrace,
+      confidence: sink.confidence,
+      candidateSource: sink.candidateSource,
+      params: sink.params,
+    });
+  }
+
+  private async runCommand(
+    businessId: string,
+    prompt: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    context?: Record<string, unknown>,
+    sink: CustomerTraceSink = {},
   ): Promise<CommandResult> {
     if (!(await this.llm.isAvailableForBusiness(businessId))) {
       const fallback = await runAiUnavailableStaticGuideFallback({
@@ -316,6 +376,7 @@ export class CustomerAiCommandService {
       prompt,
     );
 
+    // e2e-bug.413 — hand the trace to the wrapper before any of the ~40 exits.
     const understood = await this.customerUnderstanding.understand({
       businessId,
       effectivePrompt: prompt,
@@ -334,6 +395,12 @@ export class CustomerAiCommandService {
           context,
         ),
     });
+
+    // Set before the blocked/clarify exits, not after: those are the paths most
+    // worth tracing, and they return long before the dispatch below.
+    sink.pipelineTrace = understood.trace;
+    sink.confidence = understood.confidence;
+    sink.params = understood.params;
 
     if (understood.status === 'blocked') {
       return {
@@ -403,7 +470,10 @@ export class CustomerAiCommandService {
     let action = parsed.action;
     let params = enrichDiscoveryParamsFromPrompt({ ...parsed.params }, prompt);
     params = applyPromptMentionedServiceOverrideToParams(prompt, params);
-    if (action === 'check_availability' || action === 'explain_provider_availability') {
+    if (
+      action === 'check_availability' ||
+      action === 'explain_provider_availability'
+    ) {
       params = {
         ...params,
         ...buildSharedBookingContextFromPrompt(prompt),
@@ -432,22 +502,30 @@ export class CustomerAiCommandService {
       rescueReason = cancelAllConfirm.rescueReason;
       parsed.action = action;
     } else if (action === 'cancel_all_upcoming_bookings') {
-      params = enrichCancelAllUpcomingConfirmFromPrompt(prompt, {
-        ...params,
-        cancelAllUpcomingPending: session.cancelAllUpcomingPending,
-        requiresConfirmation: session.requiresConfirmation,
-        pendingAction: session.pendingAction,
-      }, history);
+      params = enrichCancelAllUpcomingConfirmFromPrompt(
+        prompt,
+        {
+          ...params,
+          cancelAllUpcomingPending: session.cancelAllUpcomingPending,
+          requiresConfirmation: session.requiresConfirmation,
+          pendingAction: session.pendingAction,
+        },
+        history,
+      );
     }
     // e2e-bug.257 — deterministic confirm after privacy_delete preview (same
     // shape as e2e-bug.78). Without this, bare "yes" is unknown-blocked before
     // handlePrivacyDeleteLogic ever sees privacyDeletePending.
-    const privacyDeleteConfirm = rescuePrivacyDeleteConfirmIntent(prompt, action, {
-      ...params,
-      privacyDeletePending: session.privacyDeletePending,
-      requiresConfirmation: session.requiresConfirmation,
-      pendingAction: session.pendingAction,
-    });
+    const privacyDeleteConfirm = rescuePrivacyDeleteConfirmIntent(
+      prompt,
+      action,
+      {
+        ...params,
+        privacyDeletePending: session.privacyDeletePending,
+        requiresConfirmation: session.requiresConfirmation,
+        pendingAction: session.pendingAction,
+      },
+    );
     if (privacyDeleteConfirm) {
       action = privacyDeleteConfirm.action;
       params = { ...params, ...privacyDeleteConfirm.params };
@@ -574,7 +652,12 @@ export class CustomerAiCommandService {
   ): CommandResult {
     return appendPostFailureGuideFallback(
       result,
-      buildPostFailureGuideFallbackInput(context, 'customer', undefined, prompt),
+      buildPostFailureGuideFallbackInput(
+        context,
+        'customer',
+        undefined,
+        prompt,
+      ),
     );
   }
 

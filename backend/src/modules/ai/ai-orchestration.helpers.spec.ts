@@ -57,10 +57,12 @@ describe('extractSingleIsoDayFromPrompt (e2e-bug.67)', () => {
     expect(
       extractSingleIsoDayFromPrompt('from 2026-07-01 to 2026-07-05'),
     ).toBeNull();
-    expect(extractDateRangeFromPrompt('from 2026-07-01 to 2026-07-05')).toEqual({
-      start: '2026-07-01',
-      end: '2026-07-05',
-    });
+    expect(extractDateRangeFromPrompt('from 2026-07-01 to 2026-07-05')).toEqual(
+      {
+        start: '2026-07-01',
+        end: '2026-07-05',
+      },
+    );
   });
 });
 
@@ -200,11 +202,19 @@ describe('resolvePublicAvailabilityDateKeys', () => {
     expect(dates).toHaveLength(1);
   });
 
+  // e2e-bug.365 — both of these tests are correct and they contradicted each
+  // other on a moving calendar: one required 2026-06-15 to be returned, the
+  // other required past dates to be dropped, and 2026-06-15 became a past date.
+  // Pinning "today" makes each assert its own rule instead of asserting the
+  // date the suite happened to be written on.
+  const FROZEN_TODAY = '2026-06-01';
+
   it('uses explicit date param when no weekday filter', () => {
     const dates = resolvePublicAvailabilityDateKeys(
       { date: '15_06_2026' },
       'check slots',
       tz,
+      { referenceTodayDateKey: FROZEN_TODAY },
     );
     expect(dates).toEqual(['2026-06-15']);
   });
@@ -214,6 +224,19 @@ describe('resolvePublicAvailabilityDateKeys', () => {
       { date: '01_01_2020' },
       'check slots',
       tz,
+      { referenceTodayDateKey: FROZEN_TODAY },
+    );
+    expect(dates).toEqual([]);
+  });
+
+  it('drops a date that is past relative to the injected today, not the real one', () => {
+    // Guards the seam itself: without the injection this would depend on when
+    // the suite runs, which is the defect e2e-bug.365 records.
+    const dates = resolvePublicAvailabilityDateKeys(
+      { date: '15_06_2026' },
+      'check slots',
+      tz,
+      { referenceTodayDateKey: '2026-07-01' },
     );
     expect(dates).toEqual([]);
   });
@@ -582,10 +605,7 @@ describe('resolveServicesFromCatalogParams', () => {
   });
 
   it('prefers exact haircut over synonym when both exist (e2e-bug.199)', () => {
-    const both = [
-      ...catalog,
-      { id: '7', name: 'Classic haircut' },
-    ];
+    const both = [...catalog, { id: '7', name: 'Classic haircut' }];
     expect(
       resolveServicesFromCatalogParams(both, {
         serviceCategory: 'haircut',
@@ -652,9 +672,7 @@ describe('matchServicesByQuery', () => {
     expect(
       matchServicesByQuery(catalog, 'haircuts').map((s) => s.name),
     ).toEqual(['hairstyle']);
-    expect(
-      fuzzyMatchServiceByName(catalog, 'haircut')?.name,
-    ).toBe('hairstyle');
+    expect(fuzzyMatchServiceByName(catalog, 'haircut')?.name).toBe('hairstyle');
   });
 
   it('returns all massage services for broad "massage" query', () => {

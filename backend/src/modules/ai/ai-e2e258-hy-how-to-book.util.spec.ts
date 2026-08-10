@@ -15,12 +15,12 @@ import { CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES } from './a
 
 describe('e2e-bug.258 short Armenian how-to-book → booking_help', () => {
   it('classifier rules forbid booking_help how-to steal', () => {
-    expect(CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES).toContain(
-      'NOT booking_help',
-    );
-    expect(CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES).toContain(
-      'Ինչպես ամրագրել',
-    );
+    expect(
+      CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES,
+    ).toContain('NOT booking_help');
+    expect(
+      CUSTOMER_PUBLIC_CONFIRM_MY_BOOKING_DETAILS_CLASSIFIER_RULES,
+    ).toContain('Ինչպես ամրագրել');
   });
 
   it('documents every live case id', () => {
@@ -44,7 +44,9 @@ describe('e2e-bug.258 short Armenian how-to-book → booking_help', () => {
     (_id, row) => {
       expect(isBookingHelpPrompt(row.prompt)).toBe(true);
       expect(isConfirmMyBookingDetailsPrompt(row.prompt)).toBe(false);
-      expect(rescueConfirmMyBookingDetailsIntent(row.prompt, 'unknown')).toBeNull();
+      expect(
+        rescueConfirmMyBookingDetailsIntent(row.prompt, 'unknown'),
+      ).toBeNull();
       expect(
         rescuePublicBookingHelpIntent(row.prompt, 'confirm_my_booking_details'),
       ).toBe('booking_help');

@@ -86,8 +86,30 @@ function hasBookStepCue(prompt: string): boolean {
 function extractBudgetDiscoverServiceCategory(
   prompt: string,
 ): string | undefined {
+  // e2e-bug.428 — the list-services extractor's answer goes through the same
+  // blocklist and singulariser as every pattern below it.
+  //
+  // This returned `fromList.serviceCategory` raw, so the two guards that exist
+  // precisely for this value were skipped on the one path most likely to
+  // produce it: `SERVICE_CATEGORY_BLOCKLIST` (which already contains
+  // "affordable", a price adjective the prompt "affordable styling options"
+  // offers before the real category) and `normalizeBudgetServiceCategory`
+  // (which singularises, so "facials" stays "facials" instead of "facial").
+  //
+  // Both showed up as `compoundStepParams[0].params.serviceCategory` mismatches
+  // rather than as routing failures, which is why they outlived the routing
+  // work.
   const fromList = enrichListServicesParamsFromPrompt(prompt, {});
-  if (fromList.serviceCategory) return fromList.serviceCategory;
+  const fromListCategory =
+    typeof fromList.serviceCategory === 'string'
+      ? fromList.serviceCategory.trim()
+      : '';
+  if (
+    fromListCategory &&
+    !SERVICE_CATEGORY_BLOCKLIST.has(fromListCategory.toLowerCase())
+  ) {
+    return normalizeBudgetServiceCategory(fromListCategory);
+  }
 
   const patterns = [
     /\bshow\s+([a-z][\w]+)\s+(?:options|services)\b/i,

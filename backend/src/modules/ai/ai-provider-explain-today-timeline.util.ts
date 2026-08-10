@@ -14,9 +14,7 @@ export function isExplainTodayTimelinePrompt(prompt: string): boolean {
     /\b(?:any\s+)?(?:gaps?|breaks?|downtime)\s+(?:between\s+(?:my\s+)?(?:clients?|appointments?)|today)\b/.test(
       lower,
     ) ||
-    /\bdo\s+i\s+have\s+(?:any\s+)?breaks?\s+between\s+clients?\b/.test(
-      lower,
-    ) ||
+    /\bdo\s+i\s+have\s+(?:any\s+)?breaks?\s+between\s+clients?\b/.test(lower) ||
     /\bmy\s+timeline\s+for\s+today\b/.test(lower) ||
     /\bwhat'?s\s+my\s+downtime\b/.test(lower)
   ) {

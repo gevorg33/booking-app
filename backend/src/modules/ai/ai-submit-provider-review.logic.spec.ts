@@ -43,9 +43,7 @@ describe('handleSubmitProviderReviewLogic', () => {
     expect(result.success).toBe(true);
     expect(result.action).toBe('submit_provider_review');
     expect(result.summary).toContain('Anna');
-    expect(
-      deps.reviewsService.submitProviderPortalReview,
-    ).toHaveBeenCalledWith(
+    expect(deps.reviewsService.submitProviderPortalReview).toHaveBeenCalledWith(
       'salon',
       'emp-1',
       { rating: 5, comment: undefined, idToken: undefined },
@@ -62,9 +60,7 @@ describe('handleSubmitProviderReviewLogic', () => {
       idToken: 'google-token',
     });
     expect(result.success).toBe(true);
-    expect(
-      deps.reviewsService.submitProviderPortalReview,
-    ).toHaveBeenCalledWith(
+    expect(deps.reviewsService.submitProviderPortalReview).toHaveBeenCalledWith(
       'salon',
       'emp-2',
       { rating: 4, comment: undefined, idToken: 'google-token' },

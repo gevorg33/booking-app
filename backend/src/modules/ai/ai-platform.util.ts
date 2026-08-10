@@ -548,4 +548,3 @@ export function enrichPublicSessionWithOrchestrationRules(
     _verticalHints: plugin.intentHints.join(', '),
   };
 }
-

@@ -9,7 +9,7 @@ import {
 import { isAskPaymentOptionsPrompt } from './ai-cash-payment-checkout.util.js';
 import { isBookWithGiftCardCompoundPrompt } from './ai-book-with-gift-card.util.js';
 import { isGiftCardCheckoutCompoundPrompt } from './ai-gift-card-payments-hints.util.js';
-import { isGiftCardCheckoutCompoundPrompt as isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
+import { isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
 import {
   hasRebookLastAppointmentCoreCue,
   parseRebookLastAppointmentFromPrompt,

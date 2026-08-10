@@ -27,8 +27,7 @@ export const E2E133_TOUR_VS_CLINIC_SCENARIOS = [
   },
   {
     id: 'coastal-drive-unknown',
-    prompt:
-      'Coastal Drive for 4 people — book when seats are available',
+    prompt: 'Coastal Drive for 4 people — book when seats are available',
     expectedAction: 'compound_intent' as const,
     expectedRescueReason: 'tour_group_checkout_compound' as const,
     expectedServiceName: 'Coastal Drive',

@@ -116,7 +116,9 @@ export function hasDashboardCustomerReference(prompt: string): boolean {
  * e2e-bug.138 — owner asks about customers' memberships ("my customers"),
  * not the signed-in customer's own "my subscriptions".
  */
-export function hasBusinessWideCustomerMembershipScope(prompt: string): boolean {
+export function hasBusinessWideCustomerMembershipScope(
+  prompt: string,
+): boolean {
   return (
     /\bmy\s+customers?\b/i.test(prompt) ||
     /\b(?:our|the)\s+customers?\b/i.test(prompt) ||

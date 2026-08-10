@@ -26,9 +26,7 @@ describe('e2e-bug.250 list_tour_calendar_week serviceName fragment guard', () =>
     E2E250_NO_SERVICE_NAME_SCENARIOS.map((row) => [row.id, row] as const),
   )('drops garbage serviceName for %s', (_id, row) => {
     const parsed = parseListTourCalendarWeekFromPrompt(row.prompt, {
-      ...(row.paramsServiceName
-        ? { serviceName: row.paramsServiceName }
-        : {}),
+      ...(row.paramsServiceName ? { serviceName: row.paramsServiceName } : {}),
     });
     expect(parsed).not.toBeNull();
     expect(parsed?.serviceName).toBeUndefined();
@@ -38,9 +36,7 @@ describe('e2e-bug.250 list_tour_calendar_week serviceName fragment guard', () =>
     E2E250_KEEP_SERVICE_NAME_SCENARIOS.map((row) => [row.id, row] as const),
   )('keeps real serviceName for %s', (_id, row) => {
     const parsed = parseListTourCalendarWeekFromPrompt(row.prompt, {
-      ...(row.paramsServiceName
-        ? { serviceName: row.paramsServiceName }
-        : {}),
+      ...(row.paramsServiceName ? { serviceName: row.paramsServiceName } : {}),
     });
     expect(parsed?.serviceName).toBe(row.expectServiceName);
   });

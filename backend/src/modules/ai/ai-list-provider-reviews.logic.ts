@@ -90,9 +90,12 @@ export async function handleListProviderReviewsLogic(
       },
     };
   } catch (err: any) {
-    return failure(err?.message ?? 'Could not load reviews for this provider.', {
-      employeeId,
-      reason: 'not_found',
-    });
+    return failure(
+      err?.message ?? 'Could not load reviews for this provider.',
+      {
+        employeeId,
+        reason: 'not_found',
+      },
+    );
   }
 }

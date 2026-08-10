@@ -464,9 +464,3 @@ export function decomposeDashboardPackageMultiServiceCompoundPrompt(
     params: propagated[index]?.params ?? step.params,
   }));
 }
-
-export function isDashboardPackageMultiCompoundPrompt(prompt: string): boolean {
-  return (
-    decomposeDashboardPackageMultiServiceCompoundPrompt(prompt).length >= 2
-  );
-}

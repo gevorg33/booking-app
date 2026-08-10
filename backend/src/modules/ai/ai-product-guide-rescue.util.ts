@@ -237,10 +237,7 @@ export function isProviderHomeOrTodayTabGuidePrompt(prompt: string): boolean {
   }
   if (/(?:home|today)\s*tab-ը/iu.test(prompt)) return true;
   // RU: "Как пользоваться вкладкой Home/Today"
-  if (
-    /вкладк/iu.test(prompt) &&
-    /\b(?:home|today|calendar)\b/i.test(prompt)
-  ) {
+  if (/вкладк/iu.test(prompt) && /\b(?:home|today|calendar)\b/i.test(prompt)) {
     return true;
   }
   if (/(?:вкладка\s+today|что\s+показывает\s+вкладка)/iu.test(prompt)) {

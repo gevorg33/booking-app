@@ -237,16 +237,17 @@ export function isProviderExplainOfflineModePrompt(prompt: string): boolean {
   ) {
     return true;
   }
-  if (isOfflineQueueStatusPrompt(prompt) || isRetryOfflineActionPrompt(prompt)) {
+  if (
+    isOfflineQueueStatusPrompt(prompt) ||
+    isRetryOfflineActionPrompt(prompt)
+  ) {
     return false;
   }
 
   const hasProviderCue =
     PROVIDER_APP_OFFLINE_CUE.test(prompt) ||
-    (/[԰-֏]/.test(prompt) &&
-      /(provider\s*app|staff\s*app)/i.test(prompt)) ||
-    (/[Ѐ-ӿ]/.test(prompt) &&
-      /(provider\s*app|staff\s*app)/i.test(prompt));
+    (/[԰-֏]/.test(prompt) && /(provider\s*app|staff\s*app)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) && /(provider\s*app|staff\s*app)/i.test(prompt));
   if (!hasProviderCue) return false;
 
   return (
@@ -274,20 +275,16 @@ export function isProviderExplainAppUpdateGatePrompt(prompt: string): boolean {
 
   const hasProviderCue =
     PROVIDER_APP_OFFLINE_CUE.test(prompt) ||
-    (/[԰-֏]/.test(prompt) &&
-      /(provider\s*app|staff\s*app)/i.test(prompt)) ||
-    (/[Ѐ-ӿ]/.test(prompt) &&
-      /(provider\s*app|staff\s*app)/i.test(prompt));
+    (/[԰-֏]/.test(prompt) && /(provider\s*app|staff\s*app)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) && /(provider\s*app|staff\s*app)/i.test(prompt));
   if (!hasProviderCue) return false;
 
   return (
     /\b(why.{0,40}(?:update|must i update)|skip.{0,20}update|not now.{0,30}(?:update|banner)|update required|app version|version (?:unavailable|blocked|gate)|kill switch|newer version|minimum.{0,20}version|app store.{0,20}update|update nudge|temporarily unavailable|dismiss.{0,20}nudge|blocked.{0,20}update|update\s+gate)\b/i.test(
       prompt,
     ) ||
-    (/[԰-֏]/.test(prompt) &&
-      /(թարմաց|բաց թողնել|արգելափակ)/i.test(prompt)) ||
-    (/[Ѐ-ӿ]/.test(prompt) &&
-      /(обнов|пропуст|недоступ)/i.test(prompt))
+    (/[԰-֏]/.test(prompt) && /(թարմաց|բաց թողնել|արգելափակ)/i.test(prompt)) ||
+    (/[Ѐ-ӿ]/.test(prompt) && /(обнов|пропуст|недоступ)/i.test(prompt))
   );
 }
 
@@ -370,7 +367,15 @@ export function isDismissPushPrompt(prompt: string): boolean {
   );
 }
 
-export function isEndOfDaySummaryPrompt(prompt: string): boolean {
+/**
+ * e2e-bug.353 - renamed from `isEndOfDaySummaryPrompt`, which
+ * `ai-provider-end-of-day-summary.util.ts` also exported with a different
+ * implementation. This one matches the end-of-day **push notification** ("end of
+ * day push", "notification"); that one matches a provider wrapping up their day.
+ * Two answers behind one name, resolved by whichever module a call site happened
+ * to import.
+ */
+export function isEndOfDaySummaryPushPrompt(prompt: string): boolean {
   if (isSummarizeDayOnlyPrompt(prompt)) return false;
   return (
     (/\b(end\s+of\s+day|eod)\b/i.test(prompt) &&
@@ -878,7 +883,7 @@ export function rescuePushNotificationsIntent(
       rescueReason: 'booking_push_actions',
     };
   }
-  if (isEndOfDaySummaryPrompt(prompt)) {
+  if (isEndOfDaySummaryPushPrompt(prompt)) {
     return { action: 'end_of_day_summary', rescueReason: 'end_of_day_summary' };
   }
   if (isMarkAllNotificationsReadPrompt(prompt)) {
@@ -952,7 +957,7 @@ export function isPushNotificationsDomainPrompt(prompt: string): boolean {
     isOfflineQueueStatusPrompt(text) ||
     isRetryOfflineActionPrompt(text) ||
     isDismissPushPrompt(text) ||
-    isEndOfDaySummaryPrompt(text) ||
+    isEndOfDaySummaryPushPrompt(text) ||
     isNewBookingPushActionsPrompt(text) ||
     isConfigurePushRecipientsPrompt(text) ||
     isTestPushPrompt(text) ||
@@ -1010,7 +1015,9 @@ export function classifyPushNotificationsSegment(
       action: 'toggle_business_email_on_customer_change',
       params: {
         ...base,
-        ...(businessEmailToggle !== null ? { enabled: businessEmailToggle } : {}),
+        ...(businessEmailToggle !== null
+          ? { enabled: businessEmailToggle }
+          : {}),
       },
       segment: text,
     };
@@ -1030,7 +1037,7 @@ export function classifyPushNotificationsSegment(
   if (isNewBookingPushActionsPrompt(text)) {
     return { action: 'new_booking_push_actions', params: base, segment: text };
   }
-  if (isEndOfDaySummaryPrompt(text)) {
+  if (isEndOfDaySummaryPushPrompt(text)) {
     return { action: 'end_of_day_summary', params: base, segment: text };
   }
   if (isDismissPushPrompt(text)) {

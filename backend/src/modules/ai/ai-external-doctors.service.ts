@@ -23,7 +23,12 @@ export class AiExternalDoctorsService {
     userId: string | undefined,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleCreateExternalDoctorLogic(this.deps, businessId, userId, params);
+    return handleCreateExternalDoctorLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleUpdateExternalDoctor(
@@ -31,7 +36,12 @@ export class AiExternalDoctorsService {
     userId: string | undefined,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleUpdateExternalDoctorLogic(this.deps, businessId, userId, params);
+    return handleUpdateExternalDoctorLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleListExternalDoctors(
@@ -39,7 +49,12 @@ export class AiExternalDoctorsService {
     userId: string | undefined,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleListExternalDoctorsLogic(this.deps, businessId, userId, params);
+    return handleListExternalDoctorsLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an external-doctors intent. */

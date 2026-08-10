@@ -1,15 +1,12 @@
 import {
   extractPackageVisitIndexesFromPrompt,
-  isReschedulePackageLinesPrompt,
   parseReschedulePackageLinesFromPrompt,
 } from './ai-reschedule-package-lines.util.js';
 
 describe('extractPackageVisitIndexesFromPrompt', () => {
   it('extracts two visit numbers joined by "and"', () => {
     expect(
-      extractPackageVisitIndexesFromPrompt(
-        'Move visits 2 and 3 to next week',
-      ),
+      extractPackageVisitIndexesFromPrompt('Move visits 2 and 3 to next week'),
     ).toEqual([2, 3]);
   });
 
@@ -28,31 +25,13 @@ describe('extractPackageVisitIndexesFromPrompt', () => {
   });
 
   it('returns an empty array with no visit numbers', () => {
-    expect(extractPackageVisitIndexesFromPrompt('Reschedule my spa day')).toEqual(
-      [],
-    );
+    expect(
+      extractPackageVisitIndexesFromPrompt('Reschedule my spa day'),
+    ).toEqual([]);
   });
 });
 
-describe('isReschedulePackageLinesPrompt', () => {
-  it('is true for a plural reschedule prompt', () => {
-    expect(
-      isReschedulePackageLinesPrompt('Move visits 2 and 3 to next week'),
-    ).toBe(true);
-  });
-
-  it('is false for a singular reschedule prompt', () => {
-    expect(
-      isReschedulePackageLinesPrompt('Move package visit 3 to next week'),
-    ).toBe(false);
-  });
-
-  it('is false without package context', () => {
-    expect(
-      isReschedulePackageLinesPrompt('Move meetings 2 and 3 to next week'),
-    ).toBe(false);
-  });
-});
+describe('isReschedulePackageLinesPrompt', () => {});
 
 describe('parseReschedulePackageLinesFromPrompt', () => {
   it('parses visit indexes, package name, and target date', () => {

@@ -4,7 +4,10 @@ import { COMMAND_TRACE_ID_CONTEXT_KEY } from './ai-command-trace-recorder.util.j
 import type { CommandResult } from './command-completion.types.js';
 
 describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
-  function buildGateway(result: CommandResult) {
+  function buildGateway(
+    result: CommandResult,
+    plannerShadow?: { runInBackground: jest.Mock },
+  ) {
     const dashboardCommands = {
       executeCommand: jest.fn(async () => result),
       approveTask: jest.fn(),
@@ -47,6 +50,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       platform as never,
       commandTrace as never,
       { handleGuideUserFlowAsync: jest.fn() } as never,
+      plannerShadow as never,
     );
     return { gateway, dashboardCommands, commandTrace };
   }
@@ -102,13 +106,16 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
       }),
     );
     // e2e-bug.135 — client body must not include pipeline internals.
-    expect((clientResult as { details?: Record<string, unknown> }).details)
-      .toEqual(expect.not.objectContaining({
+    expect(
+      (clientResult as { details?: Record<string, unknown> }).details,
+    ).toEqual(
+      expect.not.objectContaining({
         pipelineTrace: expect.anything(),
         confidence: expect.anything(),
         traceId: expect.anything(),
         gateway: expect.anything(),
-      }));
+      }),
+    );
   });
 
   it('persists trace on clarify path', async () => {
@@ -193,5 +200,87 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
     });
     expect(commandTrace.recordFireAndForget).toHaveBeenCalled();
     expect(dashboardCommands.executeCommand).not.toHaveBeenCalled();
+  });
+
+  // AI-ROADMAP Phase 3 — shadow planner wiring. The safety contract is that
+  // the gateway works identically whether or not the optional dep is present.
+  describe('planner shadow run', () => {
+    const okResult: CommandResult = {
+      success: true,
+      action: 'list_bookings',
+      summary: 'ok',
+      details: { traceId: 'trace-shadow', locale: 'hy' },
+    };
+
+    it('executes normally when the shadow service is not injected', async () => {
+      const { gateway, commandTrace } = buildGateway(okResult);
+      const res = await gateway.execute({
+        surface: 'dashboard',
+        businessId: 'biz-1',
+        prompt: 'list bookings',
+        membershipRole: 'owner',
+        context: { [COMMAND_TRACE_ID_CONTEXT_KEY]: 'trace-shadow' },
+      });
+      expect(res.success).toBe(true);
+      expect(commandTrace.recordFireAndForget).toHaveBeenCalled();
+    });
+
+    it('hands the same traceId, surface, actor tier and prompt to the shadow runner', async () => {
+      const plannerShadow = { runInBackground: jest.fn() };
+      const { gateway } = buildGateway(okResult, plannerShadow);
+      await gateway.execute({
+        surface: 'dashboard',
+        businessId: 'biz-1',
+        prompt: 'list bookings',
+        userId: 'user-1',
+        membershipRole: 'owner',
+        context: { [COMMAND_TRACE_ID_CONTEXT_KEY]: 'trace-shadow' },
+      });
+      expect(plannerShadow.runInBackground).toHaveBeenCalledWith({
+        traceId: 'trace-shadow',
+        businessId: 'biz-1',
+        surface: 'dashboard',
+        // The shadow planner filters its shortlist by this, so it must be the
+        // tier `execute` itself gated on — resolved from the same membershipRole.
+        tier: 'owner',
+        message: 'list bookings',
+        userId: 'user-1',
+        locale: 'hy',
+      });
+    });
+
+    it('resolves the shadow tier from the actor, not a fixed value', async () => {
+      const plannerShadow = { runInBackground: jest.fn() };
+      const { gateway } = buildGateway(okResult, plannerShadow);
+      await gateway.execute({
+        surface: 'dashboard',
+        businessId: 'biz-1',
+        prompt: 'list bookings',
+        userId: 'user-1',
+        membershipRole: 'staff',
+        context: { [COMMAND_TRACE_ID_CONTEXT_KEY]: 'trace-shadow' },
+      });
+      expect(plannerShadow.runInBackground).toHaveBeenCalledWith(
+        expect.objectContaining({ tier: 'staff' }),
+      );
+    });
+
+    it('returns the real result unchanged even if the shadow runner throws', async () => {
+      const plannerShadow = {
+        runInBackground: jest.fn(() => {
+          throw new Error('shadow exploded');
+        }),
+      };
+      const { gateway } = buildGateway(okResult, plannerShadow);
+      const res = await gateway.execute({
+        surface: 'dashboard',
+        businessId: 'biz-1',
+        prompt: 'list bookings',
+        membershipRole: 'owner',
+        context: { [COMMAND_TRACE_ID_CONTEXT_KEY]: 'trace-shadow' },
+      });
+      expect(res.success).toBe(true);
+      expect(res.action).toBe('list_bookings');
+    });
   });
 });

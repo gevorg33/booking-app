@@ -43,14 +43,36 @@ function hasCheckoutRejectionCue(prompt: string): boolean {
   );
 }
 
+/**
+ * Is this prompt about *tour capacity* — group size, seats, spots remaining?
+ *
+ * e2e-bug.429 — "checkout" is not, and used to be.
+ *
+ * This listed `checkout|booking page` as a topic, in English, Armenian and
+ * Russian. `isDiagnoseTourCapacityPrompt` already requires
+ * `hasCheckoutRejectionCue` separately, so that clause added nothing about
+ * tours and everything about checkout: any complaint of the form "checkout
+ * won't accept X" satisfied both halves and was diagnosed as a tour capacity
+ * problem. It took eight of `fix_checkout_validation_error`'s nine eval cases,
+ * on prompts that never mention a tour —
+ * *"Checkout won't accept my email even though it's there"*.
+ *
+ * What remains is the vocabulary that genuinely marks a group booking. A tour
+ * prompt that says only "checkout rejected", with no group, seat or spot word
+ * anywhere, is no longer claimed here — and should not be, because nothing in
+ * it distinguishes a tour from any other checkout.
+ */
 function hasTourCapacityTopic(prompt: string): boolean {
   return (
     /\b(pax|people|guests?|group\s+size|spots?\s+remaining|remaining\s+spots?|capacity|max\s+group|seats?)\b/i.test(
       prompt,
     ) ||
-    /\b(checkout|booking\s+page)\b/i.test(prompt) ||
-    /(հոգի|տեղ|խումբ|checkout)/i.test(prompt) ||
-    /(checkout|pax|отклон|мест\s+осталось|не\s+приним)/i.test(prompt)
+    // The word the old clause should have been. Narrowing to capacity vocabulary
+    // alone cost five genuine cases — "This tour date is fully booked, why
+    // can't I checkout?" says tour, not seats.
+    /\b(tours?|checkout|booking\s+page)\b/i.test(prompt) ||
+    /(հոգի|տեղ|խումբ|էքսկուրսիա|շրջայց|checkout)/i.test(prompt) ||
+    /(pax|отклон|мест\s+осталось|тур|экскурси|checkout)/i.test(prompt)
   );
 }
 
@@ -225,9 +247,36 @@ export function isProactiveTourCapacityCheckPrompt(prompt: string): boolean {
   return true;
 }
 
+/**
+ * A checkout complaint about a *form field* is not a capacity problem.
+ *
+ * e2e-bug.429 — what actually separates the two populations. Every prompt this
+ * detector was stealing names the field the form rejected — email, phone, the
+ * privacy checkbox, "contact fields" — and none mentions a tour. Every prompt it
+ * should keep names what is full: a tour, a date, a group.
+ *
+ * Expressed as an exclusion rather than by removing `checkout` from the topic
+ * test, because that was tried and cost five genuine cases: "Ինչու checkout-ը չի
+ * ընդունում 15/08/2026-ը Mountain Trek-ի համար" names a tour only by its name,
+ * so no positive tour vocabulary can reach it, while this negative test leaves
+ * it alone.
+ */
+function mentionsCheckoutFormField(prompt: string): boolean {
+  return (
+    /\b(e-?mail|phone|consent|privacy|checkbox|contact\s+fields?|address)\b/i.test(
+      prompt,
+    ) ||
+    /(էլ\.?\s*փոստ|հեռախոս|անուն)/i.test(prompt) ||
+    /(эл\.?\s*почт|телефон|согласи)/i.test(prompt)
+  );
+}
+
 export function isDiagnoseTourCapacityPrompt(prompt: string): boolean {
   if (isEducationalDaySlotsOnlyPrompt(prompt)) return false;
   if (isProactiveTourCapacityCheckPrompt(prompt)) return false;
+  if (mentionsCheckoutFormField(prompt) && !/\btours?\b/i.test(prompt)) {
+    return false;
+  }
   if (!hasCheckoutRejectionCue(prompt)) return false;
   if (!hasTourCapacityTopic(prompt)) return false;
   return true;

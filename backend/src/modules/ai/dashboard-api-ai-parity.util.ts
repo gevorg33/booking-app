@@ -22,7 +22,9 @@ export function validateDashboardParityCoverage(
     coverage.kind === 'no-ai-binary' ||
     coverage.kind === 'no-ai-realtime'
   ) {
-    return coverage.reason.trim() ? [] : [`missing reason for ${coverage.kind}`];
+    return coverage.reason.trim()
+      ? []
+      : [`missing reason for ${coverage.kind}`];
   }
   if (!coverage.intents.length) {
     return [`${coverage.kind} coverage requires at least one intent`];

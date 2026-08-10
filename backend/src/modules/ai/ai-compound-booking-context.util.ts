@@ -1,4 +1,8 @@
 import {
+  addCalendarDays,
+  localCalendarDate,
+} from './ai-datetime-resolution.util.js';
+import {
   extractMultilingualServiceNameFromPrompt,
   isMultilingualCheckProvidersPrompt,
   parseMultilingualTimeOfDayWindow,
@@ -18,9 +22,23 @@ import {
   isAvailabilityFillerServiceName,
 } from './ai-payments.util.js';
 
-function resolveTomorrowDateKey(now: Date = new Date()): string {
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  return tomorrow.toISOString().slice(0, 10);
+/**
+ * "Tomorrow" in the business's local calendar.
+ *
+ * e2e-bug.363: this computed `now + 24h` then `.toISOString()`, which is the
+ * **UTC** date. Every timezone is a day late during its local evening — 7 of 24
+ * hours wrong in Los Angeles, 4 in New York and Yerevan — so "book me tomorrow"
+ * at 9pm booked two days out.
+ *
+ * Delegates to the §30 resolvers rather than redoing the arithmetic: they are
+ * timezone-correct and tested. `timeZone` is required, because a default would
+ * silently reintroduce the bug for every caller that forgot it.
+ */
+function resolveTomorrowDateKey(
+  timeZone: string,
+  now: Date = new Date(),
+): string {
+  return addCalendarDays(localCalendarDate(now, timeZone), 1);
 }
 
 function notBeforeTimeFromWindow(
@@ -101,7 +119,7 @@ export function buildSharedBookingContextFromPrompt(
   if (timeOfDay) base.timeOfDay = timeOfDay;
 
   if (/\btomorrow\b/i.test(text) || promptMentionsMultilingualTomorrow(text)) {
-    base.date = resolveTomorrowDateKey();
+    base.date = resolveTomorrowDateKey(timeZone);
   } else {
     const isoDay = extractSingleIsoDayFromPrompt(text, timeZone);
     if (isoDay) base.date = isoDay;

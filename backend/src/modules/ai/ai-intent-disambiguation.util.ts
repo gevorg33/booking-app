@@ -42,7 +42,10 @@ export function isConcreteTimedBookAppointmentPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  if (isBookNearestSlotPrompt(prompt) || isFirstAvailableBookingPrompt(prompt)) {
+  if (
+    isBookNearestSlotPrompt(prompt) ||
+    isFirstAvailableBookingPrompt(prompt)
+  ) {
     return false;
   }
   if (isFindSoonestAppointmentPrompt(prompt)) return false;

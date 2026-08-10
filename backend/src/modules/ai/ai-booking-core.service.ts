@@ -405,7 +405,6 @@ import {
   enrichCompoundSubStepGiftCardPaymentsHints,
 } from './ai-gift-card-payments-hints.util.js';
 
-
 @Injectable()
 export class AiBookingCoreService {
   constructor(
@@ -428,7 +427,6 @@ export class AiBookingCoreService {
     private slotResolver: BookingSlotResolverService,
     private customerService: CustomerService,
   ) {}
-
 
   private toCommandResult(result: OrchestrationResult): CommandResult {
     return {
@@ -729,7 +727,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async resolveCreateBookingServiceForParams(
     businessId: string,
     services: Service[],
@@ -780,7 +777,6 @@ export class AiBookingCoreService {
       : undefined;
     return { service, noMatchSummary: null };
   }
-
 
   async pickCreateBookingFirstAvailable(
     businessId: string,
@@ -914,9 +910,7 @@ export class AiBookingCoreService {
     return { ok: true, pick };
   }
 
-
   private static readonly FIRST_AVAILABLE_SCAN_DAYS = 14;
-
 
   async findFirstAvailableBookingSlot(
     businessId: string,
@@ -986,7 +980,6 @@ export class AiBookingCoreService {
       : null;
   }
 
-
   async findFirstAvailableBookingSlotOnDay(
     businessId: string,
     service: Service,
@@ -1031,7 +1024,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async handleAssignEmployeeServices(
     businessId: string,
     params: any,
@@ -1071,7 +1063,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleUnassignEmployeeServices(
     businessId: string,
@@ -1113,7 +1104,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleTransferEmployeeServices(
     businessId: string,
@@ -1157,7 +1147,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleSummarizeUtilization(
     businessId: string,
@@ -1211,7 +1200,6 @@ export class AiBookingCoreService {
       details: { range, utilization: sorted },
     };
   }
-
 
   async handleSummarizeCustomers(
     businessId: string,
@@ -1334,7 +1322,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeBookings(
     businessId: string,
     prompt: string,
@@ -1395,7 +1382,6 @@ export class AiBookingCoreService {
       statusFilter: params.statusFilter as string | undefined,
     });
   }
-
 
   async handleListServices(
     businessId: string,
@@ -1571,7 +1557,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleAnalyzeServices(
     businessId: string,
     prompt: string,
@@ -1672,7 +1657,6 @@ export class AiBookingCoreService {
       details: { metric, range, rows },
     };
   }
-
 
   async handleSummarizeStaff(
     businessId: string,
@@ -1780,7 +1764,6 @@ export class AiBookingCoreService {
       details: { metric, range, rows },
     };
   }
-
 
   async handleLookupCustomer(
     businessId: string,
@@ -1901,7 +1884,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeWaitlist(
     businessId: string,
     params: Record<string, any>,
@@ -1986,7 +1968,6 @@ export class AiBookingCoreService {
       },
     };
   }
-
 
   async handleLookupServiceAssignment(
     businessId: string,
@@ -2226,7 +2207,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   handleListEmployees(
     employees: Employee[],
     _params: Record<string, any>,
@@ -2252,7 +2232,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   handleListTemplates(templates: ScheduleTemplate[]): CommandResult {
     const active = templates.filter((t) => !t.isDeleted);
     if (active.length === 0) {
@@ -2274,13 +2253,11 @@ export class AiBookingCoreService {
     };
   }
 
-
   bookingDurationMinutes(booking: Booking): number {
     return Math.round(
       (booking.endTime.getTime() - booking.startTime.getTime()) / 60_000,
     );
   }
-
 
   formatServicePrice(service: Service | null | undefined): string {
     if (!service) return '—';
@@ -2288,14 +2265,12 @@ export class AiBookingCoreService {
     return `${currency} ${Number(service.price).toFixed(2)}`;
   }
 
-
   formatAppointmentLine(booking: Booking): string {
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const duration = this.bookingDurationMinutes(booking);
     const price = this.formatServicePrice(booking.service);
     return `• ${time} | ${booking.service?.name || 'Service'} | ${booking.customer?.name || 'Walk-in'} | ${booking.employee?.name || 'Unknown'} | ${duration} min | ${price} | ${booking.status}`;
   }
-
 
   async handleAnalyzeAppointments(
     businessId: string,
@@ -2436,7 +2411,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleBulkSmartCancel(
     businessId: string,
     prompt: string,
@@ -2522,7 +2496,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleFillSlotFromWaitlist(
     businessId: string,
@@ -2614,7 +2587,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async buildCreateBookingPlanOnly(
     businessId: string,
@@ -2739,7 +2711,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async handleNoShowRecovery(
     businessId: string,
     prompt: string,
@@ -2765,7 +2736,6 @@ export class AiBookingCoreService {
       userId,
     );
   }
-
 
   async handleMarkNoShows(
     businessId: string,
@@ -2828,7 +2798,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handlePaymentSweep(
     businessId: string,
@@ -2898,7 +2867,6 @@ export class AiBookingCoreService {
     return result;
   }
 
-
   async handleDayReplan(
     businessId: string,
     prompt: string,
@@ -2963,7 +2931,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   applyEmployeeScopeToWhere(
     where: Record<string, unknown>,
     params: Record<string, any>,
@@ -2992,7 +2959,6 @@ export class AiBookingCoreService {
     return true;
   }
 
-
   applyServiceScopeToWhere(
     where: Record<string, unknown>,
     params: Record<string, any>,
@@ -3003,7 +2969,6 @@ export class AiBookingCoreService {
       where.serviceId = In(matchedServices.map((s) => s.id));
     }
   }
-
 
   applyDateScopeToWhere(
     where: Record<string, unknown>,
@@ -3024,7 +2989,6 @@ export class AiBookingCoreService {
       where.startTime = Between(from, to);
     }
   }
-
 
   async findBookingsForBulkUpdate(
     businessId: string,
@@ -3061,7 +3025,6 @@ export class AiBookingCoreService {
 
     return filterBookingsByTimeConstraints(bookings, params, prompt);
   }
-
 
   async handleUpdateBookings(
     businessId: string,
@@ -3162,7 +3125,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   buildBulkBookingNoMatchMessage(
     verb: string,
     params: any,
@@ -3187,7 +3149,6 @@ export class AiBookingCoreService {
         : '';
     return `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}, so there was nothing to ${verb}.`;
   }
-
 
   async findBookingsForMarkNoShows(
     businessId: string,
@@ -3237,7 +3198,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async findUnpaidBookingsForSweep(
     businessId: string,
     params: any,
@@ -3283,7 +3243,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async findBookingsForCancel(
     businessId: string,
     params: any,
@@ -3322,7 +3281,6 @@ export class AiBookingCoreService {
     return filterBookingsByTimeConstraints(bookings, params, prompt);
   }
 
-
   resolveCalendarVisibilityStatusFilters(
     params: any,
     mode: 'hide' | 'unhide',
@@ -3346,7 +3304,6 @@ export class AiBookingCoreService {
     }
     return null;
   }
-
 
   async findBookingsForCalendarVisibility(
     businessId: string,
@@ -3421,7 +3378,6 @@ export class AiBookingCoreService {
     return bookings;
   }
 
-
   async findBookingsForHide(
     businessId: string,
     params: any,
@@ -3441,7 +3397,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   formatCalendarVisibilityPeriod(params: any): string {
     if (params.dateFrom && params.dateTo) {
       const from = formatDateDisplay(params.dateFrom);
@@ -3451,7 +3406,6 @@ export class AiBookingCoreService {
     if (params.date) return formatDateDisplay(params.date);
     return '';
   }
-
 
   async handleHideAppointmentsFromCalendar(
     businessId: string,
@@ -3534,7 +3488,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleUnhideAppointmentsFromCalendar(
     businessId: string,
@@ -3628,7 +3581,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleCancelBookings(
     businessId: string,
@@ -3735,11 +3687,9 @@ export class AiBookingCoreService {
     );
   }
 
-
   formatBookingTime(start: Date, end: Date): string {
     return formatTimeRangeDisplay(start, end);
   }
-
 
   formatBookingLines(
     bookings: Booking[],
@@ -3753,7 +3703,6 @@ export class AiBookingCoreService {
       return `  • ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'}${providerPart} | ${b.status}`;
     });
   }
-
 
   async describeProvidersOnServiceSchedule(
     businessId: string,
@@ -3838,7 +3787,6 @@ export class AiBookingCoreService {
     ];
     return lines.join('\n');
   }
-
 
   async handleListBookings(
     businessId: string,
@@ -4062,7 +4010,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async serviceNameMap(
     businessId: string,
     serviceIds: string[],
@@ -4076,7 +4023,6 @@ export class AiBookingCoreService {
     return new Map(services.map((s) => [s.id, s.name]));
   }
 
-
   formatPeriodServices(
     serviceIds: string[] | null | undefined,
     nameMap: Map<string, string>,
@@ -4084,7 +4030,6 @@ export class AiBookingCoreService {
     if (!serviceIds?.length) return 'any service';
     return serviceIds.map((id) => nameMap.get(id) || id).join(', ');
   }
-
 
   formatNonServicePeriod(p: SchedulingPeriod): string {
     const from = formatTimeDisplay(p.startTime);
@@ -4100,16 +4045,9 @@ export class AiBookingCoreService {
     return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
   }
 
-
-  timesOverlap(
-    startA: Date,
-    endA: Date,
-    startB: Date,
-    endB: Date,
-  ): boolean {
+  timesOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
     return startA < endB && endA > startB;
   }
-
 
   mergeOpenSlotRanges(
     slots: Array<{ startTime: Date; endTime: Date }>,
@@ -4138,7 +4076,6 @@ export class AiBookingCoreService {
       end: formatTimeDisplay(r.end),
     }));
   }
-
 
   async getProviderAvailabilityForService(
     businessId: string,
@@ -4244,7 +4181,6 @@ export class AiBookingCoreService {
       openSlots: this.mergeOpenSlotRanges(openSlotCandidates),
     };
   }
-
 
   async handleCheckAvailability(
     businessId: string,
@@ -4598,7 +4534,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeDay(
     businessId: string,
     params: any,
@@ -4654,11 +4589,7 @@ export class AiBookingCoreService {
     };
   }
 
-
-  pickBookingForReschedule(
-    bookings: Booking[],
-    params: any,
-  ): Booking | null {
+  pickBookingForReschedule(bookings: Booking[], params: any): Booking | null {
     if (!bookings.length) return null;
 
     const timeZone = params._timeZone ?? 'UTC';
@@ -4703,7 +4634,6 @@ export class AiBookingCoreService {
       null
     );
   }
-
 
   async handleRescheduleBooking(
     businessId: string,
@@ -4827,10 +4757,7 @@ export class AiBookingCoreService {
         };
       }
 
-      const startIsoDay = clampFirstAvailableStartIsoDay(
-        params.date,
-        timeZone,
-      );
+      const startIsoDay = clampFirstAvailableStartIsoDay(params.date, timeZone);
       const pick = await this.findFirstAvailableBookingSlot(
         businessId,
         targetService,

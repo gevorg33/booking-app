@@ -104,7 +104,12 @@ describe('e2e-bug.82 handlers succeed without classifier params.slug', () => {
       {
         employeeRepo: {
           find: jest.fn(async () => [
-            { id: 'emp-1', name: 'Anna', businessId: BUSINESS_ID, isActive: true },
+            {
+              id: 'emp-1',
+              name: 'Anna',
+              businessId: BUSINESS_ID,
+              isActive: true,
+            },
           ]),
         } as any,
         reviewsService: {

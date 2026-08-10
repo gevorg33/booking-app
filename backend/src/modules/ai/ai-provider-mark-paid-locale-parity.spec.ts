@@ -22,7 +22,9 @@ describe('ai provider mark_paid locale parity (acc-2.4 / ai-cmd-provider-5.0.3)'
 
   it('maps every provider mark_paid i18n fixture row to an eval golden case', () => {
     expect(
-      listProviderMarkPaidEvalLocaleParityGaps(AI_COMMAND_EVAL_DETERMINISTIC_CASES),
+      listProviderMarkPaidEvalLocaleParityGaps(
+        AI_COMMAND_EVAL_DETERMINISTIC_CASES,
+      ),
     ).toEqual([]);
   });
 

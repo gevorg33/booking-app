@@ -19,6 +19,7 @@ import {
   parseListUpcomingTourDeparturesFromPrompt,
   type ParsedListUpcomingTourDepartures,
 } from './ai-upcoming-tour-departures.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface UpcomingTourDeparturesLogicDeps {
   serviceService: Pick<ServiceService, 'findAll'>;
@@ -59,17 +60,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function isConfirmedTourBooking(
@@ -231,7 +221,7 @@ export async function handleListUpcomingTourDeparturesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveServiceByName(tourServices, parsed.serviceName);
+    const match = matchServiceByNameLegacy(tourServices, parsed.serviceName);
     scopedServices = match ? [match] : [];
   }
 

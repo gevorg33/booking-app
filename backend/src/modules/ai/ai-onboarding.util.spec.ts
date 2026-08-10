@@ -26,14 +26,14 @@ describe('ai-onboarding.util (ai-cmd-dashboard-6.2)', () => {
   });
 
   it('detects each prompt style', () => {
-    expect(isExplainOnboardingStatusPrompt('what step of onboarding are we on')).toBe(
-      true,
-    );
+    expect(
+      isExplainOnboardingStatusPrompt('what step of onboarding are we on'),
+    ).toBe(true);
     expect(isSetBusinessTypePrompt('we are a spa')).toBe(true);
     expect(isRecommendCatalogPrompt('recommend a catalog for us')).toBe(true);
-    expect(isApplyOnboardingCatalogPrompt('apply the recommended catalog')).toBe(
-      true,
-    );
+    expect(
+      isApplyOnboardingCatalogPrompt('apply the recommended catalog'),
+    ).toBe(true);
     expect(isApplyOnboardingSchedulePrompt('apply the default schedule')).toBe(
       true,
     );
@@ -45,14 +45,18 @@ describe('ai-onboarding.util (ai-cmd-dashboard-6.2)', () => {
   });
 
   it('does not confuse apply_onboarding_schedule with the generic apply_schedule intent', () => {
-    expect(isApplyOnboardingSchedulePrompt('apply the schedule template to next week')).toBe(
-      false,
-    );
+    expect(
+      isApplyOnboardingSchedulePrompt(
+        'apply the schedule template to next week',
+      ),
+    ).toBe(false);
   });
 
   describe('rescueOnboardingIntent', () => {
     it('returns null when already an onboarding intent', () => {
-      expect(rescueOnboardingIntent('anything', 'complete_onboarding')).toBeNull();
+      expect(
+        rescueOnboardingIntent('anything', 'complete_onboarding'),
+      ).toBeNull();
     });
 
     it('rescues complete-onboarding phrasing', () => {

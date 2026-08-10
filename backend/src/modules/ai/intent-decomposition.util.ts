@@ -196,7 +196,7 @@ import {
 } from './ai-cancel-package-rebook-single-compound.util.js';
 import {
   decomposeGiftCardCheckoutCompoundPrompt,
-  isGiftCardCheckoutCompoundPrompt,
+  isGiftCardCheckApplyBookCompoundPrompt,
   GIFT_CARD_CHECKOUT_RECIPE_ID,
 } from './ai-gift-card-checkout-compound.util.js';
 import {
@@ -1084,7 +1084,7 @@ export const GOLDEN_COMPOUND_PATTERNS: GoldenCompoundPattern[] = [
     id: 'customer_gift_card_checkout',
     surface: 'customer',
     recipeId: GIFT_CARD_CHECKOUT_RECIPE_ID,
-    matches: (prompt) => isGiftCardCheckoutCompoundPrompt(prompt),
+    matches: (prompt) => isGiftCardCheckApplyBookCompoundPrompt(prompt),
     buildSteps: buildGiftCardCheckoutGoldenSteps,
   },
   {
@@ -1377,7 +1377,7 @@ export function isCompoundPrompt(prompt: string): boolean {
   if (isPublicAssistantCompoundPrompt(trimmed)) return true;
   if (isMultiServiceDayCompoundPrompt(trimmed)) return true;
   if (isProviderSameDayMultiCompoundPrompt(trimmed)) return true;
-  if (isGiftCardCheckoutCompoundPrompt(trimmed)) return true;
+  if (isGiftCardCheckApplyBookCompoundPrompt(trimmed)) return true;
   if (isCancelPackageRebookSingleCompoundPrompt(trimmed)) return true;
   if (isCancelAndRebookCompoundPrompt(trimmed)) return true;
   if (isSubscriptionFirstVisitCompoundPrompt(trimmed)) return true;

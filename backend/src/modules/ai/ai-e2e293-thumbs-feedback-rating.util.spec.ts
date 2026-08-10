@@ -63,7 +63,10 @@ describe('e2e-bug.293: Thumbs up/down parse feedbackRating', () => {
     async ({ prompt, expectedRating, expectShowReasonChips }) => {
       const result = await handleGiveAiFeedbackLogic(
         'biz',
-        { lastAssistantReply: 'Slots open tomorrow.', lastAction: 'list_services' },
+        {
+          lastAssistantReply: 'Slots open tomorrow.',
+          lastAction: 'list_services',
+        },
         prompt,
       );
       expect(result.success).toBe(true);

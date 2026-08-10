@@ -34,7 +34,7 @@ export const PROVIDER_CLINIC_TASKS_AND_RESULTS_PROMPT_SCENARIOS = [
   },
   {
     id: 'claim-follow-up-task-en',
-    prompt: "Take the follow-up call task for Jane",
+    prompt: 'Take the follow-up call task for Jane',
     surface: 'provider' as const,
     expectedAction: 'claim_clinic_task',
     paramsPartial: { customerName: 'Jane' },

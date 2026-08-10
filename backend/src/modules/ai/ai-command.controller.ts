@@ -19,6 +19,7 @@ import { AiAuditService } from './ai-audit.service.js';
 import { AiWeeklyReportService } from './ai-weekly-report.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import { GuideTelemetryService } from './guide-telemetry.service.js';
+import { AiCommandTraceService } from './ai-command-trace.service.js';
 import { AiCommandDto } from './dto/ai-command.dto.js';
 import { IngestGuideTelemetryDto } from './dto/ingest-guide-telemetry.dto.js';
 import type { AiSettings } from './ai-settings.types.js';
@@ -37,6 +38,7 @@ export class AiCommandController {
     private weeklyReportService: AiWeeklyReportService,
     private platform: AiPlatformService,
     private guideTelemetry: GuideTelemetryService,
+    private commandTrace: AiCommandTraceService,
   ) {}
 
   @Get('capabilities')
@@ -84,6 +86,25 @@ export class AiCommandController {
       ? Math.min(90, Math.max(7, Number(days) || 30))
       : 30;
     return this.platform.getCommandAnalytics(businessId, periodDays);
+  }
+
+  /**
+   * AI-ROADMAP §7 — the north-star metric, by action and surface.
+   *
+   * Separate from `GET analytics`, which reads the event store and reports a
+   * `successRate` alongside a `targets.completionRate` it never computes. This
+   * one reads `ai_command_trace`, the source the roadmap's 64%/27% was measured
+   * on, so the number here is the number in the roadmap.
+   */
+  @Get('completion-rate')
+  getCompletionRate(
+    @Param('businessId') businessId: string,
+    @Query('days') days?: string,
+  ) {
+    const periodDays = days
+      ? Math.min(90, Math.max(1, Number(days) || 30))
+      : 30;
+    return this.commandTrace.getCompletionRate(businessId, periodDays);
   }
 
   @Get('guide-telemetry/analytics')

@@ -64,9 +64,12 @@ describe('AiAgentOpsService (ai-cmd-dashboard-6.1)', () => {
 
   it('exposes the rescue + detector passthroughs', () => {
     const { service } = buildService();
-    expect(service.rescueAgentOpsIntent('rebook all from task t1', 'unknown')).toEqual(
-      { action: 'rebook_all_from_agent_task', rescueReason: 'rebook_all' },
-    );
+    expect(
+      service.rescueAgentOpsIntent('rebook all from task t1', 'unknown'),
+    ).toEqual({
+      action: 'rebook_all_from_agent_task',
+      rescueReason: 'rebook_all',
+    });
     expect(service.isListAgentTasksPrompt('show agent tasks')).toBe(true);
     expect(
       service.isRebookAllFromAgentTaskPrompt('rebook all from task t1'),

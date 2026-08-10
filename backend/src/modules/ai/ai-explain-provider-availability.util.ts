@@ -1,3 +1,4 @@
+import { isCustomerBookingContextPrompt } from './ai-dashboard-ops.util.js';
 import { buildSharedBookingContextFromPrompt } from './ai-compound-booking-context.util.js';
 import { isFindSoonestAppointmentPrompt } from './ai-find-soonest-appointment.util.js';
 import { EXPLAIN_PROVIDER_AVAILABILITY_MULTILINGUAL_SCENARIOS } from './ai-explain-provider-availability-multilingual.fixtures.js';
@@ -144,6 +145,53 @@ function matchExplainProviderAvailabilityScenario(
   return null;
 }
 
+/**
+ * Does this capture look like a person's name? — e2e-bug.433.
+ *
+ * `PROVIDER_NAME_BLOCKLIST` is an exact-match set of single words, so anything
+ * the patterns captured that was longer than one word, or was an acronym, was
+ * accepted as a provider. Measured against the eval corpus, this detector was
+ * the single largest source of remaining failures — **17 steals**, on the
+ * strength of "names" like:
+ *
+ *     "dates displayed"   ← How are dates displayed in the dashboard?
+ *     "amounts shown"     ← Why are amounts shown in dram?
+ *     "VAT included"      ← Is VAT included in the amount we collected?
+ *     "GST"               ← Why did Stripe charge $113 with GST and PST lines?
+ *     "titled"            ← Show what Spa Day package is titled in Armenian
+ *     "the expert"        ← Who is the expert in men's fades?
+ *
+ * `isExplainProviderAvailabilityPrompt` returns true as soon as a name is
+ * extracted, so a false name bypasses every guard beneath it — including the
+ * specialty, ranking and soonest-slot blocks written to keep this detector in
+ * its lane.
+ *
+ * Three rules, in order of how much they carry:
+ *
+ * 1. **no blocklisted token anywhere**, not just as the whole capture — "the
+ *    expert" contains "the";
+ * 2. **at most three tokens** — people's names are short, explanations are not;
+ * 3. **one token must read as a proper noun**: initial capital, not ALL-CAPS.
+ *    That admits "Maria" and "Anna Smith" and rejects "GST" and "VAT included".
+ *
+ * Rule 3 has an exception for a prompt typed entirely in lower case, where
+ * capitalisation carries no signal at all — "when is maria free?" is a real
+ * thing to type. There a single token is allowed through, which is as much as
+ * can be inferred without a catalogue to check against.
+ */
+function looksLikeProviderName(capture: string, prompt: string): boolean {
+  const tokens = capture.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0 || tokens.length > 3) return false;
+  if (tokens.some((t) => PROVIDER_NAME_BLOCKLIST.has(t.toLowerCase()))) {
+    return false;
+  }
+  // Initial capital, and not a run of capitals (an acronym, not a name).
+  const properNoun = /^[\p{Lu}][^\s\p{Lu}]*$/u;
+  if (tokens.some((t) => properNoun.test(t))) return true;
+  const promptIsAllLowerCase = prompt === prompt.toLowerCase();
+  return promptIsAllLowerCase && tokens.length === 1;
+}
+
 export function extractProviderNameForAvailabilityPrompt(
   prompt: string,
 ): string | null {
@@ -154,6 +202,8 @@ export function extractProviderNameForAvailabilityPrompt(
     const cleaned = cleanCapturedPhrase(captured);
     if (cleaned.length < 2) continue;
     if (PROVIDER_NAME_BLOCKLIST.has(cleaned.toLowerCase())) continue;
+    // e2e-bug.433 — and it has to look like a name.
+    if (!looksLikeProviderName(cleaned, prompt)) continue;
     return cleaned;
   }
   return null;
@@ -336,6 +386,21 @@ export function rescueExplainProviderAvailabilityIntent(
   ) {
     return null;
   }
+  // e2e-bug.358 — not when the prompt is asking who a customer is.
+  //
+  // "Summarize customer Maria Lopez who has a booking with Gevorg today at
+  // 10:00" names a provider and a time, which is all this rescue needs, so it
+  // claimed prompts whose subject is the customer. `lookup_customer` failed all
+  // six of its eval cases; two of them to this.
+  //
+  // The exclusion lives here rather than at the call sites because there are
+  // five of them, and guarding one leaves the other four. Guarding the *branch*
+  // was tried first and fixed only the two cases reachable from that chain.
+  //
+  // `isCustomerBookingContextPrompt` requires a customer-profile verb
+  // (summarize / profile / tell me about / look up / who is) together with
+  // booking phrasing, so a plain availability question is unaffected.
+  if (isCustomerBookingContextPrompt(prompt)) return null;
   if (!parseExplainProviderAvailabilityFromPrompt(prompt)) return null;
   return {
     action: 'explain_provider_availability',

@@ -59,8 +59,18 @@ describe('ai-business-compliance.logic', () => {
     })),
     updateSettings: jest.fn(),
     renderDocuments: jest.fn(async () => [
-      { id: 'dpa', title: 'Data Processing Agreement (DPA)', markdown: '...', placeholdersFilled: [] },
-      { id: 'privacy_policy', title: 'Privacy Policy (EU template)', markdown: '...', placeholdersFilled: [] },
+      {
+        id: 'dpa',
+        title: 'Data Processing Agreement (DPA)',
+        markdown: '...',
+        placeholdersFilled: [],
+      },
+      {
+        id: 'privacy_policy',
+        title: 'Privacy Policy (EU template)',
+        markdown: '...',
+        placeholdersFilled: [],
+      },
     ]),
     getSecurityOnePager: jest.fn(() => ({
       title: 'Security One-Pager',

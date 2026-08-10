@@ -25,6 +25,7 @@ import {
   type ParsedConfigureClinicService,
   type ParsedExplainClinicServices,
 } from './ai-clinic-service.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ClinicServiceLogicDeps {
   serviceService: Pick<ServiceService, 'findAll' | 'update'>;
@@ -61,17 +62,6 @@ export function resolveExplainClinicServicesLocale(
   if (detected === 'hy' || detected === 'ru') return detected;
   return resolveLocale(
     typeof params.locale === 'string' ? params.locale : null,
-  );
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
   );
 }
 
@@ -121,7 +111,7 @@ export async function handleConfigureClinicServiceLogic(
   const service = parsed.serviceId
     ? services.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(services, parsed.serviceName)
+      ? matchServiceByNameLegacy(services, parsed.serviceName)
       : undefined;
 
   if (!service) {
@@ -348,7 +338,7 @@ export async function handleExplainClinicServicesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveServiceByName(clinicServices, parsed.serviceName);
+    const match = matchServiceByNameLegacy(clinicServices, parsed.serviceName);
     clinicServices = match ? [match] : [];
   }
 

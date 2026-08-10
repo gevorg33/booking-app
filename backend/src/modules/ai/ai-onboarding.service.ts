@@ -106,7 +106,9 @@ export class AiOnboardingService {
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an onboarding intent. */
-  dispatchIntent(ctx: OnboardingDispatchContext): Promise<CommandResult | null> {
+  dispatchIntent(
+    ctx: OnboardingDispatchContext,
+  ): Promise<CommandResult | null> {
     return dispatchOnboardingLogicIntent(this.deps, ctx);
   }
 }

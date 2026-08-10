@@ -123,7 +123,8 @@ export const E2E200_BOOK_NEAREST_PROMPTS = [
   },
   {
     id: 'neg-no-book-verb',
-    prompt: 'I want a hairstyle tomorrow evening or Friday afternoon, I have $50',
+    prompt:
+      'I want a hairstyle tomorrow evening or Friday afternoon, I have $50',
     expect: false,
   },
 ] as const;

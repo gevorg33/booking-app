@@ -68,7 +68,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     providerMobile.getBookingDetail.mockResolvedValue({
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
     });
     providerMobile.getBookingCustomerContext.mockResolvedValue(contextView);
     providerMobile.createBookingCustomerStaffNote.mockResolvedValue({
@@ -287,7 +291,7 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
       'biz-1',
       'user-1',
       {},
-      "What does their pre-visit intake say?",
+      'What does their pre-visit intake say?',
       { bookingId: 'bk-1' },
     );
 
@@ -295,9 +299,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     expect(result.action).toBe('explain_client_intake');
     expect(result.summary).toContain('New Client Intake');
     expect(result.summary).toContain('Latex');
-    expect(
-      providerMobile.getBookingPreVisitIntakeSummary,
-    ).toHaveBeenCalledWith('biz-1', 'user-1', 'bk-1');
+    expect(providerMobile.getBookingPreVisitIntakeSummary).toHaveBeenCalledWith(
+      'biz-1',
+      'user-1',
+      'bk-1',
+    );
   });
 
   it('reports no intake submitted yet', async () => {
@@ -486,7 +492,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
       paymentStatus: 'partially_paid',
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
       paymentSummary: {
         currency: 'USD',
         servicePrice: 100,
@@ -541,7 +551,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
       paymentStatus: 'partially_paid',
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
       paymentSummary: {
         currency: 'USD',
         servicePrice: 100,
@@ -597,7 +611,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
     providerMobile.getBookingDetail.mockResolvedValue({
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
       paymentSummary: {
         currency: 'USD',
         servicePrice: 100,
@@ -611,7 +629,12 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
         cashPaid: 0,
         retailTotal: 30,
         retailLines: [
-          { productName: 'Olaplex 3', quantity: 1, unitPrice: 30, lineTotal: 30 },
+          {
+            productName: 'Olaplex 3',
+            quantity: 1,
+            unitPrice: 30,
+            lineTotal: 30,
+          },
         ],
         grandTotal: 130,
         totalDiscount: 0,
@@ -691,7 +714,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
       paymentStatus: 'paid',
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
       paymentSummary: {
         currency: 'USD',
         servicePrice: 100,
@@ -742,7 +769,11 @@ describe('ai-provider-client-context.logic (prov-exp-1.6)', () => {
       id: 'bk-1',
       customer: { name: 'Jane Doe' },
       paymentStatus: 'paid',
-      checkoutContext: { package: null, subscription: null, multiService: null },
+      checkoutContext: {
+        package: null,
+        subscription: null,
+        multiService: null,
+      },
       paymentSummary: {
         currency: 'USD',
         servicePrice: 100,
