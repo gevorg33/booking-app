@@ -15,7 +15,9 @@ const fixture = (id: string) => {
 const step = (over: Partial<PlanStep> = {}): PlanStep => ({
   id: 's1',
   command: 'appointment.reschedule',
-  variables: { appointmentId: 'apt-1', newStart: '2026-08-04T15:00:00Z' },
+  // `bookingId` + `date` + `timeSlot`, not the `appointmentId`/`newStart` this
+  // used to carry: neither of those is read by any handler (tech-debt A6).
+  variables: { bookingId: 'apt-1', date: '2026-08-04', timeSlot: '15:00' },
   confidence: 0.9,
   dependsOn: [],
   ...over,
@@ -183,19 +185,20 @@ describe('AI-ROADMAP Phase 3 — plan validation', () => {
       expect(result.problems).toContainEqual({
         code: 'missing_variables',
         stepId: 's1',
-        command: 'appointment.reschedule',
-        details: ['newStart'],
+        command: 'appointment.create',
+        details: ['date'],
       });
-      expect(describePlanClarification(result, f.plan)).toContain('newStart');
+      expect(describePlanClarification(result, f.plan)).toContain('date');
     });
 
     it('reports a hallucinated param but does not block on it', () => {
       const p = plan([
         step({
           variables: {
-            appointmentId: 'a',
-            newStart: '2026-08-04T15:00:00Z',
-            customerName: 'Test User',
+            bookingId: 'a',
+            date: '2026-08-04',
+            timeSlot: '15:00',
+            templateName: 'Standard Mon-Fri',
           },
         }),
       ]);
@@ -234,7 +237,7 @@ describe('AI-ROADMAP Phase 3 — plan validation', () => {
           step({
             id: 's2',
             command: 'appointment.mark_paid',
-            variables: { appointmentId: 'a' },
+            variables: { bookingId: 'a' },
           }),
         ]),
         'dashboard',
@@ -250,7 +253,7 @@ describe('AI-ROADMAP Phase 3 — plan validation', () => {
           plan([
             step({
               command: 'appointment.mark_paid',
-              variables: { appointmentId: 'a' },
+              variables: { bookingId: 'a' },
             }),
           ]),
           'dashboard',

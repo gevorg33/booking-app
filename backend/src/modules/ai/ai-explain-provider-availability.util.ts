@@ -7,6 +7,8 @@ import {
   type ExplainProviderAvailabilityPromptFixture,
   type ProviderAvailabilityAspect,
 } from './ai-explain-provider-availability.fixtures.js';
+import { isSwitchProviderSameTimePrompt } from './ai-switch-provider-same-time.util.js';
+import { isDiagnoseStripeCheckoutFailurePrompt } from './ai-stripe-checkout-failure.util.js';
 
 export { EXPLAIN_PROVIDER_AVAILABILITY_CLASSIFIER_RULES } from './ai-explain-provider-availability.fixtures.js';
 export { EXPLAIN_PROVIDER_AVAILABILITY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-explain-provider-availability-multilingual.fixtures.js';
@@ -114,6 +116,18 @@ const SPECIALTY_READ_BLOCK = new RegExp(
 
 const PLAIN_AVAILABILITY_BLOCK = new RegExp(
   String.raw`\b(?:free\s+slots?|check\s+availability|availability\s+for)\b`,
+  'iu',
+);
+
+/**
+ * `sign in with Apple` / `Log in using my Google account` — tech-debt A7.
+ *
+ * All three parts are required: the sign-in verb, the preposition, and a named
+ * auth provider. Any two of them can appear in a genuine availability question
+ * ("who can I book in with on Tuesday"); all three cannot.
+ */
+const SIGN_IN_HANDOFF_BLOCK = new RegExp(
+  String.raw`\b(?:sign|log)\s*-?\s*in\b[^.?!]*?\b(?:with|using)\b[^.?!]*?\b(?:google|apple|phone)\b`,
   'iu',
 );
 
@@ -241,6 +255,35 @@ export function isExplainProviderAvailabilityPrompt(prompt: string): boolean {
   if (PICK_PROVIDER_BLOCK.test(prompt)) return false;
   if (RANK_BLOCK.test(prompt)) return false;
   if (SPECIALTY_READ_BLOCK.test(prompt)) return false;
+  // e2e-bug.439 — two more siblings this detector was answering for. Both name
+  // a provider or a payment surface, which is enough for the team-openings and
+  // named-schedule cues below:
+  //
+  //   "Same time with Maria instead"  → switch_provider_same_time (a rebooking)
+  //   "Online payment checkout keeps failing — currency problem with Stripe
+  //    Connect?"                      → diagnose_stripe_checkout_failure
+  //
+  // Both siblings fire only on their own prompts, so declining them costs this
+  // detector nothing.
+  if (isSwitchProviderSameTimePrompt(prompt)) return false;
+  if (isDiagnoseStripeCheckoutFailurePrompt(prompt)) return false;
+
+  // tech-debt A7 / e2e-bug.380 — "sign in with Apple" and "sign in with Google"
+  // were both reaching this detector, which is `sign_in_with_apple` and
+  // `sign_in_with_google`'s own documented phrasing.
+  //
+  // Same shape as e2e-bug.334: the named-schedule cue reads `with <X>` as a
+  // provider name, and "Apple" and "Google" look exactly like one. Those two
+  // commands have **no detector of their own** — they are classifier-routed —
+  // so there is no sibling predicate to defer to and the decline has to be
+  // local.
+  //
+  // Deliberately not solved by adding "apple"/"google" to
+  // `PROVIDER_NAME_BLOCKLIST`: that set is exact-match single words applied to
+  // every prompt, so it would also unname a staff member who really is called
+  // Apple. Requiring the sign-in verb *and* the preposition *and* the provider
+  // keeps the decline to the sentence shape that is actually being stolen.
+  if (SIGN_IN_HANDOFF_BLOCK.test(prompt)) return false;
 
   // e2e-bug.334 — must respect PROVIDER_NAME_BLOCKLIST (raw pattern.test()
   // ignored it, so "is anyone free…" matched syntactically even though the

@@ -23,12 +23,26 @@
 import type { AiAccuracyBaseline } from './eval/ai-command-eval.report.js';
 
 /**
- * Accuracy a command must reach before it writes unattended.
+ * Accuracy a **command** must reach before it writes unattended.
  *
  * 90% rather than §7's 92% completion target: those measure different things —
  * completion includes clarifies and infrastructure failures, this is only "did
  * the classifier pick the right command". Exported so it can be argued with and
  * raised as the corpus improves.
+ *
+ * ## Scope — this is a per-command bar, not a per-slice one
+ *
+ * It is meaningful here because it is applied against the **8,509-case eval
+ * corpus**, where a command carries hundreds of cases and a percentage point is
+ * a real difference. `e2e-bug.406` is what happened when the same number was
+ * reused to gate a Phase 8 *slice* against 6–34 rescue-dependent traces: at
+ * that n a 95% lower bound of 90% needs 35 all-correct traces, so the bar is
+ * unmeetable by arithmetic rather than by performance, and `tour` was described
+ * as failing a test it could not have passed.
+ *
+ * Slice retirement is decided by `ai-retirement-criterion.util.ts`, which
+ * compares the two arms on the same traces instead of comparing a rate to a
+ * threshold. Do not import this constant there.
  */
 export const PROPOSE_ONLY_ACCURACY_BAR = 90;
 

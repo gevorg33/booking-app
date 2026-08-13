@@ -41,7 +41,7 @@ const report = buildDeterministicAccuracyReport([
 ]);
 
 /** Measured 2026-08-07. May only rise. */
-const ROUTABLE_FLOOR = 110;
+const ROUTABLE_FLOOR = 113;
 
 /**
  * Of the 449 failures, how many are a *different* command claiming the phrasing
@@ -56,7 +56,7 @@ const ROUTABLE_FLOOR = 110;
  * another command's documented phrasing, which is the failure mode §44's
  * miss→fixture pipeline is most likely to introduce.
  */
-const STOLEN_CEILING = 107;
+const STOLEN_CEILING = 101;
 
 /**
  * 2026-08-10 (§150, e2e-bug.426): 106 -> 107, and the guard did its job.
@@ -71,6 +71,44 @@ const STOLEN_CEILING = 107;
  * observe it. Raised rather than reverted because the routing fix is worth 48
  * eval cases and this is one, but it is a real misroute and is filed as
  * `e2e-bug.426` rather than absorbed.
+ *
+ * 2026-08-04 (e2e-bug.426 closed): 107 -> **106**, and it took *two* fixes,
+ * because the compound was hiding a second defect.
+ *
+ * 1. The decomposer over-claim, as filed. `extractServiceNameFromPrompt`
+ *    returned `"them using their membership"` — a pronoun with the payment
+ *    clause glued on — and nothing rejected it, so the subscription-first-visit
+ *    cue fired. Narrowed in `ai-subscription-first-visit-cue.util.ts`.
+ *
+ * 2. That alone did **not** move this number. It only changed the thief: the
+ *    example went from `got compound_intent` to `got create_booking`.
+ *    `isSubscriptionCreditBookingPrompt` matched "using their *subscription*"
+ *    but not "using their *membership*", so the command's own documented
+ *    phrasing never reached it and fell through to a plain booking. The
+ *    compound had been masking that the whole time.
+ *
+ * The lesson is the one §153/§155 already recorded: measure after each fix, not
+ * after both. Fix 1 looked complete and changed nothing here.
+ *
+ * 2026-08-11 (tech-debt A7): **106 -> 101**, `ROUTABLE_FLOOR` 110 -> 113. Two
+ * narrowings, measured one at a time as the lesson above demands.
+ *
+ * 1. `isExplainProviderAvailabilityPrompt` was answering *"sign in with Apple"*
+ *    and *"sign in with Google"* — e2e-bug.334's shape again, the named-schedule
+ *    cue reading `with <X>` as a provider. **106 -> 104, and `passed` did not
+ *    move**: those two commands have no detector of their own, so the examples
+ *    went from stolen to *unclaimed*. That is still the right outcome — the
+ *    classifier has explicit rules for both, and the detector was overriding
+ *    them — but it is a smaller claim than "fixed".
+ *
+ * 2. `isMarkPaidPrompt` ended with `mark` + `done|complete|finished` and **no
+ *    payment word anywhere**, so *"mark Karo's 10am as completed"* and *"mark
+ *    the 3pm massage as done"* — `update_bookings`' own examples — routed to a
+ *    T2 money command. **104 -> 101, and `passed` rose 111 -> 113**: here the
+ *    victim does have a detector, so the examples actually reach it now.
+ *
+ * The remaining 101 are a long tail: the largest thief holds 10, spread across
+ * 10 different victims. There is no third cluster of this size to take.
  */
 
 /** `rescuedAction: expected X, got Y` — `none` meaning nothing routed it. */

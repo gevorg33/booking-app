@@ -91,6 +91,51 @@ function isArmenianRebookCue(prompt: string): boolean {
   );
 }
 
+/**
+ * What "same" has to be referring to for this to be a prior-visit cue.
+ *
+ * The weak fallback below fires on `book` + `last|same|again|repeat`, meaning
+ * "book the same *appointment* as before". But `same` attaches to plenty of
+ * things that are not a previous visit — most importantly the contact details a
+ * guest types at checkout: "book as a guest with the **same phone** as my
+ * profile" is an `explain_guest_checkout_fields` question. D1/e2e-bug.358: two
+ * of that intent's four corpus failures were stolen here. (The two that passed
+ * did so only because they say "book**ing**", a noun `\bbook\b` misses — an
+ * accident of wording, not a distinction the code was drawing.)
+ *
+ * **This is a whitelist, deliberately.** The first fix here excluded a list of
+ * contact nouns instead, which repaired the two corpus prompts and nothing else:
+ * "same cell", "same telephone", "same login", "same account", "same WhatsApp"
+ * were all still stolen. The set of ways to name a contact field is open-ended,
+ * so a blacklist can only ever chase it. The set of things you rebook is small
+ * and closed, so naming *that* is what generalises.
+ *
+ * Unknown nouns therefore fall through to "not a rebook cue". That is the safe
+ * direction: every confident path — `matchRebookScenario`, `REBOOK_LAST_CUE`,
+ * `EXPLICIT_REBOOK_CUE`, the Armenian and Cyrillic cues — has already returned
+ * `true` above, so this branch is a last resort, and a false positive here
+ * routes a *question* into a booking action.
+ *
+ * Members are taken from the rebook fixtures, where `same` modifies: `as`
+ * ("same as last time"), `service`, `again`, `time`, `appointment`.
+ *
+ * Provider nouns (`stylist`, `barber`, …) are deliberately **absent**:
+ * `STYLIST_ONLY_PICK_BLOCK` above already routes "book the same stylist" to
+ * provider-pick rather than rebook, so listing them here would be dead and would
+ * misdescribe what this function does.
+ */
+const SAME_PRIOR_VISIT =
+  /\bsame\s+(?:appointment|booking|visit|service|treatment|session|slot|time)\b/i;
+
+/** "the same as last time", "same as before" — `same` with no noun of its own. */
+const SAME_AS_BEFORE = /\bsame\s+as\b/i;
+
+function hasPriorVisitCue(prompt: string): boolean {
+  if (/\b(?:last|again|repeat)\b/i.test(prompt)) return true;
+  if (!/\bsame\b/i.test(prompt)) return false;
+  return SAME_PRIOR_VISIT.test(prompt) || SAME_AS_BEFORE.test(prompt);
+}
+
 export function hasRebookLastAppointmentCoreCue(prompt: string): boolean {
   if (isLeaveVisitReviewPrompt(prompt)) return false;
   if (
@@ -127,7 +172,7 @@ export function hasRebookLastAppointmentCoreCue(prompt: string): boolean {
 
   if (
     /\b(book|schedule)\b/i.test(prompt) &&
-    /\b(last|same|again|repeat)\b/i.test(prompt) &&
+    hasPriorVisitCue(prompt) &&
     !/\b(new|different|another service)\b/i.test(prompt)
   ) {
     return true;

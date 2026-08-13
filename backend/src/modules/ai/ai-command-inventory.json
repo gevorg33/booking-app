@@ -162,7 +162,7 @@
     {
       "symbol": "isActivateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 690,
+      "line": 737,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for activate_subscription_plan",
       "mapsToActions": [
@@ -1103,7 +1103,7 @@
     {
       "symbol": "isAssignBookingResourcePrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 395,
+      "line": 416,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for assign_booking_resource",
       "mapsToActions": [
@@ -1254,7 +1254,7 @@
     {
       "symbol": "isAssignServiceCategoryPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 295,
+      "line": 342,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_service",
       "mapsToActions": [
@@ -1275,7 +1275,7 @@
     {
       "symbol": "isAssignSubscriptionPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 703,
+      "line": 750,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for assign_subscription_to_customer",
       "mapsToActions": [
@@ -3452,7 +3452,7 @@
     {
       "symbol": "isBulkCreateCatalogPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 118,
+      "line": 165,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -3839,7 +3839,7 @@
     {
       "symbol": "isCancelMultiServiceGroupPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 102,
+      "line": 110,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for cancel_multi_service_group",
       "mapsToActions": [
@@ -3945,7 +3945,7 @@
     {
       "symbol": "isCancelPackageVisitPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 98,
+      "line": 106,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for cancel_package_visit",
       "mapsToActions": [
@@ -4164,7 +4164,7 @@
     {
       "symbol": "isCashBookingPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 69,
+      "line": 77,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -4186,7 +4186,7 @@
     {
       "symbol": "isCatalogCompoundPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 750,
+      "line": 797,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -4204,7 +4204,7 @@
     {
       "symbol": "isCatalogMutateCommandPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 675,
+      "line": 722,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -5454,6 +5454,7 @@
         "isConfigurePackageLocalizedNamesPrompt",
         "isExplainBookingLanguagesPrompt",
         "isExplainBusinessLanguagesPrompt",
+        "isUpdateMyLocalePrompt",
         "parseBusinessLanguagesFromPrompt"
       ],
       "fixtureIds": [
@@ -5510,7 +5511,7 @@
     {
       "symbol": "isConfigureBusinessTaxPrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 424,
+      "line": 441,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_business_tax",
       "mapsToActions": [
@@ -5663,7 +5664,7 @@
     {
       "symbol": "isConfigureGiftCardProductsPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 711,
+      "line": 758,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_gift_card_products",
       "mapsToActions": [
@@ -5989,7 +5990,7 @@
     {
       "symbol": "isConfigureMultiServiceSettingsPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 735,
+      "line": 782,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_multi_service_settings",
       "mapsToActions": [
@@ -6168,7 +6169,8 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
-        "isExplainPackageDisplayNamePrompt"
+        "isExplainPackageDisplayNamePrompt",
+        "isUpdateMyLocalePrompt"
       ],
       "fixtureIds": [
         "add-hy-spa-day",
@@ -7301,7 +7303,7 @@
     {
       "symbol": "isCreateGiftCardBundlePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 723,
+      "line": 770,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_gift_card_bundle",
       "mapsToActions": [
@@ -7350,7 +7352,7 @@
     {
       "symbol": "isCreatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 578,
+      "line": 625,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_package",
       "mapsToActions": [
@@ -7447,7 +7449,7 @@
     {
       "symbol": "isCreateServiceCategoryPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 182,
+      "line": 229,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_service_category",
       "mapsToActions": [
@@ -7525,7 +7527,7 @@
     {
       "symbol": "isCreateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 625,
+      "line": 672,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_subscription_plan",
       "mapsToActions": [
@@ -8055,7 +8057,7 @@
     {
       "symbol": "isDeactivatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 607,
+      "line": 654,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_package",
       "mapsToActions": [
@@ -8154,7 +8156,7 @@
     {
       "symbol": "isDeactivateServicePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 198,
+      "line": 245,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_service",
       "mapsToActions": [
@@ -8178,7 +8180,7 @@
     {
       "symbol": "isDeactivateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 684,
+      "line": 731,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_subscription_plan",
       "mapsToActions": [
@@ -8387,6 +8389,7 @@
       "duplicateSymbol": false,
       "callers": [
         "<module:modules/ai/command-completion.validator.ts>",
+        "isExplainProviderAvailabilityPrompt",
         "rescueStripeCheckoutFailureIntent",
         "tryRescueTourConsumer"
       ],
@@ -8751,7 +8754,7 @@
     {
       "symbol": "isDuplicatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 613,
+      "line": 660,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for duplicate_package",
       "mapsToActions": [
@@ -9322,6 +9325,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "isExplainBusinessTaxPrompt",
         "isSummarizeCustomerTaxPaidPrompt",
         "isSummarizeMyRevenuePrompt",
         "parseExplainAppointmentTaxFromPrompt",
@@ -9515,7 +9519,7 @@
     {
       "symbol": "isExplainBookingPolicyPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 401,
+      "line": 422,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_booking_policy",
       "mapsToActions": [
@@ -9745,7 +9749,7 @@
     {
       "symbol": "isExplainBusinessTaxPrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 366,
+      "line": 370,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_business_tax",
       "mapsToActions": [
@@ -12470,7 +12474,7 @@
     {
       "symbol": "isExplainProviderAvailabilityPrompt",
       "file": "modules/ai/ai-explain-provider-availability.util.ts",
-      "line": 236,
+      "line": 250,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_provider_availability",
       "mapsToActions": [
@@ -13699,6 +13703,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "isExplainBusinessTaxPrompt",
         "isExplainCheckoutTaxPrompt",
         "parseExplainStripeTaxChargeFromPrompt",
         "rescueStripeTaxChargeIntent"
@@ -15542,7 +15547,7 @@
     {
       "symbol": "isGetMyLocalePrompt",
       "file": "modules/ai/ai-my-locale.util.ts",
-      "line": 40,
+      "line": 42,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for get_my_locale",
       "mapsToActions": [
@@ -16931,7 +16936,7 @@
     {
       "symbol": "isListCashPendingPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 120,
+      "line": 128,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_cash_pending_bookings",
       "mapsToActions": [
@@ -17223,7 +17228,7 @@
     {
       "symbol": "isListMultiServiceBookingsPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 140,
+      "line": 148,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_multi_service_bookings",
       "mapsToActions": [
@@ -17665,7 +17670,7 @@
     {
       "symbol": "isListPackageBookingsPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 133,
+      "line": 141,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_package_bookings",
       "mapsToActions": [
@@ -17686,7 +17691,7 @@
     {
       "symbol": "isListPackagesPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 617,
+      "line": 664,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_packages",
       "mapsToActions": [
@@ -18256,7 +18261,7 @@
     {
       "symbol": "isListSubscriptionPlansPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 696,
+      "line": 743,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_subscription_plans",
       "mapsToActions": [
@@ -18613,6 +18618,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "isExplainBusinessTaxPrompt",
         "isExplainCheckoutTaxPrompt",
         "parseLookupBookingTaxMetadataFromPrompt",
         "rescueLookupBookingTaxMetadataIntent"
@@ -18959,7 +18965,7 @@
     {
       "symbol": "isMarkPaidPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 147,
+      "line": 155,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for mark_paid",
       "mapsToActions": [
@@ -19524,7 +19530,7 @@
     {
       "symbol": "isMultiServiceBookingPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 88,
+      "line": 96,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -20575,7 +20581,7 @@
     {
       "symbol": "isPackageBookingPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 78,
+      "line": 86,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -22301,6 +22307,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "isExplainBusinessTaxPrompt",
         "parseQuoteStaffBookingTaxFromPrompt",
         "rescueQuoteStaffBookingTaxIntent"
       ],
@@ -23174,7 +23181,7 @@
     {
       "symbol": "isRescheduleMultiServiceGroupPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 113,
+      "line": 121,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for reschedule_multi_service_group",
       "mapsToActions": [
@@ -23221,7 +23228,7 @@
     {
       "symbol": "isReschedulePackageVisitPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 106,
+      "line": 114,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for reschedule_package_visit",
       "mapsToActions": [
@@ -24582,7 +24589,7 @@
     {
       "symbol": "isSetServiceCompatibilityPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 743,
+      "line": 790,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for set_service_compatibility",
       "mapsToActions": [
@@ -24604,7 +24611,7 @@
     {
       "symbol": "isSetServiceTaxRatePrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 316,
+      "line": 320,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for set_service_tax_rate",
       "mapsToActions": [
@@ -26192,6 +26199,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "isExplainProviderAvailabilityPrompt",
         "parseSwitchProviderSameTimeFromPrompt"
       ],
       "fixtureIds": [
@@ -27146,7 +27154,7 @@
     {
       "symbol": "isUpdateMyLocalePrompt",
       "file": "modules/ai/ai-my-locale.util.ts",
-      "line": 51,
+      "line": 53,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_my_locale",
       "mapsToActions": [
@@ -27211,7 +27219,7 @@
     {
       "symbol": "isUpdatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 594,
+      "line": 641,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_package",
       "mapsToActions": [
@@ -27433,7 +27441,7 @@
     {
       "symbol": "isUpdateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 647,
+      "line": 694,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_subscription_plan",
       "mapsToActions": [

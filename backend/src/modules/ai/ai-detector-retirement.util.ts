@@ -23,6 +23,11 @@
  *    by description alone;
  * 3. **the command clears the accuracy bar** — §42's `PROPOSE_ONLY_ACCURACY_BAR`.
  *    A command the planner gets wrong is one the detector is still carrying.
+ *    This is the bar in its design range: it is applied **per command against
+ *    the 8,509-case eval corpus**, not to a slice's handful of
+ *    rescue-dependent traces. Whether the *slice* may then be deleted is
+ *    `ai-retirement-criterion.util.ts`'s question — see `e2e-bug.406` for why
+ *    the same number cannot answer both.
  *
  * A detector mapping to several commands needs all of them ready: deleting it
  * removes the route for every one.

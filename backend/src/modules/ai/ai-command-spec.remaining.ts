@@ -31,7 +31,29 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Apply loyalty points to reduce a checkout total.',
-    variables: {},
+    variables: {
+      // `handleApplyLoyaltyAtCheckoutLogic` -> `parseApplyLoyaltyAtCheckoutFromPrompt`
+      // -> `readLoyaltyPointsParam`, which accepts `loyaltyPointsToRedeem` |
+      // `loyaltyPoints` | `pointsToRedeem`. One spelling declared, as on
+      // `update_service_prices`.
+      //
+      // `sessionCustomerId` / `customerId` are read too and deliberately not
+      // declared — session-injected, the standing exclusion.
+      loyaltyPointsToRedeem: {
+        type: 'string',
+        description:
+          'Points to spend, or "max". Defaults to "max"; capped at the balance and at the order total either way.',
+        required: false,
+        resolver: 'none',
+      },
+      orderAmount: {
+        type: 'number',
+        description:
+          'Total the points are redeemed against, which is what caps the redemption. Falls back to `servicePrice`, then to a placeholder of 100.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['use my points', 'apply loyalty at checkout'],
     confirm: 'always',
     compensation: {
@@ -52,7 +74,27 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Apply a promo code to a checkout.',
-    variables: {},
+    variables: {
+      // `handleApplyPromoCodeCheckoutLogic`. The code is read from
+      // `promoCode` | `code`, then falls back to
+      // `extractApplyPromoCodeFromPrompt`. Not required despite the handler
+      // reporting `missing: ['promoCode']` — that branch is only reached when
+      // the message has no code in it either.
+      promoCode: {
+        type: 'string',
+        description:
+          'Code to apply. Falls back to a code found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      orderAmount: {
+        type: 'number',
+        description:
+          'Total the discount applies to. Falls back to `servicePrice`, then to a placeholder of 100.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['use code SAVE20', 'apply my promo code'],
     confirm: 'always',
     compensation: {
@@ -109,7 +151,24 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Cancel a whole multi-service visit.',
-    variables: {},
+    variables: {
+      // `handleCancelMultiServiceGroupLogic`. `bookingId` is any one line of
+      // the visit — the handler expands it to the whole group, which is what
+      // makes this different from cancelling a single appointment.
+      bookingId: {
+        type: 'string',
+        description:
+          'Any booking in the visit. The entire multi-service group is cancelled, not just this line.',
+        required: false,
+        resolver: 'appointment',
+      },
+      reason: {
+        type: 'string',
+        description: 'Cancellation reason recorded against the bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['cancel that whole spa day', 'cancel the multi service booking'],
     confirm: 'always',
     compensation: {
@@ -196,7 +255,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Claim a reward earned by sharing.',
-    variables: {},
+    variables: {
+      // `handleClaimShareRewardLogic`. The customer comes from the session.
+      bookingId: {
+        type: 'string',
+        description: 'Booking that was shared.',
+        required: false,
+        resolver: 'appointment',
+      },
+      channel: {
+        type: 'string',
+        description: 'Where it was shared, which decides the reward rule.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['claim my share reward', 'give me my sharing bonus'],
     confirm: 'always',
     compensation: {
@@ -310,7 +383,28 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Configure the OpenAI integration and its credentials.',
-    variables: {},
+    variables: {
+      // `parseConfigureOpenaiIntegrationFromPrompt` reads `usePlatformDefault`
+      // and `apiKey`. **Only the first is declared, deliberately.**
+      //
+      // `apiKey` is a live credential. Declaring it advertises to the planner
+      // that a secret belongs in a structured command parameter — a value that
+      // then travels through classification, plan validation, the confirmation
+      // payload and trace persistence. The command remains fully usable
+      // without it: the reply routes the operator to Settings → OpenAI, which
+      // is where a key should be entered.
+      //
+      // e2e-bug.442 is the reason this is not merely a style preference: the
+      // handler already returns `patch: parsed` in its details, and the raw key
+      // survives `sanitizeCommandDetailsForClient` today.
+      usePlatformDefault: {
+        type: 'boolean',
+        description:
+          'Use the platform OpenAI account instead of the business own key.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['set up our OpenAI key', 'configure the AI integration'],
     confirm: 'always',
     compensation: {
@@ -346,7 +440,19 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Configure the Stripe Connect payout account.',
-    variables: {},
+    variables: {
+      // `handleConfigureStripeConnectLogic` -> `parseConfigureStripeConnectFromPrompt`.
+      // `startOnboarding` is the one field read from params; `mode` and
+      // `country` are produced by the parser from the message and never read
+      // back, so declaring them would be e2e-bug.399's direction.
+      startOnboarding: {
+        type: 'boolean',
+        description:
+          'Begin Stripe onboarding rather than just reporting the current setup state.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['connect our stripe account', 'set up payouts'],
     confirm: 'always',
     compensation: {
@@ -364,7 +470,66 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Configure the WhatsApp messaging integration.',
-    variables: {},
+    variables: {
+      // `parseConfigureWhatsappIntegrationFromPrompt` reads twelve explicit
+      // keys. **`accessToken` is deliberately not among the declared ones**,
+      // on the rule the fourteenth slice set for `configure_openai`'s
+      // `apiKey`: a spec must not advertise that a credential belongs in a
+      // command parameter.
+      //
+      // This handler has the same `patch: parsed` detail as the OpenAI one,
+      // so the same leak applies — recorded on e2e-bug.442 rather than filed
+      // twice.
+      usePlatformDefault: {
+        type: 'boolean',
+        description:
+          'Use the platform WhatsApp account instead of the business own.',
+        required: false,
+        resolver: 'none',
+      },
+      phoneNumberId: {
+        type: 'string',
+        description: 'WhatsApp phone number id to send from.',
+        required: false,
+        resolver: 'none',
+      },
+      businessAccountId: {
+        type: 'string',
+        description: 'WhatsApp business account id.',
+        required: false,
+        resolver: 'none',
+      },
+      templateConfirmation: {
+        type: 'string',
+        description: 'Template used for booking confirmations.',
+        required: false,
+        resolver: 'none',
+      },
+      templateReminder: {
+        type: 'string',
+        description: 'Template used for reminders.',
+        required: false,
+        resolver: 'none',
+      },
+      templateLanguage: {
+        type: 'string',
+        description: 'Language the templates are registered in.',
+        required: false,
+        resolver: 'none',
+      },
+      fallbackTemplate: {
+        type: 'string',
+        description: 'Template used when the primary one is unavailable.',
+        required: false,
+        resolver: 'none',
+      },
+      fallbackLanguage: {
+        type: 'string',
+        description: 'Language of the fallback template.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['connect whatsapp', 'set up whatsapp messaging'],
     confirm: 'always',
     compensation: {
@@ -418,7 +583,20 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Confirm a completed subscription billing checkout.',
-    variables: {},
+    variables: {
+      // The fifth genuinely-required variable in the whole backlog.
+      // `handleConfirmBillingCheckoutLogic` reads `params.sessionId` and
+      // nothing else, and returns `missing: ['sessionId']` with no fallback —
+      // there is nothing to guess from, since the id comes back in Stripe's
+      // redirect URL.
+      sessionId: {
+        type: 'string',
+        description:
+          'Stripe checkout session to confirm, as returned in the redirect URL after checkout.',
+        required: true,
+        resolver: 'none',
+      },
+    },
     examples: ['confirm our plan payment', 'finish the billing checkout'],
     confirm: 'always',
     compensation: {
@@ -466,7 +644,18 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Create an API key for programmatic access.',
-    variables: {},
+    variables: {
+      // `handleCreateApiKeyLogic`. The name is a label only — the key itself
+      // is generated server-side, which is why this command has an input at
+      // all and `configure_openai` deliberately does not.
+      apiKeyName: {
+        type: 'string',
+        description:
+          'Label for the new key. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['create an api key', 'generate a new key'],
     confirm: 'always',
     compensation: {
@@ -484,7 +673,55 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Create a booking to be paid in cash.',
-    variables: {},
+    variables: {
+      // `prepareCashCreateParamsLogic` reads no user parameter at all — it
+      // checks the business accepts cash and stamps payment metadata. The
+      // booking itself is then created by `bookingCore.handleCreateBooking`,
+      // so the inputs below are that command's, reached one hop further than
+      // the spec's `handler` suggests (e2e-bug.440's shape).
+      serviceName: {
+        type: 'string',
+        description: 'Service being booked.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the appointment.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time.',
+        required: false,
+        resolver: 'datetime',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider for the appointment.',
+        required: false,
+        resolver: 'employee',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Who the appointment is for.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+      notes: {
+        type: 'string',
+        description: 'Notes recorded on the booking.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book them in, paying cash', 'create a cash booking'],
     confirm: 'always',
     compensation: {
@@ -502,7 +739,60 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Create a booking paid with a subscription credit.',
-    variables: {},
+    variables: {
+      // `prepareSubscriptionCreditParamsLogic` resolves the customer and
+      // service to find a matching active subscription, then hands off to
+      // `bookingCore.handleCreateBooking` — same two-stage shape as
+      // `create_cash`.
+      //
+      // The customer matters more here than on an ordinary booking: the
+      // credit is drawn from *their* subscription, so a wrong match spends
+      // someone else's visit.
+      customerName: {
+        type: 'string',
+        description:
+          'Whose subscription the credit is drawn from, and who the booking is for.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description:
+          'Service being booked. Also selects which subscription plan can cover it.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the appointment.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time.',
+        required: false,
+        resolver: 'datetime',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider for the appointment.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['book them using their membership', 'use a subscription credit'],
     confirm: 'always',
     compensation: {
@@ -520,7 +810,60 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Create a visit covering several services.',
-    variables: {},
+    variables: {
+      // `handleCreateMultiServiceBookingLogic`. Its three `missing:` payloads
+      // name `serviceNames`, then `employeeName`/`date`/`timeSlot` — the
+      // services are resolved first and the rest only asked for once they
+      // match, which is why none is `required`.
+      serviceNames: {
+        type: 'string[]',
+        description: 'Services to book into one visit.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the visit.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time of the first service in the block.',
+        required: false,
+        resolver: 'datetime',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider for the visit.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'employee',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Who the visit is for.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+      notes: {
+        type: 'string',
+        description: 'Notes recorded on the bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book them a massage and a facial', 'create a spa day booking'],
     confirm: 'always',
     compensation: {
@@ -538,7 +881,58 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Create the bookings that make up a package.',
-    variables: {},
+    variables: {
+      // `handleCreatePackageBookingLogic`.
+      packageName: {
+        type: 'string',
+        description: 'Package to book.',
+        required: false,
+        resolver: 'none',
+      },
+      packageLines: {
+        type: 'object[]',
+        description:
+          'Per-service overrides within the package block, when the visits are not all with the same provider at the default times.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the package block.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time of the block.',
+        required: false,
+        resolver: 'datetime',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider for the block.',
+        required: false,
+        resolver: 'employee',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Who the package is for.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+      notes: {
+        type: 'string',
+        description: 'Notes recorded on the bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book their bridal package', 'schedule the package visits'],
     confirm: 'always',
     compensation: {
@@ -1505,7 +1899,35 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Move a whole multi-service visit.',
-    variables: {},
+    variables: {
+      // `handleRescheduleMultiServiceGroupLogic`. Same group semantics as the
+      // cancel twin: one line identifies the visit and the whole block moves.
+      bookingId: {
+        type: 'string',
+        description:
+          'Any booking in the visit. The entire multi-service group moves together.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to move the visit to.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time for the new block.',
+        required: false,
+        resolver: 'datetime',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Move the visit to a different provider at the same time.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['move that spa day to friday', 'reschedule the whole visit'],
     confirm: 'always',
     compensation: {
@@ -1559,7 +1981,25 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Revoke an API key so it stops working immediately.',
-    variables: {},
+    variables: {
+      // `handleRevokeApiKeyLogic`. Immediate and unrecoverable — anything
+      // using the key breaks at once — so which key is named is the whole
+      // blast radius. The id is exact; the name is matched.
+      keyId: {
+        type: 'string',
+        description:
+          'Exact key to revoke. Takes precedence over the name; falls back to an id found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      apiKeyName: {
+        type: 'string',
+        description:
+          'Key to revoke, by label. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['revoke that key', 'kill the old api key'],
     confirm: 'always',
     compensation: {
@@ -1577,7 +2017,25 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Rotate an API key, invalidating the old one.',
-    variables: {},
+    variables: {
+      // `handleRotateApiKeyLogic` — same identification pair as the revoke
+      // twin, and the same immediacy: the old key stops working as soon as the
+      // new one is issued.
+      keyId: {
+        type: 'string',
+        description:
+          'Exact key to rotate. Takes precedence over the name; falls back to an id found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      apiKeyName: {
+        type: 'string',
+        description:
+          'Key to rotate, by label. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['rotate that api key', 'issue a new key and retire the old'],
     confirm: 'always',
     compensation: {
@@ -1595,7 +2053,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Run an export to the accounting system.',
-    variables: {},
+    variables: {
+      // `resolveAccountingDateRange(params, prompt)`. The range decides what
+      // reaches the accounting system; both ends fall back to the message.
+      from: {
+        type: 'string',
+        description: 'Start of the export period.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the export period.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['run the accounting export', 'push last month to accounting'],
     confirm: 'always',
     compensation: {
@@ -1625,7 +2098,31 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Start checkout for a platform subscription plan.',
-    variables: {},
+    variables: {
+      // `handleStartBillingCheckoutLogic`. It reports `missing: ['planName']`,
+      // but a `planId` satisfies it just as well — the "one of" shape, so
+      // neither is required.
+      planName: {
+        type: 'string',
+        description:
+          'Plan to subscribe to. Used when the plan is named in words rather than by id.',
+        required: false,
+        resolver: 'none',
+      },
+      planId: {
+        type: 'string',
+        description: 'Plan to subscribe to, by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'none',
+      },
+      billingInterval: {
+        type: 'string',
+        description: 'Billing cadence. Anything other than "year" is monthly.',
+        required: false,
+        resolver: 'none',
+        enum: ['month', 'year'],
+      },
+    },
     examples: ['upgrade our plan', 'start the billing checkout'],
     confirm: 'always',
     compensation: {
@@ -1740,7 +2237,25 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Send a customer record to Zendesk.',
-    variables: {},
+    variables: {
+      // `resolveCustomerByName(…, params)`. Personal data leaves the system on
+      // this one, so a wrong fuzzy match sends the wrong person's record to a
+      // third party. The id is the exact form.
+      customerName: {
+        type: 'string',
+        description:
+          'Customer to sync. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact customer to sync. Takes precedence over the name, which is a fuzzy match.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['sync this customer to zendesk', 'push them to support'],
     confirm: 'always',
     compensation: {
@@ -1800,7 +2315,18 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Switch between monthly and annual billing.',
-    variables: {},
+    variables: {
+      // `handleToggleAnnualBillingLogic`. Falls back to the business's current
+      // subscription plan, then to the default upgrade plan — so the common
+      // "switch me to annual" needs nothing supplied.
+      planId: {
+        type: 'string',
+        description:
+          'Plan to price annually. Defaults to the plan already subscribed to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['switch us to annual billing', 'go back to monthly'],
     confirm: 'always',
     compensation: {

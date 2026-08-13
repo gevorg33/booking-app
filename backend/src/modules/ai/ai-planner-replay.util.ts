@@ -66,6 +66,16 @@ export type ReplayOutcome = {
   verdict: string;
   routedAction?: string;
   shortlistSize: number;
+  /**
+   * Did the shortlist still CONTAIN the command the trace recorded?
+   *
+   * e2e-bug.409 — carried over from `ai-planner-shadow-replay.spec.ts`, which
+   * measured this and the shared util did not. It is the number that separates
+   * "the model chose wrong" from "retrieval never showed it the command", which
+   * is the whole question A5 asks; migrating the spec onto this util without it
+   * would have silently dropped the more informative half of the harness.
+   */
+  truthInShortlist: boolean;
 };
 
 /**
@@ -166,6 +176,13 @@ export async function replayPrompt(
     ? config.promptSpecsFor(row, narrowed.specs)
     : narrowed.specs;
   const shortlistSize = promptSpecs.length;
+  // Measured against the NARROWED list, not the rendered one: the question is
+  // whether retrieval found the command, and `promptSpecsFor` deliberately
+  // rewrites what the model is shown (e2e-bug.417 holds a command's own example
+  // out of its entry), which would otherwise mask a retrieval miss.
+  const truthInShortlist = narrowed.specs.some(
+    (sp) => sp.id === row.truth || sp.aliases.includes(row.truth),
+  );
 
   let raw: string | null = null;
   try {
@@ -185,10 +202,16 @@ export async function replayPrompt(
     raw = completion.choices[0]?.message?.content ?? null;
   } catch (err) {
     const message = err instanceof Error ? err.message.slice(0, 40) : '?';
-    return { ...base, verdict: `api_error:${message}`, shortlistSize };
+    return {
+      ...base,
+      verdict: `api_error:${message}`,
+      shortlistSize,
+      truthInShortlist,
+    };
   }
 
-  if (!raw) return { ...base, verdict: 'no_response', shortlistSize };
+  if (!raw)
+    return { ...base, verdict: 'no_response', shortlistSize, truthInShortlist };
 
   const decoded = decodePlanResponse(raw);
   if (!decoded.ok)
@@ -196,6 +219,7 @@ export async function replayPrompt(
       ...base,
       verdict: `undecodable:${decoded.failure}`,
       shortlistSize,
+      truthInShortlist,
     };
 
   const validation = validatePlan(config.specs, decoded.plan, surface, tier);
@@ -214,6 +238,7 @@ export async function replayPrompt(
       ...base,
       verdict: `reject:${decision.reason}${codes ? `(${codes})` : ''}`,
       shortlistSize,
+      truthInShortlist,
     };
   }
 
@@ -222,6 +247,7 @@ export async function replayPrompt(
     verdict: decision.route.action === row.truth ? 'OK' : 'wrong',
     routedAction: decision.route.action,
     shortlistSize,
+    truthInShortlist,
   };
 }
 

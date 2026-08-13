@@ -506,7 +506,49 @@ export const SCHEDULE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T3',
     description: 'Close the business for a period, blocking all booking.',
-    variables: {},
+    variables: {
+      // `prepareHolidayModePlanLogic` -> `parseHolidayModeDates` +
+      // `resolveEmployees`. Failure message: *"Specify closure dates (e.g.
+      // Dec 24-26) and optionally extended hours before closure."*
+      closeDates: {
+        type: 'string[]',
+        description: 'Days the business is closed, ISO 8601 dates.',
+        required: false,
+        resolver: 'date',
+      },
+      holidayDates: {
+        type: 'string[]',
+        description:
+          'Alternative spelling of `closeDates`; the parser accepts either.',
+        required: false,
+        resolver: 'date',
+      },
+      extendDate: {
+        type: 'string',
+        description:
+          'Day to extend opening hours on, usually the day before closure.',
+        required: false,
+        resolver: 'date',
+      },
+      extendTimeFrom: {
+        type: 'string',
+        description: 'Start of the extended window, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      extendTimeTo: {
+        type: 'string',
+        description: 'End of the extended window, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Close for the whole team rather than named providers.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['we are closed next week', 'turn on holiday mode for christmas'],
     confirm: 'always',
     compensation: {
@@ -542,7 +584,75 @@ export const SCHEDULE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T3',
     description: 'Redistribute booking capacity across providers.',
-    variables: {},
+    variables: {
+      // `prepareRebalanceCapacityPlanLogic` -> `parseRebalanceSlotCount`,
+      // `resolveRebalanceTargetDate`, `resolveScheduleDates`,
+      // `resolveEmployees`, `resolveServices`. Failure message: *"Specify
+      // source and target providers, service, date, and how many slots to
+      // move."*
+      fromEmployeeName: {
+        type: 'string',
+        description: 'Provider the slots move away from.',
+        required: false,
+        resolver: 'employee',
+      },
+      toEmployeeName: {
+        type: 'string',
+        description: 'Provider the slots move to.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'First provider.',
+        required: false,
+        resolver: 'employee',
+      },
+      swapWithEmployeeName: {
+        type: 'string',
+        description: 'Provider to swap with.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description:
+          'Both providers at once, when the message names them as a pair.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service whose slots are being moved.',
+        required: false,
+        resolver: 'service',
+      },
+      slotCount: {
+        type: 'number',
+        description: 'How many slots to move.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to rebalance, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['rebalance the team capacity', 'spread bookings more evenly'],
     confirm: 'always',
     compensation: {
@@ -560,7 +670,49 @@ export const SCHEDULE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T3',
     description: 'Swap the working schedules of two providers.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — traced through `prepareSwapSchedulesPlanLogic` ->
+      // `parseSwapEmployeeNames` + `resolveScheduleDates`. The schedule family
+      // funnels params through a plan builder, so the contract sits two layers
+      // below the handler rather than in it.
+      //
+      // The command's own failure message states the rule: *"Specify two
+      // providers to swap schedules between"* and *"specify when"*. Neither is
+      // required — the providers arrive as a pair OR as `employeeNames`, and
+      // `required` has no "one of" form.
+      employeeName: {
+        type: 'string',
+        description: 'First provider.',
+        required: false,
+        resolver: 'employee',
+      },
+      swapWithEmployeeName: {
+        type: 'string',
+        description: 'Provider to swap with.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description:
+          'Both providers at once, when the message names them as a pair.',
+        required: false,
+        resolver: 'employee',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'swap Gevorg and Mary shifts',
       'exchange their schedules this week',

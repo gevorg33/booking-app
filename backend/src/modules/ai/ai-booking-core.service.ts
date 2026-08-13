@@ -67,6 +67,7 @@ import {
   coerceClinicTestResultExtIntent,
   dispatchClinicTestResultExtIntent,
 } from './ai-clinic-test-result-ext-dispatch.util.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
 import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
 import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
@@ -492,6 +493,96 @@ export class AiBookingCoreService {
     return this.fuzzyMatchByName(customers, name);
   }
 
+  /**
+   * Name resolution that can say "I don't know which one" (tech-debt D5).
+   *
+   * `resolveCustomer`/`resolveEmployee` return `T | undefined`, so a tie is
+   * indistinguishable from a confident hit: two people called "John Smith"
+   * resolve to whichever row Postgres returned first, and nothing tells the
+   * caller it guessed. This returns the verdict so mutating paths can ask.
+   *
+   * Two deliberate constraints keep the delta to ties alone:
+   * `threshold: 0`, because `resolveEntity` otherwise rejects the substring
+   * tiers `fuzzyMatchByName` accepts (that re-tiering is its own change), and
+   * a `not_found` fallback to the legacy matcher, because the two normalise
+   * names differently — so acceptance can only widen here, never narrow.
+   */
+  private resolveNamedVerdict<T extends { id: string; name: string }>(
+    items: T[],
+    name: string,
+    entityLabel: 'customer' | 'provider',
+  ): { match?: T; ambiguous: T[]; clarification: string } {
+    const verdict = resolveEntity(items, name, { entityLabel, threshold: 0 });
+    if (verdict.status === 'ambiguous') {
+      return {
+        ambiguous: verdict.candidates,
+        clarification:
+          verdict.clarification ??
+          `Which ${entityLabel} did you mean by "${name}"?`,
+      };
+    }
+    return {
+      match: verdict.match ?? this.fuzzyMatchByName(items, name),
+      ambiguous: [],
+      clarification: '',
+    };
+  }
+
+  /**
+   * The bulk paths' provider-name guard (tech-debt D5).
+   *
+   * `bulk_smart_cancel`, `update_bookings`, `cancel_bookings` and the two
+   * calendar-visibility handlers all had the same nine-line block: resolve the
+   * name, and bail with "No provider found" if it missed. A *tie* passed that
+   * guard — `resolveEmployee` returns an entity — so the bulk operation ran
+   * against whichever namesake sorted first, cancelling or rewriting a whole
+   * day of someone else's appointments. Stakes are higher here than on a single
+   * create, so the tie is refused first and the miss message is unchanged.
+   *
+   * Returns a `CommandResult` to hand straight back, or null to proceed.
+   */
+  private providerNameGuard(
+    action: string,
+    params: { employeeName?: string },
+    employees: Employee[],
+  ) {
+    if (!params.employeeName) return null;
+    const verdict = this.resolveNamedVerdict(
+      employees,
+      params.employeeName,
+      'provider',
+    );
+    if (verdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal(action, params, verdict);
+    }
+    if (!verdict.match) {
+      return {
+        success: false,
+        action,
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+    return null;
+  }
+
+  /** Shared shape for the D5 ambiguity early-return. */
+  private ambiguityRefusal(
+    action: string,
+    params: unknown,
+    verdict: { ambiguous: { id: string; name: string }[]; clarification: string },
+  ) {
+    return {
+      success: false,
+      action,
+      summary: verdict.clarification,
+      details: {
+        params,
+        candidates: verdict.ambiguous.map((c) => ({ id: c.id, name: c.name })),
+      },
+    };
+  }
+
   private fuzzyMatchByName<T extends { name: string }>(
     items: T[],
     name: string,
@@ -536,11 +627,20 @@ export class AiBookingCoreService {
     }
 
     const service = serviceResolved.service;
+    // An explicit id is unambiguous by construction, so it still wins outright
+    // and the name is never consulted — same precedence as before.
+    const customerVerdict =
+      !params.customerId && params.customerName
+        ? this.resolveNamedVerdict(customers, params.customerName, 'customer')
+        : null;
+    const employeeVerdict =
+      !params.employeeId && params.employeeName
+        ? this.resolveNamedVerdict(employees, params.employeeName, 'provider')
+        : null;
+
     const customer = params.customerId
       ? customers.find((c) => c.id === params.customerId)
-      : params.customerName
-        ? this.resolveCustomer(customers, params.customerName)
-        : undefined;
+      : (customerVerdict?.match ?? undefined);
 
     if (!service) {
       return {
@@ -551,11 +651,38 @@ export class AiBookingCoreService {
       };
     }
 
+    // A tie is not a match: booking against the wrong customer, or with the
+    // wrong provider, is silent and hard to unpick — so ask rather than pick
+    // (tech-debt D5). Checked after the service guard so the existing "which
+    // service?" message still wins when those are unresolved too.
+    if (customerVerdict && customerVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('create_booking', params, customerVerdict);
+    }
+    if (employeeVerdict && employeeVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('create_booking', params, employeeVerdict);
+    }
+
+    // The plural `employeeNames` path bypasses the check above entirely: it
+    // feeds `providerPriority` further down, where each name was resolved with
+    // the silent-pick matcher. "Book with Anna or Maria" therefore guessed
+    // which Anna even though the singular path had been fixed. Each requested
+    // name is checked, and the first ambiguous one is named back to the user,
+    // so the question is about the name they typed rather than the list.
+    const requestedNames: string[] = Array.isArray(params.employeeNames)
+      ? params.employeeNames.filter(
+          (n: unknown): n is string => typeof n === 'string' && !!n.trim(),
+        )
+      : [];
+    for (const requested of requestedNames) {
+      const verdict = this.resolveNamedVerdict(employees, requested, 'provider');
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('create_booking', params, verdict);
+      }
+    }
+
     let resolvedEmployee = params.employeeId
       ? employees.find((e) => e.id === params.employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(employees, params.employeeName)
-        : undefined;
+      : (employeeVerdict?.match ?? undefined);
     let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
 
     if (params.bookingFirstAvailable) {
@@ -1781,7 +1908,18 @@ export class AiBookingCoreService {
       };
     }
 
-    const customer = this.resolveCustomer(customers, name);
+    // A tie returns *someone else's* full customer record — visit history and
+    // all — to a question about a different person with the same name. Ask
+    // rather than pick (tech-debt D5).
+    const customerVerdict = this.resolveNamedVerdict(
+      customers,
+      name,
+      'customer',
+    );
+    if (customerVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('lookup_customer', params, customerVerdict);
+    }
+    const customer = customerVerdict.match;
     if (!customer) {
       return {
         success: false,
@@ -1994,7 +2132,21 @@ export class AiBookingCoreService {
         };
       }
 
-      const employee = this.resolveEmployee(employees, name);
+      // Same tie problem as `lookup_customer`: answering with the wrong
+      // namesake's service list (tech-debt D5).
+      const providerVerdict = this.resolveNamedVerdict(
+        employees,
+        name,
+        'provider',
+      );
+      if (providerVerdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal(
+          'lookup_service_assignment',
+          params,
+          providerVerdict,
+        );
+      }
+      const employee = providerVerdict.match;
       if (!employee) {
         return {
           success: false,
@@ -2423,17 +2575,8 @@ export class AiBookingCoreService {
   ): Promise<CommandResult> {
     const matchedServices = this.resolveServices(services, params);
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'bulk_smart_cancel',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('bulk_smart_cancel', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCancel(
       businessId,
@@ -3060,17 +3203,8 @@ export class AiBookingCoreService {
       };
     }
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'update_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('update_bookings', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForBulkUpdate(
       businessId,
@@ -3420,17 +3554,8 @@ export class AiBookingCoreService {
     const statuses =
       this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'hide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('hide_appointments_from_calendar', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForHide(
       businessId,
@@ -3504,17 +3629,8 @@ export class AiBookingCoreService {
       'unhide',
     );
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'unhide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('unhide_appointments_from_calendar', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCalendarVisibility(
       businessId,
@@ -3615,17 +3731,8 @@ export class AiBookingCoreService {
       };
     }
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'cancel_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('cancel_bookings', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCancel(
       businessId,
@@ -4655,7 +4762,18 @@ export class AiBookingCoreService {
       const employees = await this.employeeRepo.find({
         where: { businessId, isActive: true },
       });
-      const employee = this.resolveEmployee(employees, params.employeeName);
+      // A tie here does not merely mis-answer: it selects a namesake, finds
+      // *their* booking, and reschedules it — the wrong appointment moves and
+      // the user is told it worked (tech-debt D5).
+      const verdict = this.resolveNamedVerdict(
+        employees,
+        params.employeeName,
+        'provider',
+      );
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('reschedule_booking', params, verdict);
+      }
+      const employee = verdict.match;
       if (employee) {
         const bookings = await this.bookingRepo.find({
           where: {
@@ -4672,7 +4790,15 @@ export class AiBookingCoreService {
       const customers = await this.customerRepo.find({
         where: { businessId, isActive: true },
       });
-      const customer = this.resolveCustomer(customers, params.customerName);
+      const verdict = this.resolveNamedVerdict(
+        customers,
+        params.customerName,
+        'customer',
+      );
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('reschedule_booking', params, verdict);
+      }
+      const customer = verdict.match;
       if (customer) {
         const bookings = await this.bookingRepo.find({
           where: {

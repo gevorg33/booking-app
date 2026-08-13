@@ -56,10 +56,15 @@ describe('AI-ROADMAP Phase 3 — planner prompt', () => {
     // §98 — now with types. Naming the variable was never enough on its own:
     // `catalogDraft` alone told the model nothing about the shape to produce,
     // and it answered with a sentence 18 times.
+    // Was `appointment.reschedule`'s `appointmentId`/`newStart`. Both were
+    // fictional — no handler reads either — so this assertion was pinning the
+    // rendering of a contract that did not exist (tech-debt A6 / e2e-bug.399).
     expect(prompt).toContain(
-      'required: appointmentId (string), newStart (string)',
+      'required: customerName (string), serviceName (string), date (string)',
     );
-    expect(prompt).toContain('optional: employeeName (string)');
+    expect(prompt).toContain(
+      'optional: timeSlot (string), bookingFirstAvailable (boolean), employeeName (string)',
+    );
   });
 
   it('grounds relative dates instead of letting the model guess today', () => {

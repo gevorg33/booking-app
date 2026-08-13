@@ -107,6 +107,34 @@ describe('AI-ROADMAP Phase 1 — CommandSpec conformance with the live registry'
     expect(mismatched).toEqual([]);
   });
 
+  /**
+   * The direction nothing was checking — tech-debt C1 / e2e-bug.379.
+   *
+   * Every assertion above runs spec → registry. Nothing ran registry → spec,
+   * and §125's "all 696 registry entries resolve to a spec; none is orphaned"
+   * was a one-time measurement, not a gate.
+   *
+   * It had already stopped being true. At 705 entries, **nine had no spec** —
+   * and they were §149's nine. That fix added the registry rows the pipeline
+   * was discarding answers for, and stopped there.
+   *
+   * A registry entry with no spec is not cosmetic. The planner's entire
+   * catalogue is `COMMAND_SPECS`, so such a command is unroutable by the layer
+   * Phase 8 replaces detectors with, and invisible to every spec-derived gate:
+   * risk tier, confirmation model, shortlist, retirement criterion.
+   *
+   * No exception list, deliberately. The nine are specced, so the honest
+   * baseline is zero and anything else is a regression to fix rather than a
+   * ratchet to record.
+   */
+  it('every registry entry has a spec — the direction §125 only measured', () => {
+    const specced = new Set(COMMAND_SPECS.flatMap((s) => [s.id, ...s.aliases]));
+    const orphaned = COMMAND_REGISTRY.filter((e) => !specced.has(e.id)).map(
+      (e) => e.id,
+    );
+    expect(orphaned).toEqual([]);
+  });
+
   it('no two pilot specs claim the same legacy action', () => {
     const legacy = pairs.map((p) => p.legacyId);
     expect(legacy.length).toBe(new Set(legacy).size);

@@ -265,6 +265,18 @@ export function isCustomerRetentionRatePrompt(prompt: string): boolean {
   // vocabulary here, so the two stay in step: whatever
   // `configure_privacy_retention` learns to recognise, this declines.
   if (isConfigurePrivacyRetentionPrompt(prompt)) return false;
+  // e2e-bug.438 — the homonym's third instance, and the sibling-guard trick
+  // above does not work for it. "Explain our data retention periods" is a
+  // compliance question, but `isExplainComplianceStatusPrompt` *also* returns
+  // true for "What's our customer retention rate?" — delegating to it would
+  // decline the analytics question this detector exists to answer.
+  //
+  // So this one needs vocabulary after all, kept as narrow as the distinction
+  // itself: it is "**data** retention" and "retention **period**" that belong
+  // to compliance. Neither phrase appears in customer-retention analytics,
+  // which says "customer retention", "returning customers", "coming back".
+  if (/\bdata\s+retention\b/i.test(prompt)) return false;
+  if (/\bretention\s+periods?\b/i.test(prompt)) return false;
   return (
     /\bretention\b/i.test(prompt) ||
     /\b(returning|repeat)\s+customers?\b/i.test(prompt) ||

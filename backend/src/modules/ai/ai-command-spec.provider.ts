@@ -468,7 +468,20 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Collect the outstanding balance on a booking.',
-    variables: {},
+    variables: {
+      // Delegates wholesale to `providerBooking.handleMarkPaid` — the same
+      // mutation as `mark_paid`, phrased as collecting the rest. The employee
+      // scope comes from the session; `bookingId` is the only input.
+      //
+      // The spec names `AiProviderBookingService`, but the switch case is in
+      // `provider-mobile/provider-ai-command.service.ts` — e2e-bug.440 again.
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose remaining balance is being collected.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['take the rest of the payment', 'collect what they still owe'],
     confirm: 'always',
     compensation: {
@@ -576,7 +589,24 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Change the provider own profile details.',
-    variables: {},
+    variables: {
+      // Handled in `provider-mobile/provider-ai-command.service.ts`, not the
+      // `ProviderAiCommandService` the spec names in the AI module sense —
+      // e2e-bug.440's shape once more. It reports
+      // `missing: ['title', 'avatarUrl']` when neither is supplied.
+      title: {
+        type: 'string',
+        description: 'New profile title.',
+        required: false,
+        resolver: 'none',
+      },
+      avatarUrl: {
+        type: 'string',
+        description: 'New profile picture URL.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['update my bio', 'change my profile photo'],
     confirm: 'always',
     compensation: {
@@ -602,6 +632,194 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
       reason:
         'Feedback is an observation about what happened; retracting it would remove the signal \u00a743 mines.',
     },
+    handler: 'ProviderAiCommandService',
+  },
+  // tech-debt C1 / e2e-bug.379 — the nine §149 commands, finally specced.
+  //
+  // §149 found these nine sitting at exactly 0% across 241 eval cases: the
+  // detectors matched, the handlers worked, and `isIntentAllowedOnSurface`
+  // discarded the answer because none had a `COMMAND_REGISTRY` row. That fix
+  // added the rows and stopped there.
+  //
+  // Nine registry entries were left with **no `CommandSpec`**, which is the
+  // same defect one list over. The planner's entire catalogue is
+  // `COMMAND_SPECS`, so all nine were invisible to it — unroutable by the layer
+  // Phase 8 is replacing detectors with, and absent from every spec-derived
+  // gate: risk tiers, the confirmation model, the shortlist, the retirement
+  // criterion.
+  //
+  // Surfaces, tiers, handler and mutating are copied from the live registry and
+  // capability matrix, not invented — `ai-command-spec.conformance.spec.ts`
+  // fails otherwise. Descriptions and examples come from each command's own
+  // classifier-rule fixture, which is what the detectors were already written
+  // against.
+  {
+    id: 'provider.explain_today_timeline',
+    aliases: ['explain_today_timeline'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      "Walk through today's bookings in order, calling out the gaps between clients.",
+    variables: {},
+    examples: [
+      'Walk me through my day',
+      'Talk me through today',
+      'Gaps between clients?',
+      'What does my day look like?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_booking_payment_breakdown',
+    aliases: ['explain_booking_payment_breakdown'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'Full payment breakdown for a booking — service price, retail add-ons, discounts, tax, total, collected and still owed.',
+    variables: {},
+    examples: [
+      "What's the payment breakdown for this booking?",
+      'Break down the total for this booking',
+      'She prepaid online — show the breakdown',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_deposit_balance_due',
+    aliases: ['explain_deposit_balance_due'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'How much is left to pay on a booking after any deposit — the number only, without itemised lines.',
+    variables: {},
+    examples: [
+      'How much is left at checkout?',
+      "What's the balance due on this booking?",
+      'How much does she still owe on this booking?',
+      '50% deposit — what\u2019s the rest due?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_cancel_policy_for_client',
+    aliases: ['explain_cancel_policy_for_client'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      "The salon's cancel and reschedule policy, plus what this booking's deposit exposure would be if it were cancelled.",
+    variables: {},
+    examples: [
+      "What's our cancellation policy for this client?",
+      'Explain the cancel policy for this booking',
+      'Will she lose her deposit if she cancels?',
+      'How much notice do we need to cancel this appointment?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_gift_card_redemption',
+    aliases: ['explain_gift_card_redemption'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      "How much of a booking a gift card covers, and what is left on the card.",
+    variables: {},
+    examples: [
+      "She's paying with gift card — balance?",
+      "What's left on the gift card?",
+      'How much gift card balance does she have?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_multi_service_timeline',
+    aliases: ['explain_multi_service_timeline'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'The order of services in a multi-service booking — what is done, what is running, what is next.',
+    variables: {},
+    examples: [
+      "What's next after this blowdry?",
+      "What's the order of services today?",
+      'What else is on this booking?',
+      'Spa day order',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_package_visit_context',
+    aliases: ['explain_package_visit_context'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'Which visit of a package this booking is — visit number, package name and visits remaining.',
+    variables: {},
+    examples: [
+      'Which visit is this in her package?',
+      'How many package visits does she have left?',
+      'This is visit 2 of 6 facials, right?',
+      'Is this a package visit?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_retail_cart',
+    aliases: ['explain_retail_cart'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'What is on the retail tab for a booking — product names, quantities and the retail total.',
+    variables: {},
+    examples: [
+      "What's on the retail tab?",
+      'Show me the retail cart for this booking',
+      'What products are on this booking?',
+      'Total with products?',
+    ],
+    confirm: 'never',
+    handler: 'ProviderAiCommandService',
+  },
+  {
+    id: 'provider.explain_tour_group_on_booking',
+    aliases: ['explain_tour_group_on_booking'],
+    domain: 'provider',
+    surfaces: ['provider'],
+    tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
+    risk: 'T0',
+    description:
+      'The tour group size recorded on a booking — how many people are booked on this departure.',
+    variables: {},
+    examples: [
+      'How many pax on this tour?',
+      'How many people are in this tour group?',
+      "What's the pax count for this booking?",
+      'Group booking details',
+    ],
+    confirm: 'never',
     handler: 'ProviderAiCommandService',
   },
 ] as const;

@@ -517,7 +517,16 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T3',
     description: 'Fulfil a batch of gift card orders at once.',
-    variables: {},
+    variables: {
+      // `handleGiftFulfillBatchLogic` reads exactly one param.
+      count: {
+        type: 'number',
+        description:
+          'How many queued gift cards to fulfil in this batch. Omit to use the service default.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['fulfil all the pending cards', 'process the gift card batch'],
     confirm: 'always',
     compensation: {
@@ -535,7 +544,30 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Cancel a gift card order.',
-    variables: {},
+    variables: {
+      // `resolveGiftCardId` — note `useFirstInQueue`, which is how "cancel the
+      // next one" works. It is a *scope* flag, not a filter: with no id and no
+      // queue flag the command declines rather than picking arbitrarily.
+      giftCardId: {
+        type: 'string',
+        description: 'Order to cancel. Falls back to an id found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the fulfilment queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Cancellation reason recorded on the order.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['cancel that gift card order', 'stop that order'],
     confirm: 'always',
     compensation: {
@@ -554,7 +586,36 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T2',
     description:
       'Approve or reject a customer request to change a gift card order.',
-    variables: {},
+    variables: {
+      // `handleResolveGiftCardChangeRequestLogic` reports
+      // `missing: ['requestId', 'resolution']` when either is absent, with no
+      // prompt fallback for either — but neither is `required` by this
+      // backlog's criterion, because the handler asks rather than refusing.
+      //
+      // The description says "approve or reject"; the handler accepts a third
+      // value, `needs_info`, which sends the request back to the customer
+      // rather than settling it. The enum is what makes that reachable.
+      requestId: {
+        type: 'string',
+        description: 'Change request to settle.',
+        required: false,
+        resolver: 'none',
+      },
+      resolution: {
+        type: 'string',
+        description:
+          'How to settle it. `needs_info` returns the request to the customer instead of approving or denying.',
+        required: false,
+        resolver: 'none',
+        enum: ['approve', 'deny', 'needs_info'],
+      },
+      specialistNotes: {
+        type: 'string',
+        description: 'Notes recorded with the decision.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['approve that change request', 'reject the gift card change'],
     confirm: 'always',
     compensation: {
@@ -607,7 +668,30 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Give the shipping address for a physical gift card.',
-    variables: {},
+    variables: {
+      // `handleEnterShippingAddressLogic`. `sessionCustomerId` is injected and
+      // stays undeclared as everywhere else. `shippingAddress` is a postal
+      // address the customer supplies — declared because the command exists to
+      // carry it, unlike the credential case in `configure_openai`.
+      shippingAddress: {
+        type: 'string',
+        description: 'Where the physical card is posted.',
+        required: false,
+        resolver: 'none',
+      },
+      recipientName: {
+        type: 'string',
+        description: 'Name the card is addressed to.',
+        required: false,
+        resolver: 'none',
+      },
+      giftCardId: {
+        type: 'string',
+        description: 'Which gift card order the address is for.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['ship it to 12 High Street', 'here is my delivery address'],
     confirm: 'always',
     compensation: {
@@ -625,7 +709,36 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Add a retail sale to a booking.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — `handleAddRetailSaleToBookingLogic` -> `resolveBooking`
+      // + `resolveProduct`. Both resolvers accept an id or a name and fall back
+      // to the message, so nothing here is required.
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to one identified in the message.',
+        required: false,
+        resolver: 'appointment',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product by name. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+      quantity: {
+        type: 'number',
+        description: 'How many units to add. Defaults to one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a shampoo to that booking', 'sell them a product'],
     confirm: 'always',
     compensation: {
@@ -646,7 +759,30 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Add a retail product to the provider own booking.',
-    variables: {},
+    variables: {
+      // `handleAddRetailToMyBookingLogic` — the provider-surface variant.
+      // `employeeId`/`sessionEmployeeId` are session-injected and not declared,
+      // for the reason `e2e-bug.399` records.
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to one identified in the message.',
+        required: false,
+        resolver: 'appointment',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product by name. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add conditioner to my 3pm', 'sell them the serum'],
     confirm: 'always',
     compensation: {
@@ -664,7 +800,29 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Remove a retail line from a booking.',
-    variables: {},
+    variables: {
+      // `handleRemoveRetailLineLogic` -> `resolveBooking` + `resolveProduct`,
+      // with `extractProductNameFromPrompt` as the fallback.
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to one identified in the message.',
+        required: false,
+        resolver: 'appointment',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product by name. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['take that product off', 'remove the retail line'],
     confirm: 'always',
     compensation: {
@@ -685,7 +843,25 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Set the full list of retail products sold on a booking.',
-    variables: {},
+    variables: {
+      // `handleSetRetailSalesLinesLogic`. Replaces the whole retail tab, so
+      // `lines` is the entire new contents — omitting it does not mean "leave
+      // as is", it means the command parses the list out of the message.
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to one identified in the message.',
+        required: false,
+        resolver: 'appointment',
+      },
+      lines: {
+        type: 'object[]',
+        description:
+          'The complete set of retail lines for the booking. Falls back to lines parsed from the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['they bought shampoo and conditioner', 'set the retail lines'],
     confirm: 'always',
     compensation: {
@@ -757,7 +933,29 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Change the recorded stock level of a product.',
-    variables: {},
+    variables: {
+      // `handleAdjustInventoryLogic` -> `resolveProduct` +
+      // `extractInventoryDeltaFromPrompt`.
+      productName: {
+        type: 'string',
+        description: 'Product by name. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+      delta: {
+        type: 'number',
+        description:
+          'Change in stock — negative to reduce. Falls back to a delta found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['we have 12 shampoos left', 'adjust the stock count'],
     confirm: 'always',
     compensation: {
@@ -832,7 +1030,41 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Record a business expense.',
-    variables: {},
+    variables: {
+      // `handleRecordExpenseLogic`. `amount` and `description` are extracted
+      // from the message when absent, which is the usual path for "record a
+      // $40 taxi".
+      amount: {
+        type: 'number',
+        description: 'Expense amount. Falls back to an amount found in the message.',
+        required: false,
+        resolver: 'money',
+      },
+      description: {
+        type: 'string',
+        description: 'What the expense was for.',
+        required: false,
+        resolver: 'none',
+      },
+      currency: {
+        type: 'string',
+        description: 'Currency of the amount, when it is not the business default.',
+        required: false,
+        resolver: 'none',
+      },
+      expenseDate: {
+        type: 'string',
+        description: 'Date of the expense, ISO 8601.',
+        required: false,
+        resolver: 'date',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Location the expense belongs to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['log 200 for supplies', 'record that expense'],
     confirm: 'always',
     compensation: {
@@ -850,7 +1082,29 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Delete a recorded expense.',
-    variables: {},
+    variables: {
+      // `handleDeleteExpenseLogic` -> `enrichDeleteExpenseParamsFromPrompt`,
+      // which fills `expenseId`, `category` and `description` from the message
+      // when the params do not carry them.
+      expenseId: {
+        type: 'string',
+        description: 'Expense to delete, when the id is known.',
+        required: false,
+        resolver: 'none',
+      },
+      category: {
+        type: 'string',
+        description: 'Narrow to a category when the expense is named indirectly.',
+        required: false,
+        resolver: 'none',
+      },
+      description: {
+        type: 'string',
+        description: 'Text of the expense to match on.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['delete that expense', 'remove the supplies entry'],
     confirm: 'always',
     compensation: {
@@ -868,7 +1122,34 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Create a rule setting how commission is earned.',
-    variables: {},
+    variables: {
+      // `handleCreateCommissionRuleLogic` -> `resolveByName` + `resolveService`.
+      employeeName: {
+        type: 'string',
+        description: 'Provider the rule applies to.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service the rule applies to.',
+        required: false,
+        resolver: 'service',
+      },
+      type: {
+        type: 'string',
+        description: 'Whether the rule is a percentage or a flat amount.',
+        required: false,
+        resolver: 'none',
+        enum: ['percentage', 'flat'],
+      },
+      value: {
+        type: 'number',
+        description: 'The percentage or flat amount.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['pay 10 percent on retail', 'create a commission rule'],
     confirm: 'always',
     compensation: {
@@ -886,7 +1167,27 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Delete a commission rule.',
-    variables: {},
+    variables: {
+      // `handleDeleteCommissionRuleLogic` -> `resolveByName` + `resolveService`.
+      ruleId: {
+        type: 'string',
+        description: 'Rule to delete, when the id is known.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose rule is being deleted.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service whose rule is being deleted.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['remove that commission rule', 'delete the retail commission'],
     confirm: 'always',
     compensation: {
@@ -904,7 +1205,33 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Export a payout file for staff earnings.',
-    variables: {},
+    variables: {
+      // `handlePayoutExportLogic` -> `resolveDateRange`.
+      format: {
+        type: 'string',
+        description: 'Export format.',
+        required: false,
+        resolver: 'none',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Restrict the export to one location.',
+        required: false,
+        resolver: 'none',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day of the payout period, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'Last day of the payout period, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['export the payout file', 'generate payouts for this month'],
     confirm: 'always',
     compensation: {
@@ -921,7 +1248,41 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Export an analytics report.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — `handleExportAnalyticsReportLogic` -> `resolveDateRange`
+      // (`dateFrom`/`dateTo`), plus `format` and `locationId`.
+      //
+      // The date range is where `e2e-bug.261` lives: `resolveDateRange` falls
+      // back to parsing the message, and "for this month" produces a NaN date
+      // that reaches the query unchecked. Declaring the two date fields does not
+      // fix that — it is a handler bug — but it gives a planner a way to supply
+      // real dates instead of relying on the parse.
+      dateFrom: {
+        type: 'string',
+        description: 'First day of the reporting period, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'Last day of the reporting period, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      format: {
+        type: 'string',
+        description: 'Export format; anything other than `pdf` produces CSV.',
+        required: false,
+        resolver: 'none',
+        enum: ['csv', 'pdf'],
+      },
+      locationId: {
+        type: 'string',
+        description: 'Restrict the report to one location.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['export the analytics', 'download our numbers'],
     confirm: 'always',
     compensation: {

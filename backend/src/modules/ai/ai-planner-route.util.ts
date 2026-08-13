@@ -36,7 +36,21 @@
  * 3. **exactly one step** — a multi-command plan needs the executor, which is
  *    explicitly out of scope above. A two-step plan is not "worse", it is a
  *    different feature, and silently running only its first step would be the
- *    dishonest reading;
+ *    dishonest reading.
+ *
+ *    **Settled by tech-debt A1, on the measurement rather than the principle.**
+ *    A1 asked to either extend past single-step plans or record that multi-step
+ *    stays with §33's executor. It stays, because the population is tiny:
+ *
+ *    | corpus | `reject:not_single_step` |
+ *    |---|---|
+ *    | rescue-dependent prompts (§120) | **3 of 121** (5 traces) |
+ *    | held-out spec examples (§141) | **2 of 343** |
+ *
+ *    2.5% and 0.6%. Building a second execution path for that, while §33's
+ *    executor already exists and `runStep` has no production caller, would add
+ *    a way for a plan to half-execute in order to serve five traces. Revisit if
+ *    a future measurement moves it, not before;
  * 4. ~~**no confirmation required**~~ — **removed by e2e-bug.404.**
  *
  *    This condition declined every confirm-required plan, and §120 measured what
@@ -68,17 +82,37 @@ import type { CommandSpec } from './ai-command-spec.types.js';
 export const PLANNER_EXECUTE_DOMAINS_KEY = 'AI_PLANNER_EXECUTE_DOMAINS';
 
 /**
- * Domains whose `legacy_paraphrase` detectors have been deleted.
+ * Domains where rescue may no longer decide an action, so the planner is the
+ * only thing that can correct the classifier.
  *
- * These are **not** gated by the flag, and that is deliberate. Once a slice's
- * detectors are gone the planner is the only thing that routes it (§92 measured
- * the recovery at 33/34), so making that depend on an environment variable being
- * set correctly would mean a missing env var silently costs 20% of the slice's
- * traffic. Coupling the two in code makes the deletion and the routing a single
- * fact that cannot be half-deployed.
+ * ## The name is a legacy; nothing has been deleted
  *
- * A domain joins this list in the same commit that deletes its detectors, never
- * before.
+ * This used to say *"domains whose `legacy_paraphrase` detectors have been
+ * deleted"*. They have not been. All 15 `tour` detectors are still in
+ * `ai-command-inventory.json`, still `legacy_paraphrase`, and still
+ * `reachableFromProduction: true` — `e2e-bug.394` is the ticket for why they
+ * cannot be deleted (128 references across 31 files, most of them *other*
+ * detectors using them as negative guards).
+ *
+ * What §93 actually did was add these domains to `RESCUE_ACTION_LOCKED_DOMAINS`,
+ * which forbids rescue from changing an action for them. Retirement here means
+ * **"no detector may decide an action"**, not "no detector exists" — which is
+ * the exit criterion `e2e-bug.394` proposes rewriting the roadmap to, because
+ * it is the one the lock already achieves and the one that is measurable.
+ *
+ * ## Why they are still not gated by the flag
+ *
+ * The conclusion survives the correction, for the same arithmetic. With rescue
+ * locked, the traces rescue used to decide fall back to the classifier's
+ * rejected answer unless the planner routes them — which is exactly the
+ * population §92 measured at 34 traces, 20.2% of the slice. So a missing
+ * environment variable would still silently cost that 20%, and coupling the
+ * lock and the routing in code keeps them a single fact that cannot be
+ * half-deployed.
+ *
+ * This list must therefore stay in step with `RESCUE_ACTION_LOCKED_DOMAINS`;
+ * `ai-planner-rollout.spec.ts` asserts it, along with the slice evidence behind
+ * each entry.
  */
 export const RETIRED_DETECTOR_DOMAINS: readonly string[] = ['tour', 'guide'];
 

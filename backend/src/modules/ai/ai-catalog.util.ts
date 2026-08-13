@@ -108,8 +108,55 @@ const CATALOG_VERB =
 // minutes, $50; service B, 45 minutes, $45"), so each service line became its
 // own "step" and the category link was lost. The "and <verb>" branch already
 // required a following verb; the semicolon branch now does too.
-const COMPOUND_SPLIT =
-  /\s*;\s*(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)|\s+and\s+(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)/i;
+// e2e-bug.349 — a sentence boundary starts a new step under the same rule the
+// semicolon branch follows: only when a catalog verb (or `under`, which begins
+// the "Under <Category> add …" shape below) starts the next sentence. Splitting
+// on every "." would shred "(30 min, $50). Turn on …" style enumerations, which
+// is the class e2e-bug.347 fixed for semicolons.
+//
+// `under` is in the lookahead deliberately. Adding the sentence split *without*
+// it is a measured no-op on the reported prompt — its sentences begin "Create,
+// Under, Under, Turn", so nothing after the first is a verb, and the prompt
+// stays one segment. The split and the scoped-category classifier only work
+// together.
+const CATALOG_STEP_VERBS =
+  'add|create|enable|configure|deactivate|duplicate|update|assign|set|hide';
+const COMPOUND_SPLIT = new RegExp(
+  `\\s*;\\s*(?=(?:${CATALOG_STEP_VERBS})\\b)` +
+    `|\\s+and\\s+(?=(?:${CATALOG_STEP_VERBS})\\b)` +
+    `|\\.\\s+(?=(?:${CATALOG_STEP_VERBS}|under)\\b)`,
+  'i',
+);
+
+/**
+ * e2e-bug.349 — `Under <Category> add <service lines>`.
+ *
+ * The reported dashboard prompt scopes services to a category by sentence
+ * ("Under Y add service A (30 min, $50) …") rather than with the
+ * "category Y with services: …" shape `parseBulkCatalogFromPrompt` expects.
+ * That parser splits on `:` or `with services`, so it returned null and the
+ * whole request produced nothing.
+ *
+ * Maps to the same `bulk_create_catalog` draft, which already creates the
+ * category when it does not exist (`ai-catalog.logic.ts` — `if (!category)
+ * … categoryService.create`). That is why the prompt's leading
+ * "Create categories Y and Z" sentence does not need its own step: each scoped
+ * segment creates its own category.
+ */
+export function parseScopedCategoryLinesFromSegment(
+  segment: string,
+): CatalogCategoryDraft | null {
+  const match = segment
+    .trim()
+    .match(
+      /^under\s+(?:the\s+)?(?:categor(?:y|ies)\s+)?([A-Za-z][\w\s&'-]{0,40}?)\s+add\s+(.+)$/is,
+    );
+  if (!match) return null;
+  const categoryName = match[1].trim();
+  const services = parseServiceLinesFromText(match[2]);
+  if (!categoryName || !services.length) return null;
+  return { categoryName, services };
+}
 
 export function isCatalogIntent(action: string): action is CatalogIntent {
   return (CATALOG_INTENTS as readonly string[]).includes(action);
@@ -1309,6 +1356,18 @@ function extractPlanNameFromUpdatePrompt(text: string): string | undefined {
 
 function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
   const text = segment.trim();
+
+  // e2e-bug.349 — checked first: "Under Y add service A (30 min, $50)" carries
+  // its own category scope, which the generic bulk parser cannot recover once
+  // the segment is considered on its own.
+  const scoped = parseScopedCategoryLinesFromSegment(text);
+  if (scoped) {
+    return {
+      action: 'bulk_create_catalog',
+      params: { catalogDraft: scoped },
+      segment: text,
+    };
+  }
 
   if (isBulkCreateCatalogPrompt(text)) {
     const draft =

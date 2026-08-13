@@ -1416,13 +1416,35 @@ export async function handleCatalogCompoundLogic(
     }
     results.push(result);
     if (!result.success) {
+      // e2e-bug.448 — steps before this one already wrote to the database, so
+      // reporting a bare "Stopped at step N" tells the user nothing happened
+      // when a category and its services may well have been created. The run
+      // still stops here (a later step may depend on the failed one), but the
+      // completed work is named rather than discarded.
+      //
+      // This is what made e2e-bug.348 and .349 look unfixed long after their
+      // named root causes were closed: both prompts end with an online-payment
+      // instruction that is not a supported catalog step, so the whole compound
+      // reported failure on top of a successful catalog creation.
+      const completed = results.slice(0, -1).filter((r) => r.success);
+      const done = completed.length
+        ? ` Completed before stopping: ${completed
+            .map((r) => r.action.replace(/_/g, ' '))
+            .join(', ')}.`
+        : '';
       return {
         success: false,
         action: 'compound_intent',
-        summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}`,
+        summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}${done}`,
         details: {
           steps: results.map((r) => r.action),
           failedStep: step.action,
+          // Named separately from `steps` (which includes the failed action) so
+          // a caller can tell what actually landed without re-deriving it.
+          completedSteps: completed.map((r) => ({
+            action: r.action,
+            summary: r.summary,
+          })),
           userId,
         },
       };

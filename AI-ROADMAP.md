@@ -5336,6 +5336,11 @@ but as a deliberate next step rather than a fourth swing in the same session.
   code, and that a blocked plan still asks about the unresolved part.
 
 ## §88 — the slice clears the bar: 93% held-in, 100% held-out
+> **Restated by §160 (`e2e-bug.406`).** "Clears the bar" is not a finding this sample can support:
+> 93% of 45 has a 95% Wilson lower bound of 82%, and *no* attainable result at this n reaches a 90%
+> lower bound. Read the numbers below as point estimates that motivated further work, not as a
+> threshold decision. What actually justified retiring the slice was §92's paired comparison.
+
 
 §87 left the tour/guide slice at 40/45 (88.9%) against a 90% bar, five named failures. `e2e-bug.391`.
 
@@ -5605,6 +5610,12 @@ capability of Phase 3, cannot route through this seam at all. Worth naming rathe
 unexplained 7% of rejections.
 
 ## §92 — the first non-circular measurement: the planner recovers 33 of 34
+> **Restated by §160 (`e2e-bug.406`).** This section is the one that got it right, and its framing is
+> now the criterion: it compares two arms on the same traces (20.2% lost without the planner, 0.6%
+> with it) rather than comparing a rate to a threshold. The "97.1%" in the precondition list below is
+> a point estimate with a 95% interval of 85.1–99.5% and settles nothing on its own; the paired
+> comparison behind it is significant at p ≈ 1e-10. `tour`'s retirement stands on the comparison.
+
 
 §91 established that every accuracy number in §68-§91 was circular — scored against
 `ai_command_trace.action`, which is what the system being replaced produced — and named the one
@@ -7189,6 +7200,11 @@ switchable, and only surfaced because turning it on made the tests run that path
 - Red-means-red **exit 0**, 102 suites / 457 tests, manifest exact.
 
 ## §118 — the shipping configuration measured, and a rerank decided by a prompt example
+> **Restated by §160 (`e2e-bug.406`).** The per-domain recovery percentages below are point estimates
+> on 1–34 traces per domain. They are useful for ranking domains and for spotting `no route` as the
+> dominant failure; they cannot be compared to a 90% bar, because no per-domain sample in this corpus
+> can reach one. Retirement readiness is `ai-retirement-criterion.util.ts`'s question.
+
 
 §117 changed two things that bear on `e2e-bug.395`'s "1 of 14 slices ready": narrowing now ships on
 behind a confidence gate, and `validatePlan` runs against the full catalogue. That table gates Phase
@@ -7254,6 +7270,11 @@ number implies.
 - Fast chain **3,870 across 19**, 0 failures. No code changed in this section.
 
 ## §119 — precedence, not a bigger number
+> **Restated by §160 (`e2e-bug.406`).** The recovery figures here (25.5% → 30.6% overall) are
+> aggregate point estimates. The aggregate is a large enough sample to compare configurations, which
+> is what this section uses it for; the *per-domain* splits it reports are not, and must not be read
+> as slices passing or failing a bar.
+
 
 `e2e-bug.403`: the rerank decides between planner and classifier by sorting on `confidence`, but the
 planner's is an LLM self-report anchored by an example value in a prompt template and the classifier's
@@ -7713,6 +7734,13 @@ knowing that it will not fall to zero by being fixed. It falls to zero by Phase 
 - Fast chain **3,876 across 19**, 0 failures. No code changed in this section.
 
 ## §127 — the second slice, and where I stopped pushing it
+> **Restated by §160 (`e2e-bug.406`).** "Near the bar" and "below the bar" are the framing this
+> section should not have used — the bar was unmeetable at these sample sizes, so `push` was never
+> failing a test it could have passed. Under the criterion that replaced it, **`push` is ready**: it
+> recovers 15/18 with every discordant pair favouring the planner (p ≈ 3e-5), and its worst-case
+> slice regression (19.4%) is well below the 43.9% deleting without a planner would cost. The
+> prompt-by-prompt diagnosis below stands; the verdict it reached does not.
+
 
 `e2e-bug.395` has stood at "1 of 14 slices ready" since §94. `push` (67%) and `commerce` (64%) are the
 only candidates near the bar, so both were diagnosed prompt by prompt rather than treated as a
@@ -9694,3 +9722,1467 @@ would make neither attributable.
 
 - Accuracy **8,413/8,464 (99.40%)**; baseline ratcheted; inventory regenerated.
 - Fast chain **3,943 across 19**, 0 failures; sweep **exit 0**, 92 suites / 246 tests; lint clean.
+
+## §158 — A5's retrieval gap is mostly a mislabelled corpus
+
+`e2e-bug.396` asks for §86's recipe — real traffic phrasings into spec examples, rebuild the embedding
+cache — across the twelve domains it was never run for, on the strength of **54 of 121**
+rescue-dependent prompts missing their true command from the shortlist.
+
+Measuring it first was the whole job. The premise does not survive the measurement.
+
+### A retrieval-only harness, because the loop has to be cheap
+
+`ai-planner-replay.manual.spec.ts` answers "did the planner route it", which costs a completion per
+prompt. A5 asks something strictly smaller — *was the right command even on the shortlist* — which
+needs no completion at all.
+
+`ai-retrieval-gap.manual.spec.ts` runs only the ranking, and **caches the 121 query embeddings**.
+Editing a spec changes the command index; it cannot change the embedding of a stored historical
+prompt. So the first run costs 121 embeddings and every re-measure after a spec edit costs nothing
+and moves for exactly one reason. `RETRIEVAL_NO_EMBED=1` fails rather than silently re-embedding,
+which is how a re-measure proves it compared the same queries.
+
+### The baseline, and then the problem with it
+
+| | |
+|---|---|
+| truth in shortlist | **83/121 (69%)** |
+| narrow reasons | `narrowed` 99, `low_confidence` 20, `already_small` 2 |
+
+69%, not the ticket's 55% — §96 and §97 had already moved it and A5's headline was never restated.
+
+The corpus is every prompt where `action_changed_by = 'rescue'`, and `truth` is the **post-rescue**
+action. §96 already knew that made rescue-labelled prompts unsafe to *mine*. What it did not say is
+that it makes them unsafe to **score against**, which is the same defect one level up.
+
+Splitting on `classified_action` separates two events the single flag conflates:
+
+| | prompts | truth in shortlist |
+|---|---|---|
+| rescue **supplied** a route (classifier said `unknown`) | 26 | 20/26 (77%) |
+| rescue **replaced** a classification | 95 | 63/95 (66%) |
+| …the **classifier's** action, same 95 prompts | 95 | **82/95 (86%)** |
+
+**79% of the corpus is rescue overriding a classification retrieval had already found.** On those
+rows the metric scores the shortlist against rescue's answer while the shortlist contains the
+classifier's — and reading them, the classifier is usually right:
+
+```
+"Add a new catalog category named QA Nails"    classifier create_service_category
+                                               rescue     import_services_from_menu
+"Block Gevorg's schedule tomorrow afternoon"   classifier block_schedule
+                                               rescue     create_booking
+"add a new service under category barber…"     classifier create_service
+                                               rescue     create_employee
+"Create a category QA347110845Y with three…"   classifier bulk_create_catalog
+                                               rescue     configure_hipaa_session_timeout
+"Where are the biggest gaps in my schedule?"   classifier list_schedule_gaps
+                                               rescue     guide_user_flow
+```
+
+24 of the 38 misses are of this shape. Adding those phrasings to the specs — A5's first checkbox —
+would have taught `create_employee` that *"Create a new service called QA Staff Test"* is an example
+of itself, and the eval corpus would have ratified it.
+
+### What is actually left, adjudicated one by one
+
+Only the 26 `supplied` rows carry usable ground truth. They miss 6 times:
+
+| prompt | recorded truth | verdict |
+|---|---|---|
+| "How many reward points do I have?" | `loyalty_points_balance` | **not permitted** on dashboard/owner |
+| "What's my loyalty balance?" | `loyalty_points_balance` | **not permitted** |
+| "List all my gift card bundles" | `my_gift_cards` | **not permitted** |
+| "List active memberships for my customers" | `my_subscriptions` | **not permitted** |
+| "move Neck Massage under service category: Massage" | `reschedule_booking` | truth wrong — a catalog move |
+| "unassign all Permanent services from Mary" | `staff_service_matrix` | truth wrong — a report, prompt mutates |
+
+The first four are §83 again: `marketing.loyalty_points_balance`, `customer.my_gift_cards` and
+`customer.my_subscriptions` all declare `surfaces: ['customer','public']`. A dashboard owner cannot
+reach them, so they can never enter the shortlist and no example can put them there. The last two are
+labels that are simply wrong.
+
+**Zero of 121 prompts are a retrieval miss that adding spec examples would fix.** A5's remaining
+opportunity is not small; it is empty. §96 called example-mining exhausted and was right for a
+stronger reason than it gave.
+
+### One live defect fell out
+
+Those four prompts routed a dashboard owner to customer-surface commands. Five failed — and
+`my_gift_cards` **executed**, on the dashboard, for an owner, against a spec that lists neither.
+Filed as `e2e-bug.436`; it is `e2e-bug.435`'s shape with the surface check missing at execute rather
+than at rescue.
+
+### Verification
+
+- Gates **22 / ~3,900 tests, 0 failures**. The harness is opt-in behind `AI_RETRIEVAL=1` and skips
+  visibly without it, so it cannot enter a gate chain or the full sweep.
+- `npm run measure:ai-retrieval-gap` reproduces every number above.
+
+## §159 — the resolver deadlock was a spec that described a different program
+
+`e2e-bug.399` says `appointment.reschedule` requires `appointmentId` with `resolver: 'appointment'`,
+the prompt never mentions the resolver, rule 4 forbids inventing ids, so the planner refuses. Two
+attempts fixed the *prompt* — §120 rendered the resolver in the shortlist, §130 did it again with the
+confirm gate removed — and both measured negative and were reverted.
+
+Its own ticket said to size it before trying a third time. Sizing it explains both reverts.
+
+### Nothing reads the variable
+
+| handler | reads |
+|---|---|
+| `handleRescheduleBooking` | `bookingId`, `customerName`, `employeeName`, `serviceName`, `date`, `timeSlot`, `bookingFirstAvailable`, `fromDate`, `fromTimeSlot` |
+| `handleMarkPaidLogic` | `bookingId`, `bookingIds`, `date`, `timeSlot` |
+| `resolveOwnedBooking` (customer side) | `bookingId`, `date`, `timeSlot`, `fromDate`, `fromTimeSlot` |
+| `handleBookAppointment` (public side) | `serviceName`, `employeeName`, `date`, `timeSlot`, `bookingFirstAvailable` |
+
+`appointmentId` appears in none of them. Neither does `newStart`, and neither does `startsAt` — the
+strings do not occur anywhere in `src/` as AI params. Eight variable declarations across six specs,
+three of them `required: true`, all describing a program that was never written.
+
+`handleRescheduleBooking` states the real contract in its own failure message: *"Specify bookingId,
+customer name, or provider + date/time."* The id is **optional**, and the human reference is the
+normal path — which is exactly what §120 and §130 tried to teach the planner about a variable that
+did not exist.
+
+### The specs' own examples fail their own check
+
+*"move John's appointment to tomorrow at 3pm"*, *"mark the 2pm haircut as paid"*, *"cancel my
+appointment"*, *"book a swedish massage with Gevorg tomorrow at 11am"* — **no documented example of
+any of these commands contains an id**. Every one of them fails the required-variable check its own
+spec declares. That is the whole bug, visible without a database.
+
+### Sizing, which is what the ticket asked for
+
+| | |
+|---|---|
+| specs in the registry | 696 |
+| declaring any variable | 41 (§142) |
+| declaring a resolver-backed variable | 26 |
+| with a **required** resolver-backed variable | 21 |
+| …of those, asking for an **id** | **2** |
+| refusals §142 attributed to a resolver-backed required variable | **3 of 102** |
+
+Nineteen of the 21 already ask for the human reference with a resolver attached — `serviceName`,
+`customerName`, `price` — which *is* the fix `e2e-bug.399` proposes. It was already the convention;
+two commands in the pilot domain did not follow it.
+
+### The fix
+
+`appointment.reschedule`, `mark_paid`, `cancel_mine`, `reschedule_mine`, `create` and `book_public`
+now declare what their handlers read. `appointmentId` → an optional `bookingId` plus the
+`customerName` / `employeeName` / `serviceName` lookups; `newStart` and `startsAt` → `date` /
+`timeSlot` / `bookingFirstAvailable`.
+
+Optional rather than required, because the handlers accept any *one* of several identifiers and
+`CommandVariableSpec.required` is per-variable with no "one of" form. Marking any single one required
+would restore the deadlock, and the handlers already enforce the real rule and say so clearly.
+
+**Specs asking the planner for an id: 2 → 0.**
+
+One more correction fell out: `appointment.reschedule` described `employeeName` as *"move to a
+different provider at the same time"*. `handleRescheduleBooking` reads it in exactly one place, as a
+key to *find* the booking, and never reassigns the provider — that is
+`switch_provider_same_time`'s job.
+
+### This is a prerequisite for A1, not a tidy-up
+
+`runStep` in `ai-plan-executor.util.ts` has no production caller (`e2e-bug.392`), so `step.variables`
+is what will reach a handler when A1 lands. Wiring A1 against the old specs would have routed plans
+whose variables the handler ignores, and `handleRescheduleBooking` would have answered *"Could not
+find the booking to update"* for a plan that was correct.
+
+### Six tests were asserting on the fiction
+
+`appointment.reschedule` was the sample spec for `buildPlannerShortlist`, `buildToolDefinition`,
+`validateCommandVariables`, the prompt-rendering assertion, the `missing-required-variable` golden
+fixture and the planner's clarify path — every one pinning `appointmentId`/`newStart`. They are moved
+to `appointment.create`, whose required variables are real and consumed, so the assertions now mean
+something. This is the §133 `claim_referral_code` pattern again (spec and handler disagreeing about a
+param name), and the tests agreed with the spec instead of with the code.
+
+### Verification
+
+- Gates **22 / 4,078 tests, 0 failures**; `tsc` clean for every touched file.
+- The handler suites (`public-booking-assistant`, `ai-booking-core`, `ai-booking-depth`,
+  `ai-self-service-booking`) were diffed against a stashed tree: **9 failures before, the same 9
+  after, none introduced and none fixed** — expected, since specs feed the planner and these are the
+  detector path.
+- Descriptions and examples are untouched, so `commandMatchTextHash` is unchanged and §96's staleness
+  gate stays green without an embedding rebuild.
+
+**Left open, deliberately.** `compensation.captures` still names `appointmentId` on four specs. Those
+are capture keys for the unwired saga executor, not input variables, and correcting them without
+knowing what the executor will capture from would be guessing. Noted on `e2e-bug.399`.
+
+## §160 — replacing a bar nothing could clear
+
+`e2e-bug.406`: every Phase 8 slice was gated on `PROPOSE_ONLY_ACCURACY_BAR = 90`, and §128 showed no
+slice can reach it. A4 asked for a replacement criterion rather than a lower number.
+
+### The bar is unmeetable by arithmetic, not by performance
+
+| slice | recovery | 95% Wilson |
+|---|---|---|
+| `tour` | 33/34 (97.1%) | **85.1% – 99.5%** |
+| `push` | 15/18 (83.3%) | **60.8% – 94.2%** |
+
+A 95% lower bound of 90% needs **n ≥ 35 with zero failures**. The largest slice has 34 traces and one
+failure, and more data is not obtainable — traffic stopped 2026-08-03 and the whole rescue-dependent
+population is 216 traces. `tour` was described as failing a test it could not have passed.
+
+**Lowering the bar does not fix it, and neither does re-denominating.** A 70% lower bound is
+reachable in principle (n ≥ 9 all-correct) and `tour` clears it at 85.1% — but `push`, the
+second-best slice there has ever been, is at 60.8% and fails. Measuring regression against *slice*
+traffic instead of the rescue subset gives `tour` 1/166, whose 95% upper bound is still **3.3%**, so
+even a 2% tolerance is undecidable. No absolute threshold worth stating survives these sample sizes.
+
+### What actually decided `tour`, and why it is decidable
+
+§92 never compared a rate to a threshold. It compared **two arms on the same traces**: delete the
+detectors with the planner off, lose 34; with it on, lose 1.
+
+That comparison is **paired**, and the pairing is what recovers the statistical power. Every
+rescue-dependent trace is lost under planner-off *by construction* — rescue decided it, so deleting
+rescue leaves the classifier's rejected answer. Under planner-on it is lost only if the planner also
+fails. Both arms are evaluated on identical traces, so the variance that swamps an absolute rate
+cancels. On the same 34 traces whose absolute rate cannot be pinned tighter than a 14-point interval,
+the paired result is significant at **p ≈ 1e-10**.
+
+### The criterion
+
+A slice is retirement-ready when both hold:
+
+1. **it beats nothing, significantly** — exact one-sided sign test on discordant pairs, p < 0.05;
+2. **the residual is smaller than what it avoids** — the 95% *upper* bound on slice-level regression
+   with the planner on sits below the point estimate of the loss deleting without it would cause.
+
+(2) is deliberately not an absolute tolerance. It asks the only question the data can answer — *is
+the worst case of doing this still better than the expected case of the alternative* — and is
+strictly weaker than "regression below X%", which nothing here can clear.
+
+### Applied to all thirteen domains
+
+| domain | recovered | sign p | 95% UB regression | loss if deleted without planner | verdict |
+|---|---|---|---|---|---|
+| **tour** | 33/34 | 1.2e-10 | 3.3% | 20.5% | **retire** |
+| **push** | 15/18 | 3.1e-05 | 19.4% | 43.9% | **retire** |
+| commerce | 2/11 | 0.25 | 30.8% | 22.0% | hold |
+| catalog | 2/22 | 0.25 | 24.3% | 18.3% | hold |
+| booking | 2/34 | 0.25 | 2.8% | 2.1% | hold |
+| operations | 1/30 | 0.50 | 6.3% | 4.6% | hold |
+| business, clinic, customer, marketing, payment, guide, compliance | 0 | 1.00 | — | — | hold |
+
+The two conditions agree on every domain — pinned by a test, because if they ever split the criterion
+is doing two jobs. And it is not the old bar renamed: **`push` recovers 83.3%, below 90, and is
+ready.** That is the substantive change — one more slice becomes retirable, on evidence that was
+always there.
+
+`tour` is not re-opened. §92's evidence was comparative all along; only its write-up quoted a point
+estimate as though a threshold had been cleared.
+
+### Scope, so this cannot happen again
+
+`PROPOSE_ONLY_ACCURACY_BAR` is legitimate where it started — per *command*, against the 8,509-case
+eval corpus, where a command carries hundreds of cases. Both it and `ai-detector-retirement.util.ts`
+now say so, `ai-retirement-criterion.util.ts` does not import it, and a test asserts it never will.
+
+### Verification
+
+- `ai-retirement-criterion.util.spec.ts`, 17 tests: the two published intervals reproduced to 0.1pp,
+  the exact binomial checked against `2^-n`, the n ≥ 35 claim computed rather than asserted, all
+  thirteen domains pinned, and a constructed 4/4 slice that a rate-reading criterion would wrongly
+  retire.
+- Gates **23 / 4,095 tests, 0 failures**.
+- §88, §92, §118, §119 and §127 carry restatement notes; §127's verdict on `push` is reversed.
+
+## §161 — the planner was already executing, and one domain was enabled without evidence
+
+`e2e-bug.392` reads: *"the planner is an observer that does not even observe"* — it runs in the
+gateway's trace-recording tail behind `AI_PLANNER_SHADOW_SURFACES`, which is unset. A1's first job was
+to build the execution path.
+
+It exists. It has since §90/§129, and nothing updated the ticket.
+
+### Where it actually runs
+
+`CommandUnderstandingPipelineService.stagePlannerRoute` is called from `understand()` on **every
+request**, before classification. It calls `decidePlannerRoute` and pushes a real candidate that
+competes in the rerank. `AiCommandPlannerService` is registered in `ai.module.ts`, so the `@Optional()`
+dependency is satisfied in production. And `plannerExecuteDomains()` seeds itself from
+`RETIRED_DETECTOR_DOMAINS`, so **`tour` and `guide` route with no environment variable set at all**.
+
+The shadow runner is still there and still unset. It is simply no longer the only path, and the
+ticket described the wrong one.
+
+`ai-planner-rollout.spec.ts` now drives the real pipeline with a stubbed planner and a *deliberately
+different, lower-confidence* classifier answer: the planner's command comes back. A stale ticket is
+cheap; a stale ticket that makes a live path look dead is not, so the claim is pinned in both
+directions — including that a non-retired, non-flagged domain is still declined.
+
+### `RETIRED_DETECTOR_DOMAINS` was documented on a false premise
+
+Its comment said *"domains whose `legacy_paraphrase` detectors have been deleted"*, and built the
+argument for making them ungateable on that: *"once a slice's detectors are gone the planner is the
+only thing that routes it."*
+
+Nothing has been deleted. All 15 `tour` detectors are in the inventory, still `legacy_paraphrase`,
+still `reachableFromProduction: true` — which is `e2e-bug.394`'s whole subject. What §93 did was add
+the domains to `RESCUE_ACTION_LOCKED_DOMAINS`, forbidding rescue from *deciding* an action.
+
+**The conclusion survives; the premise did not.** With rescue locked, the traces rescue used to decide
+fall back to the classifier's rejected answer unless the planner routes them — the same 34 traces,
+20.2% of the slice, §92 measured. So a missing env var would still cost that 20%. The comment is
+corrected, and a test now asserts `RETIRED_DETECTOR_DOMAINS` and `RESCUE_ACTION_LOCKED_DOMAINS` hold
+the same domains, because the argument for ungateability *is* the lock. Drift either way is worse than
+either list alone suggests: routed with rescue able to overrule, or locked with nothing left to route.
+
+This also names the exit criterion `e2e-bug.394` proposes: retirement here already means **"no
+detector may decide an action"**, not "no detector exists".
+
+### `guide` was enabled without evidence of its own
+
+A1's third checkbox is *"measure recovery per slice before enabling it, not after."* Applying A4's
+criterion to the domains already enabled shows it was not followed:
+
+| domain | recovered | sign p | verdict |
+|---|---|---|---|
+| `tour` | 33/34 | 1.2e-10 | clears |
+| **`guide`** | **0/2** | **1.00** | **does not clear** |
+
+`guide` was carried along with `tour` as one slice in §93 — same commit, same argument — but §94
+measured it separately and the planner routes its single rescue-dependent prompt to the *wrong*
+command.
+
+**Recorded, not reverted.** The population is 2 traces of 245, rescue is locked either way, and
+reverting on n=2 would be the same error in the other direction: acting on a sample too small to
+carry a decision. It is listed as an explicit exception so "guide is retired" can never again be read
+as "guide was measured", and the exception list is pinned so it cannot grow quietly.
+
+### Multi-step stays with §33's executor
+
+A1's second checkbox, settled on the measurement rather than the principle:
+
+| corpus | `reject:not_single_step` |
+|---|---|
+| rescue-dependent prompts (§120) | **3 of 121** (5 traces) |
+| held-out spec examples (§141) | **2 of 343** |
+
+2.5% and 0.6%. Building a second execution path — one that could half-execute a plan — to serve five
+traces, while §33's executor already exists and `runStep` has no production caller, is not a trade
+worth making. Revisit if a measurement moves it.
+
+### Verification
+
+- Gates **24 / 4,105 tests, 0 failures**; 10 new tests.
+- The `ai-planner-route.util.ts` change is **comments only** — 0 executable lines — so the only new
+  code is the spec. The two failures in `command-understanding-pipeline.integration.spec.ts` are
+  pre-existing: identical with the new file removed entirely.
+
+## §162 — re-measuring the slices, and the metric that was hiding half the answer
+
+`e2e-bug.395` has stood at *"thirteen of fourteen slices are not ready — `tour` 97%, `push` 83%,
+everything else 0–18%, 25.5% overall"* since §94. A3's remaining checkbox was to re-measure per
+domain once A5 and A6 landed. Full corpus, two runs, `REPLAY_RUNS=2`.
+
+### Nothing moved, and that is the first finding
+
+| | prompts | traces |
+|---|---|---|
+| run 1 | 27/121 (22.3%) | 67/216 (31.0%) |
+| run 2 | 28/121 (23.1%) | 70/216 (32.4%) |
+| **noise floor** | **4 of 121 prompts changed verdict between identical runs** | |
+
+§130's two baseline runs landed on **27 and 28 prompts** and 30.6%/32.4%. This run lands on 27 and 28
+prompts and 31.0%/32.4%. **A6's spec correction moved planner recovery by nothing measurable**, which
+is worth saying plainly: it fixed a real defect — six specs demanding variables no handler reads — and
+the rescue corpus did not care, because its failures are elsewhere. `missing_variables` accounts for
+1 of 121 prompts.
+
+### The largest bucket is `wrong`, and most of it is not wrong
+
+56 prompts route to a command that is not the recorded truth. **43 of those 56 produce exactly the
+`classified_action`** — the answer the classifier gave before rescue overrode it — and A5 established
+that on this corpus rescue's override is usually the mistake. Identical in both runs.
+
+```
+planner=list_refunds              rescue_truth=summarize_bookings    x4  "How many refunds have I issued this month?"
+planner=create_service_category   rescue_truth=import_services_from_menu x2  "Add a new catalog category named QA Nails"
+planner=list_schedule_gaps        rescue_truth=guide_user_flow       x2  "Where are the biggest gaps in my schedule this week?"
+planner=check_providers_for_service rescue_truth=check_availability   x2  "is anybody open tomorrow morning for Swedish massage"
+```
+
+The first is `e2e-bug.260`'s own ticket — *"`list_refunds` unreachable for its own canonical 'how many
+refunds' phrasing"*. The planner reaches it, and the corpus scores that as a failure.
+
+### The table, raw and label-corrected
+
+`corrected` adds the prompts where the planner matched the classifier. It is an **upper bound**, not a
+new truth: A5 showed the classifier is usually right here, not always, and none of these 43 have been
+adjudicated one by one.
+
+| domain | prompts | traces | raw | corrected | A4 verdict raw → corrected |
+|---|---|---|---|---|---|
+| booking | 23 | 38 | 11% | 32% | hold → **retire** |
+| tour | 11 | 34 | 97% | 100% | retire → retire |
+| operations | 17 | 30 | 20% | 47% | hold → **retire** |
+| clinic | 6 | 23 | 0% | 13% | hold → hold |
+| catalog | 22 | 22 | 9% | **82%** | hold → **retire** |
+| push | 5 | 14 | 79% | 79% | retire → retire |
+| business | 7 | 14 | 21% | 64% | hold → **retire** |
+| customer | 10 | 13 | 0% | 38% | hold → hold |
+| commerce | 7 | 11 | **73%** | 73% | **retire** → retire |
+| marketing | 6 | 8 | 0% | 13% | hold → hold |
+| payment | 5 | 6 | 0% | 33% | hold → hold |
+| guide | 1 | 2 | 0% | 100% | hold → hold |
+| compliance | 1 | 1 | 0% | 0% | hold → hold |
+| **total** | **121** | **216** | **31%** | **55%** | **3 → 7 domains** |
+
+Two things fall out. §94's per-domain figures are **stale** even on the raw metric — `commerce` was
+18% and measures 73%; `operations` 3% → 20%; `business` 0% → 21%. And the headline *"thirteen of
+fourteen slices are not ready"* is substantially an artifact of scoring the planner against rescue's
+output.
+
+### What is not being done, and why
+
+**No domain is being added to `RETIRED_DETECTOR_DOMAINS`.** The corrected column is an upper bound
+built by assuming every planner-agrees-with-classifier case is a planner win. Enabling four more
+slices on an unadjudicated upper bound would be the same error A4 and A5 were about, in a more
+expensive direction. What it justifies is adjudicating those 43 prompts — which is a bounded,
+one-time job on a fixed corpus, and is now the highest-value thing left in Phase 8.
+
+### Verification
+
+- Two full runs, noise floor measured at 4 prompts. Any claim below that is not a claim.
+- `AI_REPLAY=1 REPLAY_RUNS=2 npm run test:ai-planner-replay` reproduces it;
+  `REPLAY_OUT_DIR` holds the per-prompt JSON both analyses were computed from.
+- Gates 24 / 4,105, 0 failures — unchanged, since this section measures rather than changes.
+
+## §163 — two thieves narrowed, and one of them was writing money
+
+`e2e-bug.380`'s actionable half: 106 of the 559 documented spec examples are **stolen** — a different
+command's detector answers them — guarded by a ceiling that may only fall.
+
+Measured one fix at a time, because this file's own header records what happens otherwise (§150's
+fix 1 looked complete and moved nothing).
+
+### `explain_provider_availability` was answering "sign in with Apple"
+
+e2e-bug.334's shape again: the named-schedule cue reads `with <X>` as a provider name, and "Apple"
+and "Google" look exactly like one.
+
+**106 → 104, and `passed` did not move.** `sign_in_with_apple` and `sign_in_with_google` have no
+detector of their own — they are classifier-routed — so the examples went from *stolen* to
+*unclaimed*. That is still the right outcome, because the classifier has explicit rules for both and
+the detector was overriding them, but it is a smaller claim than "fixed" and is recorded as one.
+
+Deliberately not solved by adding `apple`/`google` to `PROVIDER_NAME_BLOCKLIST`: that set is
+exact-match single words applied to every prompt, so it would also unname a staff member who really
+is called Apple. The decline requires the sign-in verb *and* a preposition *and* a named auth
+provider — any two of those appear in genuine availability questions; all three do not.
+
+### `mark_paid` was claiming status changes, on a T2 money command
+
+`isMarkPaidPrompt` ended with:
+
+```ts
+return /\bmark\b/i.test(prompt) && /\b(done|complete|completed|finished)\b/i.test(prompt);
+```
+
+`mark` plus a completion word, with **no mention of money anywhere**. So *"mark Karo's 10am as
+completed"* and *"mark the 3pm massage as done"* — `update_bookings`' own documented examples — routed
+to `mark_paid`, which is T2 and writes a financial record. The branches above it already cover every
+phrasing that names payment, so this only ever added the no-payment case.
+
+Marking a visit finished is not a claim that the customer handed money over, and guessing that it is
+on a T2 command is the wrong direction to be wrong in. The spec for `appointment.mark_paid` says as
+much in its own risk note: *"a wrong write here is a financial record."*
+
+**104 → 101, and `passed` rose 111 → 113.** Here the victim does have a detector, so the examples
+actually reach it.
+
+### Where this leaves the 106
+
+| | before | after |
+|---|---|---|
+| stolen | 106 | **101** |
+| routing (`ROUTABLE_FLOOR`) | 110 | **113** |
+| unclaimed | 342 | 345 |
+
+**The remaining 101 are a long tail with no third cluster to take.** The largest thief holds 10 and
+spreads them across 10 different victims; after that it is 7, 5, 4, 4, and then twos and ones. The
+two fixed here were the only ones where a single discriminator covered more than one victim *and* the
+over-claim was unambiguous. Continuing means adjudicating roughly a hundred one-off pairs, which is
+the same shape of work A3 handed over for its 43 prompts — and those are worth more per unit, because
+they are real traffic rather than hand-written examples.
+
+### Verification
+
+- Gates **25 / 4,120 tests, 0 failures**. `STOLEN_CEILING` 106 → 101 and `ROUTABLE_FLOOR` 110 → 113,
+  so neither gain can silently reverse.
+- New `ai-a7-detector-narrowing.spec.ts` (15 tests) pins both narrowings *directly*: the aggregate
+  ceiling cannot say which fix is holding, since a revert plus an unrelated widening would cancel out.
+  It also asserts each detector still answers its own traffic — a decline that costs a detector its
+  own prompts is a deletion, not a narrowing.
+- The full `ai-command-eval` suite has **11 failures before and after** — verified by reverting both
+  hunks and re-running, not assumed.
+- `npm run build:ai-inventory` re-run: the edits shifted recorded line numbers.
+
+## §164 — the exit criterion was already met, and nothing was asserting it
+
+`e2e-bug.394`: Phase 8 says "bulk-delete the slice's `legacy_paraphrase` detectors", and they cannot
+be deleted. The 15 `tour`/`guide` matchers have ~130 references across 31 files, most of them *other*
+detectors using them as negative guards — `if (isListTourCalendarWeekPrompt(p)) return null;` — so
+non-tour commands do not answer tour prompts. Delete the predicate and every one of those starts
+firing.
+
+A2 offered two ways out and a measurement to choose between them. The measurement chose.
+
+### Counting the 130 references
+
+| kind | count |
+|---|---|
+| imports / re-exports | 47 |
+| definitions | 15 |
+| **declines** — `if (isX(p)) return null`, and negated param guards | **71** |
+| completion checks — which fields are still missing | 2 |
+| dead — `isExplainTourServicesPrompt(p) ? [] : []`, both branches empty | 1 |
+| **routing — a call whose true result produces an action** | **0** |
+
+Zero. Including inside `ai-intent-rescue.service.ts`, the only layer that can change an action at
+all: **all ten of its references are an import or a `return null`.** The one that looks like an
+exception —
+
+```ts
+if (isExplainTourServicesPrompt(prompt) && !isExplainTourBookingPrompt(prompt) && …) {
+  return null;
+}
+```
+
+— is a decline with extra conditions.
+
+So the second option is not a target to work towards. **"No detector may decide an action" is already
+true for the retired slices**, and had simply never been written down as a check. §93's lock plus
+these guards achieved it; the roadmap kept measuring against "the files are gone", which is a
+different and unreachable property.
+
+### Making it a gate instead of an observation
+
+`ai-retired-detector-decides-nothing.spec.ts` derives the slice from the committed inventory —
+detectors whose mapped actions are **all** in a retired domain, `every` rather than `some` so a
+detector that also routes a live command cannot hide behind the assertion — then reads
+`ai-intent-rescue.service.ts` and requires every call site to resolve to `return null`.
+
+Source text rather than behaviour, deliberately: the property is *"no code path exists"*, and a
+behavioural test can only sample the paths someone thought to try.
+
+Two tests guard the guard, because a source-text check's characteristic failure is passing by finding
+nothing — one asserts the slice still resolves to ≥15 detectors, the other that call sites were
+actually inspected. And the whole thing was **negative-controlled**: injecting a routing use into
+rescue makes it fail and name the exact line, which is the only way to know an assertion of absence
+is wired up.
+
+### What this changes about Phase 8
+
+The exit criterion is now met and enforced for `tour` and `guide`, and the ratchet extends to any
+domain added to `RETIRED_DETECTOR_DOMAINS` — the spec derives its subject rather than listing it.
+A2's first option (splitting each matcher from its guard use) is **not needed**: there is nothing to
+split, because no matcher is doing routing work any more. That is 31 files not touched.
+
+The detector *files* remain, and will, because 71 declines depend on them. Phase 8's letter said
+delete; what retirement actually means here is what the lock enforces.
+
+### Verification
+
+- Gates **26 / 4,124 tests, 0 failures**.
+- Negative control run and reverted; the pre-existing `sprint-2` stash and every other file left
+  untouched.
+- One piece of dead code filed rather than absorbed: `e2e-bug.439`.
+
+## §165 — §149's nine were never given specs, and nothing was checking that direction
+
+C1 (`e2e-bug.379`) is a large refactor: generate `COMMAND_REGISTRY` from the specs and delete six
+parallel lists. Before starting it, its stated urgency was worth checking — *"§149 cost 241 eval cases
+to a missing registry row; that failure mode exists because the lists are independent."*
+
+### The cited failure mode is already gated
+
+`ai-command-inventory.boundary.spec.ts` asserts **"every mapped action is a real registry command"**.
+A detector routing an action with no registry row fails as *dangling*, by name. Negative-controlled:
+injecting exactly §149's shape — a detector mapping to an action with no row — fails the gate and
+prints `isNegativeControlPrompt -> negative_control_no_registry_row`.
+
+So C1's urgency argument is stale. What it did surface was the **mirror** defect, which nothing was
+checking.
+
+### Nine registry entries had no spec — and they are §149's nine
+
+Every conformance assertion runs spec → registry. Nothing ran registry → spec, and §125's *"all 696
+registry entries resolve to a spec; none is orphaned"* was a one-time measurement, not a gate.
+
+It had already stopped being true. At **705 entries** there were **696 specs** and **nine orphans**:
+
+```
+explain_today_timeline            explain_booking_payment_breakdown
+explain_cancel_policy_for_client  explain_deposit_balance_due
+explain_gift_card_redemption      explain_multi_service_timeline
+explain_package_visit_context     explain_retail_cart
+explain_tour_group_on_booking
+```
+
+Those are §149's nine, exactly. **That fix added the registry rows the pipeline was discarding answers
+for, and stopped there.**
+
+This is not cosmetic. The planner's entire catalogue is `COMMAND_SPECS`, so all nine were:
+
+- **unroutable by the planner** — the layer Phase 8 replaces detectors with;
+- absent from the embedding index, so unreachable by retrieval even in principle;
+- invisible to every spec-derived gate — risk tier, confirmation model, shortlist, retirement
+  criterion.
+
+Nine commands that §149 rescued from one silent discard were sitting in a second one.
+
+### Fixed rather than ratcheted
+
+All nine now have specs. Surfaces, tiers, handler and `mutating` are copied from the live registry and
+capability matrix — the conformance suite fails otherwise, which is what makes copying safe.
+Descriptions and examples come from each command's own classifier-rule fixture, the text its detector
+was already written against, so no phrasing is invented:
+
+> `explain_today_timeline` — *"Walk me through my day"*, *"Gaps between clients?"*
+> `explain_retail_cart` — *"What's on the retail tab?"*, *"Total with products?"*
+
+The new gate carries **no exception list**, deliberately: the orphans are gone, so the honest baseline
+is zero and anything else is a regression to fix rather than a ratchet to record.
+
+### What C1 still is, and is not
+
+`COMMAND_REGISTRY` is still hand-maintained and still one of seven declaration sites; generating it
+from the specs remains worth doing. But its **safety** argument is now covered from both directions by
+two cheap gates, so what remains is deduplication — a different, lower-priority kind of work than
+"the programme's largest defect can recur".
+
+### Verification
+
+- Gates **26 / 4,161 tests, 0 failures** (+37 from the nine specs' conformance rows).
+- Both new gates negative-controlled: removing one of the nine makes the registry → spec assertion
+  fail and name `explain_retail_cart`.
+- §96's staleness gate caught the stale embedding cache immediately — `commandMatchText` changed for
+  nine commands. Rebuilt, so the nine are now genuinely retrievable rather than merely declared.
+- `npm run build:ai-inventory` re-run.
+
+## §166 — the twelve money commands now say what they take
+
+`e2e-bug.418`: **41** of 696 specs declare any inputs; 655 declare none, and 297 of those mutate —
+including `payment.adjust_gift_card_balance`, a T2 money command whose spec said it took nothing.
+C2 says start with the **134 T2/T3** specs, and *"do this by reading, not by regex — a static audit
+was attempted and abandoned."*
+
+First slice: `AiPaymentsService`'s **12**. All T2, all money, all in one handler file — the place a
+wrong parameter is most expensive.
+
+### The regex-vs-reading warning is real, and it bit immediately
+
+A grep over each handler's body offered `cardType` and `deliveryMethod` for `buy_gift_card`. Reading
+`handleBuyGiftCardLogic` shows both are **hardcoded** — `cardType: 'monetary'` and a delivery method
+derived from which command was dispatched. A planner filling either would change nothing, and
+declaring them would have been `e2e-bug.399`'s defect freshly minted: a spec asking for input no
+handler reads.
+
+Two other classes were excluded on reading rather than by rule:
+
+- **`_prompt`** — pipeline-internal, present in almost every handler, never a user-supplied value.
+- **`customerId` / `sessionCustomerId`** on `pay_online` — injected from the session. Asking a
+  planner for an id it cannot know is exactly the deadlock A6 spent two reverted attempts on.
+
+### Requiredness, decided the way A6 decided it
+
+Only **two** of the twelve carry a required variable, and both because the handler returns
+`missing: [...]` with no fallback at all:
+
+| command | required | why |
+|---|---|---|
+| `collect_cash_confirm` | `bookingId` | no fallback; "which booking received cash" |
+| `purchase_subscription_checkout` | `planId` | no fallback |
+
+Everything else is optional, for A6's reason: the handlers accept *one of* several identifiers —
+`giftCardId` **or** `giftCardCode`, `newBalance` **or** `delta`/`amount`, `sessionId` **or**
+`pendingCheckoutSessionId` — and `CommandVariableSpec.required` has no "one of" form. Marking either
+side required refuses the other phrasing.
+
+Where the handler names a field in its own `missing:` payload, that spelling is what got declared:
+`adjust_gift_card_balance` reports `giftCardCode` and `amount`, so those are the names, even though
+the code also accepts `giftCardId` and `delta`.
+
+### Second slice: the schedule-rewriting T3s
+
+Six bulk commands — `swap_schedules`, `rebalance_capacity`, `holiday_mode`, `clear_schedule`,
+`day_replan`, `fill_unused_slots`. These rewrite whole schedules, so a wrong parameter is expensive in
+a different way than money is.
+
+**They needed tracing two layers deeper than payments.** The payments handlers read `params.x`
+directly. The schedule family does not: `handleSwapSchedules` → `prepareSwapSchedulesPlanLogic` →
+`parseSwapEmployeeNames` + `resolveScheduleDates`, and the actual names only appear in that third
+layer. A one-level read would have declared nothing at all and looked complete.
+
+What made it tractable is that each command carries its contract in its own failure message:
+
+> *"Specify two providers to swap schedules between (e.g. Gevorg and Maria on Friday)."*
+> *"Specify source and target providers, service, date, and how many slots to move."*
+> *"Specify closure dates (e.g. Dec 24–26) and optionally extended hours before closure."*
+
+Every name those sentences imply resolves to a real param once the chain is followed. None is marked
+required, for the reason the first slice found: providers arrive as a pair *or* as `employeeNames`,
+dates as `dateFrom`/`dateTo` *or* `date`, closures as `closeDates` *or* `holidayDates`.
+
+`_timeZone` is excluded on the same grounds as `sessionCustomerId` — pipeline-injected, and inviting a
+planner to guess a zone is the `e2e-bug.399` trap.
+
+### Third slice: the rest of the traceable `operations` T3s
+
+`apply_and_fill`, `sick_day_replan`, `bulk_smart_cancel`, `import_services_from_menu` — including the
+two the previous slice deliberately left named.
+
+**`apply_and_fill` is the union of two other commands.** It runs `handleApplySchedule` then
+`handleFillScheduleGaps`, so its inputs are both sets. Declared in full rather than cross-referenced:
+a planner reads the spec entry, not the call graph.
+
+**`bulk_smart_cancel`'s filters are its blast radius.** It is T3 and cancels every booking the filters
+match — `employeeName`, `serviceName`, `date`, `dateFrom`/`dateTo`, `statusFilter`/`statusFilters`. An
+undeclared filter there is not a documentation gap; it is a filter the planner cannot name and so
+cannot narrow with, which means a *wider* cancellation. A test asserts all four principal filters stay
+declared for exactly that reason.
+
+**`import_services_from_menu`** takes `menuText`, `ocrText` (the same menu recognised from a photo) or
+an already-parsed `services` list — three ways in, none required.
+
+### Fourth slice, and a flaw in the metric itself
+
+The onboarding and agent-ops T3s. Two take input and were declared —
+`apply_catalog.categories`, `rebook_all_from_task.taskId`.
+
+The other three do not, and that is the finding. Their handlers have **no `params` argument at all**:
+
+```
+handleApplyOnboardingScheduleLogic(deps, businessId, userId)
+handleApplyOnboardingPlaybookLogic(deps, businessId, userId)
+handleUndoLatestAgentTaskLogic(deps, businessId, userId, confirmed)
+```
+
+`variables: {}` is **correct** for these. "Apply the default schedule" takes nothing because there is
+nothing to take.
+
+So the number C2 works from — and that the first three slices worked from — **conflates two states**:
+a spec that has not been written yet, and a spec that is finished and says so. Counting the second as
+backlog overstates the work, and driving the ceiling to zero would mean inventing inputs for commands
+that have none — `e2e-bug.399` a fourth time.
+
+`VERIFIED_NO_INPUT` now separates them, on a criterion that can be checked rather than asserted: *the
+logic function takes no `params`*. Two tests keep it honest — every entry must still declare nothing,
+and the list is pinned so it cannot quietly become a place to park unfinished work.
+
+### Fifth slice: the T3 tier closes
+
+The last eight traceable bulk commands. Four take input — `cancel_all_upcoming` (`confirm`,
+`bookingIds`), `import_catalog_csv` (`csv`), `gift_fulfill_batch` (`count`), `migrate_date_display`
+(`surfaceId`). Four read nothing user-supplied.
+
+Those four are a **second shape** of no-input, and the criterion had to widen to admit them honestly.
+The first three (§166's fourth slice) had no `params` argument at all. These take `params` but read
+only pipeline-injected keys:
+
+- `clinic.apply_playbook` and `tour.apply_playbook` parse everything out of the message text;
+- `booking.reschedule_package_lines` reads only `_prompt` and `_timeZone`;
+- `business.bulk_strip_disabled_locales` reads nothing — its scope is *every* disabled locale, which
+  takes no argument.
+
+`cancel_all_upcoming` is worth naming separately. It is T3 and destructive, and without `bookingIds`
+it cancels **every** upcoming booking the customer has — so that list is the difference between "some"
+and "all", and leaving it undeclared meant a planner could not express the narrower request.
+
+
+### Sixth slice: `AiRetailFinanceService`, and two ways the tooling lied
+
+Eleven T2 commands — retail lines on a booking, inventory, expenses, commission rules, payout and
+analytics export.
+
+**The dispatch scan under-reported by one.** Grepping the dispatch map for each spec's alias found ten
+handlers; the ratchet's own by-handler assertion found **eleven**. The missing one was
+`export_analytics_report`, whose dispatch entry my grep pattern did not match. Worth recording because
+the scan looked exhaustive and was not — the test that cross-checks by handler is what caught it, not
+the enumeration.
+
+`export_analytics_report` is also `e2e-bug.261`'s subject: `resolveDateRange` falls back to parsing
+the message and "for this month" yields a NaN date that reaches the query unchecked. Declaring
+`dateFrom`/`dateTo` does not fix that — it is a handler bug — but it gives a planner a way to supply
+real dates instead of depending on the parse, and the spec now says so.
+
+**A scripted edit inserted six blocks into the wrong commands.** The insert searched forward from a
+command's `id:` for the next `variables: {},`, which for an already-declared command runs past the end
+of its own object and lands on a later one. Sixteen replacements for ten targets. Caught by diffing
+the file rather than trusting the "declared 10" the script printed, reverted, and redone with the
+search bounded to the command's own object — then verified per command by reading back the first
+declared key. `tsc` did not catch it and could not: every insertion was individually well-formed.
+
+### Seventh slice: `AiSelfServiceBookingService`, where the customer is the one being asked
+
+Seven T2 commands, all customer-facing: `book_multi_service`, `book_package`, `book_with_cash`,
+`book_with_gift_card`, `use_subscription_credit`, `select_subscription_plan`,
+`cancel_my_subscription`. The earlier slices are staff-facing — a manager asked for a parameter they
+did not supply is inconvenienced. `e2e-bug.410`'s 96 users were customers, and this is the handler
+where that shape lives.
+
+**Enumerated by handler, not by dispatch grep** — the sixth slice's lesson. Grepping the dispatch map
+for `case 'book_package'` finds two entries in two files and misses the ones registered only in the
+builder; walking `handler: 'AiSelfServiceBookingService'` from the registry to
+`service.handleX` to `handleXLogic` finds each exactly once.
+
+#### One of the seven takes nothing, and the signature says so
+
+`handleBookWithCashLogic(deps, businessId, _params)` — the parameter is named `_params` and never
+read. The command is not a booking; it is a payment-method choice. It checks that the business
+accepts cash and writes `paymentMethod: 'cash'` into the session; what is being booked is already in
+the cart. That is `VERIFIED_NO_INPUT` shape 2, and declaring inputs for it would be inventing them.
+
+A first pass over this slice reported it reading `params.cartServiceIds` and `params.employeeName` —
+the grep window ran past the function's closing brace into the next one. The bounded read is what
+found the truth, which is the fourth slice's lesson arriving again from a different direction.
+
+#### `book_with_gift_card` reads only `_prompt`, and still takes an input
+
+The handler body touches nothing but `params._prompt`, which by the rule the earlier slices used
+would make it no-input. But it calls `enrichBookWithGiftCardParamsFromPrompt`, which is explicit:
+
+```ts
+const code =
+  (typeof params.giftCardCode === 'string' && params.giftCardCode.trim()) ||
+  extractBookWithGiftCardCode(prompt);
+```
+
+A supplied `giftCardCode` **wins** over the one parsed from the message. So the input is real and the
+enricher is where it is read — one layer further out than the second slice's chains went. The rule
+"only pipeline keys read ⇒ takes nothing" holds only after the enrichers are followed too.
+
+This is also `e2e-bug.209`'s territory (*"book_with_gift_card ignoring an explicitly-stated gift card
+code"*): the plumbing to honour a stated code exists here. Declaring it does not fix that bug, but it
+does stop the spec from claiming the command has nowhere to put one.
+
+#### Three exclusions, one of them new
+
+- **`serviceIds` / `cartServiceIds`** (`book_multi_service`) and **`packageId`** (`book_package`) —
+  read, but they arrive from the session cart. A planner asked for one can only guess a UUID.
+- **`lines`** — read by both, and *only for presence*: `!params.blockStartTime && !params.lines`
+  picks which of two replies to send. Nothing downstream consumes its contents. Declaring it would
+  invite a planner to build a structure that is inspected and discarded — `e2e-bug.399` with an extra
+  step. This is a shape the earlier slices did not hit and the ratchet now asserts against.
+- **`sessionCustomerId`** — the standing exclusion, on `use_subscription_credit` and
+  `cancel_my_subscription`.
+
+#### Not one required variable, for a reason worth stating plainly
+
+Every one of the six has a real fallback: the sole active subscription, the first plan on offer, the
+session cart, the earliest available block. `cancel_my_subscription` is the sharpest case —
+
+```
+active.length > 1 ? 'You have multiple subscriptions — specify which one to cancel.' : …
+```
+
+— it cancels the only active membership when there is one, and asks when there are several. Marking
+`subscriptionId` required would make *"cancel my membership"*, the phrasing this command exists for,
+undeliverable in the common case in order to serve the rare one. A test asserts the slice carries no
+required variable at all, so restoring one has to argue with the assertion.
+
+### Eighth slice: `AiOperationsService`, and the first required pair since payments
+
+Seven T2 commands: `create_employee`, `update_employee`, `update_team_member_role`,
+`invite_staff_member`, `deactivate_employee`, `update_service_prices`, `no_show_recovery`. All seven
+declared, and **the handler is now clear** — its whole T2/T3 population is covered.
+
+The projection said nine. Enumerating by handler gives **seven**; the two extra were
+`create_services` and `optimize_schedule`, which carry the `operations` *domain* but name
+`AiCommandService` as their handler — which is where `runOrchestrationIntent` lives, and is exactly
+why they have no param contract to read. The domain and the handler are not the same partition, and
+projecting from the wrong one has now been wrong twice in a row.
+
+#### `update_team_member_role` is the first honestly-required pair outside payments
+
+Six slices produced two required variables. This command adds two more, and for the same reason the
+payments pair qualified — no fallback of any kind:
+
+```ts
+const employeeName = typeof params.employeeName === 'string' ? … : '';
+if (!employeeName) return failure(…, "Please specify which team member's role to change …");
+const role = typeof params.role === 'string' ? … : undefined;
+if (!role || !ASSIGNABLE_MEMBER_ROLES.includes(role)) return failure(…);
+```
+
+No prompt extraction, no default, no alternative spelling. Both absences return a failure naming the
+field. It is also the slice's only `enum` — `admin | manager | staff | contributor` — declared because
+an undeclared closed set invites a planner to invent a role the handler will reject.
+
+Every other command in the slice stays optional on the now-familiar grounds: `create_employee`,
+`update_employee` and `deactivate_employee` all fall back to `extract*FromPrompt`, which is what makes
+*"Mary has left"* work at all; `invite_staff_member` is a pure "one of" (*"provide an email address or
+employeeName"*).
+
+#### `update_service_prices`: four spellings for one input
+
+`parsePriceAdjustment` accepts `amountChange` | `priceChangeAmount` | `absoluteChange` | `priceDelta`
+for the money form, and `percentChange` | `priceChangePercent` for the percentage. **One name each is
+declared.** Listing all six would suggest they compose, and `e2e-bug.164` is precisely what confusing
+the two *kinds* costs — "by 5 dollars" read as `percentChange: 5` turns $20 into $21. The declaration
+says which is which and that the money form wins; a test asserts the four aliases stay out.
+
+#### `no_show_recovery` is `bulk_smart_cancel`'s shape again
+
+Its selection runs through `AiBookingCoreService.findBookingsForMarkNoShows` — the spec's
+`handler: 'AiOperationsService'` covers the plan half only, and this is the slice's one case where
+following the registry's handler field alone would have found nothing. With no filter at all it
+matches **every past pending/confirmed/in-progress booking in the business**, so the same rule as
+`bulk_smart_cancel` applies: the filters are the blast radius, and an undeclared filter is a wider
+sweep rather than a documentation gap. All seven are declared and asserted by name —
+including `allProviders` and `allAppointments`, which are *widening* flags and count for the same
+reason.
+
+### Ninth slice: `AiCommandService`, and the orchestration exemption gets narrower
+
+Eleven T2/T3 commands sit directly on `AiCommandService`'s own switch. **Nine declared**; the two left
+are `create_services` and `optimize_schedule`, the pair every slice since the fifth has named as the
+whole remaining T3 backlog.
+
+#### The exemption was stated too broadly, and this slice narrows it
+
+Five slices have justified those two with "they route through `runOrchestrationIntent` rather than a
+handler with a param contract". That is the right conclusion for the wrong reason, because
+`resolve_conflicts` and `reassign_cancelled` route through `runOrchestrationIntent` too:
+
+```ts
+await this.orchestration.runOrchestrationIntent({
+  businessId, intent: effectivePrompt, action: 'resolve_conflicts',
+  agentType: AgentType.CONFLICT_RESOLUTION, userId,
+  date: params.date, employeeId,
+});
+```
+
+`date` is right there. Orchestration takes the raw message as its `intent`, but the call site still
+passes structured fields alongside it — so **routing through orchestration does not by itself mean a
+command has no contract**. `create_services` and `optimize_schedule` are blocked because their call
+sites pass *no* structured field at all, which is a narrower and checkable claim. Both are now
+declared with `date`, and a test pins that they have exactly that.
+
+#### Two more blast-radius sets
+
+`mark_no_shows` shares `findBookingsForMarkNoShows` with `no_show_recovery` — the same eight filters,
+the same "with none of them this takes every past pending/confirmed/in-progress booking in the
+business". `payment_sweep` is the same shape one step further: it marks bookings **paid** in bulk, so
+an undeclared filter there is money rather than status. Both fully declared and asserted.
+
+`payment_sweep` also carries two filters that exist only as prompt-derived enrichments today —
+`excludeWalkIns` and `statusFilter`, set by `enrichPaymentSweepParams` from *"except walk-ins"* and
+*"completed"*. Declaring them gives a planner a way to state directly what it currently has to phrase.
+
+#### The `handler` field is wrong on four of the eleven
+
+`configure_ai_autopilot` is dispatched by `AiMetaOpsService`; `fill_slot_from_waitlist` and
+`mark_no_shows` by `AiBookingCoreService`; `apply_schedule` by `AiScheduleHandlersService`. All four
+say `AiCommandService`, which is where the *switch case* lives, not where the params are read. That is
+`e2e-bug.440` — filed on `no_show_recovery` last slice — and this slice shows it is not a one-off:
+**five of the sixteen commands across the last two slices** have a `handler` that does not contain
+their param reads.
+
+### Tenth slice: `AiMarketingGrowthService`, checkout and billing
+
+Seven T2 commands, split between the customer's checkout (`apply_loyalty_at_checkout`,
+`apply_promo_code_checkout`) and the business's own subscription billing
+(`start_billing_checkout`, `confirm_billing_checkout`, `toggle_annual_billing`,
+`configure_stripe_connect`). Six declared, one verified to take nothing.
+
+#### A fifth required variable, on the payments criterion
+
+`confirm_billing_checkout` reads `params.sessionId` and nothing else, and returns
+`missing: ['sessionId']` with no fallback. Unlike every other "missing" in this backlog there is
+genuinely nothing to infer it from — Stripe returns the id in the redirect URL after checkout, so it
+cannot be parsed out of the message or defaulted from business state. That is what makes
+`required: true` honest here, and it is the first new one since `update_team_member_role`.
+
+Its sibling `start_billing_checkout` reports `missing: ['planName']` and is **not** required, because
+a `planId` satisfies the same check — the "one of" shape again.
+
+#### `configure_stripe_connect` reads one field and produces two
+
+`parseConfigureStripeConnectFromPrompt` returns `startOnboarding`, `mode` and `country`, and the
+enricher writes all three back into params. But only `startOnboarding` is ever read *from* params;
+`mode` and `country` are derived from the message and consumed nowhere. Declaring them would put two
+fields in front of a planner that change nothing — `e2e-bug.399`'s direction, and the third time a
+`parse*FromPrompt` helper has offered fields that are written but never read. A test pins the
+declaration to `startOnboarding` alone.
+
+#### The checkout pair reads through enrichers, like `book_with_gift_card`
+
+Both handlers touch only `params._prompt` directly, and both would have been called no-input by the
+rule the earlier slices used. Their real reads are one layer out:
+`readLoyaltyPointsParam` accepts `loyaltyPointsToRedeem` | `loyaltyPoints` | `pointsToRedeem`, and the
+promo path accepts `promoCode` | `code`. One spelling declared each.
+
+`orderAmount` is worth declaring on both for a reason the other slices did not have: it is what
+**caps** the redemption. `readOrderAmount` falls back to `servicePrice` and then to a hardcoded
+**100**, so a planner that cannot state the real total gets a placeholder cap on a money command.
+
+### Eleventh slice: `AiBusinessComplianceService`, where the blast radius is legal
+
+Six T2 commands: `accept_hipaa_baa`, `admin_delete_customer_data`, `configure_privacy_retention`,
+`enable_hipaa_mode`, `report_data_breach`, `send_breach_notification`. All six declared; the handler
+is clear.
+
+Every earlier blast-radius argument has been about *volume* — how many bookings a filter sweeps. This
+slice is the first where the cost of a wrong parameter is not scale but **irreversibility of a
+different kind**: erasing the wrong person's data, shortening the wrong retention clock, notifying
+about the wrong incident. Three of the six carry `compensation: none`.
+
+#### `admin_delete_customer_data` — the failure message names one field, safety needs two
+
+The handler reports `missing: ['customerName']` and matches with `resolveCustomerByName`, a **fuzzy**
+match over active customers. `params.customerId` is read too and takes precedence, and it is the only
+way to be certain *which* person is erased. The command is `confirm: 'always'` and sits in
+`ai-execution-confirm.util.ts`, so there is a confirmation gate — but the gate confirms the action,
+while the fuzzy name match is what decides the target. Declaring only the field the failure message
+mentions would have left the precise identifier invisible to the planner. Both are declared; a test
+names both.
+
+#### `configure_privacy_retention` — the `missing:` payload names groups, not fields
+
+```ts
+{ clarify: true, missing: ['retention', 'cookieBanner'] }
+```
+
+Neither is a parameter. Behind `retention` sit **four independent clocks** —
+`bookingHistoryDays`, `customerPiiDays`, `aiCommandLogsDays`, `auditLogsDays` — and a planner that can
+only phrase *"keep data for 3 years"* leaves `detectRetentionField` to infer which one from wording.
+All four are declared separately, and a test asserts the two group names stay *out*: declaring
+`retention` would look like a field and be unusable as one.
+
+#### `enable_hipaa_mode` turns HIPAA off as well
+
+`extractEnableHipaaModeFields` matches disable/turn-off/deactivate wording (in English, Armenian and
+Russian) and sets `enabled: false`. The spec description says "Turn HIPAA mode on", which is half the
+command. The declared `enabled` says both directions explicitly — on a safeguards toggle, the
+off direction is the one worth being unambiguous about.
+
+#### The two breach commands read through their parsers
+
+`description` on `report_data_breach` carries a hard 10-character floor — under it the parser returns
+null and the command declines entirely — and `affectedCustomerCount` drives the regulator notification
+deadline, so an omitted count is not a neutral default. `send_breach_notification`'s `incidentRef` is
+the one field its parser cannot proceed without. All three still fall back to the message text, so by
+this backlog's criterion none is `required` — the fifth required variable stays
+`confirm_billing_checkout`'s `sessionId`.
+
+### Twelfth slice: `AiCustomerCrmService`, and the first command the backlog cannot declare
+
+Six T2 commands. Four declared, one verified to take nothing, and one that **cannot be declared
+until a bug is fixed** — the first of those in twelve slices.
+
+#### `update_my_profile` computes the caller's values and throws them away
+
+```ts
+const enriched = enrichUpdateMyProfileParamsFromPrompt({ ...params, _prompt: textPrompt }, textPrompt);
+const parsed   = parseUpdateMyProfileFromPrompt(textPrompt);   // prompt only — no params
+…
+await deps.publicCustomerAuthService.updateMyProfile(slug, customerId, {
+  name: parsed.name, phone: parsed.phone,                       // `enriched` never reaches here
+});
+```
+
+`enriched` is built and then used for exactly two things: resolving the session customer and looking
+up the slug. Everything **written** comes from `parsed`, which reads only the message text. A supplied
+`params.name` is merged into `enriched` and silently dropped.
+
+So the honest declaration is neither "these three fields" (nothing reads them — `e2e-bug.399`) nor
+"takes nothing" (that would record a defect as the design). It stays undeclared, filed as
+**e2e-bug.441**, and the ratchet asserts it is the *only* one left in this handler so the exemption
+cannot quietly widen. Fixing the bug and declaring the fields is one task, listed on the ticket.
+
+Note the contrast with `claim_gift_card_balance` in the same slice, which has the same outward shape —
+handler body touches only `_prompt` — and is fine, because `parseClaimGiftCardBalanceFromPrompt(prompt,
+params)` takes params and prefers them. The two differ by one argument.
+
+#### `customer.merge` is not symmetric, and the spec never said so
+
+The primary survives; the secondary is folded into it and retired. Declaring "the two customers"
+leaves the direction to chance on an irreversible command, so all four fields are declared —
+both names plus the two ids that take precedence over the fuzzy `resolveCustomer` match.
+
+#### `privacy_delete`'s only input is the confirmation gate itself
+
+`enrichPrivacyDeleteConfirmFromPrompt` sets `confirm: true` either explicitly or from an affirmative
+reply to the pending state, and erasure runs only then. Everywhere else in this backlog an undeclared
+variable costs a clarification round-trip; here it means the gate is invisible to the planner, and a
+planner that cannot see a gate cannot be relied on not to set it. **e2e-bug.200** is open on this
+command's preview step.
+
+### Thirteenth slice: `AiBookingDepthService`, group semantics and two-stage creates
+
+Six T2 commands, all declared: the two multi-service **group** operations, the two group/package
+creates, and the two payment-method creates.
+
+#### `bookingId` does not mean what it says on the group commands
+
+`cancel_multi_service_group` and `reschedule_multi_service_group` both take a `bookingId`, and both
+expand it to **the whole visit** — one line identifies the group and every line is cancelled or moved
+with it. A planner reading a bare `bookingId` would reasonably expect one appointment to change. The
+descriptions say so explicitly, and a test asserts both mention the group rather than checking only
+that the field exists: this is a case where the *name* is the misleading part, so a name-only
+assertion would pass on a description that had lost the warning.
+
+#### `create_cash` and `create_subscription_credit` are two-stage, and the first stage reads nothing
+
+Both route through a `prepare*ParamsLogic` that does not create anything:
+`prepareCashCreateParamsLogic` reads **no user parameter at all** — it checks the business accepts
+cash and stamps payment metadata — and `prepareSubscriptionCreditParamsLogic` resolves customer and
+service only to find a matching active subscription. The booking is then made by
+`bookingCore.handleCreateBooking`, whose parameters are the real contract.
+
+Taking the first stage as the whole command would have made `create_cash` look like a no-input
+command, which is the `book_with_cash` judgement from the eighth slice — and here it would have been
+wrong, because unlike the customer-surface twin there is no cart: the appointment has to be described.
+That is `e2e-bug.440`'s shape once more, this time costing a *misclassification into the exemption
+list* rather than an empty declaration.
+
+On `create_subscription_credit` the customer fields carry more weight than on an ordinary booking:
+the credit is drawn from that customer's subscription, so a wrong fuzzy match spends someone else's
+visit. Both the name and the id are declared, with the id noted as taking precedence.
+
+### Fourteenth slice: `AiIntegrationsService`, and the first input declared *not* to exist
+
+Six T2 commands: API-key create/revoke/rotate, the accounting export, the Zendesk customer sync, and
+the OpenAI integration config. All six declared — but one of them deliberately declares **less** than
+its handler reads, which is new.
+
+#### A credential is an input the spec must not advertise
+
+`parseConfigureOpenaiIntegrationFromPrompt` reads two params: `usePlatformDefault` and **`apiKey`**.
+Every rule this backlog has used says declare what the handler reads. Here that is the wrong answer.
+
+Declaring `apiKey` tells the planner a secret belongs in a structured command parameter — a value that
+then travels through classification, plan validation, the confirmation payload and trace persistence.
+The command stays fully usable without it: with no patch keys it replies by routing the operator to
+Settings → OpenAI, which is where a key should be typed.
+
+So `usePlatformDefault` is declared and `apiKey` is not, with the reason in the spec. The ratchet
+asserts both the instance and the **rule** — no T2/T3 spec anywhere may declare a variable named
+`apiKey`, `secret`, `password`, `token`, `clientSecret` or `privateKey` — because the next slice's
+regex sweep would otherwise offer one again.
+
+#### Checking that turned up a live leak
+
+The handler returns `patch: parsed` in its details, and `parsed` carries the raw key. Running the
+sanitiser on that shape directly:
+
+```
+sanitizeCommandDetailsForClient({ patch: { apiKey: 'sk-SECRET123', usePlatformDefault: false } })
+→ {"patch":{"apiKey":"sk-SECRET123","usePlatformDefault":false}}
+```
+
+`INTERNAL_COMMAND_DETAIL_KEYS` covers `parsed` but not `patch`, and `apiKey` is not `_`-prefixed, so
+nothing strips it. The tenant's OpenAI key goes back in the HTTP response — and by that file's own
+comment, trace persistence runs on the *unsanitized* result first. Filed as **e2e-bug.442**;
+`describeOpenaiIntegrationPatch` already redacts the key in the human-readable summary, so the
+redaction intent exists and the details path was simply missed.
+
+#### The rest is identification under irreversibility
+
+`revoke_api_key` and `rotate_api_key` both take `keyId` **or** `apiKeyName` and both take effect
+immediately — anything using the key breaks at once. `sync_customer_to_zendesk` sends personal data to
+a third party, so its fuzzy name match gets the same id-takes-precedence treatment
+`admin_delete_customer_data` got two slices ago. `run_accounting_export`'s `from`/`to` decide what
+reaches the accounting system.
+
+### Fifteenth slice: `AiPatientClinicalMutationsService`, where the wrong match is a disclosure
+
+Five T2 commands, all declared: the clinical profile, the staff note, the encounter addendum, the
+encounter visit-note, and the document release.
+
+All five share one shape — they resolve the patient first, through `resolvePatientClinicalCustomer`,
+before touching anything. That resolver prefers `customerId` and otherwise matches the name
+**exact, then substring**. On a clinical record a substring match is not a convenience: "Ann" reaches
+"Anna" and "Joanna", and the write that follows is an allergy list, a staff note, or a document
+release. So every one of the five declares `customerId` alongside `customerName`, and a test asserts
+that — the handler's own clarification message leads with `customerName`, so declaring only what the
+message names would have hidden the precise identifier on all five at once.
+
+`release_patient_document` is the sharpest of them: it is the disclosure step. `documentId` decides
+what becomes visible and the patient fields decide to whom, and `releasedToPatient: false` is the only
+way back.
+
+#### The resolver has a cap nobody declared either
+
+```ts
+const customers = await deps.customerRepo.find({ where: { businessId }, take: 200 });
+```
+
+No `order`, and no `isActive` filter — unlike `AiCommandService.resolveCustomer`, which loads every
+active customer with no cap. Past 200 customers the clinical lookup searches an arbitrary slice, so a
+real patient can fail to resolve while a deactivated one can match. Filed as **e2e-bug.443**; the
+declarations point at it rather than papering over it, because "supply `customerId`" is the
+workaround, not the fix.
+
+### Sixteenth slice: `AiClinicTestResultService`, the second disclosure point
+
+Four T2 commands: enter a result, release a result, move a specimen, upload a result document.
+
+`release_test_result` is the **second** patient-disclosure command in this backlog, after
+`release_patient_document` one slice ago. Both make clinical data visible to a patient, and both need
+two things declared rather than one: what is released, and to whom. A test now covers the pair
+together — declaring only the patient would leave the scope of a release implicit, and that argument
+is the same on both, so it is asserted once across both.
+
+#### A description that undersells the command
+
+`transition_specimen` reads "Move a specimen to the next stage of processing." The handler moves it to
+whatever `toStatus` names — there is no next-stage constraint in the code. Declaring `toStatus` is what
+makes that visible; the variable description says so explicitly rather than repeating the spec's
+phrasing. Same class as `enable_hipaa_mode`'s "turn on" in the eleventh slice: the description
+narrates the common case and the parameter is what tells the truth.
+
+#### A bounded lookup that is *not* e2e-bug.443
+
+`resolveClinicTestOrderForUpload` falls back to a prefix match over the 100 most recent orders:
+
+```ts
+const recent = await deps.orderRepo.find({
+  where: { businessId }, order: { createdAt: 'DESC' }, take: 100,
+});
+```
+
+Bounded **and** ordered, so a partial order id resolves deterministically against a defined window.
+The clinical patient lookup filed as e2e-bug.443 last slice has the same `take:` but no `order` — worth
+recording the difference, because a sweep for "capped queries" would flag both and only one is a
+defect.
+
+### Seventeenth slice: three small handlers, batched
+
+`AiGiftFulfillmentService`, `AiBusinessTaxService` and `AiAgentOpsService` have three T2/T3 commands
+each. Eight declared — `agent.undo_latest_task` was already exempt from the fifth slice. Batched
+because none is big enough to be a slice, and each handler still gets its own named assertion so a
+revert in one is not masked by the other two.
+
+#### An enum that must not copy the description
+
+`resolve_gift_card_change_request` is described as *"Approve or reject a customer request…"*. The
+handler accepts **three** values:
+
+```ts
+{ clarify: true, missing: ['requestId', 'resolution'] }
+// 'Specify the change request and a resolution (approve, deny, or needs_info).'
+```
+
+`needs_info` returns the request to the customer instead of settling it — a distinct outcome, and the
+only non-terminal one. An enum written from the description would have made it unreachable through the
+planner. Asserted by value, not by presence: the shape of this mistake is a *shorter* list, which a
+"has an enum" check would pass.
+
+#### Widening flags keep turning up
+
+Three more in this batch, each the difference between one record and many:
+
+| command | flag | effect |
+|---|---|---|
+| `cancel_gift_card_order` | `useFirstInQueue` | act on the queue head instead of a named order |
+| `configure_stacked_tax` | `operation` | add the supplied rules, or **replace** the whole set |
+| `set_service_tax_rate` | `serviceIds` | apply the rate to a list rather than the matched service |
+
+`configure_tax`'s `model` belongs to the same family without being a flag: it decides whether every
+displayed price on the business already includes tax or has it added at checkout.
+
+#### The smallest blast radius in the backlog is one id
+
+`approve_agent_task` declares a single `taskId`, and that id selects an arbitrary amount of downstream
+effect — approval is the gate in front of whatever the queued task was going to do. It is the clearest
+case of the rule this backlog has been applying all along: the count of variables says nothing about
+the risk.
+
+### Eighteenth slice: currency, external doctors, provider retail
+
+Three more two-command handlers. Six declared.
+
+#### The variable that has to say what the command does *not* do
+
+`bulk_update_service_currency` and `configure_currency` share a parser and differ in scope — the bulk
+one rewrites the currency on **every service**. It does not convert the figures: a service priced 50
+becomes 50 in the new currency, not its exchanged equivalent. Nothing in the command name or
+description says so, and a planner told only "currency to change every service to" would reasonably
+expect a conversion. The variable description states the negative outright.
+
+#### A record whose fields *are* the record
+
+`create_external_doctor` takes twelve params, six of which are one postal address split apart —
+`street`, `unit`, `city`, `province`, `postalCode`, `country`. Declaring `street` alone would not fail
+loudly; it would save a partial address and look like it worked. A test asserts all six on both the
+create and the update.
+
+The update adds the two fields that only exist on an update: `doctorId`/`doctorName` to find the
+record, and `isActive` to retire it from the directory without deleting it.
+
+#### A booking deliberately not declared
+
+`add_retail_to_booking` and `remove_retail_from_booking` change what a client pays, and neither
+declares a `bookingId`. `resolveProviderBooking` finds the *provider's own* active booking from
+`sessionEmployeeId`, and the handler then re-checks `booking.employeeId !== employeeId` before
+touching anything. The session scope is the authorisation here, so a declared `bookingId` would invite
+a planner to name someone else's booking on a money command. Asserted as an exclusion, alongside the
+standing `sessionEmployeeId` one.
+
+`quantity` on the add twin is floored at 1 — it cannot be used to subtract, which the description says
+so that removal is not attempted through it.
+
+### Nineteenth slice: the nine single-command handlers — and the tier closes
+
+Nine handlers with one T2 command each. All nine declared, which takes the backlog to **3** — and
+those three are the only ones that were never declarable:
+
+| left | why |
+|---|---|
+| `operations.create_services` | passes no structured field to `runOrchestrationIntent` |
+| `operations.optimize_schedule` | same |
+| `customer.update_my_profile` | blocked on e2e-bug.441 — the handler discards supplied params |
+
+The ratchet now asserts that list **by name** rather than by count. A number can be satisfied by
+declaring something else; naming the three means any fourth arrival has to argue with the assertion.
+
+#### The credential rule found its second instance immediately
+
+`configure_whatsapp_integration` reads twelve explicit keys, one of which is `accessToken`. It is the
+same situation as `configure_openai`'s `apiKey` in the fourteenth slice, and it was caught by applying
+the rule rather than by noticing again — eight non-secret keys declared, the token left out.
+
+Two consequences:
+
+1. The ratchet's credential regex was **anchored** (`^token$`) and would not have matched
+   `accessToken`. Widened to catch a suffix, which is how these are actually named.
+2. The handler has the same `patch: parsed` detail as the OpenAI one, so **e2e-bug.442 has a second
+   instance**. Recorded on that ticket rather than filed twice — the fix is one change in two places.
+
+#### Two more `handler` mismatches, both in provider-mobile
+
+`collect_remaining_balance` and `update_profile` are both switched in
+`provider-mobile/provider-ai-command.service.ts`, not in the services their specs name. That is
+**e2e-bug.440**'s seventh and eighth instances, and the first two found outside the `ai` module —
+which widens the audit that ticket asks for beyond `src/modules/ai`.
+
+`collect_remaining_balance` is also the plainest case of a spec description hiding a delegation: it
+"collects the outstanding balance", and it calls `providerBooking.handleMarkPaid` with the same
+arguments `mark_paid` uses. One `bookingId`, one mutation, two names.
+
+### Twentieth: fixing the blocker rather than working around it
+
+The nineteenth slice left three undeclared, one of them for a reason that was not "nothing to
+declare" but "the code is wrong". `customer.update_my_profile` is now declared, because
+**e2e-bug.441 is fixed**.
+
+#### The fix is the house pattern, applied
+
+`parseUpdateMyProfileFromPrompt` took only the message. Two of its siblings already take params and
+prefer them — `parseClaimGiftCardBalanceFromPrompt(prompt, params)` and
+`parseConfigureOpenaiIntegrationFromPrompt(prompt, params)`, the second of which also lets explicit
+params satisfy its own prompt gate:
+
+```ts
+if (!isConfigureOpenaiIntegrationPrompt(prompt) && !hasExplicitParams && …) return null;
+```
+
+Both rules were applied here rather than invented: a supplied value wins over an extracted one, and a
+supplied value satisfies the gate on its own. The second matters as much as the first — before it, a
+caller that stated a new name against a phrasing the regexes did not recognise was asked to say what
+to update, having just said it.
+
+One addition the siblings do not need: `field` now falls back to whichever value was supplied, so
+*"update my profile"* plus a `phone` reports the phone rather than the generic `profile`.
+
+#### Verified by removing it
+
+The four new assertions were run against the pre-fix parser with the rest of the change in place:
+**three fail, two pass**. The two that pass are the guards — "still returns null with neither" and
+"leaves the message-only path exactly as it was" — which is what a guard should do. A test that
+passes both ways would not have shown the fix does anything.
+
+#### `email` is declared even though it cannot be saved
+
+`PATCH me/profile` supports name and phone only; the handler returns an explicit *"email changes are
+not supported"* reply. Declaring `email` anyway is deliberate: without it a planner carrying
+*"change my email to …"* has nowhere to put the value, and the likeliest failure is routing it into
+`name`. Declared, with the limitation in the description, so the customer gets the real answer.
+
+That is the opposite judgement to `configure_openai`'s `apiKey` and for the opposite reason —
+there, declaring invites a value that should never travel; here, not declaring invites a value into
+the wrong field.
+
+### Where C2 stands
+
+| | count |
+|---|---|
+| start | **134** |
+| after `AiPaymentsService` (12 T2 money) | **122** |
+| after the schedule-rewriting T3s (6 bulk) | **116** |
+| after the remaining traceable `operations` T3s (4) | **112** |
+| after onboarding + agent-ops (2 declared, 3 verified no-input) | **107** |
+| after the last traceable T3s (4 declared, 4 verified no-input) | **99** |
+| after `AiRetailFinanceService` (11 T2 retail, expense, commission) | **88** |
+| after `AiSelfServiceBookingService` (6 T2 declared, 1 verified no-input) | **81** |
+| after `AiOperationsService` (7 T2 staff, pricing, no-show) | **74** |
+| after `AiCommandService` (9 of its 11; 2 orchestration-blocked) | **65** |
+| after `AiMarketingGrowthService` (6 T2 declared, 1 verified no-input) | **58** |
+| after `AiBusinessComplianceService` (6 T2 privacy, HIPAA, breach) | **52** |
+| after `AiCustomerCrmService` (4 declared, 1 no-input, 1 blocked on e2e-bug.441) | **47** |
+| after `AiBookingDepthService` (6 T2 group-booking and payment-method) | **41** |
+| after `AiIntegrationsService` (6 T2 API-key, export, sync) | **35** |
+| after `AiPatientClinicalMutationsService` (5 T2 clinical-record) | **30** |
+| after `AiClinicTestResultService` (4 T2 lab-result, specimen) | **26** |
+| after gift fulfilment + business tax + agent ops (8 across three handlers) | **18** |
+| after currency + external doctors + provider retail (6 across three) | **12** |
+| after the nine single-command handlers | **3** |
+| after fixing e2e-bug.441 and declaring `update_my_profile` | **2** |
+
+**The T3 bulk tier is closed**: 25 → **2**, and both remaining are `create_services` and
+`optimize_schedule`. The ninth slice corrected *why*: not "they route through `runOrchestrationIntent`"
+— `resolve_conflicts` and `reassign_cancelled` do too and both pass `params.date` — but that their
+call sites pass **no structured field at all** beside the raw message. A test asserts those two are the
+entire T3 remainder, so the reason stays attached to the number.
+
+Across twenty slices and 122 commands, **five** required variables exist: `collect_cash_confirm`'s
+`bookingId`, `purchase_subscription_checkout`'s `planId`, `update_team_member_role`'s
+`employeeName` + `role`, and `confirm_billing_checkout`'s `sessionId`. Every other input is optional, for one of two reasons the slices have now
+separated cleanly — an alternative spelling the `required` field cannot express ("one of"), or a
+genuine default the handler already computes. The first remains a standing argument for
+`CommandVariableSpec` growing a "one of" form.
+
+`ai-declared-inputs.rule.spec.ts` now asserts **C2's conformance rule** rather than a ceiling: every
+T2/T3 spec declares at least one variable unless it is in one of two named exemption lists. For twenty
+slices this file was a ratchet instead, because the rule shipped against 134 undeclared commands would
+have failed on day one and been switched off — which is worse than not having it. The rule is strictly
+stronger than the ceiling it replaced: a ceiling can be satisfied by declaring *something else*, since
+driving one command to zero and another from zero to one leaves the count unchanged. A per-command
+rule cannot be traded off that way.
+
+Most of its 47 tests are about not fooling itself: **every** slice is named individually (the rule
+alone cannot tell a revert here from an exemption added there), all five required variables are
+pinned by name, the self-service slice is asserted to have *none*, both blast-radius filter sets are
+enumerated, both exemption lists are pinned by value, and the
+`cardType`/`deliveryMethod`/`sessionCustomerId`/`_timeZone`/`lines` exclusions plus
+`update_service_prices`'s four price aliases and the credential names are asserted so a later regex
+sweep cannot quietly add them back.
+
+The rule was negative-controlled before being trusted: stripping `collect_cash_confirm`'s
+`variables` made it fail by name, alongside the two slice assertions that also cover that command.
+
+### Verification
+
+- Gates **27 / 4,208 tests, 0 failures**.
+- Descriptions and examples untouched, so `commandMatchTextHash` is unchanged and §96's staleness gate
+  stays green with no embedding rebuild — declaring inputs does not disturb retrieval.
+
+**Left, named rather than glossed:** `optimize_schedule` and `create_services` route through
+`runOrchestrationIntent` rather than a handler with a param contract, so "what does it read" has no
+answer at the spec layer yet — they need the orchestration path traced first, and are not in a shape
+this slice could honestly close.

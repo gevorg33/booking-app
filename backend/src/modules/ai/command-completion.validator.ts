@@ -2903,12 +2903,29 @@ export function validateEntityResolution(
     !entities.customer &&
     cmd.action === 'create_booking'
   ) {
-    issues.push({
-      field: 'customerName',
-      label: 'Customer',
-      message: `Could not find customer "${params.customerName}"`,
-      example: 'Omit customer for walk-in, or add them in Customers first',
-    });
+    // e2e-bug.362 (D5) — `entities.customer` is now undefined on a *tie* as
+    // well as on a miss, because the pipeline refuses to pick between two
+    // people with the same name. The pipeline sets `entities.customers` only
+    // in that case, so it is the signal that tells the two apart.
+    //
+    // "Could not find customer John Smith" when there are two of them is
+    // worse than the silent pick it replaced — it is wrong about the CRM.
+    const tied = entities.customers ?? [];
+    issues.push(
+      tied.length > 1
+        ? {
+            field: 'customerName',
+            label: 'Customer',
+            message: `"${params.customerName}" matches more than one customer — which did you mean?`,
+            example: tied.map((c) => c.name).join(' or '),
+          }
+        : {
+            field: 'customerName',
+            label: 'Customer',
+            message: `Could not find customer "${params.customerName}"`,
+            example: 'Omit customer for walk-in, or add them in Customers first',
+          },
+    );
   }
 
   if (

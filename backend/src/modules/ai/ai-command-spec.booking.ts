@@ -724,7 +724,31 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Book several services in one visit.',
-    variables: {},
+    variables: {
+      // `handleBookMultiServiceLogic` -> `resolveServices`. Nothing is
+      // required: with no names it falls back to the session cart, and with
+      // neither it returns `missing: ['serviceNames']` rather than failing.
+      serviceNames: {
+        type: 'string[]',
+        description:
+          'Services to book together. Falls back to names found in the message, then to the session cart.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'A single service, when only one was named.',
+        required: false,
+        resolver: 'service',
+      },
+      blockStartTime: {
+        type: 'string',
+        description:
+          'Start of the chosen time block. Without it the reply sends the customer to the block picker instead of checkout.',
+        required: false,
+        resolver: 'datetime',
+      },
+    },
     examples: ['book a massage and a facial', 'book my spa day'],
     confirm: 'always',
     compensation: {
@@ -742,7 +766,37 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Book the visits that make up a package.',
-    variables: {},
+    variables: {
+      // `handleBookPackageLogic` -> `resolvePackageId`. `packageName` is the
+      // only way to name a package in words; without one the handler returns
+      // `missing: ['packageName']` and sends the customer to the package list.
+      packageName: {
+        type: 'string',
+        description:
+          'Package to book. Falls back to a package name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingFirstAvailable: {
+        type: 'boolean',
+        description:
+          'Take the earliest block the package fits into, instead of asking for a date.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to book the package block on.',
+        required: false,
+        resolver: 'date',
+      },
+      blockStartTime: {
+        type: 'string',
+        description: 'Start of the chosen block, once one has been picked.',
+        required: false,
+        resolver: 'datetime',
+      },
+    },
     examples: ['book my bridal package', 'schedule the bundle'],
     confirm: 'always',
     compensation: {
@@ -781,7 +835,18 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Book an appointment paid for with a gift card.',
-    variables: {},
+    variables: {
+      // `enrichBookWithGiftCardParamsFromPrompt` prefers a supplied
+      // `giftCardCode` over the one it extracts from the message, so this is a
+      // real input even though the handler itself only reads `_prompt`.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Gift card to pay with. Falls back to a code found in the message; the customer is asked at checkout if neither has one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book it using my gift card', 'pay with the gift card'],
     confirm: 'always',
     compensation: {
@@ -799,7 +864,18 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Book a visit against a subscription credit.',
-    variables: {},
+    variables: {
+      // `handleUseSubscriptionCreditLogic`. Optional on purpose: with one
+      // active subscription the handler picks it, and the id it accepts is one
+      // it handed back in an earlier reply, not something a planner invents.
+      subscriptionId: {
+        type: 'string',
+        description:
+          'Which membership to draw the credit from. Defaults to the only active one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['use my membership credit', 'book with my subscription'],
     confirm: 'always',
     compensation: {
@@ -817,7 +893,25 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Choose a subscription plan to join.',
-    variables: {},
+    variables: {
+      // `handleSelectSubscriptionPlanLogic`. With no name it selects the first
+      // plan on offer, so `required: true` would block a prompt the handler
+      // already answers.
+      planName: {
+        type: 'string',
+        description:
+          'Plan to join. Defaults to the first plan available; an unmatched name comes back as a clarification listing the real ones.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description:
+          'Narrow the plans on offer to the ones covering one service.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['I want the gold plan', 'pick the monthly membership'],
     confirm: 'always',
     compensation: {
@@ -835,7 +929,29 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T3',
     description: 'Cancel every upcoming booking the customer has.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — `handleCancelAllUpcomingBookingsLogic`. `_prompt`,
+      // `conversationHistory` and `sessionCustomerId` are pipeline- or
+      // session-injected and deliberately not declared.
+      //
+      // T3 and destructive: without `bookingIds` this cancels *every* upcoming
+      // booking the customer has, so the list is the difference between "some"
+      // and "all".
+      confirm: {
+        type: 'boolean',
+        description:
+          'Proceed with the cancellation. Without it the command previews what would be cancelled and asks.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingIds: {
+        type: 'string[]',
+        description:
+          'Restrict the cancellation to these bookings. Omit to cancel every upcoming booking.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['cancel everything', 'cancel all my appointments'],
     confirm: 'always',
     compensation: {
@@ -874,7 +990,19 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Cancel the customer own subscription.',
-    variables: {},
+    variables: {
+      // `handleCancelMySubscriptionLogic`. Not required — with one active
+      // membership it cancels that one, and with several it asks. Marking it
+      // required would make "cancel my membership" undeliverable for the
+      // common case, which is e2e-bug.399's shape.
+      subscriptionId: {
+        type: 'string',
+        description:
+          'Which membership to cancel. Defaults to the only active one; with more than one the customer is asked which.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['cancel my membership', 'stop my subscription'],
     confirm: 'always',
     compensation: {
@@ -1158,7 +1286,17 @@ export const BOOKING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Submit the answers a customer gave on an intake form.',
-    variables: {},
+    variables: {
+      // `handleSubmitIntakeAnswersLogic`. `sessionIntakeId` is the fallback
+      // and is session-injected, so only the explicit form is declared.
+      intakeId: {
+        type: 'string',
+        description:
+          'Which intake form the answers belong to. Falls back to the intake already open in the session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['submit my intake answers', 'I have finished the form'],
     confirm: 'always',
     compensation: {

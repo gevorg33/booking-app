@@ -69,6 +69,7 @@ import {
   isTopStaffRevenuePrompt,
 } from './dashboard-revenue-analytics.util.js';
 import { rescueSummarizeBookingsIntent } from './ai-dashboard-summarize-bookings.logic.js';
+import { isIntentAllowedOnSurface } from './ai-command-registry.util.js';
 import {
   extractCustomerBookingContextFromPrompt,
   extractSingleProviderNameFromPrompt,
@@ -971,18 +972,30 @@ export class AiIntentRescueService {
     if (summarizeUtilizationEarly) return summarizeUtilizationEarly;
     // e2e-bug.154 — unscoped booking totals must not stay on show_appointments /
     // list_bookings / unknown and fall through to react_agent empty-day counts.
-    const summarizeBookingsEarly = this.tryRescueSummarizeBookings(
-      prompt,
-      action,
-      params,
-    );
+    //
+    // e2e-bug.435 — but only where `summarize_bookings` is legal. It is a
+    // dashboard-only command, and on `provider` this rescue was claiming
+    // "How many appointments do I have today?" before the provider-earnings
+    // rescue below could answer it. The surface gate then discarded the
+    // wrong-surface result, and the user got nothing at all.
+    // No surface means no gate — the same rule `acceptRescueForSurface` uses,
+    // so callers that omit it keep today's behaviour exactly.
+    const summarizeBookingsEarly = this.rescueAllowedOnSurface(
+      'summarize_bookings',
+      input,
+    )
+      ? this.tryRescueSummarizeBookings(prompt, action, params)
+      : null;
     if (summarizeBookingsEarly) return summarizeBookingsEarly;
     // e2e-bug.153 — "how many customers?" must not stay on most_no_shows rankings.
-    const unscopedCustomerCountEarly = this.tryRescueUnscopedCustomerCount(
-      prompt,
-      action,
-      params,
-    );
+    // e2e-bug.435 — `summarize_customers` is dashboard-only; on provider it was
+    // claiming "How many clients am I seeing next week?".
+    const unscopedCustomerCountEarly = this.rescueAllowedOnSurface(
+      'summarize_customers',
+      input,
+    )
+      ? this.tryRescueUnscopedCustomerCount(prompt, action, params)
+      : null;
     if (unscopedCustomerCountEarly) return unscopedCustomerCountEarly;
     // e2e-bug.137 — "customer retention rate" has no react_agent tool at all.
     const customerRetentionRateEarly = this.tryRescueCustomerRetentionRate(
@@ -1245,10 +1258,16 @@ export class AiIntentRescueService {
         : this.tryRescueNotifyRunningLate(prompt, action);
     if (notifyRunningLateEarly) return notifyRunningLateEarly;
     // e2e-bug.88 — pay_online before list/confirm steals "pay … for my booking".
-    const payOnlineEarly =
-      input.surface === 'provider'
-        ? null
-        : this.tryRescuePayOnline(prompt, action);
+    //
+    // e2e-bug.435 — the exclusion used to name `provider` by hand, but
+    // `pay_online` is illegal on **dashboard** too, and there it was claiming
+    // "Open Stripe Connect onboarding" ahead of the marketing-growth rescue
+    // that answers it. The surface gate then discarded `pay_online` and the
+    // prompt resolved to nothing. Ask the registry instead of maintaining a
+    // list of surfaces by hand.
+    const payOnlineEarly = this.rescueAllowedOnSurface('pay_online', input)
+      ? this.tryRescuePayOnline(prompt, action)
+      : null;
     if (payOnlineEarly) return payOnlineEarly;
     const listMyUpcomingAppointmentsEarly =
       input.surface === 'provider'
@@ -1942,18 +1961,22 @@ export class AiIntentRescueService {
       };
     }
 
-    const summarizeBookingsUnknown = this.tryRescueSummarizeBookings(
-      prompt,
-      action,
-      params,
-    );
+    // e2e-bug.435 — same surface guard as the classified phase above.
+    const summarizeBookingsUnknown = this.rescueAllowedOnSurface(
+      'summarize_bookings',
+      input,
+    )
+      ? this.tryRescueSummarizeBookings(prompt, action, params)
+      : null;
     if (summarizeBookingsUnknown) return summarizeBookingsUnknown;
 
-    const unscopedCustomerCountUnknown = this.tryRescueUnscopedCustomerCount(
-      prompt,
-      action,
-      params,
-    );
+    // e2e-bug.435 — same registry-backed surface guard.
+    const unscopedCustomerCountUnknown = this.rescueAllowedOnSurface(
+      'summarize_customers',
+      input,
+    )
+      ? this.tryRescueUnscopedCustomerCount(prompt, action, params)
+      : null;
     if (unscopedCustomerCountUnknown) return unscopedCustomerCountUnknown;
 
     const summarizeCustomerTaxPaidUnknown =
@@ -2181,11 +2204,11 @@ export class AiIntentRescueService {
         : this.tryRescueExplainCancelPolicy(prompt, action);
     if (explainCancelPolicyUnknown) return explainCancelPolicyUnknown;
 
-    // e2e-bug.88 — pay_online before list/confirm steals "pay … for my booking".
-    const payOnlineUnknown =
-      input.surface === 'provider'
-        ? null
-        : this.tryRescuePayOnline(prompt, action);
+    // e2e-bug.88 / e2e-bug.435 — same registry-backed surface guard as the
+    // classified phase above.
+    const payOnlineUnknown = this.rescueAllowedOnSurface('pay_online', input)
+      ? this.tryRescuePayOnline(prompt, action)
+      : null;
     if (payOnlineUnknown) return payOnlineUnknown;
 
     const listMyUpcomingAppointmentsUnknown =
@@ -2195,8 +2218,14 @@ export class AiIntentRescueService {
     if (listMyUpcomingAppointmentsUnknown)
       return listMyUpcomingAppointmentsUnknown;
 
-    const explainProviderAvailabilityUnknown =
-      rescueExplainProviderAvailabilityIntent(prompt, action);
+    // e2e-bug.435 — customer/public only; on dashboard it was claiming
+    // "Set up online payments with Stripe".
+    const explainProviderAvailabilityUnknown = this.rescueAllowedOnSurface(
+      'explain_provider_availability',
+      input,
+    )
+      ? rescueExplainProviderAvailabilityIntent(prompt, action)
+      : null;
     if (explainProviderAvailabilityUnknown) {
       return {
         action: explainProviderAvailabilityUnknown.action,
@@ -2382,8 +2411,11 @@ export class AiIntentRescueService {
         : this.tryRescueWaitlistDashboard(prompt, action);
     if (waitlistDashboardBeforeCustomer) return waitlistDashboardBeforeCustomer;
 
+    // e2e-bug.435 — same guard.
     const explainProviderAvailabilityBeforeCustomerContext =
-      rescueExplainProviderAvailabilityIntent(prompt, action);
+      this.rescueAllowedOnSurface('explain_provider_availability', input)
+        ? rescueExplainProviderAvailabilityIntent(prompt, action)
+        : null;
     if (explainProviderAvailabilityBeforeCustomerContext) {
       return {
         action: explainProviderAvailabilityBeforeCustomerContext.action,
@@ -5375,6 +5407,24 @@ export class AiIntentRescueService {
       rescued: true,
       rescueReason: rescued.rescueReason,
     };
+  }
+
+  /**
+   * e2e-bug.435 — may this rescue's action legally run on this surface?
+   *
+   * The chain takes the first rescue that fires and only then filters it
+   * through `acceptRescueForSurface`, so a rescue proposing a surface-illegal
+   * action does not merely lose — it *blocks* the correct one behind it and the
+   * prompt resolves to nothing. Consulting the registry before producing such a
+   * result is the cheap half of the fix; the structural half is in the ticket.
+   *
+   * No surface means no gate, matching `acceptRescueForSurface`.
+   */
+  private rescueAllowedOnSurface(
+    intent: string,
+    input: IntentRescueInput,
+  ): boolean {
+    return !input.surface || isIntentAllowedOnSurface(intent, input.surface);
   }
 
   private tryRescueSummarizeBookings(

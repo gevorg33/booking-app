@@ -439,7 +439,45 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Record a test result against a patient.',
-    variables: {},
+    variables: {
+      // `parseEnterTestResultFromPrompt`. Every field falls back to
+      // `extractMeasurementReadingFromPrompt`, so a spoken reading works —
+      // but a value written against the wrong order is a wrong result in a
+      // patient's chart, which is why all three identifiers are declared.
+      orderId: {
+        type: 'string',
+        description: 'Test order the result belongs to.',
+        required: false,
+        resolver: 'none',
+      },
+      resultId: {
+        type: 'string',
+        description:
+          'Existing result row to write into, when amending rather than entering.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Patient the result belongs to. Narrows the order search when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      measurementCode: {
+        type: 'string',
+        description: 'Which measurement on the panel is being recorded.',
+        required: false,
+        resolver: 'none',
+      },
+      value: {
+        type: 'string',
+        description:
+          'The reading. Also accepted as `measurementValue`; a supplied `value` wins, and both fall back to a reading found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['enter the haemoglobin result', 'record these lab values'],
     confirm: 'always',
     compensation: {
@@ -457,7 +495,23 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Upload a result document to a patient record.',
-    variables: {},
+    variables: {
+      // `handleUploadPatientResultLogic` -> `resolveClinicTestOrderForUpload`.
+      // The only input: the command does not carry a file, it returns an
+      // upload handoff for the resolved order. Without an id it fails rather
+      // than guessing which order to attach a document to.
+      //
+      // The resolver falls back to a prefix match over the 100 most recent
+      // orders — bounded *and* ordered, unlike the clinical patient lookup in
+      // e2e-bug.443, so it is deterministic rather than arbitrary.
+      orderId: {
+        type: 'string',
+        description:
+          'Test order the document belongs to. A partial id is matched against recent orders.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['upload this lab report', 'attach the result PDF'],
     confirm: 'always',
     compensation: {
@@ -475,7 +529,42 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Release a test result to the patient.',
-    variables: {},
+    variables: {
+      // `parseReleaseTestResultFromPrompt` + `resolveReleaseCandidates`. The
+      // disclosure step for lab results — the second one in this backlog after
+      // `release_patient_document`. Five ways to narrow what gets released,
+      // and `resolveReleaseCandidates` uses whichever are present.
+      resultId: {
+        type: 'string',
+        description: 'Exact result to release.',
+        required: false,
+        resolver: 'none',
+      },
+      orderId: {
+        type: 'string',
+        description: 'Release the results on one test order.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient whose results are being released.',
+        required: false,
+        resolver: 'customer',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Narrow to the results from one visit.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Narrow to results from a particular day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'release these results to the patient',
       'share the labs with them',
@@ -495,7 +584,43 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Move a specimen to the next stage of processing.',
-    variables: {},
+    variables: {
+      // `resolveSpecimenForTransition` picks the specimen, then `toStatus`
+      // decides where it goes. The description says "next stage", but the
+      // handler moves it to whatever `toStatus` names — declaring the field is
+      // what makes that visible.
+      specimenId: {
+        type: 'string',
+        description: 'Exact specimen to move.',
+        required: false,
+        resolver: 'none',
+      },
+      orderId: {
+        type: 'string',
+        description: 'Find the specimen by its test order.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Find the specimen by patient.',
+        required: false,
+        resolver: 'customer',
+      },
+      toStatus: {
+        type: 'string',
+        description:
+          'Stage to move the specimen to. Not restricted to the next one — this is the target, not a step.',
+        required: false,
+        resolver: 'none',
+      },
+      note: {
+        type: 'string',
+        description: 'Note recorded against the transition.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'mark the specimen as received',
       'move this sample to processing',
@@ -516,7 +641,28 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Record that a specimen has been collected from the patient.',
-    variables: {},
+    variables: {
+      // `parseMarkSpecimenCollectedFromPrompt` -> `resolveSpecimenByIdOrCustomerName`.
+      // The collecting employee comes from the session, not from params.
+      specimenId: {
+        type: 'string',
+        description: 'Exact specimen collected.',
+        required: false,
+        resolver: 'none',
+      },
+      orderId: {
+        type: 'string',
+        description: 'Find the specimen by its test order.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Find the specimen by patient.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['I have taken the sample', 'mark specimen collected'],
     confirm: 'always',
     compensation: {
@@ -556,7 +702,42 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Order tests for a patient.',
-    variables: {},
+    variables: {
+      // `parseCreateTestOrderFromPrompt`. `testNames` is the plural form and
+      // the reason this command is not one test per call — ordering a panel
+      // in one go is the normal case, so both spellings are declared here
+      // rather than picking one.
+      testName: {
+        type: 'string',
+        description: 'Single test to order.',
+        required: false,
+        resolver: 'none',
+      },
+      testNames: {
+        type: 'string[]',
+        description: 'Several tests ordered together as one panel.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient the tests are for.',
+        required: false,
+        resolver: 'customer',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Visit the order is attached to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Date to record against the order.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'order a full blood count for this patient',
       'request these labs',
@@ -709,7 +890,15 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Import a whole test catalogue from a CSV file.',
-    variables: {},
+    variables: {
+      // `handleImportClinicCatalogCsvLogic` reads exactly one param.
+      csv: {
+        type: 'string',
+        description: 'The catalog as CSV text, to be parsed into clinic tests.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['import our test catalogue', 'upload the lab catalogue csv'],
     confirm: 'always',
     compensation: {

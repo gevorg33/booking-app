@@ -404,7 +404,47 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change the remaining balance on a gift card.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — read from `handleAdjustGiftCardBalanceLogic`. The two
+      // names the handler itself reports in `missing:` are `giftCardCode` and
+      // `amount`, so those are the ones declared under those spellings.
+      //
+      // All optional: the handler needs (`giftCardId` OR `giftCardCode`) and
+      // (`newBalance` OR `delta`/`amount`), and `required` has no "one of"
+      // form. Marking either side required would refuse the other phrasing.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Code of the card to adjust. Falls back to a code found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      giftCardId: {
+        type: 'string',
+        description: 'Id of the card, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+      amount: {
+        type: 'number',
+        description:
+          'Amount to add or subtract — "add 50" is +50. Use `newBalance` instead to set an absolute figure.',
+        required: false,
+        resolver: 'money',
+      },
+      newBalance: {
+        type: 'number',
+        description: 'Absolute balance to set the card to.',
+        required: false,
+        resolver: 'money',
+      },
+      note: {
+        type: 'string',
+        description: 'Audit note stored with the adjustment.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add 50 to that gift card', 'correct the gift card balance'],
     confirm: 'always',
     compensation: {
@@ -422,7 +462,24 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Apply a gift card code to the current purchase.',
-    variables: {},
+    variables: {
+      // `handleApplyGiftCardCodeLogic`, plus `resolveService` for the service
+      // the card is being applied against.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Card code to apply. Falls back to a code found in the message; the command clarifies if neither carries one.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description:
+          'Service being paid for, used to check the card is valid against it.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['use my gift card', 'apply code GIFT100'],
     confirm: 'always',
     compensation: {
@@ -458,7 +515,30 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Buy a gift card for the customer themselves.',
-    variables: {},
+    variables: {
+      // `handleBuyGiftCardLogic`. `cardType` and `deliveryMethod` are *not*
+      // declared: the handler hardcodes `monetary` and derives delivery from
+      // which command was called, so a planner filling them changes nothing.
+      amount: {
+        type: 'number',
+        description:
+          'Face value. Falls back to an amount in the message, then to the first preset the business offers.',
+        required: false,
+        resolver: 'money',
+      },
+      purchaserName: {
+        type: 'string',
+        description: 'Name to put on the purchase.',
+        required: false,
+        resolver: 'none',
+      },
+      purchaserEmail: {
+        type: 'string',
+        description: 'Where to send the card. Defaults to a guest address.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['buy a 100 dollar gift card', 'purchase a gift card'],
     confirm: 'always',
     compensation: {
@@ -476,7 +556,40 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Buy a gift card as a present for someone else.',
-    variables: {},
+    variables: {
+      // `handleBuyGiftCardForSomeoneLogic` reads these through
+      // `parseBuyGiftCardForSomeoneFromPrompt`, which merges params with what
+      // it can extract from the message — so none is required on its own.
+      //
+      // `recipientName` resolves to nothing: a gift-card recipient is usually
+      // not an existing customer, and `resolver: 'customer'` would ask the
+      // system to find a record that does not exist.
+      recipientName: {
+        type: 'string',
+        description: 'Who the card is for.',
+        required: false,
+        resolver: 'none',
+      },
+      recipientEmail: {
+        type: 'string',
+        description: 'Where to send a digital card.',
+        required: false,
+        resolver: 'none',
+      },
+      amount: {
+        type: 'number',
+        description: 'Face value of the card.',
+        required: false,
+        resolver: 'money',
+      },
+      deliveryMethod: {
+        type: 'string',
+        description: 'How the card reaches them.',
+        required: false,
+        resolver: 'none',
+        enum: ['digital', 'physical'],
+      },
+    },
     examples: ['buy a gift card for my mum', 'send a gift card to a friend'],
     confirm: 'always',
     compensation: {
@@ -494,7 +607,29 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Buy a physical gift card to be delivered.',
-    variables: {},
+    variables: {
+      // Same handler as `buy_gift_card` with `physical = true`; see there for
+      // why `deliveryMethod` is not a declared input.
+      amount: {
+        type: 'number',
+        description:
+          'Face value. Falls back to an amount in the message, then to the first preset the business offers.',
+        required: false,
+        resolver: 'money',
+      },
+      purchaserName: {
+        type: 'string',
+        description: 'Name to put on the purchase.',
+        required: false,
+        resolver: 'none',
+      },
+      purchaserEmail: {
+        type: 'string',
+        description: 'Contact address for the order.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['buy a physical gift card', 'order a printed gift card'],
     confirm: 'always',
     compensation: {
@@ -533,7 +668,23 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Confirm that cash was collected for a visit.',
-    variables: {},
+    variables: {
+      // `handleCollectCashConfirmLogic`. `bookingId` is genuinely required —
+      // the handler returns `missing: ['bookingId']` with no fallback.
+      bookingId: {
+        type: 'string',
+        description: 'Booking the cash was collected against.',
+        required: true,
+        resolver: 'appointment',
+      },
+      amount: {
+        type: 'number',
+        description:
+          'Cash collected. Falls back to an amount found in the message; the booking is marked paid either way.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['I took cash for that visit', 'confirm cash payment'],
     confirm: 'always',
     compensation: {
@@ -633,7 +784,25 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T2',
     description:
       'Finalise a booking after the customer returns from a completed card checkout.',
-    variables: {},
+    variables: {
+      // `handleConfirmStripePaymentLogic`. Two spellings for one thing:
+      // `e2e-bug.188` added `pendingCheckoutSessionId` because the widget's
+      // own context carries the in-progress checkout under that name. Neither
+      // is required alone — the handler accepts either.
+      sessionId: {
+        type: 'string',
+        description: 'Stripe checkout session to confirm.',
+        required: false,
+        resolver: 'none',
+      },
+      pendingCheckoutSessionId: {
+        type: 'string',
+        description:
+          'The in-progress checkout the client is carrying, used when `sessionId` is absent.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'I already paid, finish my booking',
       'my stripe checkout says complete',
@@ -673,7 +842,48 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Push back the expiry date on a gift card.',
-    variables: {},
+    variables: {
+      // `handleExtendGiftCardExpiryLogic`. Card identified by id or code;
+      // the new expiry is expressed one of three ways.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Code of the card. Falls back to a code found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      giftCardId: {
+        type: 'string',
+        description: 'Id of the card, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+      extendMonths: {
+        type: 'number',
+        description: 'Months to add to the current expiry.',
+        required: false,
+        resolver: 'none',
+      },
+      extendDays: {
+        type: 'number',
+        description: 'Days to add to the current expiry.',
+        required: false,
+        resolver: 'none',
+      },
+      expiresAt: {
+        type: 'string',
+        description:
+          'Absolute new expiry, ISO 8601 date. Null clears the expiry entirely.',
+        required: false,
+        resolver: 'date',
+      },
+      note: {
+        type: 'string',
+        description: 'Audit note stored with the change.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'extend that gift card expiry',
       'give the gift card another year',
@@ -702,7 +912,16 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Record that the customer will pay cash when they arrive.',
-    variables: {},
+    variables: {
+      // `handlePayCashAtVisitLogic` → `enrichCashPaymentParamsFromPrompt` →
+      // `resolveService`.
+      serviceName: {
+        type: 'string',
+        description: 'Service the customer intends to pay for in person.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['I will pay cash at the visit', 'let me pay in person'],
     confirm: 'always',
     compensation: {
@@ -723,7 +942,18 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Start or continue a card checkout for a booking.',
-    variables: {},
+    variables: {
+      // `handlePayOnlineLogic` → `enrichPayOnlineParamsFromPrompt` →
+      // `resolveService`. Only the human reference is declared: `customerId`
+      // and `sessionCustomerId` are injected from the session, and inviting a
+      // planner to fill an id it cannot know is what `e2e-bug.399` was about.
+      serviceName: {
+        type: 'string',
+        description: 'Service being paid for.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['pay for my booking now', 'I want to pay online'],
     confirm: 'always',
     compensation: {
@@ -741,7 +971,16 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T2',
     description: 'Start checkout for a subscription plan.',
-    variables: {},
+    variables: {
+      // `handlePurchaseSubscriptionCheckoutLogic`. Genuinely required — the
+      // handler returns `missing: ['planId']` with no fallback.
+      planId: {
+        type: 'string',
+        description: 'Subscription plan to price the checkout for.',
+        required: true,
+        resolver: 'none',
+      },
+    },
     examples: ['sign me up for the gold membership', 'buy the monthly plan'],
     confirm: 'always',
     compensation: {
@@ -759,7 +998,32 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Refund a gift card order.',
-    variables: {},
+    variables: {
+      // `handleRefundGiftCardOrderLogic`. `reason` is not optional in
+      // practice — the handler clarifies for it — but it falls back to one
+      // extracted from the message, so declaring it required would refuse the
+      // phrasing that supplies it inline.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Code of the order to refund. Falls back to a code found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      giftCardId: {
+        type: 'string',
+        description: 'Id of the order, when it is already known.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description:
+          'Why it is being refunded. The command asks for this before refunding if neither the params nor the message carry it.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'refund that gift card order',
       'cancel and refund gift card QATEST',

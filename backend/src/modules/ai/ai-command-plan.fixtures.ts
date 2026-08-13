@@ -37,8 +37,9 @@ export const PLAN_FIXTURES: readonly PlanFixture[] = [
           id: 's1',
           command: 'appointment.reschedule',
           variables: {
-            appointmentId: 'apt-john-1',
-            newStart: '2026-08-04T15:00:00Z',
+            customerName: 'John',
+            date: '2026-08-04',
+            timeSlot: '15:00',
           },
           confidence: 0.94,
           dependsOn: [],
@@ -82,8 +83,9 @@ export const PLAN_FIXTURES: readonly PlanFixture[] = [
           id: 's1',
           command: 'appointment.reschedule',
           variables: {
-            appointmentId: 'apt-john-1',
-            newStart: '2026-08-04T15:00:00Z',
+            customerName: 'John',
+            date: '2026-08-04',
+            timeSlot: '15:00',
           },
           confidence: 0.94,
           dependsOn: [],
@@ -167,15 +169,22 @@ export const PLAN_FIXTURES: readonly PlanFixture[] = [
   },
   {
     id: 'missing-required-variable',
-    message: "move John's appointment",
+    // Was `appointment.reschedule` missing `newStart`. Neither that variable
+    // nor `appointmentId` is read by any handler (tech-debt A6 / e2e-bug.399),
+    // so the fixture was asserting on a contract that did not exist. Moved to
+    // `appointment.create`, whose `date` really is required and really is read.
+    message: 'book Sarah a deep tissue massage',
     surface: 'dashboard',
     tier: 'owner',
     plan: {
       steps: [
         {
           id: 's1',
-          command: 'appointment.reschedule',
-          variables: { appointmentId: 'apt-john-1' },
+          command: 'appointment.create',
+          variables: {
+            customerName: 'Sarah',
+            serviceName: 'deep tissue massage',
+          },
           confidence: 0.9,
           dependsOn: [],
         },
@@ -184,7 +193,7 @@ export const PLAN_FIXTURES: readonly PlanFixture[] = [
       topicChanged: false,
     },
     expectExecutable: false,
-    notes: 'No new time given — must ask for it by name, not fail generically.',
+    notes: 'No day given — must ask for it by name, not fail generically.',
   },
   {
     id: 'unresolved-entity-blocks-execution',

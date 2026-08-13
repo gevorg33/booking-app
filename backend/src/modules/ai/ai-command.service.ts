@@ -181,6 +181,7 @@ import {
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
 } from './ai-orchestration.helpers.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import {
   enrichDiscoveryParamsFromPrompt,
   enrichServiceDiscoveryFromPrompt,
@@ -2843,6 +2844,41 @@ export class AiCommandService {
     return this.fuzzyMatchByName(employees, name);
   }
 
+  /**
+   * Name resolution that can say "I don't know which one" (tech-debt D5).
+   *
+   * Third copy of the pattern, after `AiBookingCoreService` and
+   * `PublicBookingAssistantService`, because this service also carries its own
+   * private `fuzzyMatchByName` rather than importing the shared one.
+   *
+   * Same two constraints as the other two: `threshold: 0`, so acceptance is
+   * unchanged and only ties are refused, and a `not_found` fallback to the
+   * local matcher. That fallback deliberately preserves this file's copy of the
+   * e2e-bug.446 substring defect — fixing it here would be a separate change,
+   * and e2e-bug.447 shows it cannot be fixed by simply importing the shared
+   * export.
+   */
+  private resolveNamedVerdict<T extends { id: string; name: string }>(
+    items: T[],
+    name: string,
+    entityLabel: 'customer' | 'provider',
+  ): { match?: T; ambiguous: T[]; clarification: string } {
+    const verdict = resolveEntity(items, name, { entityLabel, threshold: 0 });
+    if (verdict.status === 'ambiguous') {
+      return {
+        ambiguous: verdict.candidates,
+        clarification:
+          verdict.clarification ??
+          `Which ${entityLabel} did you mean by "${name}"?`,
+      };
+    }
+    return {
+      match: verdict.match ?? this.fuzzyMatchByName(items, name),
+      ambiguous: [],
+      clarification: '',
+    };
+  }
+
   private resolveService(
     services: Service[],
     name: string,
@@ -3701,11 +3737,34 @@ export class AiCommandService {
   ): Promise<CommandResult | null> {
     params._timeZone = timeZone;
     const employeeId = params.employeeId as string | undefined;
+    // tech-debt D5 — this dispatches the provider-scoped reads below, so a tie
+    // lists the wrong namesake's bookings under a heading bearing their name.
+    // An explicit id still wins outright, as on the other dashboard callers.
+    const employeeVerdict =
+      !employeeId && params.employeeName
+        ? this.resolveNamedVerdict(
+            catalog.employees,
+            params.employeeName as string,
+            'provider',
+          )
+        : null;
+    if (employeeVerdict && employeeVerdict.ambiguous.length > 1) {
+      return {
+        success: false,
+        action,
+        summary: employeeVerdict.clarification,
+        details: {
+          params,
+          candidates: employeeVerdict.ambiguous.map((e) => ({
+            id: e.id,
+            name: e.name,
+          })),
+        },
+      };
+    }
     const resolvedEmployee = employeeId
       ? catalog.employees.find((e) => e.id === employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(catalog.employees, params.employeeName)
-        : undefined;
+      : (employeeVerdict?.match ?? undefined);
 
     switch (action) {
       case 'list_bookings':

@@ -26,7 +26,7 @@ const BASE = {
 const rescheduleStep = {
   id: 's1',
   command: 'appointment.reschedule',
-  variables: { appointmentId: 'apt-1', newStart: '2026-08-04T15:00:00Z' },
+  variables: { bookingId: 'apt-1', date: '2026-08-04', timeSlot: '15:00' },
   confidence: 0.94,
   dependsOn: [],
 };
@@ -180,20 +180,32 @@ describe('AiCommandPlannerService', () => {
 
   describe('clarify paths', () => {
     it('asks for a missing variable by name', async () => {
+      // `appointment.create`, not `appointment.reschedule`: reschedule has no
+      // required variable any handler reads, so it cannot demonstrate this
+      // (tech-debt A6 / e2e-bug.399).
       const { service } = makePlanner(
         JSON.stringify({
-          steps: [{ ...rescheduleStep, variables: { appointmentId: 'apt-1' } }],
+          steps: [
+            {
+              ...rescheduleStep,
+              command: 'appointment.create',
+              variables: {
+                customerName: 'Sarah',
+                serviceName: 'deep tissue massage',
+              },
+            },
+          ],
           unresolved: [],
           topicChanged: false,
         }),
       );
       const outcome = await service.plan({
         ...BASE,
-        message: "move John's appointment",
+        message: 'book Sarah a deep tissue massage',
       });
       expect(outcome.status).toBe('clarify');
       if (outcome.status !== 'clarify') return;
-      expect(outcome.question).toContain('newStart');
+      expect(outcome.question).toContain('date');
     });
 
     it('refuses a command that is not legal on this surface', async () => {
@@ -347,7 +359,7 @@ describe('AiCommandPlannerService', () => {
             {
               id: 's1',
               command: 'appointment.mark_paid',
-              variables: { appointmentId: 'a' },
+              variables: { bookingId: 'a' },
               confidence: 'very sure',
             },
           ],

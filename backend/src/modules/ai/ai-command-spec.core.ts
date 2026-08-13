@@ -32,7 +32,19 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Accept the HIPAA business associate agreement.',
-    variables: {},
+    variables: {
+      // `parseAcceptHipaaBaaFromPrompt`. The only field, and it is a rider on
+      // the acceptance rather than the acceptance itself — the BAA is signed
+      // either way; this decides whether HIPAA mode is switched on at the same
+      // time.
+      enableHipaa: {
+        type: 'boolean',
+        description:
+          'Also turn HIPAA mode on while accepting. Falls back to whether the message asks to enable it.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['accept the HIPAA BAA', 'sign the business associate agreement'],
     confirm: 'always',
     compensation: {
@@ -50,7 +62,28 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Erase a customer personal data as an administrator.',
-    variables: {},
+    variables: {
+      // `handleAdminDeleteCustomerDataLogic`. This calls
+      // `customerPrivacyService.deleteCustomerData` **immediately** — GDPR
+      // erasure, no preview and no undo (`compensation: none`). Naming the
+      // target precisely is the whole safety margin, which is why both
+      // identifiers are declared rather than just the one the failure message
+      // mentions.
+      customerName: {
+        type: 'string',
+        description:
+          'Customer to forget. Falls back to a name found in the message; matched against active customers only.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact customer to forget. Takes precedence over the name, which is a fuzzy match — supply it when a name could match more than one person.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['erase this customer data', 'admin delete their records'],
     confirm: 'always',
     compensation: {
@@ -94,7 +127,73 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Apply a schedule and fill the resulting gaps.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — `handleApplyAndFill` runs `handleApplySchedule` and then
+      // `handleFillScheduleGaps`, so its inputs are the **union** of two other
+      // commands'. Declared here rather than cross-referenced: a planner reads
+      // this entry, not the call graph.
+      templateName: {
+        type: 'string',
+        description: 'Weekday template to apply.',
+        required: false,
+        resolver: 'none',
+      },
+      weekdays: {
+        type: 'string[]',
+        description: 'Days the template applies to.',
+        required: false,
+        resolver: 'none',
+      },
+      applyDays: {
+        type: 'string[]',
+        description: 'Alternative spelling of `weekdays`; the parser accepts either.',
+        required: false,
+        resolver: 'none',
+      },
+      repeatWeeksCount: {
+        type: 'number',
+        description: 'How many weeks to repeat the template for.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider the schedule is applied to and whose gaps are then filled.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply and fill across the whole team.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Earliest time the fill step may use, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'Latest time the fill step may use, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['apply it and fill the gaps', 'apply and fill'],
     confirm: 'always',
     compensation: {
@@ -130,7 +229,69 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Apply a schedule to providers.',
-    variables: {},
+    variables: {
+      // `handleApplySchedule` -> `resolveEmployees` + `resolveDateRange` +
+      // `resolveTemplate` + `parseWeekdaysFromParams`. Three of its four
+      // failure messages name a field: "Specify at least one service provider
+      // (or 'all providers')", "Specify a date or range", "No schedule
+      // template found matching …".
+      employeeName: {
+        type: 'string',
+        description: 'Provider to apply the template to.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers at once.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to the whole team instead of naming providers.',
+        required: false,
+        resolver: 'none',
+      },
+      templateName: {
+        type: 'string',
+        description:
+          'Which saved template to apply. An unmatched name comes back listing the real ones.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Single day to apply to.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the range to apply across.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the range.',
+        required: false,
+        resolver: 'date',
+      },
+      applyDays: {
+        type: 'string[]',
+        description:
+          'Restrict to particular weekdays within the range. Falls back to weekdays named in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      repeatWeeksCount: {
+        type: 'number',
+        description: 'Repeat the pattern for this many weeks. Defaults to 1.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['apply that schedule', 'put the new hours live'],
     confirm: 'always',
     compensation: {
@@ -218,7 +379,60 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Cancel many bookings at once, choosing which to keep.',
-    variables: {},
+    variables: {
+      // `handleBulkSmartCancel` -> `findBookingsForCancel` (+ `resolveEmployee`,
+      // `resolveServices`). T3 and destructive: this cancels every booking the
+      // filters match, so the filters *are* the blast radius.
+      employeeName: {
+        type: 'string',
+        description: 'Only cancel this provider\u2019s bookings.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Only cancel bookings for this service.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Only cancel bookings on this day, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+      statusFilter: {
+        type: 'string',
+        description: 'Only cancel bookings currently in this status.',
+        required: false,
+        resolver: 'none',
+      },
+      statusFilters: {
+        type: 'string[]',
+        description: 'Several statuses at once; the resolver accepts either spelling.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason recorded against each cancellation.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'cancel tomorrow bookings',
       'smart cancel the affected appointments',
@@ -257,7 +471,19 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change the currency on every service at once.',
-    variables: {},
+    variables: {
+      // Same parser as `configure_currency`, one command wider: this rewrites
+      // the currency on **every service**. It relabels rather than converts —
+      // the price figures stay as they are and only the unit changes, which
+      // the variable says outright rather than leaving a planner to assume.
+      currencyCode: {
+        type: 'string',
+        description:
+          'Currency to relabel every service to. Price figures are not converted — only the unit changes.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['switch all services to euros', 'bulk change service currency'],
     confirm: 'always',
     compensation: {
@@ -292,7 +518,36 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T3',
     description: 'Clear a schedule entirely.',
-    variables: {},
+    variables: {
+      // `handleClearSchedule` reads `allProviders` and hands the rest to
+      // `prepareClearSchedulePlan`, whose dates come through the shared
+      // `resolveDateRange`.
+      allProviders: {
+        type: 'boolean',
+        description: 'Clear the whole team rather than one provider.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose schedule is being cleared.',
+        required: false,
+        resolver: 'employee',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['clear Gevorg schedule', 'wipe next week hours'],
     confirm: 'always',
     compensation: {
@@ -310,7 +565,23 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change what the assistant is allowed to do unattended.',
-    variables: {},
+    variables: {
+      // Dispatched by `AiMetaOpsService`, not the `AiCommandService` this
+      // spec names — the e2e-bug.440 class again, found the same way.
+      enabled: {
+        type: 'boolean',
+        description: 'Turn autopilot on or off.',
+        required: false,
+        resolver: 'none',
+      },
+      ruleName: {
+        type: 'string',
+        description:
+          'Scope the change to one autopilot rule rather than the whole setting.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['let the assistant book automatically', 'configure autopilot'],
     confirm: 'always',
     compensation: {
@@ -328,7 +599,18 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Set the currency the business trades in.',
-    variables: {},
+    variables: {
+      // `parseCurrencyFromPrompt(prompt, params)` prefers `currencyCode`, then
+      // `currency`, then scans the message for a supported code or a word
+      // alias ("euros"). One spelling declared, as elsewhere.
+      currencyCode: {
+        type: 'string',
+        description:
+          'Currency to trade in. Must be one the platform supports; falls back to a code or currency word found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['set our currency to euros', 'change the business currency'],
     confirm: 'always',
     compensation: {
@@ -382,7 +664,36 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Set how tax is charged.',
-    variables: {},
+    variables: {
+      // `parseBusinessTaxFromPrompt`. `model` is the one that changes how
+      // every price on the business is read — inclusive tax leaves displayed
+      // prices alone, exclusive adds on top at checkout.
+      model: {
+        type: 'string',
+        description:
+          'Whether displayed prices already include tax or have it added at checkout.',
+        required: false,
+        resolver: 'none',
+      },
+      rate: {
+        type: 'number',
+        description: 'Tax rate as a percentage.',
+        required: false,
+        resolver: 'none',
+      },
+      name: {
+        type: 'string',
+        description: 'Label for the tax shown on receipts (VAT, GST, …).',
+        required: false,
+        resolver: 'none',
+      },
+      enabled: {
+        type: 'boolean',
+        description: 'Turn tax charging on or off.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['charge 20 percent VAT', 'configure our tax'],
     confirm: 'always',
     compensation: {
@@ -493,7 +804,53 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Set how long personal data is kept.',
-    variables: {},
+    variables: {
+      // `parseConfigurePrivacyRetentionFromPrompt` -> `parseRetentionFromPrompt`
+      // + `parseCookieBannerFromPrompt`. Six fields, none required: the parser
+      // returns null only when *no* field is set, and the handler reports
+      // `missing: ['retention', 'cookieBanner']` — a group, not a field.
+      //
+      // The four day counts are separate retention clocks. A planner that can
+      // only say "keep data for 3 years" leaves `detectRetentionField` to guess
+      // which clock from the wording; naming the field is how you avoid
+      // shortening the wrong one.
+      bookingHistoryDays: {
+        type: 'number',
+        description: 'How long booking history is kept.',
+        required: false,
+        resolver: 'none',
+      },
+      customerPiiDays: {
+        type: 'number',
+        description: 'How long customer personal data is kept.',
+        required: false,
+        resolver: 'none',
+      },
+      aiCommandLogsDays: {
+        type: 'number',
+        description: 'How long assistant command logs are kept.',
+        required: false,
+        resolver: 'none',
+      },
+      auditLogsDays: {
+        type: 'number',
+        description: 'How long audit logs are kept.',
+        required: false,
+        resolver: 'none',
+      },
+      cookieBannerEnabled: {
+        type: 'boolean',
+        description: 'Show or hide the cookie consent banner.',
+        required: false,
+        resolver: 'none',
+      },
+      cookieBannerMessage: {
+        type: 'string',
+        description: 'Text shown in the cookie consent banner.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['keep records for 5 years', 'change our retention policy'],
     confirm: 'always',
     compensation: {
@@ -568,7 +925,24 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Configure multiple tax rules applied together.',
-    variables: {},
+    variables: {
+      // `parseConfigureStackedTaxRulesFromPrompt`. `operation` decides whether
+      // the supplied rules are added to the existing set or replace it — the
+      // difference between adding one tax and dropping every other.
+      operation: {
+        type: 'string',
+        description:
+          'Whether the rules are added to the current set or replace it.',
+        required: false,
+        resolver: 'none',
+      },
+      rules: {
+        type: 'object[]',
+        description: 'The stacked tax rules to apply.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a city tax on top', 'configure stacked tax rules'],
     confirm: 'always',
     compensation: {
@@ -640,7 +1014,38 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Add a staff member to the team.',
-    variables: {},
+    variables: {
+      // `handleCreateEmployeeLogic`. Not required: the name falls back to
+      // `extractEmployeeNameFromPrompt`, and only when both are empty does it
+      // return "Please specify the new team member name (employeeName)."
+      employeeName: {
+        type: 'string',
+        description:
+          'Name of the new team member. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'employee',
+      },
+      email: {
+        type: 'string',
+        description:
+          'Their email. Falls back to an address found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'Their phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description:
+          'Services to assign them on creation. Falls back to service names found in the message.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: [
       'add Mary as a stylist',
       'create an employee',
@@ -662,7 +1067,84 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Add an external doctor record.',
-    variables: {},
+    variables: {
+      // `handleCreateExternalDoctorLogic` — a directory record, so the fields
+      // *are* the record. The address is split across six params rather than
+      // one free-text field; declaring only `street` would silently drop the
+      // rest of every address a planner tried to supply.
+      name: {
+        type: 'string',
+        description: 'Doctor name.',
+        required: false,
+        resolver: 'none',
+      },
+      specialty: {
+        type: 'string',
+        description: 'Their specialty.',
+        required: false,
+        resolver: 'none',
+      },
+      clinicName: {
+        type: 'string',
+        description: 'Practice or clinic they work at.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'Contact phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description: 'Contact email address.',
+        required: false,
+        resolver: 'none',
+      },
+      fax: {
+        type: 'string',
+        description: 'Fax number, still used for referrals in some markets.',
+        required: false,
+        resolver: 'none',
+      },
+      street: {
+        type: 'string',
+        description: 'Street address.',
+        required: false,
+        resolver: 'none',
+      },
+      unit: {
+        type: 'string',
+        description: 'Suite or unit number.',
+        required: false,
+        resolver: 'none',
+      },
+      city: {
+        type: 'string',
+        description: 'City.',
+        required: false,
+        resolver: 'none',
+      },
+      province: {
+        type: 'string',
+        description: 'Province or state.',
+        required: false,
+        resolver: 'none',
+      },
+      postalCode: {
+        type: 'string',
+        description: 'Postal or ZIP code.',
+        required: false,
+        resolver: 'none',
+      },
+      country: {
+        type: 'string',
+        description: 'Country.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add Dr Smith as a referrer', 'create an external doctor'],
     confirm: 'always',
     compensation: {
@@ -734,7 +1216,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Replan a whole day of appointments.',
-    variables: {},
+    variables: {
+      // `handleDayReplan`. `_timeZone` is pipeline-injected and deliberately
+      // not declared.
+      date: {
+        type: 'string',
+        description: 'Day to replan, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Replan the whole team rather than one provider.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['replan today', 'sort out the day'],
     confirm: 'always',
     compensation: {
@@ -752,7 +1249,18 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Deactivate a staff member.',
-    variables: {},
+    variables: {
+      // `handleDeactivateEmployeeLogic`. The only input, and still not
+      // required: it falls back to `extractEmployeeNameFromPrompt`, which is
+      // what makes "Mary has left" work.
+      employeeName: {
+        type: 'string',
+        description:
+          'Which team member to deactivate. Falls back to a name found in the message; matched against the active roster.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: [
       'Mary has left',
       'deactivate that employee',
@@ -879,7 +1387,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Turn HIPAA mode on for the business.',
-    variables: {},
+    variables: {
+      // `extractEnableHipaaModeFields`. `enabled` is read from params first,
+      // then inferred from enable/disable wording in the message — including
+      // Armenian and Russian. The description says "turn on", but the command
+      // turns it **off** too, which is the direction worth being explicit
+      // about on a safeguards toggle.
+      enabled: {
+        type: 'boolean',
+        description:
+          'Turn HIPAA safeguards on or off. Falls back to enable/disable wording in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      sessionTimeoutMinutes: {
+        type: 'number',
+        description:
+          'Idle timeout enforced under HIPAA mode. Left unchanged when not supplied.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['turn on HIPAA mode', 'enable HIPAA compliance'],
     confirm: 'always',
     compensation: {
@@ -1839,7 +2367,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Fill a freed slot from the waitlist.',
-    variables: {},
+    variables: {
+      // `AiBookingCoreService.handleFillSlotFromWaitlist` — reached through
+      // `dispatchMutatingIntent`, not this spec's `AiCommandService`.
+      date: {
+        type: 'string',
+        description: 'Day the freed slot is on.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Time of the freed slot.',
+        required: false,
+        resolver: 'datetime',
+      },
+    },
     examples: [
       'fill that slot from the waitlist',
       'give the slot to a waitlister',
@@ -1862,7 +2405,47 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T3',
     description: 'Offer unused slots to customers.',
-    variables: {},
+    variables: {
+      // `handleFillScheduleGaps` -> `parseTimeWindow` + `resolveDateRange` +
+      // `resolveEmployees` + `resolveScheduleServicesForEmployee`.
+      allProviders: {
+        type: 'boolean',
+        description: 'Fill gaps across the whole team rather than one provider.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose gaps are being filled.',
+        required: false,
+        resolver: 'employee',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Earliest time to fill from, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'Latest time to fill to, `HH:MM`.',
+        required: false,
+        resolver: 'none',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['fill my empty slots', 'offer the gaps to someone'],
     confirm: 'always',
     compensation: {
@@ -1988,7 +2571,31 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Create services by importing a menu.',
-    variables: {},
+    variables: {
+      // `prepareImportServicesFromMenuPlanLogic` -> `extractMenuTextFromParams`
+      // + `parseMenuTextToServices`. The menu arrives as text (typed or OCR'd
+      // from a photo) or as an already-parsed list.
+      menuText: {
+        type: 'string',
+        description: 'The menu as text, to be parsed into services.',
+        required: false,
+        resolver: 'none',
+      },
+      ocrText: {
+        type: 'string',
+        description:
+          'Menu text recognised from a photo; `menuText` is preferred when both are present.',
+        required: false,
+        resolver: 'none',
+      },
+      services: {
+        type: 'object[]',
+        description:
+          'Services already parsed out of the menu, skipping the text parse.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['import our price list', 'create services from this menu'],
     confirm: 'always',
     compensation: {
@@ -2006,7 +2613,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Invite someone to join as staff.',
-    variables: {},
+    variables: {
+      // `handleInviteStaffMemberLogic` takes two different paths: a name looks
+      // up an existing employee and sends them provider-app access, an address
+      // creates a fresh invitation. "Please provide an email address or
+      // employeeName" is the `required` field's missing "one of" form, so
+      // neither is marked required.
+      email: {
+        type: 'string',
+        description:
+          'Address to invite. Falls back to an address found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description:
+          'Existing team member to send provider-app access to. Used instead of an address; fails if they have no email on file.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['invite Mary to the team', 'send a staff invite'],
     confirm: 'always',
     compensation: {
@@ -2285,7 +2912,61 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Mark appointments as no-shows.',
-    variables: {},
+    variables: {
+      // `AiBookingCoreService.findBookingsForMarkNoShows` — the same selector
+      // `operations.no_show_recovery` uses, so the same rule applies: the
+      // filters are the blast radius. With none of them this marks every past
+      // pending/confirmed/in-progress booking in the business as a no-show.
+      employeeName: {
+        type: 'string',
+        description: 'Limit to one provider.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Limit to one service.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Limit to a single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description:
+          'Start of a date range. Without `date` or `dateFrom` the window is everything up to now.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Limit to appointments at a particular time.',
+        required: false,
+        resolver: 'datetime',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Widen past the acting provider to the whole team.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description: 'Drop the date narrowing and take every eligible one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['mark them as no show', 'flag the no shows'],
     confirm: 'always',
     compensation: {
@@ -2303,7 +2984,17 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Migrate every dashboard surface to a new date display.',
-    variables: {},
+    variables: {
+      // `handleMigrateDashboardDateDisplayLogic`. Falls back to a surface
+      // extracted from the message when the param is absent.
+      surfaceId: {
+        type: 'string',
+        description:
+          'Which dashboard surface to migrate. Falls back to one named in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'migrate all dates to the new format',
       'roll out the date change',
@@ -2324,7 +3015,67 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Follow up customers who did not attend.',
-    variables: {},
+    variables: {
+      // `AiBookingCoreService.findBookingsForMarkNoShows` selects the set; the
+      // operations plan then acts on it. Same shape as
+      // `operations.bulk_smart_cancel`: the filters *are* the blast radius, so
+      // a filter the planner cannot name is a wider sweep, not a doc gap.
+      //
+      // With no filter at all this matches every past pending/confirmed/
+      // in-progress booking in the business.
+      employeeName: {
+        type: 'string',
+        description: 'Limit to one provider.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description:
+          'Limit to one service. Accepts several separated by commas, "and" or "or".',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Limit to a single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description:
+          'Start of a date range. Without `date` or `dateFrom` the window is everything up to now.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Limit to appointments at a particular time.',
+        required: false,
+        resolver: 'datetime',
+      },
+      allProviders: {
+        type: 'boolean',
+        description:
+          'Widen past the acting provider to the whole team. A widening flag, declared for the same reason as the filters.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description:
+          'Drop the date narrowing and take every eligible past appointment.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['chase the no shows', 'run no show recovery'],
     confirm: 'always',
     compensation: {
@@ -2409,7 +3160,46 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Fall back to paying at the venue when card payment fails.',
-    variables: {},
+    variables: {
+      // `handlePayAtVenueFallbackLogic` -> `resolveService` +
+      // `resolveServiceCashAvailability`. e2e-bug.195 is open on this command:
+      // it fails open when service resolution misses, so which service is
+      // named decides whether the cash check runs against the right one at
+      // all — the declaration is a prerequisite for that fix, not a substitute.
+      serviceName: {
+        type: 'string',
+        description:
+          'Service being paid for. Its own settings decide whether cash is accepted.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'service',
+      },
+      isActivationPath: {
+        type: 'boolean',
+        description:
+          'Treat this as a first-booking activation flow, which changes the wording of the fallback.',
+        required: false,
+        resolver: 'none',
+      },
+      activationPath: {
+        type: 'string',
+        description: 'Which activation flow the customer is in.',
+        required: false,
+        resolver: 'none',
+      },
+      completedBookingCount: {
+        type: 'number',
+        description:
+          'How many bookings the customer has completed, used to pick the activation wording.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['I will just pay there', 'let me pay at the venue instead'],
     confirm: 'always',
     compensation: {
@@ -2427,7 +3217,55 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'], provider: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Chase outstanding payments across bookings.',
-    variables: {},
+    variables: {
+      // `AiBookingCoreService.findUnpaidBookingsForSweep` selects, then
+      // `applyPaymentSweepFilters` narrows. Blast radius again — this marks
+      // bookings **paid** in bulk, so an undeclared filter is money.
+      employeeName: {
+        type: 'string',
+        description: 'Limit to one provider.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Limit to one service.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Limit to a single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      excludeWalkIns: {
+        type: 'boolean',
+        description:
+          'Skip bookings with no customer record. Falls back to "except walk-ins" in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      statusFilter: {
+        type: 'string',
+        description:
+          'Limit to one booking status. Falls back to "completed" when the message says so and does not also say in-progress.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['chase everyone who owes', 'run a payment sweep'],
     confirm: 'always',
     compensation: {
@@ -2520,7 +3358,18 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Reassign appointments freed by a cancellation.',
-    variables: {},
+    variables: {
+      // Routes through `runOrchestrationIntent` (`AgentType.CANCELLATION_
+      // RECOVERY`), which takes the raw message as its `intent`. `date` is the
+      // one structured field the call site passes; `employeeId` beside it is
+      // session-injected.
+      date: {
+        type: 'string',
+        description: 'Day to recover cancellations on.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['reassign the cancelled slots', 'fill what was cancelled'],
     confirm: 'always',
     compensation: {
@@ -2538,7 +3387,26 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Record a data breach incident.',
-    variables: {},
+    variables: {
+      // `parseReportDataBreachFromPrompt`. The description has a hard
+      // 10-character floor — below it the parser returns null and the whole
+      // command declines — but it falls back to the message text, so it is not
+      // `required` by this backlog's criterion.
+      description: {
+        type: 'string',
+        description:
+          'What happened. Falls back to the message; anything under 10 characters is rejected.',
+        required: false,
+        resolver: 'none',
+      },
+      affectedCustomerCount: {
+        type: 'number',
+        description:
+          'How many people were affected. Drives the regulator notification deadline, so an omitted count is not a neutral default.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['report a data breach', 'log a security incident'],
     confirm: 'always',
     compensation: {
@@ -2556,7 +3424,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Resolve double-booked appointments.',
-    variables: {},
+    variables: {
+      // `runOrchestrationIntent` with `AgentType.CONFLICT_RESOLUTION`. Same
+      // shape as `reassign_cancelled`: the message carries the intent, `date`
+      // is the one structured field passed alongside it.
+      //
+      // These two are why `create_services` and `optimize_schedule` are not
+      // simply "orchestration commands can't be declared" — routing through
+      // orchestration does not by itself mean there is no param contract.
+      date: {
+        type: 'string',
+        description: 'Day to resolve conflicts on.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['fix the double bookings', 'resolve these conflicts'],
     confirm: 'always',
     compensation: {
@@ -2642,7 +3524,23 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Notify affected people about a data breach.',
-    variables: {},
+    variables: {
+      // `parseSendBreachNotificationFromPrompt` returns null without an
+      // incident reference, so this is the one field the command cannot run
+      // without — but `extractBreachIncidentRef` also reads it out of the
+      // message, so it is optional by the same criterion as
+      // `report_data_breach`'s description.
+      //
+      // Outbound and unrecallable (`compensation: none` — the message has been
+      // sent), so pointing at the wrong incident is not correctable.
+      incidentRef: {
+        type: 'string',
+        description:
+          'Which recorded breach incident to notify about. Falls back to a reference found in the message; without either, the command declines rather than guessing.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['notify affected customers', 'send the breach notification'],
     confirm: 'always',
     compensation: {
@@ -2659,7 +3557,36 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Set the tax rate for a service.',
-    variables: {},
+    variables: {
+      // `parseSetServiceTaxRateFromPrompt` -> `extractServiceTaxQuery` +
+      // `extractServiceTaxRate`. Both halves accept two spellings
+      // (`serviceName` | `serviceQuery`, `rate` | `taxRatePercent`); one of
+      // each is declared, as on `update_service_prices`.
+      //
+      // `serviceIds` is the widening form: supply it and the rate is applied
+      // to every listed service rather than the one the query matched.
+      serviceName: {
+        type: 'string',
+        description:
+          'Service to set the rate on. Falls back to a service named in the message.',
+        required: false,
+        resolver: 'service',
+      },
+      taxRatePercent: {
+        type: 'number',
+        description:
+          'Rate as a percentage. Falls back to a rate found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceIds: {
+        type: 'string[]',
+        description:
+          'Apply the rate to several services at once instead of the one matched by name.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['massages are zero rated', 'set the tax on that service'],
     confirm: 'always',
     compensation: {
@@ -2677,7 +3604,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Set up a whole week of schedules.',
-    variables: {},
+    variables: {
+      // `AiScheduleHandlersService.prepareTemplateCascadePlan`.
+      templateName: {
+        type: 'string',
+        description: 'Template to cascade across the week.',
+        required: false,
+        resolver: 'none',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to the whole team.',
+        required: false,
+        resolver: 'none',
+      },
+      repeatWeeksCount: {
+        type: 'number',
+        description: 'How many weeks to repeat the pattern for.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['set up next week', 'build the week schedule'],
     confirm: 'always',
     compensation: {
@@ -2711,7 +3658,36 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Replan a day after someone calls in sick.',
-    variables: {},
+    variables: {
+      // `prepareSickDayReplanPlanLogic` -> `parseSickEmployeeName` +
+      // `resolveDateRange` + `resolveEmployees`. `_timeZone` is
+      // pipeline-injected and not declared.
+      employeeName: {
+        type: 'string',
+        description: 'Provider who is off sick and whose day is being replanned.',
+        required: false,
+        resolver: 'employee',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to replan, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'First day affected, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['Mary is off sick, replan', 'cover the sick day'],
     confirm: 'always',
     compensation: {
@@ -3054,7 +4030,53 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Move services from one staff member to another.',
-    variables: {},
+    variables: {
+      // `resolveTransferEmployeeServicesInput` + `resolveScopedEmployeeServices`.
+      // Both names are read from params only — no prompt fallback — but
+      // neither is `required`: the handler returns "Specify one source
+      // provider and one target provider" as a `null` plan rather than a
+      // `missing:` payload, and it also rejects an ambiguous *match*, so the
+      // failure is not simply "absent".
+      fromEmployeeName: {
+        type: 'string',
+        description: 'Provider the services move away from.',
+        required: false,
+        resolver: 'employee',
+      },
+      toEmployeeName: {
+        type: 'string',
+        description:
+          'Provider the services move to. Must resolve to someone other than the source.',
+        required: false,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description:
+          'Move a single named service instead of the whole assignment.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Move several named services.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Move everything in one service category.',
+        required: false,
+        resolver: 'none',
+      },
+      unassignAllServices: {
+        type: 'boolean',
+        description:
+          'Move the source provider entire assignment. The widest form of this command.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['move Mary services to Gevorg', 'transfer their services'],
     confirm: 'always',
     compensation: {
@@ -3127,7 +4149,50 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change a staff member details.',
-    variables: {},
+    variables: {
+      // `handleUpdateEmployeeLogic`. Every field falls back to
+      // `extractEmployeeUpdateFromPrompt`. With no change field at all the
+      // handler asks "What should I change for X?" rather than failing, so
+      // requiring any one of them would refuse a prompt it can already answer.
+      employeeName: {
+        type: 'string',
+        description:
+          'Which team member to update. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'employee',
+      },
+      newName: {
+        type: 'string',
+        description: 'Rename them to this.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description: 'New email address.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'New phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'New job title.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description:
+          'Replace the services they are assigned to. Unlike the other fields this one is read from params only — there is no prompt fallback.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['change Mary phone number', 'update that employee'],
     confirm: 'always',
     compensation: {
@@ -3145,7 +4210,102 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change an external doctor record.',
-    variables: {},
+    variables: {
+      // `handleUpdateExternalDoctorLogic` — the create fields plus the two
+      // that only make sense on an update: how to find the existing record,
+      // and whether it stays in the directory.
+      doctorId: {
+        type: 'string',
+        description: 'Exact record to change. Takes precedence over the name.',
+        required: false,
+        resolver: 'none',
+      },
+      doctorName: {
+        type: 'string',
+        description: 'Record to change, by name.',
+        required: false,
+        resolver: 'none',
+      },
+      isActive: {
+        type: 'boolean',
+        description:
+          'Keep the doctor in the referral directory. Set false to retire the record without deleting it.',
+        required: false,
+        resolver: 'none',
+      },
+      name: {
+        type: 'string',
+        description: 'Doctor name.',
+        required: false,
+        resolver: 'none',
+      },
+      specialty: {
+        type: 'string',
+        description: 'Their specialty.',
+        required: false,
+        resolver: 'none',
+      },
+      clinicName: {
+        type: 'string',
+        description: 'Practice or clinic they work at.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'Contact phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description: 'Contact email address.',
+        required: false,
+        resolver: 'none',
+      },
+      fax: {
+        type: 'string',
+        description: 'Fax number, still used for referrals in some markets.',
+        required: false,
+        resolver: 'none',
+      },
+      street: {
+        type: 'string',
+        description: 'Street address.',
+        required: false,
+        resolver: 'none',
+      },
+      unit: {
+        type: 'string',
+        description: 'Suite or unit number.',
+        required: false,
+        resolver: 'none',
+      },
+      city: {
+        type: 'string',
+        description: 'City.',
+        required: false,
+        resolver: 'none',
+      },
+      province: {
+        type: 'string',
+        description: 'Province or state.',
+        required: false,
+        resolver: 'none',
+      },
+      postalCode: {
+        type: 'string',
+        description: 'Postal or ZIP code.',
+        required: false,
+        resolver: 'none',
+      },
+      country: {
+        type: 'string',
+        description: 'Country.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change Dr Smith details', 'update that doctor'],
     confirm: 'always',
     compensation: {
@@ -3181,7 +4341,57 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Change the prices of services.',
-    variables: {},
+    variables: {
+      // `prepareUpdateServicePricesPlanLogic` -> `parsePriceAdjustment` +
+      // `priceAdjustmentScopeHints`. The names are the ones the handler's own
+      // failure message uses: "Specify a percent or dollar amount change and
+      // optional category".
+      //
+      // `amountChange` is also spelled `priceChangeAmount`, `absoluteChange`
+      // and `priceDelta`; `percentChange` also `priceChangePercent`. One name
+      // each is declared — the `required` field has no "one of" form, and
+      // e2e-bug.164 is what happens when the two kinds get confused.
+      percentChange: {
+        type: 'number',
+        description:
+          'Percentage to move prices by. Falls back to a percentage found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      amountChange: {
+        type: 'number',
+        description:
+          'Currency amount to move prices by. Takes precedence over a percentage whenever the message uses money units — e2e-bug.164.',
+        required: false,
+        resolver: 'money',
+      },
+      serviceName: {
+        type: 'string',
+        description:
+          'Limit the change to one service. Without a scope every service is repriced.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceCategory: {
+        type: 'string',
+        description: 'Limit the change to one category of services.',
+        required: false,
+        resolver: 'none',
+      },
+      effectiveFrom: {
+        type: 'string',
+        description: 'Date the new prices start from.',
+        required: false,
+        resolver: 'date',
+      },
+      onlyWithOnlinePayment: {
+        type: 'boolean',
+        description:
+          'Reprice only services that accept online payment, leaving the rest untouched.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['put all prices up 10 percent', 'update our service prices'],
     confirm: 'always',
     compensation: {
@@ -3220,7 +4430,26 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['owner'] },
     risk: 'T2',
     description: 'Change what a team member is allowed to do.',
-    variables: {},
+    variables: {
+      // `handleUpdateTeamMemberRoleLogic` — the only command in this slice
+      // with genuinely required inputs. It reads params and nothing else: no
+      // prompt extraction, no default, no "one of" alternative spelling. Both
+      // absences return a `failure` naming the field.
+      employeeName: {
+        type: 'string',
+        description: 'Whose role to change.',
+        required: true,
+        resolver: 'employee',
+      },
+      role: {
+        type: 'string',
+        description:
+          'The new role. Anything outside the list comes back as a failure listing the real ones.',
+        required: true,
+        resolver: 'none',
+        enum: ['admin', 'manager', 'staff', 'contributor'],
+      },
+    },
     examples: ['make Mary a manager', 'change their role'],
     confirm: 'always',
     compensation: {

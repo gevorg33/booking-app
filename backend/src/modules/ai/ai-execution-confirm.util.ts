@@ -89,6 +89,29 @@ export const DASHBOARD_EXECUTION_CONFIRM_ACTIONS = [
   'migrate_dashboard_date_display',
   'notify_patient_result_ready',
   'bulk_strip_disabled_locale_translations',
+  // e2e-bug.405 — the 13 dashboard commands whose spec declares `confirm: 'always'`
+  // but which the runtime executed unprompted (36 traces). Reviewed and accepted
+  // 2026-08-04. Grouped by why they warrant interrupting someone:
+  //
+  //   bulk schedule rewrites — many bookings change at once, and
+  //   `operations.optimize_schedule` records that undoing it needs per-row
+  //   pre-state, i.e. it cannot be rolled back automatically
+  'optimize_schedule',
+  'apply_schedule',
+  'reassign_cancelled',
+  'resolve_conflicts',
+  'block_schedule',
+  //   money and financial records
+  'record_expense',
+  'delete_expense',
+  'mark_paid',
+  'create_commission_rule',
+  //   remaining: a destructive delete, an account creation, a reversible
+  //   deactivation, and an export
+  'delete_inventory_product',
+  'create_employee',
+  'deactivate_promo_code',
+  'export_analytics_report',
 ] as const;
 
 const DASHBOARD_EXECUTION_CONFIRM_SET = new Set<string>(

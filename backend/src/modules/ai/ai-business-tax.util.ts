@@ -1,4 +1,8 @@
 import { isSummarizeCustomerTaxPaidPrompt } from './ai-summarize-customer-tax-paid.util.js';
+import { isExplainStripeTaxChargePrompt } from './ai-stripe-tax-charge.util.js';
+import { isLookupBookingTaxMetadataPrompt } from './ai-lookup-booking-tax-metadata.util.js';
+import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
+import { isQuoteStaffBookingTaxPrompt } from './ai-quote-staff-booking-tax.util.js';
 import {
   normalizeTaxPricingModel,
   normalizeTaxRatePercent,
@@ -377,6 +381,19 @@ export function isExplainBusinessTaxPrompt(prompt: string): boolean {
   // it should have caught them — it declines appointment-scoped prompts — but
   // it tests `\bappointment\b`, which does not match "appointments".
   if (isSummarizeCustomerTaxPaidPrompt(prompt)) return false;
+
+  // e2e-bug.436 — the same omission as e2e-bug.431, four more times. Every
+  // sibling below owns a *narrower* tax question than "what are our tax
+  // settings", each has a detector that fires only on its own prompts, and each
+  // was missing from this list — so `explain_business_tax` answered a question
+  // about one booking's VAT with the business's tax configuration.
+  //
+  // Ordered most specific first: a Stripe-charge question is also an
+  // appointment-tax question, and the narrower reading is the right one.
+  if (isExplainStripeTaxChargePrompt(prompt)) return false;
+  if (isLookupBookingTaxMetadataPrompt(prompt)) return false;
+  if (isQuoteStaffBookingTaxPrompt(prompt)) return false;
+  if (isExplainAppointmentTaxPrompt(prompt)) return false;
 
   if (
     /\b(appointment|provider\s+app|payment\s+breakdown|mark(?:ed)?\s+paid|collected)\b/i.test(

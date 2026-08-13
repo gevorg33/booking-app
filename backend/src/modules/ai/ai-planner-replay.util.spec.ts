@@ -16,6 +16,9 @@ const outcome = (
   traces,
   verdict,
   shortlistSize: 15,
+  // e2e-bug.409 — these fixtures exercise summarize/churn, which do not read
+  // this field; `true` keeps them honest rather than implying a retrieval miss.
+  truthInShortlist: true,
 });
 
 describe('replayAccessTier', () => {

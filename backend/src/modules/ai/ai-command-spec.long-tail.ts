@@ -282,7 +282,30 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T2',
     description:
       'Add a retail product to a booking, changing what the client pays.',
-    variables: {},
+    variables: {
+      // Three layers: `extractRetailProductName` (`productName` |
+      // `serviceName`), then `resolveProviderBooking`, then
+      // `handleAddRetailSaleToBookingLogic` for the quantity.
+      //
+      // The booking is *not* a parameter — `resolveProviderBooking` finds the
+      // provider's own active booking from `sessionEmployeeId`, which is
+      // session-injected. That is why this command is safe without a
+      // `bookingId` and why one is not declared.
+      productName: {
+        type: 'string',
+        description:
+          'Product to add. Falls back to a product named in the message; the handler reports `missing: [productName]` when neither resolves.',
+        required: false,
+        resolver: 'none',
+      },
+      quantity: {
+        type: 'number',
+        description:
+          'How many. Defaults to 1, and is floored at 1 — this cannot be used to subtract.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'add a shampoo to this booking',
       'sell them the conditioner too',
@@ -303,7 +326,18 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Remove a retail product from a booking.',
-    variables: {},
+    variables: {
+      // Mirror of the add twin, minus the quantity: removal takes the whole
+      // line rather than a count. Booking resolution is session-based here
+      // too, so no `bookingId`.
+      productName: {
+        type: 'string',
+        description:
+          'Product to take off the booking. Falls back to a product named in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['take the shampoo off this booking', 'remove that product'],
     confirm: 'always',
     compensation: {
@@ -420,7 +454,19 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T3',
     description:
       'Create a whole starting catalogue from an onboarding template.',
-    variables: {},
+    variables: {
+      // tech-debt C2 — `handleApplyOnboardingCatalogLogic` reads exactly one
+      // param. Absent, it calls `recommendCatalog(businessId)` and applies
+      // whatever that returns, which is the normal path: "set up my catalog"
+      // carries no list.
+      categories: {
+        type: 'object[]',
+        description:
+          'Categories and their services to create. Omit to apply the catalog the system recommends for this business.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'set up my catalogue from the template',
       'apply the salon catalogue',
@@ -532,7 +578,37 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Record an internal staff note against a customer record.',
-    variables: {},
+    variables: {
+      // `handleAddCustomerStaffNoteLogic`. The note text is free-form and is
+      // stored verbatim, so a note attached to the wrong patient is a
+      // disclosure, not a typo — hence both identifiers.
+      customerName: {
+        type: 'string',
+        description: 'Patient the note is filed against.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact patient. Takes precedence over the name, which is a substring match.',
+        required: false,
+        resolver: 'customer',
+      },
+      body: {
+        type: 'string',
+        description:
+          'Text of the note. Without it the command asks rather than filing an empty note.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Attach the note to a particular visit.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: [
       'note that this patient is allergic to latex',
       'add a staff note',
@@ -556,7 +632,45 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Add an addendum to a clinical encounter record.',
-    variables: {},
+    variables: {
+      // `handleCreateEncounterAddendumLogic`. An addendum is append-only —
+      // the encounter it lands on cannot be corrected by editing, only by
+      // adding another addendum — so both the patient and the encounter have
+      // to be named precisely.
+      customerName: {
+        type: 'string',
+        description: 'Patient whose encounter is being amended.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact patient. Takes precedence over the name, which is a substring match.',
+        required: false,
+        resolver: 'customer',
+      },
+      encounterId: {
+        type: 'string',
+        description: 'Encounter to amend.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description:
+          'Identify the encounter by its visit instead of by encounter id.',
+        required: false,
+        resolver: 'appointment',
+      },
+      body: {
+        type: 'string',
+        description:
+          'Text of the addendum. Without it the command asks rather than filing an empty one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add an addendum to that encounter', 'append to the visit note'],
     confirm: 'always',
     compensation: {
@@ -574,7 +688,38 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Release a clinical document to the patient.',
-    variables: {},
+    variables: {
+      // `handleReleasePatientDocumentLogic`. This is the disclosure step —
+      // it makes a clinical document visible to the patient — so `documentId`
+      // decides what is disclosed and the patient fields decide to whom.
+      customerName: {
+        type: 'string',
+        description: 'Patient the document belongs to.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact patient. Takes precedence over the name, which is a substring match.',
+        required: false,
+        resolver: 'customer',
+      },
+      documentId: {
+        type: 'string',
+        description:
+          'Document to release. Without it the command asks rather than releasing anything.',
+        required: false,
+        resolver: 'none',
+      },
+      releasedToPatient: {
+        type: 'boolean',
+        description:
+          'Whether the document becomes visible to the patient. Set false to withdraw a release.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['release the lab report to the patient', 'share these results'],
     confirm: 'always',
     compensation: {
@@ -592,7 +737,69 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Change a patient clinical profile.',
-    variables: {},
+    variables: {
+      // `handleUpdateClinicalProfileLogic`. Every command in this handler
+      // resolves the patient first through `resolvePatientClinicalCustomer`,
+      // which prefers `customerId` and otherwise matches the name
+      // exact-then-substring — see e2e-bug.443 for the cap on that search.
+      // On a clinical record the id is the difference between updating a
+      // patient's allergies and updating someone else's.
+      customerName: {
+        type: 'string',
+        description: 'Patient whose profile to change.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact patient. Takes precedence over the name, which is a substring match — supply it whenever a name could match more than one patient.',
+        required: false,
+        resolver: 'customer',
+      },
+      allergies: {
+        type: 'string',
+        description: 'Recorded allergies. Replaces the stored value.',
+        required: false,
+        resolver: 'none',
+      },
+      chronicProblems: {
+        type: 'string',
+        description: 'Recorded chronic conditions. Replaces the stored value.',
+        required: false,
+        resolver: 'none',
+      },
+      bloodType: {
+        type: 'string',
+        description: 'Recorded blood type.',
+        required: false,
+        resolver: 'none',
+      },
+      emergencyContactName: {
+        type: 'string',
+        description: 'Emergency contact name.',
+        required: false,
+        resolver: 'none',
+      },
+      emergencyContactPhone: {
+        type: 'string',
+        description: 'Emergency contact phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      emergencyContactRelationship: {
+        type: 'string',
+        description: 'How the emergency contact is related to the patient.',
+        required: false,
+        resolver: 'none',
+      },
+      referringExternalDoctorId: {
+        type: 'string',
+        description: 'External doctor who referred the patient.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['update this patient allergies', 'change their clinical notes'],
     confirm: 'always',
     compensation: {
@@ -610,7 +817,39 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Update the clinical encounter attached to a booking.',
-    variables: {},
+    variables: {
+      // `handleUpdateEncounterByBookingLogic`. It reports
+      // `missing: ['bookingId', 'visitNote']` when either is absent, with no
+      // prompt fallback for either — but the patient is resolved first, so a
+      // prompt naming no patient fails earlier with a different message. All
+      // three stay optional for the reason the whole backlog uses: the
+      // handler asks rather than refusing.
+      customerName: {
+        type: 'string',
+        description: 'Patient the visit belongs to.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description:
+          'Exact patient. Takes precedence over the name, which is a substring match.',
+        required: false,
+        resolver: 'customer',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Visit whose encounter is being written.',
+        required: false,
+        resolver: 'appointment',
+      },
+      visitNote: {
+        type: 'string',
+        description: 'Clinical note recorded against the visit.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['update the encounter for that visit', 'change the visit notes'],
     confirm: 'always',
     compensation: {
@@ -649,7 +888,30 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T2',
     description: 'Record intake answers on a patient behalf.',
-    variables: {},
+    variables: {
+      // `handleStaffSubmitIntakeAnswersLogic`. Staff answering *for* a
+      // patient, so the three fields together say which visit, which question
+      // and what was answered — none is optional in practice even though none
+      // is `required` by this backlog's criterion.
+      bookingId: {
+        type: 'string',
+        description: 'Visit whose intake is being filled in.',
+        required: false,
+        resolver: 'appointment',
+      },
+      questionId: {
+        type: 'string',
+        description: 'Intake question being answered.',
+        required: false,
+        resolver: 'none',
+      },
+      values: {
+        type: 'string[]',
+        description: 'The answer, as one or more selected values.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'fill in the intake for this patient',
       'record their intake answers',
@@ -727,7 +989,17 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Approve a queued automated agent task so it runs.',
-    variables: {},
+    variables: {
+      // `handleApproveAgentTaskLogic`. Approval is the gate in front of
+      // whatever the queued task does, so this id selects an arbitrary amount
+      // of downstream effect — the one variable is the whole blast radius.
+      taskId: {
+        type: 'string',
+        description: 'Queued task to approve and run.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['approve that agent task', 'let the agent go ahead'],
     confirm: 'always',
     compensation: {
@@ -745,7 +1017,22 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Retry a failed step of an automated agent task.',
-    variables: {},
+    variables: {
+      // `handleRetryAgentStepLogic`. Both ids matter: the task selects the run
+      // and the step selects what re-executes within it.
+      taskId: {
+        type: 'string',
+        description: 'Task the failed step belongs to.',
+        required: false,
+        resolver: 'none',
+      },
+      stepId: {
+        type: 'string',
+        description: 'Step to re-run.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['retry that failed step', 'try the agent step again'],
     confirm: 'always',
     compensation: {
@@ -764,7 +1051,15 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T3',
     description:
       'Rebook every affected customer from an agent task in one action.',
-    variables: {},
+    variables: {
+      // `handleRebookAllFromAgentTaskLogic` reads exactly one param.
+      taskId: {
+        type: 'string',
+        description: 'Agent task whose cancelled bookings are being rebooked.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'rebook everyone from that task',
       'rebook all the affected customers',

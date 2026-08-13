@@ -42,7 +42,10 @@ export async function handleUpdateMyProfileLogic(
     { ...params, _prompt: textPrompt },
     textPrompt,
   );
-  const parsed = parseUpdateMyProfileFromPrompt(textPrompt);
+  // e2e-bug.441 — `params` has to reach the parse. Before this it took only
+  // the message, so `enriched` was computed and then never used for any value
+  // that got written.
+  const parsed = parseUpdateMyProfileFromPrompt(textPrompt, enriched);
   if (!parsed) {
     return failure(
       'update_my_profile',

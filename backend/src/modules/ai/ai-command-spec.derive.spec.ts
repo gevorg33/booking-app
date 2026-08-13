@@ -67,13 +67,21 @@ describe('ai-command-spec derivations', () => {
         APPOINTMENT_COMMAND_SPECS,
         'dashboard',
         'owner',
-      ).find((e) => e.command === 'appointment.reschedule');
+      ).find((e) => e.command === 'appointment.create');
+      // Was `appointment.reschedule`, whose two "required" variables
+      // (`appointmentId`, `newStart`) were read by no handler — tech-debt A6 /
+      // e2e-bug.399. `appointment.create` has required variables that are
+      // genuinely consumed, so the assertion means something.
       expect(entry).toMatchObject({
-        command: 'appointment.reschedule',
-        requiredVariables: ['appointmentId', 'newStart'],
-        optionalVariables: ['employeeName'],
+        command: 'appointment.create',
+        requiredVariables: ['customerName', 'serviceName', 'date'],
+        optionalVariables: [
+          'timeSlot',
+          'bookingFirstAvailable',
+          'employeeName',
+        ],
       });
-      expect(entry?.description).toContain('Move an existing appointment');
+      expect(entry?.description).toContain('Book a new appointment');
       expect(entry?.examples.length).toBeGreaterThan(0);
     });
 
@@ -91,17 +99,23 @@ describe('ai-command-spec derivations', () => {
 
   describe('buildToolDefinition', () => {
     it('generates a valid function-calling schema from the spec', () => {
-      expect(buildToolDefinition(spec('appointment.reschedule'))).toEqual({
-        name: 'appointment_reschedule',
-        description: expect.stringContaining('Move an existing appointment'),
+      expect(buildToolDefinition(spec('appointment.create'))).toEqual({
+        name: 'appointment_create',
+        description: expect.stringContaining('Book a new appointment'),
         parameters: {
           type: 'object',
           properties: {
-            appointmentId: { type: 'string', description: expect.any(String) },
-            newStart: { type: 'string', description: expect.any(String) },
+            customerName: { type: 'string', description: expect.any(String) },
+            serviceName: { type: 'string', description: expect.any(String) },
+            date: { type: 'string', description: expect.any(String) },
+            timeSlot: { type: 'string', description: expect.any(String) },
+            bookingFirstAvailable: {
+              type: 'boolean',
+              description: expect.any(String),
+            },
             employeeName: { type: 'string', description: expect.any(String) },
           },
-          required: ['appointmentId', 'newStart'],
+          required: ['customerName', 'serviceName', 'date'],
           additionalProperties: false,
         },
       });
@@ -117,48 +131,53 @@ describe('ai-command-spec derivations', () => {
   });
 
   describe('validateCommandVariables', () => {
-    const reschedule = spec('appointment.reschedule');
+    // `appointment.create`, not `appointment.reschedule`: reschedule's two
+    // required variables were fictional (tech-debt A6), so every assertion here
+    // was exercising a contract no handler implements.
+    const create = spec('appointment.create');
+    const complete = {
+      customerName: 'Sarah',
+      serviceName: 'deep tissue massage',
+      date: '2026-08-04',
+    };
 
     it('accepts a complete, well-typed variable bag', () => {
-      expect(
-        validateCommandVariables(reschedule, {
-          appointmentId: 'apt-1',
-          newStart: '2026-08-04T15:00:00Z',
-        }),
-      ).toEqual({ valid: true, missing: [], unknown: [], invalid: [] });
+      expect(validateCommandVariables(create, complete)).toEqual({
+        valid: true,
+        missing: [],
+        unknown: [],
+        invalid: [],
+      });
     });
 
     it('names the missing required variables, which is what the clarify question asks for', () => {
-      const result = validateCommandVariables(reschedule, {
-        appointmentId: 'apt-1',
+      const result = validateCommandVariables(create, {
+        customerName: 'Sarah',
+        serviceName: 'deep tissue massage',
       });
       expect(result.valid).toBe(false);
-      expect(result.missing).toEqual(['newStart']);
+      expect(result.missing).toEqual(['date']);
     });
 
     it('treats blank strings as missing, not as supplied', () => {
       expect(
-        validateCommandVariables(reschedule, {
-          appointmentId: 'apt-1',
-          newStart: '   ',
-        }).missing,
-      ).toEqual(['newStart']);
+        validateCommandVariables(create, { ...complete, date: '   ' }).missing,
+      ).toEqual(['date']);
     });
 
     it('surfaces hallucinated params instead of silently dropping them (e2e-bug.156)', () => {
-      const result = validateCommandVariables(reschedule, {
-        appointmentId: 'apt-1',
-        newStart: '2026-08-04T15:00:00Z',
-        customerName: 'Test User',
+      const result = validateCommandVariables(create, {
+        ...complete,
         templateName: 'Standard Mon-Fri',
+        roomName: 'Studio 2',
       });
-      expect(result.unknown).toEqual(['customerName', 'templateName']);
+      expect(result.unknown).toEqual(['templateName', 'roomName']);
     });
 
     it('rejects wrong types and out-of-enum values', () => {
       expect(
         validateCommandVariables(spec('appointment.mark_paid'), {
-          appointmentId: 'apt-1',
+          bookingId: 'apt-1',
           amount: 'forty',
         }).invalid,
       ).toEqual(['amount']);

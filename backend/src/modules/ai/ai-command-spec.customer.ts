@@ -364,7 +364,19 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Claim a gift card balance onto the customer account.',
-    variables: {},
+    variables: {
+      // `parseClaimGiftCardBalanceFromPrompt` prefers a supplied code over the
+      // scenario match and the prompt extraction, in that order — so this is a
+      // real input even though the handler body only touches `_prompt`. Same
+      // shape as `booking.book_with_gift_card`.
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Gift card to claim. Upper-cased; falls back to a code found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['claim this gift card', 'add the gift card to my account'],
     confirm: 'always',
     compensation: {
@@ -461,7 +473,38 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Merge two customer records that refer to the same person.',
-    variables: {},
+    variables: {
+      // `handleMergeCustomersLogic`. Merging is not symmetric — the primary
+      // survives and the secondary is folded into it — so naming which is
+      // which is the whole command, not a detail. The ids take precedence over
+      // the names, which go through `resolveCustomer`'s fuzzy match.
+      primaryCustomerName: {
+        type: 'string',
+        description: 'The record that survives the merge.',
+        required: false,
+        resolver: 'customer',
+      },
+      secondaryCustomerName: {
+        type: 'string',
+        description: 'The record folded into the primary and retired.',
+        required: false,
+        resolver: 'customer',
+      },
+      primaryCustomerId: {
+        type: 'string',
+        description:
+          'The surviving record, by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+      secondaryCustomerId: {
+        type: 'string',
+        description:
+          'The retired record, by id. Takes precedence over the name.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'merge these two customers',
       'combine the duplicate Gevorg records',
@@ -485,7 +528,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Erase the personal data of the requesting customer.',
-    variables: {},
+    variables: {
+      // `enrichPrivacyDeleteConfirmFromPrompt`. The *only* input, and it is
+      // the two-step gate itself: the first turn returns a pending state, and
+      // erasure runs on the second only once `confirm` is true — set either
+      // explicitly or by an affirmative reply to that pending state.
+      //
+      // Declaring it matters more here than anywhere else in this backlog. An
+      // undeclared `confirm` is invisible to a planner, and a planner that
+      // cannot see the gate cannot be relied on not to set it. e2e-bug.200 is
+      // open on this command's preview step.
+      confirm: {
+        type: 'boolean',
+        description:
+          'Second-step confirmation. Erasure only runs when true; the first turn returns a pending state instead.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['delete my data', 'erase my account information'],
     confirm: 'always',
     compensation: {
@@ -569,7 +629,16 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T2',
     description: 'Message customers who have not visited recently.',
-    variables: {},
+    variables: {
+      // `handleSendReengagementMessageLogic`. Outbound and unrecallable, and
+      // this is the text that actually gets sent — not a template name.
+      message: {
+        type: 'string',
+        description: 'Body of the message sent to the customer.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'message customers who have not been in for 60 days',
       'send a win back message',
@@ -663,7 +732,38 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T2',
     description: 'Change the stored details of the requesting customer.',
-    variables: {},
+    variables: {
+      // Declarable only after e2e-bug.441: `parseUpdateMyProfileFromPrompt`
+      // took the message alone, so a supplied value was computed into
+      // `enriched` and then dropped. It now takes `params` and prefers them.
+      //
+      // `email` is declared but **cannot be saved** — `PATCH me/profile`
+      // supports name and phone only, and the handler returns an explicit
+      // "not supported" reply for it. Declared anyway so a planner can carry
+      // what the customer said and get that answer, rather than silently
+      // routing an email change into a name field.
+      name: {
+        type: 'string',
+        description:
+          'New display name. Falls back to a name found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description:
+          'New phone number. Falls back to a number found in the message.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description:
+          'New email address. Accepted but not yet saveable — the reply explains that email changes are unsupported.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['update my phone number', 'change my email address'],
     confirm: 'always',
     compensation: {

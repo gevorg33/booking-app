@@ -25,21 +25,26 @@
  *
  * `AI_SHADOW_REPLAY_LIMIT` defaults to 10. The full corpus is 5,362 prompts and
  * therefore 5,362 completions — a real bill, so it is never the default.
+ *
+ * **e2e-bug.409 — the mechanics now live in `ai-planner-replay.util.ts`.** This
+ * file previously embedded its own copy of narrow → build → decode → validate,
+ * which is the drift F2 describes: two implementations of the same measurement,
+ * free to disagree on exactly the things that change a number without changing
+ * its name. It kept the corpus query and the reporting, which are its own, and
+ * `truthInShortlist` moved *into* the util rather than being dropped — the
+ * shared harness had no such measurement, and it is the one that separates a
+ * model mistake from a retrieval miss.
  */
 import { Client } from 'pg';
 import OpenAI from 'openai';
-import { buildPlannerMessages } from './ai-command-plan.prompt.js';
-import { decodePlanResponse } from './ai-command-plan.decode.js';
-import { validatePlan } from './ai-command-plan.validate.js';
 import { COMMAND_SPECS } from './ai-command-spec.registry.js';
+import { loadCommandIndex } from './ai-command-shortlist.util.js';
 import {
-  EMBEDDING_DIMENSIONS,
-  EMBEDDING_MODEL,
-  loadCommandIndex,
-  narrowShortlist,
-} from './ai-command-shortlist.util.js';
-import type { CommandSurface } from './ai-command-registry.types.js';
-import type { AccessTier } from './access-control.matrix.js';
+  replayPrompt,
+  type ReplayConfig,
+  type ReplayOutcome,
+  type ReplayRow,
+} from './ai-planner-replay.util.js';
 
 const ENABLED = process.env.AI_SHADOW_REPLAY === '1';
 const LIMIT = Number(process.env.AI_SHADOW_REPLAY_LIMIT ?? 10);
@@ -47,7 +52,7 @@ const LIMIT = Number(process.env.AI_SHADOW_REPLAY_LIMIT ?? 10);
 type Row = {
   prompt_raw: string;
   action: string;
-  surface: CommandSurface;
+  surface: string;
   business_id: string;
   role: string | null;
 };
@@ -91,150 +96,60 @@ describeMaybe('planner shadow replay (opt-in, makes OpenAI calls)', () => {
       await client.end();
     }
 
-    // Drives the same pure pieces `AiCommandPlannerService.plan` uses —
-    // `buildPlannerMessages`, `decodePlanResponse`, `validatePlan` — and calls
-    // OpenAI directly. Constructing the real service would mean standing up its
-    // four injected dependencies including a TypeORM repository, which is a lot
-    // of scaffolding for a harness that only needs the prompt and the decoder.
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const specs = COMMAND_SPECS;
+    const config: ReplayConfig = {
+      openai: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+      specs,
+      index: loadCommandIndex(specs),
+      // Every domain. `decidePlannerRoute` gates on this, and the question here
+      // is what the planner *can* do, not what is switched on — a rollout flag
+      // would otherwise read as a planner failure.
+      enabledDomains: new Set(specs.map((s) => s.domain)),
+      today: new Date().toISOString().slice(0, 10),
+      timeZone: 'Asia/Yerevan',
+      // §78: when testing grouped rendering, pass the FULL permitted list — the
+      // whole point is 100% recall by construction, so narrowing is off.
+      ...(process.env.AI_PLANNER_GROUPED_SHORTLIST === '1'
+        ? { promptSpecsFor: () => specs }
+        : {}),
+    };
 
-    let agreed = 0;
-    let disagreed = 0;
-    let undecodable = 0;
-    let notExecutable = 0;
-    const problems: string[] = [];
-    const shortlistSizes: number[] = [];
-    let truthInShortlist = 0;
-    const truthMissing: string[] = [];
-    const disagreements: string[] = [];
-
+    const outcomes: ReplayOutcome[] = [];
     for (const row of rows) {
-      // The trace's `role` is the business role profile, NOT the surface access
-      // tier. The gateway derives the tier as
-      // `resolveAccessTier(membershipRole ?? role)`, and `membershipRole` is not
-      // stored — so a customer-surface request from a business owner records
-      // `owner` while being gated as `client`.
-      //
-      // Passing `owner` on the customer surface permits only the ~7 commands
-      // that literally list it (`isSpecAllowedForTier` is exact membership, not
-      // hierarchical), which made the first narrowed run look like narrowing had
-      // not helped. Surface decides the tier here.
-      const tier: AccessTier =
-        row.surface === 'customer' || row.surface === 'public'
-          ? 'client'
-          : ((row.role as AccessTier) ?? 'owner');
-
-      // Same narrowing the planner now applies (§72), so the replay measures
-      // the shipped behaviour rather than the pre-fix one.
-      const q = await openai.embeddings.create({
-        model: EMBEDDING_MODEL,
-        input: row.prompt_raw,
-        dimensions: EMBEDDING_DIMENSIONS,
-      });
-      const narrowed = narrowShortlist(
-        COMMAND_SPECS,
-        row.surface,
-        tier,
-        q.data[0]?.embedding ?? null,
-        loadCommandIndex(COMMAND_SPECS),
-      );
-      shortlistSizes.push(narrowed.specs.length);
-
-      // The decisive question once narrowing is on: did the shortlist still
-      // CONTAIN the command the trace recorded? If not, an empty plan is the
-      // retrieval's fault, not the model's.
-      const containsTruth = narrowed.specs.some(
-        (sp) => sp.id === row.action || sp.aliases.includes(row.action),
-      );
-      if (containsTruth) truthInShortlist += 1;
-      else truthMissing.push(`${row.action} (${row.surface})`);
-
-      // §78: when testing grouped rendering, pass the FULL permitted list —
-      // the whole point is 100% recall by construction, so narrowing is off.
-      const promptSpecs =
-        process.env.AI_PLANNER_GROUPED_SHORTLIST === '1'
-          ? COMMAND_SPECS
-          : narrowed.specs;
-      const messages = buildPlannerMessages(
-        promptSpecs,
-        row.surface,
-        tier,
-        {
-          today: new Date().toISOString().slice(0, 10),
-          timeZone: 'Asia/Yerevan',
-        },
-        row.prompt_raw,
-      );
-
-      const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
-        messages: messages,
-        response_format: { type: 'json_object' },
-        temperature: 0.1,
-        max_tokens: 1200,
-      });
-
-      const raw = response.choices[0]?.message?.content ?? null;
-      const decoded = raw ? decodePlanResponse(raw) : null;
-      if (!decoded?.ok) {
-        undecodable += 1;
-        continue;
-      }
-      const validation = validatePlan(
-        promptSpecs,
-        decoded.plan,
-        row.surface,
-        tier,
-      );
-      if (!validation.executable) {
-        notExecutable += 1;
-        if (decoded.plan.steps.length === 0) {
-          problems.push(
-            decoded.plan.unresolved.length > 0
-              ? '(empty plan, unresolved noted)'
-              : '(empty plan, silent)',
-          );
-        }
-        for (const pr of validation.problems) problems.push(pr.code);
-        continue;
-      }
-
-      const planned = decoded.plan.steps[0]?.command ?? '(none)';
-      // Compare through the spec's aliases, not by string shape. The planner
-      // emits canonical ids (`tour.list_calendar_week`) and traces record legacy
-      // actions (`list_tour_calendar_week`); a suffix check calls that a
-      // disagreement, which it is not. Caught on the first 8-prompt run.
-      const plannedSpec = COMMAND_SPECS.find((c) => c.id === planned);
-      const matches =
-        planned === row.action ||
-        (plannedSpec?.aliases.includes(row.action) ?? false);
-      if (matches) agreed += 1;
-      else {
-        disagreed += 1;
-        const truthSpec = COMMAND_SPECS.find(
-          (sp) => sp.id === row.action || sp.aliases.includes(row.action),
-        );
-        const plannedSpec = COMMAND_SPECS.find((sp) => sp.id === planned);
-        disagreements.push(
-          [
-            `PROMPT: ${row.prompt_raw.slice(0, 140)}`,
-            `  DETECTOR: ${row.action} — ${truthSpec?.description ?? '(no spec)'}`,
-            `  PLANNER:  ${planned} — ${plannedSpec?.description ?? '(no spec)'}`,
-          ].join('\n'),
-        );
-      }
+      const replayRow: ReplayRow = {
+        prompt: row.prompt_raw,
+        surface: row.surface,
+        role: row.role,
+        truth: row.action,
+        traces: 1,
+      };
+      outcomes.push(await replayPrompt(config, replayRow));
     }
+
+    const agreed = outcomes.filter((o) => o.verdict === 'OK').length;
+    const disagreed = outcomes.filter((o) => o.verdict === 'wrong').length;
+    const undecodable = outcomes.filter((o) =>
+      o.verdict.startsWith('undecodable'),
+    ).length;
+    const rejected = outcomes.filter((o) => o.verdict.startsWith('reject')).length;
+    const truthInShortlist = outcomes.filter((o) => o.truthInShortlist).length;
+    // Surface is not on `ReplayOutcome`, so it is looked up from the rows the
+    // query returned. Worth keeping: "explain_floor_status (provider)" says
+    // which shortlist failed to retrieve it, and the bare action does not.
+    const surfaceByPrompt = new Map(rows.map((r) => [r.prompt_raw, r.surface]));
+    const truthMissing = outcomes
+      .filter((o) => !o.truthInShortlist)
+      .map((o) => `${o.truth} (${surfaceByPrompt.get(o.prompt) ?? '?'})`);
 
     // Reported, not asserted. This is a measurement harness; failing it on a
     // low agreement rate would make the number something to game rather than
     // something to read.
     console.log(
-      `[shadow replay] n=${rows.length} agreed=${agreed} disagreed=${disagreed} undecodable=${undecodable} not_executable=${notExecutable}`,
+      `[shadow replay] n=${rows.length} agreed=${agreed} disagreed=${disagreed} undecodable=${undecodable} not_executable=${rejected}`,
     );
-    const avgShortlist = shortlistSizes.length
-      ? Math.round(
-          shortlistSizes.reduce((a, b) => a + b, 0) / shortlistSizes.length,
-        )
+    const sizes = outcomes.map((o) => o.shortlistSize);
+    const avgShortlist = sizes.length
+      ? Math.round(sizes.reduce((a, b) => a + b, 0) / sizes.length)
       : 0;
     console.log(
       `[shadow replay] avg shortlist=${avgShortlist} truth_in_shortlist=${truthInShortlist}/${rows.length}`,
@@ -242,12 +157,30 @@ describeMaybe('planner shadow replay (opt-in, makes OpenAI calls)', () => {
     for (const m of truthMissing.slice(0, 8)) {
       console.log(`[shadow replay]   MISSING: ${m}`);
     }
-    const byCode = new Map<string, number>();
-    for (const c of problems) byCode.set(c, (byCode.get(c) ?? 0) + 1);
+    const byVerdict = new Map<string, number>();
+    for (const o of outcomes) {
+      if (o.verdict === 'OK' || o.verdict === 'wrong') continue;
+      byVerdict.set(o.verdict, (byVerdict.get(o.verdict) ?? 0) + 1);
+    }
     console.log(
-      `[shadow replay] validation problems: ${JSON.stringify([...byCode.entries()].sort((a, b) => b[1] - a[1]))}`,
+      `[shadow replay] rejections: ${JSON.stringify([...byVerdict.entries()].sort((a, b) => b[1] - a[1]))}`,
     );
-    for (const d of disagreements) console.log(`[judge]\n${d}`);
+    for (const o of outcomes.filter((x) => x.verdict === 'wrong')) {
+      const truthSpec = specs.find(
+        (sp) => sp.id === o.truth || sp.aliases.includes(o.truth),
+      );
+      const plannedSpec = specs.find(
+        (sp) => sp.id === o.routedAction || sp.aliases.includes(o.routedAction ?? ''),
+      );
+      console.log(
+        `[judge]\n` +
+          [
+            `PROMPT: ${o.prompt.slice(0, 140)}`,
+            `  DETECTOR: ${o.truth} — ${truthSpec?.description ?? '(no spec)'}`,
+            `  PLANNER:  ${o.routedAction ?? '(none)'} — ${plannedSpec?.description ?? '(no spec)'}`,
+          ].join('\n'),
+      );
+    }
     expect(rows.length).toBeGreaterThan(0);
   });
 });
