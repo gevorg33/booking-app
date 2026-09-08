@@ -50,6 +50,49 @@ const HANDLERS: {
     run: (params) =>
       service.handleBulkSmartCancel('b1', 'cancel them', params, SERVICES, TIED),
   },
+  // tech-debt D5-a (2026-08-20) — these three scope through
+  // `applyEmployeeScopeToWhere`, whose `employeeName` branch is first-on-ties,
+  // so a tie ran the bulk write against the wrong namesake's bookings.
+  // §176 listed them as blocked because that function returns `boolean`; the
+  // handlers themselves return `CommandResult`, so the guard sits here.
+  {
+    action: 'mark_no_shows',
+    run: (params) =>
+      service.handleMarkNoShows(
+        'b1',
+        'mark them no show',
+        params,
+        SERVICES,
+        TIED,
+        undefined,
+      ),
+  },
+  {
+    // The no-show *recovery* branch, reached by its own prompt shape.
+    action: 'no_show_recovery',
+    run: (params) =>
+      service.handleNoShowRecovery(
+        'b1',
+        'follow up with no shows',
+        params,
+        SERVICES,
+        TIED,
+        undefined,
+      ),
+  },
+  {
+    // Money: this sweeps unpaid bookings. A tie swept the wrong person's.
+    action: 'payment_sweep',
+    run: (params) =>
+      service.handlePaymentSweep(
+        'b1',
+        'mark unpaid as paid',
+        params,
+        SERVICES,
+        TIED,
+        undefined,
+      ),
+  },
   {
     // `status` is required: without it the handler returns "tell me what to
     // change" before ever reaching the provider guard. COMPLETED (not
@@ -63,6 +106,7 @@ const HANDLERS: {
         { ...params, status: 'completed' },
         SERVICES,
         TIED,
+        [],
       ),
   },
   // The two calendar handlers take (businessId, params, services, employees,
@@ -92,7 +136,7 @@ const HANDLERS: {
   {
     action: 'cancel_bookings',
     run: (params) =>
-      service.handleCancelBookings('b1', 'cancel them', params, SERVICES, TIED),
+      service.handleCancelBookings('b1', 'cancel them', params, SERVICES, TIED, []),
   },
 ];
 

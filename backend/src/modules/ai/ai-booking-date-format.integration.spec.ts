@@ -4,15 +4,16 @@ import { handleExplainBookingDateFormatLogic } from './ai-business-date-format.l
 import { AI_COMMAND_EVAL_BOOKING_DATE_FORMAT_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai booking date format integration (ai-cmd-fmt-4)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { dateFormat: 'DD/MM/YYYY', timeFormat: '24h' },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),

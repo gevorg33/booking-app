@@ -223,7 +223,19 @@ export const APP_ADOPTION_FUNNEL_FIXTURE_ROWS: AppAdoptionFixtureRow[] = [
 ];
 
 /** adopt-1.4 — strict funnel expectations for fixture matrix attribution tests */
-export const APP_ADOPTION_FUNNEL_ATTRIBUTION_EXPECTATIONS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type AppAdoptionFunnelAttributionExpectation = {
+  id: string;
+  dimension: 'aggregate' | 'platform' | 'locale' | 'tenantSlug';
+  stepCounts: readonly number[];
+  value?: string;
+  signInConversion?: number;
+  signInDropOff?: number;
+  rebookConversion?: number;
+  rebookDropOff?: number;
+};
+
+export const APP_ADOPTION_FUNNEL_ATTRIBUTION_EXPECTATIONS: readonly AppAdoptionFunnelAttributionExpectation[] = [
   {
     id: 'aggregate-install-to-repeat',
     dimension: 'aggregate' as const,
@@ -365,7 +377,14 @@ export const APP_ADOPTION_ACTIVATION_EXPECTED = {
   windowDays: ACTIVATION_WINDOW_DAYS,
 } as const;
 
-export const APP_ADOPTION_ACTIVATION_SCENARIOS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type AppAdoptionActivationScenario = {
+  id: string;
+  anonId: string;
+  activated: boolean;
+};
+
+export const APP_ADOPTION_ACTIVATION_SCENARIOS: readonly AppAdoptionActivationScenario[] = [
   {
     id: 'activated-within-window',
     anonId: 'anon-full-funnel',

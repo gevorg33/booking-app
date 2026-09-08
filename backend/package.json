@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest build && nest start --watch",
@@ -320,14 +321,14 @@
     "upgrade-all-tenants-plan:dry-run": "nest build && node dist/scripts/upgrade-all-tenants-plan.js --dry-run",
     "fix:loyalty": "nest build && node dist/scripts/recalculate-loyalty-earnings.js",
     "test:ai-detector-freeze": "jest --runInBand --testPathPatterns='ai-detector-freeze'",
-    "test:ai-inventory": "jest --runInBand --testPathPatterns='(ai-command-inventory|ai-detector-retirement|ai-command-eval.spec-coverage)'",
+    "test:ai-inventory": "jest --runInBand --testPathPatterns='(ai-command-inventory|ai-command-registry.derivable|ai-detector-retirement|ai-command-eval.spec-coverage)'",
     "test:ai-permissions": "jest --runInBand --testPathPatterns='(ai-command-permission|ai-permission-fail-closed|access-control.matrix)'",
     "test:ai-compound-steps": "jest --runInBand --testPathPatterns='ai-compound-step'",
     "test:ai-paraphrase": "jest --runInBand --testPathPatterns='(ai-paraphrase-invariance|ai-fewshot-retrieval)'",
     "test:ai-completion-rate": "jest --runInBand --testPathPatterns='(ai-completion-rate|ai-miss-mining|ai-miss-to-fixture)'",
     "test:ai-clarify": "jest --runInBand --testPathPatterns='(ai-clarify|ai-slot-filling|ai-topic-change|ai-conversation.util|ai-entity-store|ai-profile-facts|guide-failure-fallback)'",
     "test:ai-risk-gate": "jest --runInBand --testPathPatterns='(ai-risk-gate|ai-self-verify-gate|ai-post-exec-assert|ai-propose-only)'",
-    "test:ai-entity-resolution": "jest --runInBand --testPathPatterns='(ai-entity-resolution|entity-resolution.service|ai-reparser-ratchet|ai-anaphora)'",
+    "test:ai-entity-resolution": "jest --runInBand --testPathPatterns='(ai-entity-resolution|entity-resolution.service|ai-reparser-ratchet|ai-anaphora|ai-entity-tie-guard)'",
     "test:ai-plan-executor": "jest --runInBand --testPathPatterns='(ai-plan-executor|ai-plan-response|ai-blast-radius|ai-step-idempotency|ai-saga)'",
     "test:ai-datetime-resolution": "jest --runInBand --testPathPatterns='(ai-datetime-resolution|ai-date-range-resolution|ai-time-date-regression)'",
     "test:ai-completion-floor": "jest --runInBand --testPathPatterns='ai-completion-floor'",
@@ -437,6 +438,7 @@
       "ts"
     ],
     "rootDir": "src",
+    "cacheDirectory": "<rootDir>/../.jest-cache",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"

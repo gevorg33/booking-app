@@ -18,6 +18,8 @@
  *   - handler without a registry row  = unreachable action (e2e-bug.342)
  *   - registry row without a handler  = the registry promises what nothing runs
  */
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { AGENT_OPS_LOGIC_DISPATCH_MAP } from './ai-agent-ops-dispatch.build.js';
 import { BOOKING_CORE_DISPATCH_MAP } from './ai-booking-core-dispatch.build.js';
 import { BOOKING_DEPTH_DISPATCH_MAP } from './ai-booking-depth-dispatch.build.js';
@@ -79,6 +81,30 @@ import { COMMAND_REGISTRY } from './ai-command-registry.js';
 const UNDISPATCHED_BASELINE = 291;
 
 /**
+ * Registry rows that **nothing can execute** — e2e-bug.463.
+ *
+ * A list, not a ratchet. Each entry would be a command the registry advertises
+ * and a rescue or the planner can route to, reachable by no dispatch map, no
+ * `switch` label and no equality branch anywhere under `src/modules` — so
+ * reaching it resolves the user's prompt to nothing.
+ *
+ * The ratchet above cannot express this: it counts rows not yet routed through a
+ * map, which mixes migration debt (a switch runs them fine) with defects
+ * (nothing runs them). Its own comment concedes the conflation. This assertion
+ * is the defect half, named rather than counted for the reason
+ * `VERIFIED_NO_INPUT` is: a count can be satisfied by fixing a different member.
+ *
+ * It is empty, and the point is that it stays empty.
+ */
+const NO_EXECUTOR: readonly string[] = [];
+
+/**
+ * The classifier's fallback sentinel, not a command. It has a registry row so
+ * the surface lists can carry it, but nothing dispatches it by design.
+ */
+const NOT_A_COMMAND: readonly string[] = ['unknown'];
+
+/**
  * Dispatch keys that are deliberate ALIASES of a canonical registry action —
  * the same handler reachable under a second classifier-facing name. They are
  * intentionally absent from the registry, so they are not orphans.
@@ -138,6 +164,63 @@ const DISPATCH_MAPS: Record<string, ReadonlyMap<string, unknown>> = {
   TOUR_SERVICE_DISPATCH_MAP,
 };
 
+/**
+ * Source of every non-spec module file, for detecting the dispatch mechanisms
+ * that are not maps — e2e-bug.463.
+ *
+ * **Scans all of `src/modules`, not just `ai/`.** An `ai/`-only scan reports 78
+ * commands as dead, because the provider surface's switch lives in
+ * `provider-mobile/provider-ai-command.service.ts`. Walking the whole tree
+ * cannot under-count, which is the direction that matters: over-counting a
+ * command as handled leaves a defect hidden, but that failure is quiet, whereas
+ * under-counting names working commands as broken and is loud and wrong.
+ */
+function collectModuleSource(): string {
+  const modulesDir = join(__dirname, '..');
+  const chunks: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir)) {
+      if (entry === 'node_modules' || entry.startsWith('.')) continue;
+      const full = join(dir, entry);
+      let isDir = false;
+      try {
+        isDir = statSync(full).isDirectory();
+      } catch {
+        continue;
+      }
+      if (isDir) {
+        walk(full);
+        continue;
+      }
+      if (!entry.endsWith('.ts') || entry.includes('.spec.')) continue;
+      try {
+        chunks.push(readFileSync(full, 'utf8'));
+      } catch {
+        // Unreadable files contribute nothing, which pushes their actions
+        // toward NO_EXECUTOR — the direction that fails loudly rather than
+        // silently.
+      }
+    }
+  };
+  walk(modulesDir);
+  return chunks.join('\n');
+}
+
+/**
+ * Does anything outside a dispatch map execute this action?
+ *
+ * Two forms, both found in the tree and both required: a `switch` label, and an
+ * equality branch. `submit_review_with_token` is dispatched by
+ * `if (action === 'submit_review_with_token')` in `customer-ai-command.logic.ts`
+ * and a `case`-only matcher reports it as dead.
+ */
+function hasNonMapExecutor(source: string, action: string): boolean {
+  return (
+    source.includes(`case '${action}':`) ||
+    source.includes(`action === '${action}'`)
+  );
+}
+
 /** Every intent id that some dispatch map can actually execute. */
 function collectDispatchableIntents(): Map<string, string[]> {
   const byIntent = new Map<string, string[]>();
@@ -180,6 +263,23 @@ describe('AI-ROADMAP Phase 1 — command reachability', () => {
     // still handled by switch statements in the surface services. This assertion
     // is a ratchet on that number, not a claim that zero is expected today.
     expect(undispatchable.length).toBeLessThanOrEqual(UNDISPATCHED_BASELINE);
+  });
+
+  it('no registry row is left with nothing that can execute it (e2e-bug.463)', () => {
+    const source = collectModuleSource();
+    const noExecutor = [...registryIds]
+      .filter((id) => !dispatchable.has(id))
+      .filter((id) => !NOT_A_COMMAND.includes(id))
+      .filter((id) => {
+        const entry = COMMAND_REGISTRY.find((row) => row.id === id);
+        const alias = entry?.aliases?.[0];
+        return (
+          !hasNonMapExecutor(source, id) &&
+          (!alias || !hasNonMapExecutor(source, alias))
+        );
+      })
+      .sort();
+    expect(noExecutor).toEqual(NO_EXECUTOR);
   });
 
   it('no intent is claimed by two different dispatch maps', () => {

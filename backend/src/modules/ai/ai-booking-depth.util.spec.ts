@@ -119,7 +119,12 @@ describe('ai-booking-depth.util', () => {
         ),
       ).toBe(true);
       expect(isMarkPaidPrompt('appointment done and paid')).toBe(true);
-      expect(isMarkPaidPrompt('mark the visit as done')).toBe(true);
+      // A7 / §163 deliberately made this **false**: `mark` + `done` with no
+      // mention of money was routing status changes into a T2 financial write,
+      // stealing `update_bookings`' own examples. This assertion still expected
+      // the old behaviour and has been failing since that fix landed — a stale
+      // test asserting the defect, not a regression.
+      expect(isMarkPaidPrompt('mark the visit as done')).toBe(false);
       expect(isMarkPaidPrompt('hello world')).toBe(false);
       expect(isAssignBookingResourcePrompt('assign room 2 to facial')).toBe(
         true,
@@ -888,5 +893,60 @@ describe('ai-booking-depth.util', () => {
       expect(isBookingDepthIntent(intent)).toBe(true);
     }
     expect(isBookingDepthIntent('create_booking')).toBe(false);
+  });
+});
+
+/**
+ * C3 / e2e-bug.360 — `appointment.mark_paid`'s own example is a past-tense
+ * statement, *"Sarah paid cash for today's massage"*, which names no imperative
+ * verb and reached none of the branches.
+ *
+ * **This is a T2 money command that A7/§163 deliberately narrowed**, so the
+ * reason it is safe to widen matters more than the widening. §163 removed the
+ * branch firing on `mark` + `done` with *no mention of money anywhere*, and its
+ * own note records that the surviving branches "already cover every phrasing
+ * that names payment". This branch requires an explicit payment **method**, so
+ * the two `update_bookings` examples §163 rescued stay out — asserted below,
+ * because a regression there writes a financial record for a status change.
+ */
+describe('C3 — mark_paid understands a past-tense payment statement', () => {
+  it.each([
+    "Sarah paid cash for today's massage",
+    'Karo paid by card for the 3pm',
+    'the client paid cash',
+  ])('claims the payment statement: %s', (prompt) => {
+    expect(isMarkPaidPrompt(prompt)).toBe(true);
+  });
+
+  it.each([
+    // A7 / §163 — status changes, not payments. These are `update_bookings`'
+    // documented examples and were the reason that branch was removed.
+    ["mark Karo's 10am as completed", 'status change, no money'],
+    ['mark the 3pm massage as done', 'status change, no money'],
+  ])('does not reclaim %s (%s)', (prompt) => {
+    expect(isMarkPaidPrompt(prompt)).toBe(false);
+  });
+
+  it.each([
+    ['has Sarah paid cash?', 'leading auxiliary'],
+    ['was the massage paid by card', 'leading auxiliary'],
+    ['who paid cash today', 'leading interrogative'],
+  ])('does not treat a question as a write (%s — %s)', (prompt) => {
+    expect(isMarkPaidPrompt(prompt)).toBe(false);
+  });
+
+  it('stays invariant under politeness and a stray question mark', () => {
+    // A first version excluded a trailing `?` and a `can you` prefix, which the
+    // Phase 2 gate flagged as two natural-phrasing breaks. Those transforms
+    // must not change recognition; a leading auxiliary is what marks a question.
+    expect(isMarkPaidPrompt("Sarah paid cash for today's massage?")).toBe(true);
+    expect(isMarkPaidPrompt("can you Sarah paid cash for today's massage")).toBe(
+      true,
+    );
+  });
+
+  it('leaves the existing branches working', () => {
+    expect(isMarkPaidPrompt('mark it paid')).toBe(true);
+    expect(isMarkPaidPrompt('set it done and paid')).toBe(true);
   });
 });

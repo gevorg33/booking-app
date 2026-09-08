@@ -8,6 +8,7 @@ import { rescueReportBookingProblemIntent } from './ai-report-booking-problem.ut
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_REPORT_BOOKING_PROBLEM_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-report-booking-problem integration (ai-cmd-customer-4.12.3)', () => {
   const booking = {
@@ -55,15 +56,14 @@ describe('ai-report-booking-problem integration (ai-cmd-customer-4.12.3)', () =>
   it.each(REPORT_BOOKING_PROBLEM_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'report_booking_problem',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

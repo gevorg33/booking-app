@@ -74,6 +74,26 @@ export const CATALOG_INTENTS = [
 
 export type CatalogIntent = (typeof CATALOG_INTENTS)[number];
 
+/**
+ * e2e-bug.448(b) — intents the catalog **compound** may contain as a step, but
+ * which are not catalog intents.
+ *
+ * Kept deliberately separate from `CATALOG_INTENTS`. That list also *is*
+ * `DASHBOARD_CATALOG_DISPATCH_INTENTS` (`ai-dashboard-core.util.ts:13`), so
+ * adding an entry there would route the action to the catalog service, which
+ * does not handle it — the exact mistake D3 warns against. A compound may
+ * *contain* a step it does not itself execute; the executor delegates it.
+ */
+export const CATALOG_COMPOUND_EXTRA_STEP_INTENTS = [
+  'configure_service_online_payment',
+  // The shape the planner emits for the same thing.
+  'enable_online_payment',
+] as const;
+
+export type CatalogCompoundStepIntent =
+  | CatalogIntent
+  | (typeof CATALOG_COMPOUND_EXTRA_STEP_INTENTS)[number];
+
 import type { AppLocale } from '../../common/i18n/messages.js';
 import type { LocalizedNamesMap } from '../../common/i18n/service-localized-names.util.js';
 
@@ -95,7 +115,7 @@ export interface CatalogCategoryDraft {
 }
 
 export interface CatalogCompoundStep {
-  action: CatalogIntent;
+  action: CatalogCompoundStepIntent;
   params: Record<string, unknown>;
   segment: string;
 }
@@ -124,7 +144,12 @@ const CATALOG_STEP_VERBS =
 const COMPOUND_SPLIT = new RegExp(
   `\\s*;\\s*(?=(?:${CATALOG_STEP_VERBS})\\b)` +
     `|\\s+and\\s+(?=(?:${CATALOG_STEP_VERBS})\\b)` +
-    `|\\.\\s+(?=(?:${CATALOG_STEP_VERBS}|under)\\b)`,
+    // §175 — `turn` is in the sentence branch only, NOT in CATALOG_STEP_VERBS.
+    // Adding it to the shared list would also arm the `;` and ` and ` branches,
+    // and "Add service Blow Dry and turn the lights off" would split — the
+    // e2e-bug.347 over-splitting class. Measured both ways: with `turn` here the
+    // reported prompt goes 1 segment -> 2 and all three controls stay at 1.
+    `|\\.\\s+(?=(?:${CATALOG_STEP_VERBS}|under|turn)\\b)`,
   'i',
 );
 
@@ -268,6 +293,31 @@ export function isDeactivateServicePrompt(prompt: string): boolean {
     return false;
   }
 
+  // C3 / e2e-bug.360 — this command's own example is "stop offering hot stone
+  // massage", and `stop offering` was in none of the verb sets below.
+  //
+  // Placed after the guards, not before: `isConfigureServiceOnlinePaymentPrompt`
+  // already returned false above, so "stop offering online payment for X" stays
+  // with the payment command, and the `\bpackage\b` guard still holds.
+  //
+  // Scoped to things that are actually services. "Stop offering gift cards" and
+  // "stop offering memberships" are catalogue products with their own commands,
+  // and claiming them here would be the steal this pattern invites.
+  if (
+    /\bstop\s+(?:offering|providing|doing)\b/i.test(prompt) &&
+    !/\b(?:gift\s*cards?|memberships?|subscriptions?|plans?)\b/i.test(prompt) &&
+    // Measured, not assumed: `isConfigureServiceOnlinePaymentPrompt` above does
+    // NOT match "stop offering online payment for X" — it recognises the
+    // enable-side phrasings — so without this the sentence would deactivate a
+    // service named "online payment for haircut". Caught by probing the branch
+    // before trusting the guard that was supposed to cover it.
+    !/\b(?:online\s+payments?|card\s+payments?|payments?|deposits?)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+
   const hasVerb = /\b(hide|deactivate|disable|remove|delete)\b/i.test(prompt);
   if (!hasVerb) return false;
 
@@ -311,6 +361,11 @@ export function extractDeactivateServiceNameFromPrompt(
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+(?:called|named)\s+["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+["']?([^"'.,]+?)["']?(?=\s+from\b|\s*[.?!]|$)/i,
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?["']?([^"'.,]+?)["']?\s+service\b/i,
+    // C3 — the `stop offering X` shape admitted by the predicate above. Without
+    // this the command would route and then have no service name to act on,
+    // which is D3's "routes correctly, produces no draft" failure and would
+    // have lowered the paraphrase ratchet while leaving the command broken.
+    /\bstop\s+(?:offering|providing|doing)\s+(?:the\s+)?["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
@@ -630,6 +685,21 @@ export function isCreatePackagePrompt(prompt: string): boolean {
   }
   return (
     /\b(create|add)\s+(?:a\s+|the\s+|new\s+)*package\b/i.test(prompt) ||
+    // C3 / e2e-bug.360 — this command's own example is "bundle haircut and
+    // beard trim at 15% off", and every branch here demanded the literal word
+    // "package". `bundle` is the verb form of exactly this command.
+    //
+    // Kept narrow on purpose: `bundle` must be used as a verb and must join two
+    // things with `and`, which is the documented shape. The noun sense ("this
+    // package is a bundle of services") is excluded by the lookbehind, and the
+    // booking/visit/appointment and gift-card guards above still run first.
+    //
+    // **Not anchored to `^`.** The first version was, and the Phase 2
+    // paraphrase gate caught it immediately: `NATURAL_BREAK_BASELINE` is 0, and
+    // anchoring made "please bundle haircut and beard trim" fail while the bare
+    // form passed — four natural-phrasing breaks. Politeness and filler
+    // prefixes must never change what is recognised.
+    /(?<!\b(?:a|the|is|as)\s)\bbundle\s+.+\s+and\s+.+/i.test(prompt) ||
     /\b(create|add)\s+(?:the\s+)?[\w\s«»]+\s+package\b/i.test(prompt) ||
     (/\bpackage\s+called\b/i.test(prompt) &&
       /\b(create|add|combining|with|includes?)\b/i.test(prompt)) ||
@@ -740,10 +810,44 @@ export function isActivateSubscriptionPlanPrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * C3 / e2e-bug.360 — this command's own documented example,
+ * `"what subscriptions do we offer"`, did not reach it. Two independent
+ * reasons, both fixed here:
+ *
+ * 1. the verb list was `list|show`, and the example says *offer*;
+ * 2. the noun required a literal `plans` after `subscription`, so the bare
+ *    plural `subscriptions` never matched.
+ *
+ * **Safe to widen, and measured before doing so.** Unlike the two
+ * `catalog.list_packages` examples on the same gap list — which are already
+ * claimed by the consumer-side `isDiscoverPackagesPrompt` and would become a
+ * cross-surface overlap — this phrasing matched **nothing at all**:
+ * `isListSubscriptionPlansPrompt` and `isDiscoverSubscriptionPlansPrompt` both
+ * returned false. There is no command to steal it from.
+ *
+ * The possessive guard keeps this business-scoped. "What subscriptions does
+ * Sarah have" is a question about one customer's subscriptions, not about the
+ * catalogue, and belongs to a different command.
+ */
+const SUBSCRIPTION_CATALOGUE_NOUN =
+  /\b(?:subscription|membership)s?(?:\s+plans?)?\b/i;
+
+/**
+ * Anything that scopes the question to *one person's* subscriptions rather than
+ * the catalogue. The possessive-name form is the one that matters and the one a
+ * pronoun list misses: `"List Anna's subscriptions"` belongs to
+ * `list_customer_subscriptions`, and the first version of this guard let it
+ * through — caught by `ai-customer-crm.integration.spec.ts`, not by reasoning.
+ */
+const NOT_THE_CATALOGUE =
+  /\b(?:my|his|her|their|customer|client)\b|\b\w+['\u2019]s\b|\bfor\s+[A-Z]\w+/;
+
 export function isListSubscriptionPlansPrompt(prompt: string): boolean {
+  if (NOT_THE_CATALOGUE.test(prompt)) return false;
   return (
-    /\b(list|show)\b/i.test(prompt) &&
-    /\b(subscription|membership)\s+plans?\b/i.test(prompt)
+    /\b(list|show|offer|sell)\b/i.test(prompt) &&
+    SUBSCRIPTION_CATALOGUE_NOUN.test(prompt)
   );
 }
 
@@ -1200,8 +1304,18 @@ export function extractPackageServiceNames(prompt: string): string[] {
   const combining = prompt.match(
     /\bcombining\s+(.+?)(?:\s+services?)?(?:\s+for\b|\s+at\b|\s+\$|\s+priced|\s*$)/i,
   );
-  const plusSection =
+  // C3 — the `bundle X and Y at 15% off` shape the detector now admits. Without
+  // this the fallback treats the whole prompt as the service list and yields
+  // `["beard trim at"]`: "haircut" dropped, the price clause glued on. That is
+  // a *mutating* command creating a package from one garbage name, so the
+  // extractor had to move with the detector, not after it.
+  const bundled =
     combining ??
+    prompt.match(
+      /\bbundle\s+(.+?)(?:\s+at\b|\s+for\b|\s+\$|\s+\d+\s*%|\s*$)/i,
+    );
+  const plusSection =
+    bundled ??
     prompt.match(
       /\b(?:with|includes?|:)\s+(.+?)(?:\s+\d+\s*%|\s+off|\s+expires?|\s+for\b|\s+\$|$)/i,
     );
@@ -1486,6 +1600,24 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
   if (isConfigurePackageOnlinePaymentPrompt(text)) {
     return {
       action: 'configure_package_online_payment',
+      params: {},
+      segment: text,
+    };
+  }
+  // e2e-bug.448(b) / D3 item (3) — the "Turn on online payment for everything"
+  // tail of e2e-bug.348's and e2e-bug.349's reported prompts.
+  //
+  // Checked AFTER `isConfigurePackageOnlinePaymentPrompt` so a package-scoped
+  // phrasing still classifies as the package action; this is the service-scoped
+  // one. §175 taught `hasServiceOnlinePaymentScope` to accept "everything" /
+  // "all of them", which is what lets this segment match at all.
+  //
+  // Safe to emit only because the executor gained a case for it first: before
+  // that, classifying this step made it reach `default` and fail the entire
+  // compound, which is worse than omitting the toggle.
+  if (isConfigureServiceOnlinePaymentPrompt(text)) {
+    return {
+      action: 'configure_service_online_payment',
       params: {},
       segment: text,
     };

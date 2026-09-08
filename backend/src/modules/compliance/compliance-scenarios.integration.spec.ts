@@ -11,6 +11,7 @@ import { PhiFieldService } from './phi-field.service.js';
 import { BusinessService } from '../business/business.service.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('Sprint 37 — compliance scenario matrix', () => {
   const auditRepo = {
@@ -38,7 +39,7 @@ describe('Sprint 37 — compliance scenario matrix', () => {
   );
 
   const clinic = (hipaaEnabled: boolean): Business =>
-    ({
+    makeBusiness({
       id: 'biz-clinic',
       name: 'Clinic',
       settings: {
@@ -49,7 +50,7 @@ describe('Sprint 37 — compliance scenario matrix', () => {
           sessionTimeoutMinutes: 15,
         },
       },
-    }) as Business;
+    });
 
   beforeEach(() => {
     jest.clearAllMocks();

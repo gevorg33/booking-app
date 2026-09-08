@@ -8,12 +8,13 @@ import {
   handleStaffBookLabCollectionLogic,
   type ClinicLabBookingLogicDeps,
 } from './ai-clinic-lab-booking.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-1',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 function buildDeps(overrides: Partial<ClinicLabBookingLogicDeps> = {}) {
   const orders = [

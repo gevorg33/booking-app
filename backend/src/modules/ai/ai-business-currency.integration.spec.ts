@@ -21,15 +21,17 @@ import { SUMMARIZE_REVENUE_KPIS_PROMPTS } from './ai-revenue-kpis.fixtures.js';
 import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { currency: 'USD' },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -110,14 +112,13 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('configure_business_currency');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'configure_business_currency',
         params: { currencyCode },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
-      });
+      }));
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessCurrencyLogic(
@@ -141,14 +142,13 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('explain_business_currency');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_business_currency',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
-      });
+      }));
       expect(validation.ok).toBe(true);
 
       const result = await handleExplainBusinessCurrencyLogic(deps(), 'biz-1');
@@ -251,14 +251,13 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('bulk_update_service_currency');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'bulk_update_service_currency',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
-      });
+      }));
       expect(validation.ok).toBe(true);
 
       const preview = await handleBulkUpdateServiceCurrencyLogic(

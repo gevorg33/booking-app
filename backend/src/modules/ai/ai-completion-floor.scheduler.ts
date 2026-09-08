@@ -40,6 +40,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { SchedulerLockService } from '../../common/scheduler-lock/scheduler-lock.service.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
@@ -96,6 +97,8 @@ export class AiCompletionFloorScheduler {
   constructor(
     @InjectRepository(AiCommandTrace)
     private readonly traceRepo: Repository<AiCommandTrace>,
+
+    private readonly schedulerLock: SchedulerLockService,
   ) {}
 
   /**
@@ -119,7 +122,11 @@ export class AiCompletionFloorScheduler {
         completionRate: Number(overall?.[0]?.completion_rate ?? 0),
       },
       bySurface: (surfaces ?? []).map(
-        (row: { surface: string; calls: unknown; completion_rate: unknown }) => ({
+        (row: {
+          surface: string;
+          calls: unknown;
+          completion_rate: unknown;
+        }) => ({
           surface: row.surface,
           calls: Number(row.calls),
           completionRate: Number(row.completion_rate),
@@ -147,6 +154,15 @@ export class AiCompletionFloorScheduler {
    * regression sit for a week.
    */
   @Cron(CronExpression.EVERY_DAY_AT_6AM)
+  async checkCompletionFloorsDailyScheduled(): Promise<void> {
+    // e2e-bug.497 — the cron entry point; `checkCompletionFloorsDaily` stays callable directly
+    // (and is what the specs drive) so the lock wraps scheduling, not the work.
+    await this.schedulerLock.runExclusively(
+      'ai-completion-floor.checkCompletionFloorsDaily',
+      () => this.checkCompletionFloorsDaily(),
+    );
+  }
+
   async checkCompletionFloorsDaily(): Promise<void> {
     try {
       const { measurement, result } = await this.runCheck();

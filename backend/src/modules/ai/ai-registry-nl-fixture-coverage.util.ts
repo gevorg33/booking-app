@@ -284,6 +284,36 @@ function loadFixtureModules(): Array<{
   return modules;
 }
 
+/**
+ * Every `{intent, surface}` binding declared by any `*.fixtures.ts` in the tree
+ * — e2e-bug.502 / §221.
+ *
+ * This module already scans fixture files dynamically to count NL prompts; the
+ * customer coverage audit was maintaining a **hardcoded list** of fixture
+ * collections instead, so an intent covered in its own `ai-<intent>.fixtures.ts`
+ * read as "missing customer fixture" no matter how many scenarios it had. All 24
+ * intents the capability matrix reported were of that kind (§220).
+ *
+ * Exposed here rather than reimplemented there: one scanner, two consumers, so a
+ * new fixture file becomes visible to both without anyone remembering to add it
+ * to a list.
+ */
+export function collectFixtureSurfaceBindings(): RegistryNlFixtureBinding[] {
+  const bindings: RegistryNlFixtureBinding[] = [];
+  for (const { exports } of loadFixtureModules()) {
+    for (const [exportName, value] of Object.entries(exports)) {
+      if (shouldSkipExport(exportName, value)) continue;
+      for (const row of value as unknown[]) {
+        if (!isNlPromptFixtureRow(row)) continue;
+        bindings.push(
+          ...extractRegistryNlBindingsFromRow(row as Record<string, unknown>),
+        );
+      }
+    }
+  }
+  return bindings;
+}
+
 function countKey(intent: string, surface: CommandSurface): string {
   return `${surface}:${intent}`;
 }

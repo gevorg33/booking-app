@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../booking/entities/booking.entity.js';
@@ -70,7 +71,7 @@ export class AiBookingDepthService {
     params: Record<string, any>,
     customers: Customer[],
     services: Service[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
     resolveService: (list: Service[], name: string) => Service | undefined,
   ) {
     return prepareSubscriptionCreditParamsLogic(
@@ -210,9 +211,9 @@ export class AiBookingDepthService {
     employees: Employee[],
     services: Service[],
     customers: Customer[],
-    resolveEmployee: (list: Employee[], name: string) => Employee | undefined,
+    resolveEmployee: NamedResolver<Employee>,
     resolveServices: (list: Service[], p: Record<string, any>) => Service[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
     userId?: string,
   ): Promise<CommandResult> {
     return handleCreateMultiServiceBookingLogic(
@@ -237,8 +238,8 @@ export class AiBookingDepthService {
     employees: Employee[],
     services: Service[],
     customers: Customer[],
-    resolveEmployee: (list: Employee[], name: string) => Employee | undefined,
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveEmployee: NamedResolver<Employee>,
+    resolveCustomer: NamedResolver<Customer>,
     userId?: string,
   ): Promise<CommandResult> {
     const resolvePackage = async (name: string) => {

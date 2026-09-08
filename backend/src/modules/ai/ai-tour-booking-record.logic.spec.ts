@@ -4,8 +4,8 @@ import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { handleExplainTourBookingRecordLogic } from './ai-tour-booking-record.logic.js';
 
 describe('ai-tour-booking-record.logic (ai-cmd-tour-7)', () => {
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const tourBooking = {
     id: 'bk-tour-1',

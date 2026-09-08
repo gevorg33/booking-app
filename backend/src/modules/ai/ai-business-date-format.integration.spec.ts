@@ -45,15 +45,17 @@ import {
 } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai business date format integration (ai-cmd-fmt-1..2)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { dateFormat: 'DD/MM/YYYY', timeFormat: '24h' },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -81,15 +83,14 @@ describe('ai business date format integration (ai-cmd-fmt-1..2)', () => {
       if (dateFormat) params.dateFormat = dateFormat;
       if (timeFormat) params.timeFormat = timeFormat;
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'configure_business_date_format',
         params,
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessDateFormatLogic(

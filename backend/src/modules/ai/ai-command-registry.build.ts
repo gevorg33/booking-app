@@ -1,2051 +1,100 @@
-import type { AccessTier } from './access-control.matrix.js';
 import {
-  isDashboardIntentAllowed,
-  isProviderIntentAllowed,
-  isCustomerIntentAllowed,
-} from './access-control.matrix.js';
-import { SCHEDULING_INTENTS } from './ai-scheduling.util.js';
+  EXECUTION_MODE_EXCEPTIONS,
+  buildIntentSurfaceMap,
+  buildMutatingIntentSet,
+  buildSurfaceIntentListsFromSpecs,
+} from './ai-command-registry.generate.js';
 import {
-  OPERATIONS_INTENTS,
-  OPERATIONS_READ_ONLY_INTENTS,
-  OPERATIONS_STAFF_INTENTS,
-} from './ai-operations.util.js';
-import {
-  WAITLIST_DASHBOARD_READ_INTENTS,
-  WAITLIST_DASHBOARD_MUTATE_INTENTS,
-} from './ai-waitlist-dashboard.util.js';
-import {
-  BOOKING_DEPTH_INTENTS,
-  BOOKING_DEPTH_MUTATE_INTENTS,
-} from './ai-booking-depth.util.js';
-import { CATALOG_INTENTS, CATALOG_MUTATE_INTENTS } from './ai-catalog.util.js';
+  CATALOG_INTENTS,
+  CATALOG_COMPOUND_EXTRA_STEP_INTENTS,
+} from './ai-catalog.util.js';
 import {
   DASHBOARD_CRM_MUTATE_INTENTS,
   DASHBOARD_CRM_READ_INTENTS,
-  CUSTOMER_ACCOUNT_MUTATE_INTENTS,
-  CUSTOMER_ACCOUNT_READ_INTENTS,
-  DISCOVERY_INTENTS,
 } from './ai-customer-crm.util.js';
 import {
   DASHBOARD_RESOURCE_MUTATE_INTENTS,
   DASHBOARD_RESOURCE_READ_INTENTS,
-  PROVIDER_RESOURCE_INTENTS,
-  CUSTOMER_AVAILABILITY_INTENTS,
 } from './ai-schedule-resources.util.js';
-import {
-  DASHBOARD_AGENT_OPS_INTENTS,
-  DASHBOARD_AGENT_OPS_MUTATE_INTENTS,
-} from './ai-agent-ops.util.js';
-import {
-  DASHBOARD_BUSINESS_PROFILE_INTENTS,
-  DASHBOARD_BUSINESS_PROFILE_MUTATE_INTENTS,
-} from './ai-business-profile.util.js';
-import {
-  DASHBOARD_ONBOARDING_INTENTS,
-  DASHBOARD_ONBOARDING_MUTATE_INTENTS,
-} from './ai-onboarding.util.js';
-import { DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS } from './ai-clinic-pre-visit-intake.util.js';
-import { DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS } from './ai-clinic-questionnaire.util.js';
-import { DASHBOARD_LOCATIONS_MUTATE_INTENTS } from './ai-locations.util.js';
 import {
   DASHBOARD_PAYMENTS_MUTATE_INTENTS,
   DASHBOARD_PAYMENTS_READ_INTENTS,
-  PROVIDER_PAYMENTS_INTENTS,
-  PROVIDER_PAYMENTS_MUTATE_INTENTS,
   CUSTOMER_PAYMENTS_INTENTS,
 } from './ai-payments.util.js';
 import {
   DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
   DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS,
   PROVIDER_GIFT_FULFILLMENT_INTENTS,
-  PROVIDER_GIFT_FULFILLMENT_READ_INTENTS,
-  CUSTOMER_GIFT_FULFILLMENT_INTENTS,
 } from './ai-gift-fulfillment.util.js';
 import {
   DASHBOARD_INTEGRATIONS_MUTATE_INTENTS,
   DASHBOARD_INTEGRATIONS_READ_INTENTS,
-  CUSTOMER_INTEGRATIONS_INTENTS,
 } from './ai-integrations.util.js';
-import {
-  RETAIL_FINANCE_INTENTS,
-  DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS,
-  PROVIDER_RETAIL_FINANCE_INTENTS,
-} from './ai-retail-finance.util.js';
 import {
   DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS,
   DASHBOARD_MARKETING_GROWTH_READ_INTENTS,
-  CUSTOMER_MARKETING_GROWTH_INTENTS,
 } from './ai-marketing-growth.util.js';
 import {
-  DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
-  DASHBOARD_PUSH_NOTIFICATIONS_READ_INTENTS,
   PROVIDER_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
   PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS,
-  CUSTOMER_PUSH_NOTIFICATIONS_INTENTS,
 } from './ai-push-notifications.util.js';
-import {
-  SELF_SERVICE_BOOKING_INTENTS,
-  SELF_SERVICE_BOOKING_MUTATE_INTENTS,
-} from './ai-self-service-booking.util.js';
+import { SELF_SERVICE_BOOKING_INTENTS } from './ai-self-service-booking.util.js';
 import { PUBLIC_MULTI_SERVICE_BOOKING_INTENTS } from './ai-multi-service-customer-public.util.js';
-import {
-  PROVIDER_BOOKING_INTENTS,
-  PROVIDER_BOOKING_MUTATE_INTENTS,
-} from './ai-provider-booking.util.js';
-import {
-  BUSINESS_CURRENCY_INTENTS,
-  BUSINESS_CURRENCY_MUTATE_INTENTS,
-} from './ai-business-currency.util.js';
-import {
-  RECOMMENDATION_PRODUCT_INTENTS,
-  RECOMMENDATION_PRODUCT_MUTATE_INTENTS,
-} from './ai-recommendation-product.util.js';
-import {
-  BUSINESS_LANGUAGES_INTENTS,
-  BUSINESS_LANGUAGES_MUTATE_INTENTS,
-} from './ai-business-languages.util.js';
-import {
-  REFERRAL_STAFF_TEMPLATES_INTENTS,
-  REFERRAL_STAFF_TEMPLATES_MUTATE_INTENTS,
-} from './ai-referral-staff-templates.util.js';
-import {
-  EXTERNAL_DOCTORS_INTENTS,
-  EXTERNAL_DOCTORS_MUTATE_INTENTS,
-} from './ai-external-doctors.util.js';
-import {
-  BUSINESS_DATE_FORMAT_INTENTS,
-  BUSINESS_DATE_FORMAT_MUTATE_INTENTS,
-} from './ai-business-date-format.util.js';
-import {
-  BUSINESS_TAX_INTENTS,
-  BUSINESS_TAX_MUTATE_INTENTS,
-} from './ai-business-tax.util.js';
-import {
-  BUSINESS_COMPLIANCE_INTENTS,
-  BUSINESS_COMPLIANCE_MUTATE_INTENTS,
-} from './ai-business-compliance.util.js';
-import {
-  CLINIC_TEST_ORDER_INTENTS,
-  CLINIC_TEST_ORDER_MUTATE_INTENTS,
-} from './ai-clinic-test-order.util.js';
-import {
-  CLINIC_TEST_RESULT_INTENTS,
-  CLINIC_TEST_RESULT_MUTATE_INTENTS,
-} from './ai-clinic-test-result.util.js';
-import { DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS } from './ai-clinic-test-catalog.util.js';
-import { CLINIC_PATIENT_CHART_INTENTS } from './ai-clinic-patient-chart.util.js';
-import {
-  PATIENT_CLINICAL_MUTATIONS_INTENTS,
-  PATIENT_CLINICAL_MUTATIONS_MUTATE_INTENTS,
-} from './ai-patient-clinical-mutations.util.js';
-import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
-import { PROVIDER_PRODUCT_GUIDE_INTENTS } from './ai-provider-product-guide.util.js';
-import {
-  META_PRODUCT_GUIDE_INTENTS,
-  PROVIDER_META_GUIDE_INTENTS,
-} from './ai-meta-product-guide.fixtures.js';
-import {
-  CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS,
-  DASHBOARD_EMPTY_STATE_GUIDE_INTENTS,
-  PROVIDER_EMPTY_STATE_GUIDE_INTENTS,
-} from './ai-product-guide-empty-state.fixtures.js';
+import { PROVIDER_BOOKING_INTENTS } from './ai-provider-booking.util.js';
+import { CLINIC_TEST_ORDER_MUTATE_INTENTS } from './ai-clinic-test-order.util.js';
 import { CONSUMER_CLINIC_TEST_RESULTS_INTENTS } from './ai-consumer-clinic-test-results.util.js';
-import {
-  PROVIDER_CLINIC_COLLECTION_INTENTS,
-  PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS,
-} from './ai-provider-clinic-collection.util.js';
-import {
-  PROVIDER_CLINIC_TASKS_AND_RESULTS_INTENTS,
-  PROVIDER_CLINIC_TASKS_AND_RESULTS_MUTATE_INTENTS,
-} from './ai-provider-clinic-tasks-and-results.util.js';
-import { CLINIC_BOOKING_INTENTS } from './ai-clinic-booking.util.js';
-import { EXPLAIN_LAB_PREP_INTENTS } from './ai-explain-lab-prep.util.js';
-import { TRACK_LAB_ORDER_STATUS_INTENTS } from './ai-track-lab-order-status.util.js';
-import { LIST_MY_DOCUMENTS_INTENTS } from './ai-list-my-documents.util.js';
-import { EXPLAIN_ABNORMAL_RESULT_FLAG_INTENTS } from './ai-explain-abnormal-result-flag.util.js';
-import { NOTIFY_WHEN_RESULTS_READY_INTENTS } from './ai-notify-when-results-ready.util.js';
-import {
-  CONSUMER_CLINIC_LAB_BOOKING_INTENTS,
-  CONSUMER_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
-  DASHBOARD_CLINIC_LAB_BOOKING_INTENTS,
-  DASHBOARD_CLINIC_LAB_BOOKING_MUTATE_INTENTS,
-  PROVIDER_CLINIC_LAB_BOOKING_INTENTS,
-} from './ai-clinic-lab-booking.util.js';
 import { NOTIFICATION_DATE_FORMAT_MUTATE_INTENTS } from './ai-notification-date-format.util.js';
-import { DATA_RIGHTS_INTENTS } from './ai-data-rights.util.js';
-import {
-  DASHBOARD_TIME_OFF_INTENTS,
-  DASHBOARD_TIME_OFF_MUTATE_INTENTS,
-  PROVIDER_TIME_OFF_INTENTS,
-  PROVIDER_TIME_OFF_MUTATE_INTENTS,
-} from './ai-provider-time-off.util.js';
-import { PROVIDER_OPEN_SHIFTS_INTENTS } from './ai-provider-open-shifts.util.js';
-import {
-  PROVIDER_EXP_3_INTENTS,
-  PROVIDER_EXP_3_MUTATE_INTENTS,
-} from './ai-provider-exp-3.util.js';
-import {
-  CLINIC_SERVICE_INTENTS,
-  CLINIC_SERVICE_MUTATE_INTENTS,
-} from './ai-clinic-service.util.js';
-import {
-  TOUR_SERVICE_INTENTS,
-  TOUR_SERVICE_MUTATE_INTENTS,
-} from './ai-tour-service.util.js';
-import {
-  PACKAGE_LOCALIZED_NAMES_INTENTS,
-  PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
-} from './ai-package-localized-names.util.js';
 import type {
-  CommandApiModule,
-  CommandExecutionMode,
   CommandRegistryEntry,
   CommandSurface,
   CompoundCommandRecipe,
 } from './ai-command-registry.types.js';
 
-const ALL_TIERS: AccessTier[] = ['client', 'staff', 'manager', 'owner'];
+/**
+ * Intents routed through CommandOrchestrationService / plan builder — §164.
+ *
+ * Derived, not declared. This was a hand-listed set of 13 ids, and
+ * `EXECUTION_MODE_EXCEPTIONS` is a hand-listed map of the same 13 ids to
+ * `orchestration` — one fact written twice, in two files, with nothing keeping
+ * them in step. Measured before collapsing them: the set, the exception keys and
+ * `COMMAND_REGISTRY.filter(e => e.executionMode === 'orchestration')` are all the
+ * same 13 ids in the same order.
+ *
+ * The generator's table is the surviving copy because it is the one the registry
+ * is built from; this set is now a view of it.
+ */
+export const ORCHESTRATION_INTENT_IDS: ReadonlySet<string> = new Set(
+  Object.keys(EXECUTION_MODE_EXCEPTIONS),
+);
 
-/** Shared intent ids whose handler differs by surface. */
-const SHARED_PROVIDER_OPERATIONAL_INTENTS = [
-  'cancel_bookings',
-  'update_bookings',
-  'list_bookings',
-  'show_appointments',
-  'summarize_day',
-  'reschedule_booking',
-  'fill_unused_slots',
-  'check_availability',
-  'block_schedule',
-  'summarize_utilization',
-  'mark_no_shows',
-  'payment_sweep',
-  'list_schedule_gaps',
-] as const;
+/**
+ * `INTENT_BINDING_SEEDS` and `LEGACY_CORE_BINDINGS` were deleted in §163
+ * (C1 / e2e-bug.379) — the last of the six hand-maintained lists.
+ *
+ * They were 1,500 lines binding intent ids to surfaces, handlers, api modules
+ * and a `mutateIntents` list. Every one of those facts now lives on the
+ * `CommandSpec`, and each derivation was measured against the committed values
+ * before the swap: surfaces 388/153/221/137 exact, mutating 236/52/68 exact,
+ * `resolveIntentSurfaces` 0 diffs across 705 intents.
+ *
+ * The finding worth keeping from `LEGACY_CORE_BINDINGS` is e2e-bug.386: ten
+ * commands were bound to `public` alone, but no request has ever arrived on
+ * `public` (customer 3,703 / dashboard 1,161 / provider 498 / public **zero**),
+ * so `specsForActor` hid them from 794 executed traces. The fix is now carried
+ * by the specs' own `surfaces`, which is why the derived customer list matches.
+ */
 
-/** Provider-mobile intents that are not also on the dashboard surface. */
-const PROVIDER_EXCLUSIVE_INTENTS = [
-  'coordinate_waitlist_offer',
-  'my_resource_assignments',
-  'block_resource_unavailable',
-  'explain_payment_status',
-  'explain_provider_payment_currency',
-  'explain_appointment_tax',
-  'explain_provider_date_display',
-  'configure_provider_push_date_format',
-  'explain_provider_session_timeout',
-  'explain_provider_context',
-  'list_upcoming_bookings',
-  'get_schedule_summary',
-  'get_calendar_month',
-  'open_booking_detail',
-  'update_provider_profile',
-  'show_provider_profile',
-  'list_my_collection_queue',
-  'mark_specimen_collected',
-  'collect_cash_confirm',
-  'gift_card_creation_queue',
-  'start_card_preparation',
-  'mark_card_ready',
-  'delivery_queue',
-  'accept_delivery',
-  'mark_out_for_delivery',
-  'capture_delivery_proof',
-  'notify_delay',
-  'mark_delivered',
-  'suggest_retail_upsell',
-  'add_retail_to_my_booking',
-  'explain_last_push',
-  'open_booking_from_push',
-  'offline_queue_status',
-  'retry_offline_action',
-  'dismiss_push',
-  'end_of_day_summary',
-  // e2e-bug.424 — nine provider explainers that had detectors, handlers and eval
-  // coverage, and no registry entry.
-  //
-  // `acceptRescueForSurface` asks `isIntentAllowedOnSurface`, which reads this
-  // registry. With no entry the answer is false, so the pipeline discarded a
-  // correct rescue: `runRescueUnknownPhase` returns `explain_today_timeline` for
-  // "Walk me through my day" and the surface gate then threw it away. All nine
-  // scored **0%** across 241 eval cases — 61% of every remaining deterministic
-  // failure — while their detectors worked perfectly in isolation.
-  'explain_today_timeline',
-  'explain_retail_cart',
-  'explain_deposit_balance_due',
-  'explain_multi_service_timeline',
-  'explain_package_visit_context',
-  'explain_gift_card_redemption',
-  'explain_booking_payment_breakdown',
-  'explain_cancel_policy_for_client',
-  'explain_tour_group_on_booking',
-  'new_booking_push_actions',
-  'confirm_booking_from_push',
-  'suggest_reschedule_from_push',
-  'explain_push_setup',
-  'enable_push_notifications',
-  'explain_push_registration_status',
-  'summarize_my_appointments',
-  'summarize_my_revenue',
-  'summarize_client',
-  'show_client_history',
-  'add_client_note',
-  'list_client_staff_notes',
-  'explain_client_intake',
-  'list_package_appointments_today',
-  'list_my_package_visits',
-  'list_my_multi_service_groups',
-  'team_whos_next',
-  'my_stats',
-  'team_floor_status',
-  'check_in_client',
-  'mark_running_late',
-  'mark_ready_now',
-  'mark_visit_complete',
-  // e2e-bug.240–247 — must be registry-allowed or acceptRescueForSurface drops rescue
-  'mark_visit_in_progress',
-  'mark_multi_service_step_done',
-  'confirm_pending_booking',
-  'give_provider_ai_feedback',
-  'explain_booking_status_badge',
-  'explain_floor_status',
-  'explain_calendar_utilization_bands',
-  'explain_block_vs_time_off',
-  'explain_offline_suggestions',
-  'explain_accessibility_settings',
-  'explain_dashboard_only_action',
-  'explain_reassign_limit',
-  'explain_time_off_approval',
-  'suggest_cancel_note',
-  'request_client_review',
-  'list_reassign_options',
-  'reassign_booking_same_day',
-  'voice_summarize_next_client',
-  'explain_request_review_flow',
-  'draft_review_response',
-] as const;
+// §163 (C1 / e2e-bug.379) — derived from `spec.surfaces`, not from the seeds.
+// `buildSurfaceIntentListsFromSpecs` reproduces all four lists exactly
+// (388/153/221/137, zero diff), verified before this swap and gated after it.
+const SURFACE_INTENT_LISTS = buildSurfaceIntentListsFromSpecs();
+const MUTATING_INTENTS = buildMutatingIntentSet();
+const INTENT_SURFACES = buildIntentSurfaceMap();
 
-/** Anonymous public-booking assistant (pre-login). */
-const PUBLIC_ANONYMOUS_INTENTS = [
-  'list_providers',
-  'list_services',
-  'find_services_under_budget',
-  'find_evening_weekend_slots',
-  'explain_salon_profile',
-  'check_availability',
-  'recommend_specialists',
-  'book_appointment',
-  'business_info',
-  'list_public_promotions',
-  'booking_help',
-  'explain_checkout_currency',
-  'explain_checkout_tax',
-  'explain_stripe_checkout_currency',
-  'explain_package_currency',
-  'explain_booking_languages',
-  'explain_booking_date_format',
-  'explain_package_display_name',
-  'explain_tour_booking',
-  'explain_tour_day_slots',
-  'diagnose_tour_capacity',
-  'explain_tour_meeting_point',
-  'explain_checkout_recommendations',
-  'explain_clinic_booking',
-  'explain_lab_prep',
-  'explain_clinic_booking_fields',
-  'explain_public_intake_form',
-  'complete_intake_and_book',
-  'create_intake_draft',
-  'get_intake_flow_status',
-  'start_pre_visit_intake',
-  'submit_intake_answers',
-  'explain_guest_checkout_fields',
-  'explain_why_sign_in',
-  'sign_in_with_google',
-  'sign_in_with_apple',
-  'sign_in_with_phone',
-  'fix_checkout_validation_error',
-  'confirm_my_booking_details',
-  'add_booking_to_calendar',
-  'book_another_service',
-  'explain_preparation_notes',
-  'join_waitlist',
-  'check_waitlist_status',
-  'get_directions_to_salon',
-  'explain_data_rights',
-  'explain_provider_availability',
-] as const;
-
-const SURFACE_HANDLER_OVERRIDES: Record<
-  string,
-  Partial<Record<CommandSurface, string>>
-> = {
-  mark_paid: {
-    dashboard: 'AiBookingDepthService',
-    provider: 'AiProviderBookingService',
-  },
-  list_my_package_visits: {
-    customer: 'AiSelfServiceBookingService',
-    provider: 'AiProviderBookingService',
-  },
-  set_retail_sales_lines: {
-    dashboard: 'AiRetailFinanceService',
-    provider: 'AiProviderExp3Service',
-  },
-  ...Object.fromEntries(
-    SHARED_PROVIDER_OPERATIONAL_INTENTS.map((id) => [
-      id,
-      { dashboard: 'AiCommandService', provider: 'ProviderAiCommandService' },
-    ]),
-  ),
-};
-
-/** Intents routed through CommandOrchestrationService / plan builder (not single-handler mutate). */
-export const ORCHESTRATION_INTENT_IDS = new Set<string>([
-  'optimize_schedule',
-  'day_replan',
-  'sick_day_replan',
-  'rebalance_capacity',
-  'resolve_conflicts',
-  'reassign_cancelled',
-  'setup_week_schedule',
-  'fill_slot_from_waitlist',
-  'bulk_smart_cancel',
-  'no_show_recovery',
-  'coordinate_waitlist_offer',
-  'holiday_mode',
-  'onboard_provider_schedule',
-]);
-
-interface IntentBindingSeed {
-  intents: readonly string[];
-  surfaces: CommandSurface[];
-  apiModule: CommandApiModule;
-  handler: string;
-  sprint: string;
-  mutateIntents?: readonly string[];
-}
-
-const INTENT_BINDING_SEEDS: IntentBindingSeed[] = [
-  {
-    intents: SCHEDULING_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'schedule',
-    handler: 'AiSchedulingService',
-    sprint: 'scheduling',
-    mutateIntents: SCHEDULING_INTENTS,
-  },
-  {
-    intents: OPERATIONS_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiOperationsService',
-    sprint: 'operations',
-    // e2e-bug.376 — the reads in this list do not write. See §123.
-    mutateIntents: OPERATIONS_INTENTS.filter(
-      (id) => !OPERATIONS_READ_ONLY_INTENTS.includes(id),
-    ),
-  },
-  {
-    intents: BUSINESS_CURRENCY_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: BUSINESS_CURRENCY_MUTATE_INTENTS,
-  },
-  {
-    intents: BUSINESS_TAX_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessTaxService',
-    sprint: 'businessTax',
-    mutateIntents: BUSINESS_TAX_MUTATE_INTENTS,
-  },
-  {
-    intents: BUSINESS_COMPLIANCE_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessComplianceService',
-    sprint: 'businessCompliance',
-    mutateIntents: BUSINESS_COMPLIANCE_MUTATE_INTENTS,
-  },
-  {
-    intents: [...CLINIC_TEST_ORDER_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicTestOrderService',
-    sprint: 'clinicTestOrders',
-    mutateIntents: [...CLINIC_TEST_ORDER_MUTATE_INTENTS],
-  },
-  {
-    intents: [...CLINIC_TEST_RESULT_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicTestResultService',
-    sprint: 'clinicTestResults',
-    mutateIntents: [...CLINIC_TEST_RESULT_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicTestCatalogService',
-    sprint: 'clinicTestResults',
-    mutateIntents: [...DASHBOARD_CLINIC_TEST_CATALOG_MUTATE_INTENTS],
-  },
-  {
-    intents: [...CLINIC_PATIENT_CHART_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'patient-clinical-profiles',
-    handler: 'AiClinicPatientChartService',
-    sprint: 'clinicPatientChart',
-    mutateIntents: [],
-  },
-  {
-    intents: [...PATIENT_CLINICAL_MUTATIONS_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'patient-clinical-profiles',
-    handler: 'AiPatientClinicalMutationsService',
-    sprint: 'clinicPatientChart',
-    mutateIntents: [...PATIENT_CLINICAL_MUTATIONS_MUTATE_INTENTS],
-  },
-  {
-    // provider-mobile also dispatches these generically (ai-guide-1.8.6,
-    // dispatchProviderAppGuideIntent) — the registry surface list must include
-    // 'provider' or the intent-rescue pipeline's acceptRescueForSurface guard
-    // (e2e-bug.77) silently discards a correct guide_user_flow/explain_*
-    // rescue on that surface.
-    intents: [...APP_GUIDE_INTENTS],
-    surfaces: ['dashboard', 'customer', 'public', 'provider'],
-    apiModule: 'ai-command',
-    handler: 'AiProductGuideService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...PROVIDER_PRODUCT_GUIDE_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-mobile',
-    handler: 'AiProductGuideService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...META_PRODUCT_GUIDE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiProductGuideService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...PROVIDER_META_GUIDE_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-mobile',
-    handler: 'AiProductGuideService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...DASHBOARD_EMPTY_STATE_GUIDE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiProductGuideEmptyStateService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...PROVIDER_EMPTY_STATE_GUIDE_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-mobile',
-    handler: 'AiProductGuideEmptyStateService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...CUSTOMER_PUBLIC_EMPTY_STATE_GUIDE_INTENTS],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiProductGuideEmptyStateService',
-    sprint: 'productGuide',
-    mutateIntents: [],
-  },
-  {
-    intents: [...CONSUMER_CLINIC_TEST_RESULTS_INTENTS],
-    surfaces: ['customer', 'public'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: [...TRACK_LAB_ORDER_STATUS_INTENTS],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: [...LIST_MY_DOCUMENTS_INTENTS],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: [...EXPLAIN_ABNORMAL_RESULT_FLAG_INTENTS],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: [...NOTIFY_WHEN_RESULTS_READY_INTENTS],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: ['open_clinic_document'],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: [],
-  },
-  {
-    intents: ['dismiss_patient_alert'],
-    surfaces: ['customer'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiConsumerClinicTestResultsService',
-    sprint: 'consumerClinicTestResults',
-    mutateIntents: ['dismiss_patient_alert'],
-  },
-  {
-    intents: [...DASHBOARD_CLINIC_LAB_BOOKING_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicLabBookingService',
-    sprint: 'clinicLabBooking',
-    mutateIntents: [...DASHBOARD_CLINIC_LAB_BOOKING_MUTATE_INTENTS],
-  },
-  {
-    intents: [...CONSUMER_CLINIC_LAB_BOOKING_INTENTS],
-    surfaces: ['customer', 'public'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicLabBookingService',
-    sprint: 'clinicLabBooking',
-    mutateIntents: [...CONSUMER_CLINIC_LAB_BOOKING_MUTATE_INTENTS],
-  },
-  {
-    intents: [...CLINIC_BOOKING_INTENTS, ...EXPLAIN_LAB_PREP_INTENTS],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiClinicBookingService',
-    sprint: 'clinicBooking',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'explain_guest_checkout_fields',
-      'explain_why_sign_in',
-      'fix_checkout_validation_error',
-      'sign_in_with_google',
-      'sign_in_with_apple',
-      'sign_in_with_phone',
-    ],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiGuestCheckoutFieldsService',
-    sprint: 'guestCheckout',
-    mutateIntents: [
-      'sign_in_with_google',
-      'sign_in_with_apple',
-      'sign_in_with_phone',
-    ],
-  },
-  {
-    intents: [...PROVIDER_CLINIC_LAB_BOOKING_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiClinicLabBookingService',
-    sprint: 'clinicLabBooking',
-    mutateIntents: [],
-  },
-  {
-    intents: BUSINESS_LANGUAGES_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessLanguagesService',
-    sprint: 'businessLanguages',
-    mutateIntents: BUSINESS_LANGUAGES_MUTATE_INTENTS,
-  },
-  {
-    intents: REFERRAL_STAFF_TEMPLATES_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiReferralStaffTemplatesService',
-    sprint: 'dashboardAuditFollowUp',
-    mutateIntents: REFERRAL_STAFF_TEMPLATES_MUTATE_INTENTS,
-  },
-  {
-    intents: EXTERNAL_DOCTORS_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiExternalDoctorsService',
-    sprint: 'dashboardAuditFollowUp',
-    mutateIntents: EXTERNAL_DOCTORS_MUTATE_INTENTS,
-  },
-  {
-    intents: BUSINESS_DATE_FORMAT_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessDateFormatService',
-    sprint: 'businessDateFormat',
-    mutateIntents: BUSINESS_DATE_FORMAT_MUTATE_INTENTS,
-  },
-  {
-    intents: PACKAGE_LOCALIZED_NAMES_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiPackageLocalizedNamesService',
-    sprint: 'packageLocalizedNames',
-    mutateIntents: PACKAGE_LOCALIZED_NAMES_MUTATE_INTENTS,
-  },
-  {
-    intents: CLINIC_SERVICE_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiClinicServiceService',
-    sprint: 'clinicService',
-    mutateIntents: CLINIC_SERVICE_MUTATE_INTENTS,
-  },
-  {
-    intents: TOUR_SERVICE_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiTourServiceService',
-    sprint: 'tourService',
-    mutateIntents: TOUR_SERVICE_MUTATE_INTENTS,
-  },
-  {
-    intents: RECOMMENDATION_PRODUCT_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiRecommendationProductService',
-    sprint: 'recommendationProduct',
-    mutateIntents: RECOMMENDATION_PRODUCT_MUTATE_INTENTS,
-  },
-  {
-    intents: ['explain_package_display_name'],
-    surfaces: ['dashboard', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiPackageLocalizedNamesService',
-    sprint: 'packageLocalizedNames',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_checkout_currency'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_checkout_tax'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessTaxService',
-    sprint: 'businessTax',
-    mutateIntents: [],
-  },
-  {
-    intents: DATA_RIGHTS_INTENTS,
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessComplianceService',
-    sprint: 'businessCompliance',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'explain_tour_booking',
-      'explain_tour_day_slots',
-      'diagnose_tour_capacity',
-      'explain_tour_booking_record',
-      'explain_tour_meeting_point',
-    ],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiTourServiceService',
-    sprint: 'tourService',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_checkout_recommendations'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiRecommendationProductService',
-    sprint: 'recommendationProduct',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_consumer_checkout_success'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiRecommendationProductService',
-    sprint: 'recommendationProduct',
-    mutateIntents: [],
-  },
-  {
-    intents: ['dismiss_recommendations'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiRecommendationProductService',
-    sprint: 'recommendationProduct',
-    mutateIntents: ['dismiss_recommendations'],
-  },
-  {
-    intents: ['resume_pending_payment'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiResumePendingPaymentService',
-    sprint: 'pendingCheckout',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'explain_my_notifications',
-      'manage_notification_preferences',
-      'enable_push_notifications',
-      'explain_push_permission',
-      'register_customer_push',
-      'explain_push_registration_status',
-      'explain_offline_mode',
-      'explain_app_update_required',
-      'explain_analytics_consent',
-      'explain_home_screen_widget',
-      'explain_patient_alert',
-      'explain_share_reward',
-      'refer_a_friend',
-      'claim_referral_code',
-      'share_salon_link',
-      'share_my_booking',
-      'claim_share_reward',
-      'explain_rewards_wallet',
-      'rebook_last_appointment',
-      'find_my_saved_salons',
-      'switch_salon_tenant',
-    ],
-    surfaces: ['customer'],
-    apiModule: 'consumer-adoption',
-    handler: 'AiConsumerAdoptionService',
-    sprint: 'consumerAdoption',
-    mutateIntents: [
-      'manage_notification_preferences',
-      'enable_push_notifications',
-      'register_customer_push',
-      'claim_referral_code',
-      'claim_share_reward',
-    ],
-  },
-  {
-    intents: ['explain_consumer_checkout_tax'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessTaxService',
-    sprint: 'businessTax',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_stripe_checkout_currency'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_booking_languages'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessLanguagesService',
-    sprint: 'businessLanguages',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_booking_date_format'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessDateFormatService',
-    sprint: 'businessDateFormat',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_tenant_currency'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_notification_currency'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_stripe_currency_warning'],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['pay_at_venue_fallback'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiPayAtVenueFallbackService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: ['pay_at_venue_fallback'],
-  },
-  {
-    intents: ['resume_booking_draft'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiResumeBookingDraftService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_slot_no_longer_available'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiExplainSlotNoLongerAvailableService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_multi_service_payment_return'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiExplainMultiServicePaymentReturnService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: [],
-  },
-  {
-    intents: ['retry_failed_network_action'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiRetryFailedNetworkActionService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_voice_input'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiExplainVoiceInputService',
-    sprint: 'voiceAccessibility',
-    mutateIntents: [],
-  },
-  {
-    intents: ['speak_assistant_reply'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiSpeakAssistantReplyService',
-    sprint: 'voiceAccessibility',
-    mutateIntents: ['speak_assistant_reply'],
-  },
-  {
-    intents: ['give_ai_feedback'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiGiveAiFeedbackService',
-    sprint: 'voiceAccessibility',
-    mutateIntents: ['give_ai_feedback'],
-  },
-  {
-    intents: ['explain_deposit_forfeiture'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: [],
-  },
-  // e2e-bug.111 — signed-in public widget leave_visit_review (customer already via SELF_SERVICE_BOOKING_INTENTS)
-  {
-    intents: ['leave_visit_review'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: ['leave_visit_review'],
-  },
-  // e2e-bug.106 — guest manage-page AI widget (URL bookingId+token) on public surface
-  {
-    intents: [
-      'explain_manage_booking_context',
-      'cancel_booking_with_token',
-      'reschedule_booking_with_token',
-      'cancel_package_visit_with_token',
-      'reschedule_package_visit_with_token',
-    ],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: [
-      'cancel_booking_with_token',
-      'reschedule_booking_with_token',
-      'cancel_package_visit_with_token',
-      'reschedule_package_visit_with_token',
-    ],
-  },
-  {
-    intents: ['explain_rtl_layout'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiExplainRtlLayoutService',
-    sprint: 'voiceAccessibility',
-    mutateIntents: [],
-  },
-  {
-    intents: ['diagnose_stripe_checkout_failure'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiDiagnoseStripeCheckoutFailureService',
-    sprint: 'consumerCheckoutFailure',
-    mutateIntents: [],
-  },
-  {
-    intents: ['diagnose_stripe_checkout_failure'],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_reports_currency'],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['summarize_revenue_kpis'],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_package_currency'],
-    surfaces: ['public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: ['explain_provider_payment_currency'],
-    surfaces: ['provider'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessCurrencyService',
-    sprint: 'businessCurrency',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'explain_provider_date_display',
-      'configure_provider_push_date_format',
-    ],
-    surfaces: ['provider'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessDateFormatService',
-    sprint: 'businessDateFormat',
-    mutateIntents: ['configure_provider_push_date_format'],
-  },
-  {
-    intents: ['explain_provider_session_timeout'],
-    surfaces: ['provider'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessComplianceService',
-    sprint: 'businessCompliance',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'explain_push_setup',
-      'enable_push_notifications',
-      'explain_push_registration_status',
-    ],
-    surfaces: ['provider'],
-    apiModule: 'provider-push-setup',
-    handler: 'AiProviderPushSetupService',
-    sprint: 'providerPushSetup',
-    mutateIntents: ['enable_push_notifications'],
-  },
-  {
-    intents: ['summarize_my_appointments', 'summarize_my_revenue'],
-    surfaces: ['provider'],
-    apiModule: 'provider-earnings',
-    handler: 'AiProviderEarningsService',
-    sprint: 'providerEarnings',
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'summarize_client',
-      'show_client_history',
-      'add_client_note',
-      'list_client_staff_notes',
-      'explain_client_intake',
-    ],
-    surfaces: ['provider'],
-    apiModule: 'provider-client-context',
-    handler: 'AiProviderClientContextService',
-    sprint: 'providerClientContext',
-    mutateIntents: ['add_client_note'],
-  },
-  {
-    intents: [
-      'my_stats',
-      'team_floor_status',
-      'check_in_client',
-      'mark_running_late',
-      'mark_ready_now',
-      'suggest_cancel_note',
-      'request_client_review',
-      'list_reassign_options',
-      'reassign_booking_same_day',
-      // e2e-bug.342 — missing from the registry entirely, so
-      // acceptRescueForSurface silently dropped an otherwise-correct rescue.
-      'list_team_unpaid_today',
-      'explain_reviews_inbox',
-      'explain_request_review_flow',
-      'draft_review_response',
-      'open_dashboard_deep_link',
-    ],
-    surfaces: ['provider'],
-    apiModule: 'provider-exp-2',
-    handler: 'AiProviderExp2Service',
-    sprint: 'providerExp2',
-    mutateIntents: [
-      'check_in_client',
-      'mark_running_late',
-      'mark_ready_now',
-      'request_client_review',
-      'reassign_booking_same_day',
-    ],
-  },
-  {
-    intents: [...DASHBOARD_TIME_OFF_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'provider-time-off',
-    handler: 'AiProviderTimeOffService',
-    sprint: 'providerExp7',
-    mutateIntents: [...DASHBOARD_TIME_OFF_MUTATE_INTENTS],
-  },
-  {
-    intents: [...PROVIDER_TIME_OFF_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-time-off',
-    handler: 'AiProviderTimeOffService',
-    sprint: 'providerExp7',
-    mutateIntents: [...PROVIDER_TIME_OFF_MUTATE_INTENTS],
-  },
-  {
-    intents: [...PROVIDER_OPEN_SHIFTS_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-open-shifts',
-    handler: 'AiProviderOpenShiftsService',
-    sprint: 'providerExp7',
-    // e2e-bug.377: `book_walk_in_gap` calls `bookingService.create(...)` — it
-    // creates a real customer booking. With an empty `mutateIntents` the whole
-    // binding was read-only, so it ran as `executionMode: 'read_only'` at T0:
-    // no confirmation gate, no post-exec assertion, and missing from the
-    // mutating-command count that risk reporting uses.
-    //
-    // The other four open-shift intents are genuinely reads (they suggest,
-    // list and draft), so only this one moves.
-    mutateIntents: ['book_walk_in_gap'],
-  },
-  {
-    intents: [...PROVIDER_EXP_3_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'provider-exp-3',
-    handler: 'AiProviderExp3Service',
-    sprint: 'providerExp5',
-    mutateIntents: [...PROVIDER_EXP_3_MUTATE_INTENTS],
-  },
-  {
-    intents: BOOKING_DEPTH_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'booking',
-    handler: 'AiBookingDepthService',
-    sprint: 'bookingDepth',
-    mutateIntents: BOOKING_DEPTH_MUTATE_INTENTS,
-  },
-  {
-    intents: CATALOG_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'catalog',
-    handler: 'AiCatalogService',
-    sprint: 'catalog',
-    mutateIntents: CATALOG_MUTATE_INTENTS,
-  },
-  {
-    intents: [...DASHBOARD_CRM_MUTATE_INTENTS, ...DASHBOARD_CRM_READ_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'customer-crm',
-    handler: 'AiCustomerCrmService',
-    sprint: 'customerCrm',
-    mutateIntents: DASHBOARD_CRM_MUTATE_INTENTS,
-  },
-  {
-    intents: [
-      ...CUSTOMER_ACCOUNT_MUTATE_INTENTS,
-      ...CUSTOMER_ACCOUNT_READ_INTENTS,
-      ...DISCOVERY_INTENTS,
-    ],
-    surfaces: ['customer', 'public'],
-    apiModule: 'customer-crm',
-    handler: 'AiCustomerCrmService',
-    sprint: 'customerCrm',
-    mutateIntents: CUSTOMER_ACCOUNT_MUTATE_INTENTS,
-  },
-  {
-    intents: [
-      ...DASHBOARD_RESOURCE_MUTATE_INTENTS,
-      ...DASHBOARD_RESOURCE_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'schedule-resources',
-    handler: 'AiScheduleResourcesService',
-    sprint: 'scheduleResources',
-    mutateIntents: DASHBOARD_RESOURCE_MUTATE_INTENTS,
-  },
-  {
-    intents: PROVIDER_RESOURCE_INTENTS,
-    surfaces: ['provider'],
-    apiModule: 'schedule-resources',
-    handler: 'AiScheduleResourcesService',
-    sprint: 'scheduleResources',
-  },
-  {
-    intents: CUSTOMER_AVAILABILITY_INTENTS,
-    surfaces: ['customer', 'public'],
-    apiModule: 'schedule-resources',
-    handler: 'AiScheduleResourcesService',
-    sprint: 'scheduleResources',
-  },
-  {
-    intents: [...DASHBOARD_AGENT_OPS_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'agent-ops',
-    handler: 'AiAgentOpsService',
-    sprint: 'agentOps',
-    mutateIntents: [...DASHBOARD_AGENT_OPS_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_BUSINESS_PROFILE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'business-profile',
-    handler: 'AiBusinessProfileService',
-    sprint: 'businessProfile',
-    mutateIntents: [...DASHBOARD_BUSINESS_PROFILE_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_ONBOARDING_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'onboarding',
-    handler: 'AiOnboardingService',
-    sprint: 'onboarding',
-    mutateIntents: [...DASHBOARD_ONBOARDING_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-pre-visit-intake',
-    handler: 'AiClinicPreVisitIntakeService',
-    sprint: 'clinicPreVisitIntake',
-    mutateIntents: [...DASHBOARD_CLINIC_PRE_VISIT_INTAKE_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'clinic-questionnaires',
-    handler: 'AiClinicQuestionnaireService',
-    sprint: 'clinicPreVisitIntake',
-    mutateIntents: [...DASHBOARD_CLINIC_QUESTIONNAIRE_MUTATE_INTENTS],
-  },
-  {
-    intents: [...DASHBOARD_LOCATIONS_MUTATE_INTENTS],
-    surfaces: ['dashboard'],
-    apiModule: 'locations',
-    handler: 'AiLocationsService',
-    sprint: 'operations',
-    mutateIntents: [...DASHBOARD_LOCATIONS_MUTATE_INTENTS],
-  },
-  {
-    intents: [
-      ...DASHBOARD_PAYMENTS_MUTATE_INTENTS,
-      ...DASHBOARD_PAYMENTS_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: DASHBOARD_PAYMENTS_MUTATE_INTENTS,
-  },
-  {
-    intents: PROVIDER_PAYMENTS_INTENTS,
-    surfaces: ['provider'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: PROVIDER_PAYMENTS_MUTATE_INTENTS,
-  },
-  {
-    intents: CUSTOMER_PAYMENTS_INTENTS,
-    surfaces: ['customer'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: [
-      'book_nearest_slot',
-      'apply_gift_card_code',
-      'buy_gift_card',
-      'buy_gift_card_physical',
-      'buy_gift_card_for_someone',
-      'choose_payment_method',
-      'pay_online',
-      'pay_cash_at_visit',
-      'purchase_subscription_checkout',
-      'confirm_stripe_payment',
-    ],
-  },
-  {
-    intents: ['explain_checkout_total'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['explain_amount_due_now'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['explain_service_price'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['explain_payment_options_for_service'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['find_soonest_appointment'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['compare_services'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['explain_package_savings'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-  },
-  {
-    intents: ['explain_subscription_vs_one_time'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-  },
-  {
-    intents: ['filter_services_no_prepayment'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['explain_provider_availability'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'public-booking',
-    handler: 'PublicBookingAssistantService',
-    sprint: 'businessProfile',
-  },
-  {
-    // e2e-bug.137 — owner "What are my business hours?" must not fall to react_agent.
-    intents: ['explain_business_hours_and_location'],
-    surfaces: ['dashboard', 'customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessHoursLocationService',
-    sprint: 'businessProfile',
-  },
-  {
-    intents: ['get_directions_to_salon', 'explain_salon_profile'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiBusinessHoursLocationService',
-    sprint: 'businessProfile',
-  },
-  {
-    intents: [
-      'explain_provider_specialty',
-      'explain_professional_profile',
-      'explain_any_provider_option',
-      'pick_provider_for_service',
-      'switch_provider_same_time',
-      'list_provider_reviews',
-      'submit_provider_review',
-    ],
-    surfaces: ['customer', 'public'],
-    apiModule: 'ai-command',
-    handler: 'AiProviderSpecialtyService',
-    sprint: 'businessProfile',
-    mutateIntents: [
-      'pick_provider_for_service',
-      'switch_provider_same_time',
-      'submit_provider_review',
-    ],
-  },
-  {
-    intents: ['submit_review_with_token'],
-    surfaces: ['customer'],
-    apiModule: 'ai-command',
-    handler: 'AiProviderSpecialtyService',
-    sprint: 'businessProfile',
-    mutateIntents: ['submit_review_with_token'],
-  },
-  {
-    intents: ['explain_why_stripe_required'],
-    surfaces: ['customer', 'public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-  },
-  {
-    intents: ['choose_payment_method', 'pay_cash_at_visit', 'pay_online'],
-    surfaces: ['public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: ['choose_payment_method', 'pay_cash_at_visit', 'pay_online'],
-  },
-  {
-    intents: [
-      'get_booking_quote',
-      'get_package_quote',
-      'get_multi_service_quote',
-      'confirm_stripe_payment',
-    ],
-    surfaces: ['public'],
-    apiModule: 'payments',
-    handler: 'AiPaymentsService',
-    sprint: 'payments',
-    mutateIntents: ['confirm_stripe_payment'],
-  },
-  {
-    intents: [
-      ...DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
-      ...DASHBOARD_GIFT_FULFILLMENT_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'gift-fulfillment',
-    handler: 'AiGiftFulfillmentService',
-    sprint: 'giftFulfillment',
-    mutateIntents: DASHBOARD_GIFT_FULFILLMENT_MUTATE_INTENTS,
-  },
-  {
-    intents: PROVIDER_GIFT_FULFILLMENT_INTENTS,
-    surfaces: ['dashboard', 'provider'],
-    apiModule: 'gift-fulfillment',
-    handler: 'AiGiftFulfillmentService',
-    sprint: 'giftFulfillment',
-    // e2e-bug.376 — the reads in this list do not write. See §123.
-    mutateIntents: PROVIDER_GIFT_FULFILLMENT_INTENTS.filter(
-      (id) => !PROVIDER_GIFT_FULFILLMENT_READ_INTENTS.includes(id),
-    ),
-  },
-  {
-    intents: CUSTOMER_GIFT_FULFILLMENT_INTENTS,
-    surfaces: ['customer'],
-    apiModule: 'gift-fulfillment',
-    handler: 'AiGiftFulfillmentService',
-    sprint: 'giftFulfillment',
-    mutateIntents: ['enter_shipping_address'],
-  },
-  {
-    intents: [
-      ...DASHBOARD_INTEGRATIONS_MUTATE_INTENTS,
-      ...DASHBOARD_INTEGRATIONS_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'integrations',
-    handler: 'AiIntegrationsService',
-    sprint: 'integrations',
-    mutateIntents: DASHBOARD_INTEGRATIONS_MUTATE_INTENTS,
-  },
-  {
-    intents: CUSTOMER_INTEGRATIONS_INTENTS,
-    surfaces: ['customer'],
-    apiModule: 'integrations',
-    handler: 'AiIntegrationsService',
-    sprint: 'integrations',
-  },
-  {
-    // ai-cmd-provider-6.14 — split from a single dashboard+provider row: the 9
-    // dashboard-only retail admin intents (catalog/inventory/expenses/P&L/payouts)
-    // have no ProviderAiCommandService dispatch and don't belong on the provider
-    // surface; only PROVIDER_RETAIL_FINANCE_INTENTS below are shared with provider.
-    intents: RETAIL_FINANCE_INTENTS,
-    surfaces: ['dashboard'],
-    apiModule: 'retail-finance',
-    handler: 'AiRetailFinanceService',
-    sprint: 'retailFinance',
-    // suggest_retail_upsell is READ-only (product suggestions) — only
-    // add_retail_to_my_booking from PROVIDER_RETAIL_FINANCE_INTENTS mutates.
-    mutateIntents: [
-      ...DASHBOARD_RETAIL_FINANCE_MUTATE_INTENTS,
-      'add_retail_to_my_booking',
-    ],
-  },
-  {
-    intents: [...PROVIDER_RETAIL_FINANCE_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'retail-finance',
-    handler: 'AiRetailFinanceService',
-    sprint: 'retailFinance',
-    mutateIntents: ['add_retail_to_my_booking'],
-  },
-  {
-    intents: [
-      ...DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS,
-      ...DASHBOARD_MARKETING_GROWTH_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'marketing-growth',
-    handler: 'AiMarketingGrowthService',
-    sprint: 'marketingGrowth',
-    mutateIntents: DASHBOARD_MARKETING_GROWTH_MUTATE_INTENTS,
-  },
-  {
-    intents: CUSTOMER_MARKETING_GROWTH_INTENTS,
-    surfaces: ['customer', 'public'],
-    apiModule: 'marketing-growth',
-    handler: 'AiMarketingGrowthService',
-    sprint: 'marketingGrowth',
-    mutateIntents: ['apply_promo_code_checkout', 'apply_loyalty_at_checkout'],
-  },
-  {
-    intents: [
-      ...DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
-      ...DASHBOARD_PUSH_NOTIFICATIONS_READ_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'push-notifications',
-    handler: 'AiPushNotificationsService',
-    sprint: 'pushNotifications',
-    mutateIntents: DASHBOARD_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
-  },
-  {
-    intents: [
-      ...PROVIDER_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
-      ...PROVIDER_PUSH_NOTIFICATIONS_READ_INTENTS,
-    ],
-    surfaces: ['provider'],
-    apiModule: 'push-notifications',
-    handler: 'AiPushNotificationsService',
-    sprint: 'pushNotifications',
-    mutateIntents: PROVIDER_PUSH_NOTIFICATIONS_MUTATE_INTENTS,
-  },
-  {
-    intents: CUSTOMER_PUSH_NOTIFICATIONS_INTENTS,
-    surfaces: ['customer'],
-    apiModule: 'push-notifications',
-    handler: 'AiPushNotificationsService',
-    sprint: 'pushNotifications',
-    mutateIntents: CUSTOMER_PUSH_NOTIFICATIONS_INTENTS,
-  },
-  {
-    intents: SELF_SERVICE_BOOKING_INTENTS,
-    surfaces: ['customer'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: SELF_SERVICE_BOOKING_MUTATE_INTENTS,
-  },
-  {
-    intents: ['join_waitlist', 'check_waitlist_status'],
-    surfaces: ['public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: ['join_waitlist'],
-  },
-  {
-    intents: PUBLIC_MULTI_SERVICE_BOOKING_INTENTS,
-    surfaces: ['public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: ['book_multi_service', 'add_services_to_cart'],
-  },
-  {
-    intents: ['suggest_package_block'],
-    surfaces: ['public'],
-    apiModule: 'public-booking',
-    handler: 'AiSelfServiceBookingService',
-    sprint: 'selfServiceBooking',
-    mutateIntents: [],
-  },
-  {
-    intents: PROVIDER_BOOKING_INTENTS,
-    surfaces: ['provider'],
-    apiModule: 'provider-mobile',
-    handler: 'AiProviderBookingService',
-    sprint: 'providerBooking',
-    mutateIntents: PROVIDER_BOOKING_MUTATE_INTENTS,
-  },
-  {
-    intents: [...PROVIDER_CLINIC_COLLECTION_INTENTS],
-    surfaces: ['provider'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiProviderClinicCollectionService',
-    sprint: 'providerClinicCollection',
-    mutateIntents: [...PROVIDER_CLINIC_COLLECTION_MUTATE_INTENTS],
-  },
-  {
-    intents: PROVIDER_CLINIC_TASKS_AND_RESULTS_INTENTS.filter(
-      (id) => id !== 'list_booking_lab_summaries',
-    ),
-    surfaces: ['provider'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiProviderClinicTasksAndResultsService',
-    sprint: 'providerClinicTasksAndResults',
-    mutateIntents: [...PROVIDER_CLINIC_TASKS_AND_RESULTS_MUTATE_INTENTS],
-  },
-  {
-    intents: ['list_booking_lab_summaries'],
-    surfaces: ['provider', 'dashboard'],
-    apiModule: 'clinic-test-results',
-    handler: 'AiProviderClinicTasksAndResultsService',
-    sprint: 'dashboardAuditFollowUp',
-    mutateIntents: [],
-  },
-];
-
-/** Core dashboard / provider intents implemented in AiCommandService (pre-sprint modules). */
-const LEGACY_CORE_BINDINGS: Array<{
-  intents: readonly string[];
-  surfaces: CommandSurface[];
-  apiModule: CommandApiModule;
-  handler: string;
-  mutateIntents: readonly string[];
-}> = [
-  // e2e-bug.386 — the customer surface for commands the registry only ever
-  // offered on `public`.
-  //
-  // `CommandSurface` has both `public` and `customer`, but no request has ever
-  // arrived on `public`: across the 5,362-row trace corpus it is `customer`
-  // 3,703, `dashboard` 1,161, `provider` 498, `public` **zero**. These ten
-  // commands were nonetheless bound to `public` alone, so `specsForActor` hid
-  // them from the planner on the surface that carries 69% of all traffic —
-  // 794 executed traces, 23% of the corpus, for commands the planner could not
-  // see. §83 measured it; this is the half of the fix the registry owns.
-  //
-  // The access gate already permits them: `isIntentAllowed('customer',
-  // 'client', id)` returns true for every id here, which is how those 794
-  // traces executed at all. Only the *declared* surface disagreed with the
-  // running system.
-  //
-  // Registered FIRST on purpose. `register` unions surfaces but overwrites
-  // `bindingByIntent`, so a later binding wins the handler. Going first adds
-  // `customer` to the surface set while leaving every handler, apiModule and
-  // sprint exactly as the existing bindings set them — `list_services` and
-  // `check_availability` in particular keep the dashboard/provider handlers
-  // they resolve to today.
-  {
-    intents: [
-      'booking_help',
-      'business_info',
-      'check_availability',
-      'complete_intake_and_book',
-      'find_evening_weekend_slots',
-      'find_services_under_budget',
-      'get_intake_flow_status',
-      'list_providers',
-      'list_public_promotions',
-      'list_services',
-      'recommend_specialists',
-      'book_appointment',
-      'create_intake_draft',
-      'start_pre_visit_intake',
-      'submit_intake_answers',
-      'explain_package_currency',
-      'explain_package_display_name',
-    ],
-    surfaces: ['customer'],
-    apiModule: 'public-booking',
-    handler: 'PublicBookingAssistantService',
-    // Empty: the mutating members of this list are already in the
-    // PUBLIC_ANONYMOUS binding's `mutateIntents`, and `mutateSet` is global and
-    // additive. Repeating them here would be redundant, and omitting them
-    // cannot un-mutate anything.
-    mutateIntents: [],
-  },
-  {
-    intents: [
-      'create_booking',
-      'create_service',
-      'create_services',
-      'cancel_bookings',
-      'bulk_smart_cancel',
-      'hide_appointments_from_calendar',
-      'unhide_appointments_from_calendar',
-      'fill_slot_from_waitlist',
-      'reschedule_booking',
-      'fill_unused_slots',
-      'apply_schedule',
-      'block_schedule',
-      'clear_schedule',
-      'create_direct_schedule',
-      'create_schedule_template',
-      'assign_employee_services',
-      'unassign_employee_services',
-      'transfer_employee_services',
-      'optimize_schedule',
-      'setup_week_schedule',
-      'swap_schedules',
-      'rebalance_capacity',
-      'holiday_mode',
-      'onboard_provider_schedule',
-      'resolve_conflicts',
-      'reassign_cancelled',
-      'mark_no_shows',
-      'payment_sweep',
-      'update_bookings',
-      'day_replan',
-      'import_services_from_menu',
-      'update_service_prices',
-      'staff_service_matrix',
-      ...OPERATIONS_STAFF_INTENTS,
-      ...WAITLIST_DASHBOARD_MUTATE_INTENTS,
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiCommandService',
-    mutateIntents: [
-      'create_booking',
-      'create_service',
-      'create_services',
-      'cancel_bookings',
-      'bulk_smart_cancel',
-      'hide_appointments_from_calendar',
-      'unhide_appointments_from_calendar',
-      'fill_slot_from_waitlist',
-      'reschedule_booking',
-      'fill_unused_slots',
-      'apply_schedule',
-      'block_schedule',
-      'clear_schedule',
-      'create_direct_schedule',
-      'create_schedule_template',
-      'assign_employee_services',
-      'unassign_employee_services',
-      'transfer_employee_services',
-      'optimize_schedule',
-      'setup_week_schedule',
-      'swap_schedules',
-      'rebalance_capacity',
-      'holiday_mode',
-      'onboard_provider_schedule',
-      'resolve_conflicts',
-      'reassign_cancelled',
-      'mark_no_shows',
-      'payment_sweep',
-      'update_bookings',
-      'day_replan',
-      'import_services_from_menu',
-      'update_service_prices',
-      'staff_service_matrix',
-      ...OPERATIONS_STAFF_INTENTS,
-      ...WAITLIST_DASHBOARD_MUTATE_INTENTS,
-    ],
-  },
-  {
-    /** Registry-driven dispatch (ai-cmd-ext-0.5) — AiScheduleHandlersService.dispatchIntent, not a literal switch case. */
-    intents: [
-      'update_schedule_template',
-      'delete_schedule_templates',
-      'duplicate_schedule_template',
-      'delete_schedule_block',
-      'apply_and_fill',
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiScheduleHandlersService',
-    mutateIntents: [
-      'update_schedule_template',
-      'delete_schedule_templates',
-      'duplicate_schedule_template',
-      'delete_schedule_block',
-      'apply_and_fill',
-    ],
-  },
-  {
-    intents: [
-      'list_bookings',
-      'show_appointments',
-      'check_availability',
-      'summarize_day',
-      'summarize_bookings',
-      'analyze_appointments',
-      'analyze_services',
-      'summarize_staff',
-      'lookup_customer',
-      'list_customers',
-      'summarize_waitlist',
-      ...WAITLIST_DASHBOARD_READ_INTENTS,
-      'lookup_service_assignment',
-      'list_services',
-      'list_employees',
-      'list_templates',
-      'list_schedule_blocks',
-      'get_provider_calendar',
-      'list_schedule_gaps',
-      'summarize_utilization',
-      'summarize_customers',
-      'check_schedule_compliance',
-      'revenue_forecast',
-      'summarize_ai_briefing',
-      'summarize_ai_weekly_report',
-      'explain_ai_audit_log',
-      'explain_ai_usage_analytics',
-      'explain_ai_capabilities',
-      'summarize_ai_settings',
-    ],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiCommandService',
-    mutateIntents: [],
-  },
-  {
-    intents: ['configure_ai_autopilot'],
-    surfaces: ['dashboard'],
-    apiModule: 'ai-command',
-    handler: 'AiCommandService',
-    mutateIntents: ['configure_ai_autopilot'],
-  },
-  {
-    intents: [...SHARED_PROVIDER_OPERATIONAL_INTENTS, 'mark_paid'],
-    surfaces: ['dashboard', 'provider'],
-    apiModule: 'ai-command',
-    handler: 'AiCommandService',
-    mutateIntents: [
-      'cancel_bookings',
-      'update_bookings',
-      'reschedule_booking',
-      'fill_unused_slots',
-      'block_schedule',
-      'mark_no_shows',
-      'payment_sweep',
-      'mark_paid',
-    ],
-  },
-  {
-    intents: PROVIDER_EXCLUSIVE_INTENTS,
-    surfaces: ['provider'],
-    apiModule: 'provider-mobile',
-    handler: 'ProviderAiCommandService',
-    mutateIntents: [
-      'add_retail_to_my_booking',
-      'retry_offline_action',
-      'dismiss_push',
-      'confirm_booking_from_push',
-      'suggest_reschedule_from_push',
-      'start_card_preparation',
-      'mark_card_ready',
-      'accept_delivery',
-      'mark_out_for_delivery',
-      'capture_delivery_proof',
-      'notify_delay',
-      'mark_delivered',
-      'collect_cash_confirm',
-      'update_provider_profile',
-      'mark_visit_complete',
-      'mark_visit_in_progress',
-      'mark_multi_service_step_done',
-      'confirm_pending_booking',
-      'give_provider_ai_feedback',
-    ],
-  },
-  {
-    intents: PUBLIC_ANONYMOUS_INTENTS,
-    surfaces: ['public'],
-    apiModule: 'public-booking',
-    handler: 'PublicBookingAssistantService',
-    mutateIntents: [
-      'book_appointment',
-      'create_intake_draft',
-      'start_pre_visit_intake',
-      'submit_intake_answers',
-      'sign_in_with_google',
-      'sign_in_with_apple',
-      'sign_in_with_phone',
-    ],
-  },
-];
-
-function tiersForSurface(
-  surface: CommandSurface,
-  intentId: string,
-): AccessTier[] {
-  if (intentId === 'unknown') return ALL_TIERS;
-  if (surface === 'dashboard') {
-    return ALL_TIERS.filter((tier) => isDashboardIntentAllowed(tier, intentId));
-  }
-  if (surface === 'provider') {
-    return ALL_TIERS.filter((tier) => isProviderIntentAllowed(tier, intentId));
-  }
-  if (surface === 'customer') {
-    return ALL_TIERS.filter((tier) => isCustomerIntentAllowed(tier, intentId));
-  }
-  return ['client'];
-}
-
-function resolveExecutionMode(
-  intentId: string,
-  mutating: boolean,
-): CommandExecutionMode {
-  if (intentId === 'unknown') return 'read_only';
-  if (ORCHESTRATION_INTENT_IDS.has(intentId)) return 'orchestration';
-  if (!mutating) return 'read_only';
-  return 'simple_mutate';
-}
-
-function isMutatingIntent(intentId: string, mutateSet: Set<string>): boolean {
-  if (intentId === 'unknown') return false;
-  return mutateSet.has(intentId);
-}
-
-type BindingSource = IntentBindingSeed | (typeof LEGACY_CORE_BINDINGS)[number];
-
-function buildBindingMaps(): {
-  bindingByIntent: Map<string, BindingSource>;
-  mutateSet: Set<string>;
-  surfaceByIntent: Map<string, Set<CommandSurface>>;
-} {
-  const bindingByIntent = new Map<string, BindingSource>();
-  const mutateSet = new Set<string>();
-  const surfaceByIntent = new Map<string, Set<CommandSurface>>();
-
-  const register = (binding: BindingSource, intents: readonly string[]) => {
-    for (const id of intents) {
-      bindingByIntent.set(id, binding);
-      const surfaces = surfaceByIntent.get(id) ?? new Set<CommandSurface>();
-      for (const surface of binding.surfaces) surfaces.add(surface);
-      surfaceByIntent.set(id, surfaces);
-    }
-    for (const id of binding.mutateIntents ?? []) mutateSet.add(id);
-  };
-
-  for (const legacy of LEGACY_CORE_BINDINGS) register(legacy, legacy.intents);
-  for (const seed of INTENT_BINDING_SEEDS) register(seed, seed.intents);
-
-  const allSurfaces: CommandSurface[] = [
-    'dashboard',
-    'provider',
-    'customer',
-    'public',
-  ];
-  surfaceByIntent.set('unknown', new Set(allSurfaces));
-
-  return { bindingByIntent, mutateSet, surfaceByIntent };
-}
-
-function surfacesForIntent(
-  intentId: string,
-  surfaceByIntent: Map<string, Set<CommandSurface>>,
-): CommandSurface[] {
-  return [...(surfaceByIntent.get(intentId) ?? [])];
-}
-
-/** Test hook — surfaces for an intent id not present in bindings resolve to []. */
+/** Test hook — surfaces for an intent id no spec declares resolve to []. */
 export function resolveIntentSurfaces(intentId: string): CommandSurface[] {
-  return surfacesForIntent(intentId, buildBindingMaps().surfaceByIntent);
+  return INTENT_SURFACES.get(intentId) ?? [];
 }
-
-function collectAllIntentIds(
-  surfaceByIntent: Map<string, Set<CommandSurface>>,
-): string[] {
-  return [...surfaceByIntent.keys()];
-}
-
-function sortedSurfaceIntents(
-  surfaceByIntent: Map<string, Set<CommandSurface>>,
-  surface: CommandSurface,
-): string[] {
-  const ids: string[] = [];
-  for (const [intentId, surfaces] of surfaceByIntent) {
-    if (surfaces.has(surface)) ids.push(intentId);
-  }
-  ids.sort((a, b) => a.localeCompare(b));
-  return ids;
-}
-
-function buildSurfaceIntentLists(
-  surfaceByIntent: Map<string, Set<CommandSurface>>,
-) {
-  return {
-    dashboard: sortedSurfaceIntents(surfaceByIntent, 'dashboard'),
-    provider: sortedSurfaceIntents(surfaceByIntent, 'provider'),
-    customer: sortedSurfaceIntents(surfaceByIntent, 'customer'),
-    public: sortedSurfaceIntents(surfaceByIntent, 'public'),
-  };
-}
-
-const {
-  mutateSet: GLOBAL_MUTATE_SET,
-  surfaceByIntent: GLOBAL_SURFACE_BY_INTENT,
-} = buildBindingMaps();
-const SURFACE_INTENT_LISTS = buildSurfaceIntentLists(GLOBAL_SURFACE_BY_INTENT);
 
 /** Capability matrix intent lists — generated from registry bindings (ai-cmd-0.2). */
 export const DASHBOARD_INTENTS =
@@ -2066,57 +115,36 @@ export const PUBLIC_ASSISTANT_INTENTS = [
 ] as const;
 
 export const DASHBOARD_MUTATING_INTENTS = DASHBOARD_INTENTS.filter((id) =>
-  GLOBAL_MUTATE_SET.has(id),
+  MUTATING_INTENTS.has(id),
 );
 export const PROVIDER_MUTATING_INTENTS = PROVIDER_INTENTS.filter((id) =>
-  GLOBAL_MUTATE_SET.has(id),
+  MUTATING_INTENTS.has(id),
 );
 export const CUSTOMER_MUTATING_INTENTS = CUSTOMER_INTENTS.filter((id) =>
-  GLOBAL_MUTATE_SET.has(id),
+  MUTATING_INTENTS.has(id),
 );
 
-export function buildCommandRegistry(
-  compoundStepIds: ReadonlySet<string>,
-): CommandRegistryEntry[] {
-  const { bindingByIntent, mutateSet, surfaceByIntent } = buildBindingMaps();
-  const entries: CommandRegistryEntry[] = [];
-
-  for (const id of collectAllIntentIds(surfaceByIntent)) {
-    const surfaces = surfacesForIntent(id, surfaceByIntent);
-    const binding = bindingByIntent.get(id);
-    const mutating = isMutatingIntent(id, mutateSet);
-    const tiers = [
-      ...new Set(surfaces.flatMap((surface) => tiersForSurface(surface, id))),
-    ] as AccessTier[];
-
-    const surfaceHandlers = SURFACE_HANDLER_OVERRIDES[id];
-    const defaultHandler =
-      surfaceHandlers?.dashboard ??
-      surfaceHandlers?.provider ??
-      surfaceHandlers?.customer ??
-      surfaceHandlers?.public ??
-      binding?.handler ??
-      'AiCommandService';
-
-    entries.push({
-      id,
-      surfaces,
-      mutating,
-      executionMode: resolveExecutionMode(id, mutating),
-      apiModule: binding?.apiModule ?? 'ai-command',
-      handler: defaultHandler,
-      surfaceHandlers,
-      compoundStep: compoundStepIds.has(id),
-      sprint:
-        'sprint' in (binding ?? {})
-          ? (binding as IntentBindingSeed).sprint
-          : undefined,
-      label: id.replace(/_/g, ' '),
-    });
-  }
-
-  return entries.sort((a, b) => a.id.localeCompare(b.id));
-}
+/**
+ * `buildCommandRegistry` was deleted in §162 (C1 / e2e-bug.379).
+ *
+ * `COMMAND_REGISTRY` is generated from `CommandSpec` by
+ * `ai-command-registry.generate.ts`. This function built it from
+ * `INTENT_BINDING_SEEDS` instead, and was the parallel list the spec port set
+ * out to remove.
+ *
+ * Its four private helpers — `SURFACE_HANDLER_OVERRIDES`, `tiersForSurface`,
+ * `resolveExecutionMode` and `isMutatingIntent` — went with it; each existed
+ * only to fill a registry field, and each has an equivalent in the derive
+ * modules. (Two share a name with exported functions in `ai-propose-only.util`
+ * and `ai-capability.matrix`; those are different symbols and are untouched —
+ * checked before deleting.)
+ *
+ * The **seeds themselves stay**, and not by oversight: `buildBindingMaps()` also
+ * produces `GLOBAL_SURFACE_BY_INTENT`, from which `DASHBOARD_INTENTS`,
+ * `PROVIDER_INTENTS`, `CUSTOMER_INTENTS` and `PUBLIC_INTENTS` are built — and
+ * those are read in 78 places. They are the *next* list to generate, not this
+ * one.
+ */
 
 export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
   const dashboardSteps = DASHBOARD_INTENTS.filter((id) => id !== 'unknown');
@@ -2141,7 +169,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book facemassage on Gevorg tomorrow at 9; if not available then Mary at 9',
         'Apply week template and fill unused slots',
       ],
-      sprint: 'core',
     },
     {
       id: 'dashboard_catalog_compound',
@@ -2149,12 +176,20 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
       handler: 'AiCatalogService.handleCatalogCompound',
       decomposeUtil: 'decomposeCatalogCompoundPrompt',
       maxSteps: 4,
-      allowedStepIntentIds: CATALOG_INTENTS,
+      // e2e-bug.448(b) / D3 item (4) — the compound may CONTAIN an
+      // online-payment step even though the catalog service does not execute
+      // one; the executor delegates it. Widened here at the recipe rather than
+      // in `CATALOG_INTENTS`, which also defines
+      // `DASHBOARD_CATALOG_DISPATCH_INTENTS` and would route the action to the
+      // wrong service.
+      allowedStepIntentIds: [
+        ...CATALOG_INTENTS,
+        ...CATALOG_COMPOUND_EXTRA_STEP_INTENTS,
+      ],
       examplePrompts: [
         'Create Spa Day package and list packages',
         'Enable gift card presets and configure multi-service settings',
       ],
-      sprint: 'catalog',
     },
     {
       id: 'dashboard_crm_compound',
@@ -2167,7 +202,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'List subscriptions for Anna and tag customer as VIP',
         'Export customer data and send reengagement message',
       ],
-      sprint: 'customerCrm',
     },
     {
       id: 'dashboard_schedule_resource_compound',
@@ -2183,7 +217,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'List scheduling resources and explain resource conflict for room 2',
         'Create resource Massage room and assign resource hours',
       ],
-      sprint: 'scheduleResources',
     },
     {
       id: 'dashboard_package_multi_service_compound',
@@ -2202,7 +235,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Check package line availability for Spa Day tomorrow and book for James at 2pm',
         'Add haircut and beard trim to cart, check block availability Tuesday, book for Maria at 10am',
       ],
-      sprint: 'bookingDepth',
     },
     {
       id: 'dashboard_payments_compound',
@@ -2218,7 +250,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Summarize unpaid bookings and export accounting',
         'Validate gift card and adjust gift card balance',
       ],
-      sprint: 'payments',
     },
     {
       id: 'dashboard_fulfillment_compound',
@@ -2234,7 +265,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'List gift card orders and print packing slip',
         'Filter awaiting creation and assign card creator',
       ],
-      sprint: 'giftFulfillment',
     },
     {
       id: 'dashboard_integrations_compound',
@@ -2250,7 +280,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Configure Zendesk and sync customer to Zendesk',
         'Run accounting export and list integration health',
       ],
-      sprint: 'integrations',
     },
     {
       id: 'dashboard_marketing_compound',
@@ -2266,7 +295,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Explain plan limits and suggest upgrade',
         'Trigger reengagement and list inactive customers',
       ],
-      sprint: 'marketingGrowth',
     },
     {
       id: 'customer_booking_compound',
@@ -2280,7 +308,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Add massage to cart and show cart total duration',
         'List my appointments and get manage link',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'customer_self_service_compound',
@@ -2294,7 +321,41 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Check package availability and list my appointments',
         'Buy gift card and track gift card shipment',
       ],
-      sprint: 'selfServiceBooking',
+    },
+    // e2e-bug.534 — the recipe this golden pattern already referenced.
+    //
+    // `customer_book_with_gift_card_compound` exists as a golden pattern in
+    // intent-decomposition.util (matches + buildSteps, working), and two
+    // fixtures assert `compoundRecipeId: 'customer_book_with_gift_card_compound'`
+    // — but no recipe by that id was ever declared here, so
+    // `listCompoundRecipeIds()` did not contain it and the schema had no entry
+    // for a compound the decomposer happily produces.
+    //
+    // Declared rather than repointed: the neighbouring
+    // `customer_gift_card_checkout_compound` pattern shows a recipeId may point
+    // at a *different* recipe, and `customer_gift_card_payments_compound` even
+    // documents this prompt shape — but the two fixtures name this id directly,
+    // so the intended design is that the recipe exists.
+    //
+    // Steps come from `decomposeBookWithGiftCardCompoundPrompt`: a
+    // `book_package` or `book_nearest_slot` first, then `book_with_gift_card`.
+    // Listed explicitly rather than spread from a broad intent set, so this
+    // recipe permits exactly what its decomposer emits.
+    {
+      id: 'customer_book_with_gift_card_compound',
+      surfaces: ['customer'],
+      handler: 'AiSelfServiceBookingService.handleCustomerBookingCompound',
+      decomposeUtil: 'decomposeBookWithGiftCardCompoundPrompt',
+      maxSteps: 2,
+      allowedStepIntentIds: [
+        'book_package',
+        'book_nearest_slot',
+        'book_with_gift_card',
+      ],
+      examplePrompts: [
+        'Book spa day package and pay with gift card GCM-SPA100',
+        'Book nearest massage slot and pay with my gift card',
+      ],
     },
     {
       id: 'customer_gift_card_payments_compound',
@@ -2310,7 +371,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book nearest slot for massage and apply gift card GCM-ABCD1234 and choose payment method',
         'Buy physical gift card $100 and track my order',
       ],
-      sprint: 'payments',
     },
     {
       id: 'provider_booking_compound',
@@ -2323,7 +383,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Show my package appointments today and mark booking paid',
         'List my package visits this week and list my multi-service groups',
       ],
-      sprint: 'providerBooking',
     },
     {
       id: 'provider_push_compound',
@@ -2339,7 +398,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Explain last push and open booking from push',
         'Offline queue status and retry offline action',
       ],
-      sprint: 'pushNotifications',
     },
     {
       id: 'provider_fulfillment_compound',
@@ -2352,7 +410,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Gift card creation queue and start card preparation',
         'Delivery queue and mark out for delivery',
       ],
-      sprint: 'giftFulfillment',
     },
     {
       id: 'onboard_new_provider',
@@ -2371,7 +428,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Set up new therapist Maria from scratch — add to team, assign massage services, schedule first week from weekday template, turn on public booking',
         'Full provider setup for barber Jake: hire employee; assign beard trim services; onboard first week with weekday template; enable online booking page',
       ],
-      sprint: 'staffOnboarding',
     },
     {
       id: 'setup_salon_checkout',
@@ -2390,7 +446,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Full checkout setup for our spa — link Stripe Connect, turn on cash payments, require 50% online prepayment on every service, and enable the public booking page',
         'Configure salon checkout from scratch; connect Stripe; enable cash at checkout; accept online payment on all services with half deposit; turn on online booking',
       ],
-      sprint: 'salonCheckout',
     },
     {
       id: 'configure_services_payment_matrix',
@@ -2408,7 +463,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Raise massage prices 10% — services payment matrix: require full prepayment for massage services; accept 50% deposit for hair services; turn on cash payments',
         'Category payment matrix end-to-end: massage: full prepayment; hair: 50% deposit; facial: full prepayment; enable cash at checkout',
       ],
-      sprint: 'servicesPaymentMatrix',
     },
     {
       id: 'cash_and_online_payment',
@@ -2425,7 +479,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Turn on cash payments at checkout and decline online payment on public booking for all services',
         'Accept cash at venue and disable online prepayment for every service',
       ],
-      sprint: 'cashAndOnlinePayment',
     },
     {
       id: 'decline_online_payment_category',
@@ -2442,7 +495,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Turn off online payment for hair category and enable full prepayment for facial services',
         'Decline online payment for waxing services; require online payment on public booking for massage services with 50% deposit',
       ],
-      sprint: 'declineOnlinePaymentCategory',
     },
     {
       id: 'onboard_salon_notifications',
@@ -2460,7 +512,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Notification onboarding for our spa — enable email and 24h WhatsApp reminders, use platform default WhatsApp connection, send test push',
         'Set up salon notifications from scratch; turn on email appointment reminders; configure WhatsApp integration; test push',
       ],
-      sprint: 'salonNotifications',
     },
     {
       id: 'launch_consumer_app_growth',
@@ -2478,7 +529,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Launch customer app growth for our spa — explain get-app link, refresh growth QR, enable marketing registration emails to team@salon.com',
         'Set up consumer app growth from scratch; explain app install landing page; regenerate tenant app install QR; configure marketing registration email',
       ],
-      sprint: 'consumerAppGrowth',
     },
     {
       id: 'budget_discover_and_book',
@@ -2496,7 +546,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Filter catalog for facials under $60, check who is free tomorrow, and book the soonest appointment',
         "Filter services under $50 for haircut; check who's free tomorrow; book nearest slot",
       ],
-      sprint: 'budgetDiscoverAndBook',
     },
     {
       id: 'rank_discover_and_book',
@@ -2514,7 +563,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Filter catalog for cheapest massage, check who is free tomorrow, and book the soonest appointment',
         "Filter premium haircut services; check who's free tomorrow; book nearest slot",
       ],
-      sprint: 'rankDiscoverAndBook',
     },
     {
       id: 'clinic_lab_day_close',
@@ -2533,7 +581,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Close lab day for today — show pending lab orders, record hemoglobin 13.1 for order ord-42, publish results to John, send result-ready notification',
         'Lab closeout for today; list pending lab orders; enter CBC 4.2 for order abc123; release results to Anna; notify her when results are ready',
       ],
-      sprint: 'clinicLabDayClose',
     },
     {
       id: 'clinic_lab_review',
@@ -2550,7 +597,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'List abnormal results for John and then explain his lab results',
         'Review flagged lab results for Anna; show abnormal measurements; explain what they mean',
       ],
-      sprint: 'clinicTestResults',
     },
     {
       id: 'dashboard_clinic_compound',
@@ -2566,7 +612,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         "Order lipid panel for Maria's visit and notify her when results are ready",
         'Place CBC for John and send result-ready email when available',
       ],
-      sprint: 'clinicTestOrders',
     },
     {
       id: 'customer_clinic_compound',
@@ -2582,7 +627,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book lipid panel and notify me when results are ready',
         'Schedule a CBC and explain when my results will be ready',
       ],
-      sprint: 'clinicTestOrders',
     },
     {
       id: 'public_clinic_compound',
@@ -2598,7 +642,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book lipid panel and tell me when results are ready on this page',
         'Schedule a CBC and explain when results will be ready',
       ],
-      sprint: 'clinicTestOrders',
     },
     {
       id: 'public_flexible_availability_list_budget_then_or_compound',
@@ -2613,7 +656,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Show haircuts under $50, then check tomorrow evening or Friday afternoon',
         'List services under $60, then who is free Saturday morning or Monday evening',
       ],
-      sprint: 'avail',
     },
     {
       id: 'customer_flexible_availability_list_budget_then_or_compound',
@@ -2628,7 +670,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Show haircuts under $50, then check tomorrow evening or Friday afternoon',
         'List services under $60, then who is free Saturday morning or Monday evening',
       ],
-      sprint: 'avail',
     },
     {
       id: 'public_flexible_availability_budget_compound',
@@ -2643,7 +684,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         "Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest",
         'Book lashes tomorrow evening or Saturday afternoon, whichever is sooner, I have $50',
       ],
-      sprint: 'avail',
     },
     {
       id: 'customer_flexible_availability_budget_compound',
@@ -2661,7 +701,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'I want a haircut tomorrow evening or Friday afternoon, I have $50, book the soonest',
         "Who's free for a haircut tomorrow evening or Friday afternoon under $50, book the soonest",
       ],
-      sprint: 'avail',
     },
     {
       id: 'public_budget_service_discovery_compound',
@@ -2679,7 +718,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book a haircut under $50 tomorrow, nearest slot',
         "Who's free for a facial under $60 tomorrow evening, book the soonest",
       ],
-      sprint: 'budget',
     },
     {
       id: 'customer_budget_service_discovery_compound',
@@ -2697,7 +735,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book a haircut under $50 tomorrow, nearest slot',
         "Who's free for a facial under $60 tomorrow evening, book the soonest",
       ],
-      sprint: 'budget',
     },
     {
       id: 'discover_book_and_pay',
@@ -2717,7 +754,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book cheapest massage under $60 tomorrow and pay online',
         'Show facials under $50, check who is free, book soonest, pay with card',
       ],
-      sprint: 'budget',
     },
     {
       id: 'public_discover_book_and_pay',
@@ -2737,7 +773,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book cheapest massage under $60 tomorrow and pay online',
         'Show facials under $50, check availability, book soonest, pay with card',
       ],
-      sprint: 'budget',
     },
     {
       id: 'rebook_and_pay',
@@ -2755,7 +790,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Rebook my last visit and pay with card',
         'Book the same as last time and pay online',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'subscription_first_visit',
@@ -2772,7 +806,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         "Use my membership for today's massage",
         "Book tomorrow's facial with my subscription credit",
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'results_then_rebook',
@@ -2789,7 +822,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Results released — book follow-up like last time',
         'My lab results are ready; rebook my last appointment',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'cancel_package_rebook_single',
@@ -2803,7 +835,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Skip package visit 2 and book a trim instead',
         'Cancel visit 2 of my package and book a haircut instead',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'cancel_and_rebook',
@@ -2817,7 +848,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Cancel Friday and book the next available slot',
         "Cancel tomorrow's massage and book the soonest slot",
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'gift_card_checkout',
@@ -2835,7 +865,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Use gift card GCM-ABCD1234 and book nearest haircut',
         'Check gift card GCM-TEST5678 balance and book nearest massage slot',
       ],
-      sprint: 'payments',
     },
     {
       id: 'provider_same_day_multi',
@@ -2853,7 +882,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Anna — massage and facial same afternoon',
         'Book with Maria — haircut and color same day',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'multi_service_day',
@@ -2871,7 +899,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Massage and facial same afternoon — find a time',
         'Haircut and color same day — find a time and book',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'guest_book_and_manage',
@@ -2885,7 +912,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book as guest and email me the manage link',
         'Book haircut without an account and send manage link to john@example.com',
       ],
-      sprint: 'guestCheckout',
     },
     {
       id: 'guest_manage_visit',
@@ -2903,7 +929,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Cancel my haircut for john@example.com, I lost the manage link',
         'Move my appointment to Friday 2pm, my email is jane@example.com',
       ],
-      sprint: 'guestCheckout',
     },
     {
       id: 'guest_pay_cash_manage',
@@ -2921,7 +946,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book as guest, pay at visit, email manage link',
         'Book without account, pay cash when I arrive, and send me the manage link',
       ],
-      sprint: 'guestCheckout',
     },
     {
       id: 'book_package_with_nearest_slot',
@@ -2936,7 +960,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book the spa package earliest available',
         'Buy deluxe bundle soonest slot for me',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'public_book_package_with_nearest_slot',
@@ -2950,7 +973,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book the spa package earliest available',
         'Buy deluxe bundle soonest opening',
       ],
-      sprint: 'selfServiceBooking',
     },
     {
       id: 'book_lab_collection_nearest',
@@ -2967,7 +989,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book lab draw earliest slot',
         'Schedule my blood draw soonest opening',
       ],
-      sprint: 'consumerClinicLabBooking',
     },
     {
       id: 'public_book_lab_collection_nearest',
@@ -2984,7 +1005,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book lab draw earliest slot',
         'Schedule my lab blood draw soonest opening',
       ],
-      sprint: 'consumerClinicLabBooking',
     },
     {
       id: 'complete_intake_and_book',
@@ -2998,7 +1018,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Fill intake and book blood draw',
         'Complete the health questionnaire and book my lab test',
       ],
-      sprint: 'consumerClinicIntake',
     },
     {
       id: 'public_complete_intake_and_book',
@@ -3012,7 +1031,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Fill intake and book blood draw',
         'Complete intake questionnaire and reserve lab appointment',
       ],
-      sprint: 'consumerClinicIntake',
     },
     {
       id: 'intake_lab_book_pay',
@@ -3033,7 +1051,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Fill intake and book blood draw, pay online',
         'fill my intake, book the soonest blood test slot, and pay cash at the visit',
       ],
-      sprint: 'consumerClinicIntake',
     },
     {
       id: 'public_intake_lab_book_pay',
@@ -3053,7 +1070,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Complete health questionnaire, schedule lab test, pay with card',
         'Fill health form; book earliest blood draw; pay with card',
       ],
-      sprint: 'consumerClinicIntake',
     },
     {
       id: 'tour_group_checkout',
@@ -3073,7 +1089,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'City tour for 8 on 15/08/2026 — book only if enough spots',
         'Private Wine Country Day for 6 next Saturday — book if enough seats',
       ],
-      sprint: 'tourConsumer',
     },
     {
       id: 'public_tour_group_checkout',
@@ -3092,7 +1107,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Sunset hike for 5 guests — reserve when seats are available',
         'Full Day City Tour for 8 on 15/08/2026 — book only if enough spots',
       ],
-      sprint: 'tourConsumer',
     },
     {
       id: 'book_tour_nearest_departure',
@@ -3112,7 +1126,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Reserve mountain trek soonest departure for 4 guests',
         'Book 3-Day Mountain Trek soonest departure for 4 guests',
       ],
-      sprint: 'tourConsumer',
     },
     {
       id: 'public_book_tour_nearest_departure',
@@ -3131,7 +1144,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Reserve mountain trek soonest departure for 4 people',
         'Book Private Wine Country Day earliest date for 2 people',
       ],
-      sprint: 'tourConsumer',
     },
     {
       id: 'public_service_rank_discovery_compound',
@@ -3145,7 +1157,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book your most premium facial tomorrow, nearest slot',
         'Book the cheapest haircut tomorrow, soonest opening',
       ],
-      sprint: 'rank',
     },
     {
       id: 'customer_service_rank_discovery_compound',
@@ -3159,7 +1170,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Book your most premium facial tomorrow, nearest slot',
         'Book the cheapest haircut tomorrow, soonest opening',
       ],
-      sprint: 'rank',
     },
     {
       id: 'public_assistant_compound',
@@ -3176,7 +1186,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Find services under $50 and list providers',
         'List providers and walk me through booking',
       ],
-      sprint: 'platform',
     },
     {
       id: 'public_multi_service_compound',
@@ -3190,7 +1199,6 @@ export function buildCompoundCommandRecipes(): CompoundCommandRecipe[] {
         'Add massage and facial to cart and check multi-service availability',
         'Check availability for massage and facial and book multi-service together',
       ],
-      sprint: 'selfServiceBooking',
     },
   ];
 }

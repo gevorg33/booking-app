@@ -6,7 +6,8 @@ import type { TimeOfDayWindow } from './ai-operations.util.js';
  */
 
 /** Armenian / Russian / translit "who" tokens. */
-const MULTILINGUAL_WHO = /(?:ով|кто|\bkto\b)/iu;
+/** Who, in hy/ru/translit. Exported for the compound escape in `ai-payments.util.ts` (§183). */
+export const MULTILINGUAL_WHO = /(?:ով|кто|\bkto\b)/iu;
 
 /** Free / available / open in hy/ru/translit. */
 export const MULTILINGUAL_PROVIDER_AVAILABILITY =

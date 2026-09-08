@@ -1,9 +1,39 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { handleListTourCalendarWeekLogic } from './ai-tour-calendar-week.logic.js';
 
+/**
+ * e2e-bug.482's class — anchored to the current week, not to June 2026.
+ *
+ * `handleListTourCalendarWeekLogic` resolves its week from the prompt and falls
+ * back to `getTodayDateKey()`. These fixtures pinned 2026-06-08…06-14, so once
+ * real time left that week the handler was looking at *this* week and the
+ * bookings sat in June: `departureCount` 2 → 0, with nothing wrong in the code.
+ *
+ * Deriving the week from today keeps the scenario (a Thursday multi-day trek and
+ * a Friday day-tour inside one calendar week) while making it independent of
+ * when it runs.
+ */
+const DAY_MS = 86_400_000;
+
+/** Monday of the current ISO week, at UTC midnight. */
+function currentWeekMonday(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  const isoDay = d.getUTCDay() === 0 ? 7 : d.getUTCDay();
+  return new Date(d.getTime() - (isoDay - 1) * DAY_MS);
+}
+
+function weekDay(offset: number, hour: number): Date {
+  const d = new Date(currentWeekMonday().getTime() + offset * DAY_MS);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+}
+
+const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
+
 describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
-  const weekStart = '2026-06-08';
-  const weekEnd = '2026-06-14';
+  const weekStart = isoDay(currentWeekMonday());
+  const weekEnd = isoDay(new Date(currentWeekMonday().getTime() + 6 * DAY_MS));
 
   const mountainTrek = {
     id: 'svc-mountain',
@@ -25,12 +55,12 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     serviceId: 'svc-mountain',
     employeeId: 'emp-maria',
     status: BookingStatus.CONFIRMED,
-    startTime: new Date('2026-06-11T08:00:00.000Z'),
-    endTime: new Date('2026-06-13T18:00:00.000Z'),
+    startTime: weekDay(3, 8),
+    endTime: weekDay(5, 18),
     metadata: {
       paxCount: 4,
-      tourStartDate: '2026-06-11',
-      tourEndDate: '2026-06-13',
+      tourStartDate: isoDay(weekDay(3, 8)),
+      tourEndDate: isoDay(weekDay(5, 18)),
     },
     service: mountainTrek,
     employee: maria,
@@ -42,12 +72,12 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     serviceId: 'svc-city',
     employeeId: 'emp-gevorg',
     status: BookingStatus.CONFIRMED,
-    startTime: new Date('2026-06-12T08:00:00.000Z'),
-    endTime: new Date('2026-06-12T18:00:00.000Z'),
+    startTime: weekDay(4, 8),
+    endTime: weekDay(4, 18),
     metadata: {
       paxCount: 2,
-      tourStartDate: '2026-06-12',
-      tourEndDate: '2026-06-12',
+      tourStartDate: isoDay(weekDay(4, 8)),
+      tourEndDate: isoDay(weekDay(4, 18)),
     },
     service: cityTour,
     employee: gevorg,
@@ -165,10 +195,19 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
       'Any tours this week?',
     );
     expect(result.success).toBe(true);
-    expect(result.summary).toMatch(/8 June 2026/);
-    expect(result.summary).toMatch(/14 June 2026/);
-    expect(result.summary).not.toMatch(/08\/06\/2026/);
-    expect(result.summary).not.toMatch(/14\/06\/2026/);
+    // The point of e2e-bug.308 is the *format* — month names, never DD/MM — so
+    // the expected labels are derived from the same week the fixtures use
+    // rather than hardcoded, which is what made this expire (§227).
+    const monthName = (d: Date) =>
+      `${d.getUTCDate()} ${d.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })} ${d.getUTCFullYear()}`;
+    const slash = (d: Date) =>
+      `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+    const monday = currentWeekMonday();
+    const sunday = new Date(monday.getTime() + 6 * DAY_MS);
+    expect(result.summary).toContain(monthName(monday));
+    expect(result.summary).toContain(monthName(sunday));
+    expect(result.summary).not.toContain(slash(monday));
+    expect(result.summary).not.toContain(slash(sunday));
   });
 
   // e2e-bug.270 — classifier "this week" must not throw Invalid time value.

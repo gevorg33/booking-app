@@ -23,10 +23,20 @@ const REPORTED =
 describe('e2e-bug.349 — the reported prompt now decomposes', () => {
   const steps = decomposeCatalogCompoundPrompt(REPORTED);
 
-  it('yields one bulk_create_catalog step per scoped category', () => {
+  it('yields one bulk_create_catalog step per scoped category, then the payment toggle', () => {
+    // e2e-bug.490 — the third step is new and correct. D3's remaining items (3)
+    // and (5) landed together: `classifyCatalogSegment` now recognises the
+    // trailing "Turn on online payment for everything." segment, and
+    // `handleCatalogCompoundLogic` gained a case for it.
+    //
+    // The order mattered. Emitting this step *before* the executor could run it
+    // would have sent it to the switch's `default`, which fails the whole
+    // compound and discards the two categories that had already been created —
+    // strictly worse than silently omitting the toggle (e2e-bug.448).
     expect(steps.map((s) => s.action)).toEqual([
       'bulk_create_catalog',
       'bulk_create_catalog',
+      'configure_service_online_payment',
     ]);
   });
 
@@ -57,7 +67,14 @@ describe('e2e-bug.349 — the reported prompt now decomposes', () => {
     // (ai-catalog.logic.ts — `if (!category) … categoryService.create`), so the
     // leading sentence is redundant rather than dropped work. Asserted so a
     // future reader does not "fix" it by adding a duplicate create step.
-    expect(steps).toHaveLength(2);
+    //
+    // Three steps, not four: the two scoped categories plus the payment toggle.
+    // This assertion is about the *absence of a create step*, so it counts the
+    // total — see the action list above for what the three actually are.
+    expect(steps).toHaveLength(3);
+    expect(steps.filter((s) => s.action === 'create_service_category')).toEqual(
+      [],
+    );
   });
 });
 

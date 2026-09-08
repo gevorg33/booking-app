@@ -42,6 +42,7 @@ import {
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
 import { formatDateForAiLabel } from './ai-date-label.util.js';
+import { resolveTomorrowDateKey } from './ai-datetime-resolution.util.js';
 import { timeToMinutes } from '../../common/utils/time-format.util.js';
 import {
   pickTimezone,
@@ -176,6 +177,8 @@ import {
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import {
   resolveEmployees,
+  resolveEmployeesVerdict,
+  resolveServicesVerdict,
   resolveDateRange,
   resolveAutoExecute,
   fuzzyMatchServiceByName,
@@ -189,6 +192,7 @@ import {
   isClearSchedulePrompt,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
+  fuzzyMatchByName as canonicalFuzzyMatchByName,
 } from './ai-orchestration.helpers.js';
 import {
   enrichDiscoveryParamsFromPrompt,
@@ -541,7 +545,16 @@ export class AiBookingCoreService {
    *
    * Returns a `CommandResult` to hand straight back, or null to proceed.
    */
-  private providerNameGuard(
+  /**
+   * §230 — public because the plan-only previews in
+   * `AiCommandService.dispatchMutatingIntent` call the sweep and visibility
+   * finders **directly**, bypassing the handlers that guard here. Those
+   * finders scope by `resolveEmployee`, the silent-pick wrapper, so an
+   * ambiguous provider name previewed one namesake's appointments in answer to
+   * a question about the other (`e2e-bug.512`). Exposing the existing guard is
+   * applying the house pattern to a ninth caller, not a new mechanism.
+   */
+  providerNameGuard(
     action: string,
     params: { employeeName?: string },
     employees: Employee[],
@@ -566,6 +579,50 @@ export class AiBookingCoreService {
     return null;
   }
 
+  /**
+   * §311 (`e2e-bug.533`) — the bulk paths' customer-name scope.
+   *
+   * `cancel_bookings` and `update_bookings` both **declared** `customerName`
+   * ("Only cancel appointments for this customer") and both ignored it: the
+   * where-clause was built from employee, service and date scope only. So
+   * "cancel Mary's appointments tomorrow" cancelled everyone's, on a T3
+   * irreversible command. The completion gate hid the worst case — it demands a
+   * date/provider/service and does not accept `customerName` as a filter — but a
+   * customer name *plus* a date sailed through.
+   *
+   * Returns a refusal rather than a silent widening, and refuses a tie the way
+   * `providerNameGuard` does (D5, §225-§238): two customers called Mary must
+   * ask, never pick. An unresolvable name refuses too — on a destructive path,
+   * "I could not find Mary" must not degrade into "cancel everything".
+   */
+  resolveCustomerScope(
+    action: string,
+    params: { customerName?: string; customerId?: string },
+    customers: Customer[],
+  ): { refusal?: CommandResult; customerId?: string } {
+    if (params.customerId) return { customerId: params.customerId };
+    if (!params.customerName) return {};
+    const verdict = this.resolveNamedVerdict(
+      customers,
+      params.customerName,
+      'customer',
+    );
+    if (verdict.ambiguous.length > 1) {
+      return { refusal: this.ambiguityRefusal(action, params, verdict) };
+    }
+    if (!verdict.match) {
+      return {
+        refusal: {
+          success: false,
+          action,
+          summary: `No customer found matching "${params.customerName}".`,
+          details: { params },
+        },
+      };
+    }
+    return { customerId: verdict.match.id };
+  }
+
   /** Shared shape for the D5 ambiguity early-return. */
   private ambiguityRefusal(
     action: string,
@@ -587,12 +644,14 @@ export class AiBookingCoreService {
     items: T[],
     name: string,
   ): T | undefined {
-    const lower = name.toLowerCase().trim();
-    return (
-      items.find((item) => item.name.toLowerCase() === lower) ||
-      items.find((item) => item.name.toLowerCase().includes(lower)) ||
-      items.find((item) => lower.includes(item.name.toLowerCase()))
-    );
+    // e2e-bug.446 / e2e-bug.362 — this was a third copy of the tiered matcher
+    // whose last tier was a raw `lower.includes(item.name)`. That returned an
+    // employee called "Al" for "is the salon open" (s-**al**-on) and, worse,
+    // for "book Alice for a haircut" — the wrong colleague, confidently.
+    // e2e-bug.362 anchored the shared version to word boundaries; the fix never
+    // reached the private copies. Delegating rather than re-patching, so the
+    // next fix has one place to land.
+    return canonicalFuzzyMatchByName(items, name);
   }
 
   /** Snap HH:mm down to nearest 10-minute boundary (matches booking UI). */
@@ -2346,6 +2405,39 @@ export class AiBookingCoreService {
       `Providers who can perform ${service.name} (${providers.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
       ...providers.map((p) => `• ${p.name}`),
     ];
+
+    // e2e-bug.476 — naming the provider is correct but stops one question
+    // short: the owner's next move is to book them and only then discover
+    // nobody is scheduled. The question had no day in it, so this stays an
+    // addendum to the catalog answer rather than scoping it.
+    const isoTomorrow = resolveTomorrowDateKey(
+      (params._timeZone as string | undefined) ?? 'UTC',
+    );
+    // The addendum is optional by construction: the catalog answer above is
+    // complete and correct without it, so a failure to read the schedule must
+    // degrade to silence rather than take the answer down with it.
+    let unscheduled: Employee[] = [];
+    try {
+      unscheduled = await this.providersWithoutServiceBlockOn(
+        businessId,
+        providers,
+        service.id,
+        isoTomorrow,
+      );
+    } catch {
+      unscheduled = [];
+    }
+    if (unscheduled.length) {
+      const dayLabel = formatDateForAiLabel(isoTomorrow);
+      lines.push(
+        '',
+        unscheduled.length === providers.length
+          ? `No ${service.name} time is scheduled for ${dayLabel} — add one with "create a schedule for ${unscheduled[0].name}".`
+          : `Not scheduled for ${service.name} on ${dayLabel}: ${unscheduled
+              .map((p) => p.name)
+              .join(', ')}.`,
+      );
+    }
     return {
       success: true,
       action: 'lookup_service_assignment',
@@ -2355,6 +2447,13 @@ export class AiBookingCoreService {
         maxPrice: params.maxPrice ?? null,
         serviceRank: params.serviceRank ?? null,
         providers: providers.map((p) => ({ id: p.id, name: p.name })),
+        // e2e-bug.476 — structured, so a caller can offer "create a schedule"
+        // without parsing the summary prose.
+        unscheduledOn: isoTomorrow,
+        unscheduledProviders: unscheduled.map((p) => ({
+          id: p.id,
+          name: p.name,
+        })),
       },
     };
   }
@@ -2573,7 +2672,26 @@ export class AiBookingCoreService {
     userId?: string,
     options?: { notifyOnly?: boolean },
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §236 — services tie the same way providers do, and this handler
+    // **cancels**. `fuzzyMatchServiceByName`'s substring tier means "massage"
+    // matches both "Swedish massage" and "Deep tissue massage" and silently
+    // takes one, so a bulk cancel ran against one service's bookings and
+    // reported success having ignored the other. Refusing rather than matching
+    // both: widening a cancel is the worse failure of the two.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'bulk_smart_cancel',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
 
     const providerIssue = this.providerNameGuard('bulk_smart_cancel', params, employees);
     if (providerIssue) return providerIssue;
@@ -2742,6 +2860,36 @@ export class AiBookingCoreService {
   ): Promise<AgentPlan | null> {
     params = enrichDashboardCreateBookingParams({ ...params }, prompt);
 
+    // tech-debt D5-a — refuse a tied name instead of booking whichever
+    // namesake sorts first.
+    //
+    // §176 held this site back because the signature is `AgentPlan | null` and
+    // "a refusal is not a plan", so migrating looked like trading a wrong guess
+    // for silence. Checked 2026-08-20, and that is not what `null` means here:
+    // `create_booking` is in `MUST_NOT_SILENTLY_SKIP_ACTIONS`
+    // (`compound-command-graph.service.ts`), so a null plan makes the compound
+    // **stop and ask** rather than advance — the channel e2e-bug.329 built for
+    // exactly this. `null` is already the "I could not build this" signal.
+    //
+    // The trade is therefore not guess-vs-silence but guess-vs-refusal, and for
+    // a mutating command that books a real appointment and emails a real
+    // customer, failing closed is the safe side.
+    //
+    // Known residual, filed as e2e-bug.487: the *legacy* compound path
+    // (`executeCompoundIntents`) still drops a null plan silently when other
+    // steps produced plans — e2e-bug.329 was only ever fixed in the graph. That
+    // is a pre-existing gap this change makes reachable by one more route, not
+    // one it introduces, and "silently does not book" is still safer than
+    // "books the wrong person".
+    for (const [list, name, label] of [
+      [customers, params.customerName, 'customer'],
+      [employees, params.employeeName, 'provider'],
+    ] as const) {
+      if (typeof name !== 'string' || !name.trim()) continue;
+      const verdict = this.resolveNamedVerdict(list as any, name, label);
+      if (verdict.ambiguous.length > 1) return null;
+    }
+
     const serviceResolved = await this.resolveCreateBookingServiceForParams(
       businessId,
       services,
@@ -2863,6 +3011,27 @@ export class AiBookingCoreService {
     scopedEmployeeId: string | undefined,
     userId?: string,
   ): Promise<CommandResult> {
+    // tech-debt D5-a — refuse a tied provider name before scoping a bulk write.
+    //
+    // These handlers scope through `applyEmployeeScopeToWhere`, whose
+    // `employeeName` branch calls `resolveEmployee` — first-on-ties. A tie
+    // therefore set `where.employeeId` to whichever namesake sorted first and
+    // this ran against **the wrong person's bookings**, which is the same
+    // defect slice 4 fixed for the other bulk paths and the same shape as
+    // e2e-bug.362.
+    //
+    // §176 listed this site as blocked because `applyEmployeeScopeToWhere`
+    // returns `boolean` and cannot carry a clarification. True of that
+    // function — but not of its callers: these three return `CommandResult`,
+    // so the guard belongs here, exactly as it already does in
+    // `handleUpdateBookings`. No contract change is needed.
+    const providerIssue = this.providerNameGuard(
+      'mark_no_shows',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
+
     const bookings = await this.findBookingsForMarkNoShows(
       businessId,
       params,
@@ -2900,6 +3069,15 @@ export class AiBookingCoreService {
         userId,
       );
     }
+
+    // tech-debt D5-a — same guard as `handleNoShowRecovery` above; this is the
+    // branch that does NOT delegate to it, so it needs its own.
+    const providerIssue = this.providerNameGuard(
+      'mark_no_shows',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForMarkNoShows(
       businessId,
@@ -2951,6 +3129,27 @@ export class AiBookingCoreService {
     scopedEmployeeId: string | undefined,
     userId?: string,
   ): Promise<CommandResult> {
+    // tech-debt D5-a — refuse a tied provider name before scoping a bulk write.
+    //
+    // These handlers scope through `applyEmployeeScopeToWhere`, whose
+    // `employeeName` branch calls `resolveEmployee` — first-on-ties. A tie
+    // therefore set `where.employeeId` to whichever namesake sorted first and
+    // this ran against **the wrong person's bookings**, which is the same
+    // defect slice 4 fixed for the other bulk paths and the same shape as
+    // e2e-bug.362.
+    //
+    // §176 listed this site as blocked because `applyEmployeeScopeToWhere`
+    // returns `boolean` and cannot carry a clarification. True of that
+    // function — but not of its callers: these three return `CommandResult`,
+    // so the guard belongs here, exactly as it already does in
+    // `handleUpdateBookings`. No contract change is needed.
+    const providerIssue = this.providerNameGuard(
+      'payment_sweep',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
+
     const rawBookings = await this.findUnpaidBookingsForSweep(
       businessId,
       params,
@@ -3029,7 +3228,26 @@ export class AiBookingCoreService {
         details: { params },
       };
     }
-    const targets = resolveEmployees(employees, params);
+    // D5 / §232 — `day_replan` executes a plan scoped to `targets`, so a
+    // namesake tie replanned the **wrong provider's whole day**. Guarded with
+    // `resolveEmployeesVerdict` rather than `providerNameGuard`, because that
+    // one only inspects the singular `employeeName`: `resolveEmployees` also
+    // reads `employeeNames`, which is the plural bypass slice 8 found on
+    // `handleCreateBooking`.
+    const providerVerdict = resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'day_replan',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     const plans: AgentPlan[] = [];
 
     plans.push(
@@ -3157,6 +3375,8 @@ export class AiBookingCoreService {
     ) {
       return [];
     }
+    // §311 (`e2e-bug.533`): the customer scope, resolved by the caller.
+    if (params.customerId) where.customerId = params.customerId;
     this.applyServiceScopeToWhere(where, params, matchedServices);
     this.applyDateScopeToWhere(where, params);
 
@@ -3175,6 +3395,7 @@ export class AiBookingCoreService {
     params: any,
     services: Service[],
     employees: Employee[],
+    customers: Customer[],
     scopedEmployeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
@@ -3188,6 +3409,7 @@ export class AiBookingCoreService {
         params,
         services,
         employees,
+        customers,
         scopedEmployeeId,
         userId,
       );
@@ -3201,6 +3423,37 @@ export class AiBookingCoreService {
           'Tell me what to change — e.g. mark as done, set payment to paid or N/A.',
         details: { params },
       };
+    }
+
+    // D5 / §237 — `findBookingsForBulkUpdate` returns `Booking[]` and cannot
+    // refuse, so the guard belongs here, beside the provider one that already
+    // exists. Service first: an ambiguous service with a valid provider should
+    // report the service, not send the user to fix something that is fine.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'update_bookings',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+
+    // §311 (`e2e-bug.533`): apply the customer scope this command has always
+    // declared and never used. Refuses a tie or an unknown name rather than
+    // widening to every booking that matches the other filters.
+    const customerScope = this.resolveCustomerScope(
+      'update_bookings',
+      params,
+      customers,
+    );
+    if (customerScope.refusal) return customerScope.refusal;
+    if (customerScope.customerId) {
+      params = { ...params, customerId: customerScope.customerId };
     }
 
     const providerIssue = this.providerNameGuard('update_bookings', params, employees);
@@ -3403,6 +3656,8 @@ export class AiBookingCoreService {
     ) {
       return [];
     }
+    // §311 (`e2e-bug.533`): the customer scope, resolved by the caller.
+    if (params.customerId) where.customerId = params.customerId;
     this.applyServiceScopeToWhere(where, params, matchedServices);
     this.applyDateScopeToWhere(where, params);
 
@@ -3550,7 +3805,25 @@ export class AiBookingCoreService {
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'hide_appointments_from_calendar',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
     const statuses =
       this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
 
@@ -3623,7 +3896,25 @@ export class AiBookingCoreService {
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'unhide_appointments_from_calendar',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
     const statuses = this.resolveCalendarVisibilityStatusFilters(
       params,
       'unhide',
@@ -3704,10 +3995,29 @@ export class AiBookingCoreService {
     params: any,
     services: Service[],
     employees: Employee[],
+    customers: Customer[],
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'cancel_bookings',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
     const requestedServiceLabels = [
       ...(params.serviceNames ?? []),
       ...(params.serviceName && !params.serviceNames?.length
@@ -3729,6 +4039,19 @@ export class AiBookingCoreService {
           availableServices: services.map((s) => s.name),
         },
       };
+    }
+
+    // §311 (`e2e-bug.533`): apply the customer scope this command has always
+    // declared and never used. Refuses a tie or an unknown name rather than
+    // widening to every booking that matches the other filters.
+    const customerScope = this.resolveCustomerScope(
+      'cancel_bookings',
+      params,
+      customers,
+    );
+    if (customerScope.refusal) return customerScope.refusal;
+    if (customerScope.customerId) {
+      params = { ...params, customerId: customerScope.customerId };
     }
 
     const providerIssue = this.providerNameGuard('cancel_bookings', params, employees);
@@ -4182,6 +4505,50 @@ export class AiBookingCoreService {
       start: formatTimeDisplay(r.start),
       end: formatTimeDisplay(r.end),
     }));
+  }
+
+  /**
+   * Which of these providers have no {service} block on `isoDay` — e2e-bug.476.
+   *
+   * One query for all of them rather than one per provider: this is an
+   * informational addendum to a catalog answer and must not cost a round trip
+   * each. It reads only scheduling periods, because `hasServiceBlock` is the
+   * whole question here — the bookings half of
+   * `getProviderAvailabilityForService` exists to compute open slots, which an
+   * un-dated capability answer does not show.
+   */
+  private async providersWithoutServiceBlockOn(
+    businessId: string,
+    providers: Employee[],
+    serviceId: string,
+    isoDay: string,
+  ): Promise<Employee[]> {
+    if (!providers.length) return [];
+    const d = parseDateInput(isoDay) ?? new Date(isoDay);
+    const dayStart = new Date(d);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const periods = await this.periodRepo.find({
+      where: {
+        businessId,
+        employeeId: In(providers.map((p) => p.id)) as any,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const covered = new Set(
+      periods
+        .filter(
+          (period) =>
+            period.type === TemplatePeriodType.SERVICE_BLOCK &&
+            (!period.serviceIds?.length ||
+              period.serviceIds.includes(serviceId)),
+        )
+        .map((period) => period.employeeId),
+    );
+    return providers.filter((p) => !covered.has(p.id));
   }
 
   async getProviderAvailabilityForService(

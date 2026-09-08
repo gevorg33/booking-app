@@ -1,4 +1,5 @@
 import type { Repository } from 'typeorm';
+import { ILike } from 'typeorm';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import { CLINIC_PATIENT_ALERT_TYPES } from '../../common/utils/clinic-patient-alert.types.js';
 
@@ -43,11 +44,33 @@ export async function resolvePatientClinicalCustomer(
       : undefined;
   if (!name) return null;
 
+  // e2e-bug.443 — this used to read `{ where: { businessId }, take: 200 }` with
+  // no `order` and no `isActive`, then match in memory. Three faults, on a
+  // path that writes to a **patient chart**:
+  //
+  //  1. the 200 were an arbitrary, storage-ordered slice, so past 200 customers
+  //     a real patient simply was not in the set and silently failed to
+  //     resolve;
+  //  2. deactivated customers were candidates, so a former patient could match;
+  //  3. with no `order`, which 200 you got could change between identical
+  //     calls.
+  //
+  // Filtering by name in SQL fixes all three: the cap now bounds *matching*
+  // rows rather than arbitrary ones, `isActive` is enforced by the database,
+  // and the order is deterministic. Exact still beats substring, as before.
+  const needle = name.toLowerCase();
+  // Escape LIKE metacharacters so a name containing % or _ is matched
+  // literally rather than as a wildcard.
+  const escaped = needle.replace(/[\\%_]/g, (ch) => `\\${ch}`);
   const customers = await deps.customerRepo.find({
-    where: { businessId },
+    where: {
+      businessId,
+      isActive: true,
+      name: ILike(`%${escaped}%`),
+    },
+    order: { name: 'ASC', id: 'ASC' },
     take: 200,
   });
-  const needle = name.toLowerCase();
   return (
     customers.find((customer) => customer.name.toLowerCase() === needle) ??
     customers.find((customer) =>

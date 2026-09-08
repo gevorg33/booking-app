@@ -673,6 +673,7 @@ export class CommandUnderstandingPipelineService {
       reasoning: base.reasoning,
       employees: input.employees,
       customers: input.customers,
+      locations: input.locations,
       timeZone: input.timeZone,
       surface: input.surface,
       assistantMode: resolveAssistantModeFromSession({

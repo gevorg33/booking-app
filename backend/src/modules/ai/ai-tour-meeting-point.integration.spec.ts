@@ -11,9 +11,10 @@ import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour meeting point integration (ai-cmd-customer-4.10.6)', () => {
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
 
   const services = [
     {
@@ -105,18 +106,17 @@ describe('ai tour meeting point integration (ai-cmd-customer-4.10.6)', () => {
       );
       expect(customerPublicRescue?.action).toBe('explain_tour_meeting_point');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_tour_meeting_point',
         params: {
           ...(serviceName ? { serviceName } : {}),
           ...(aspect ? { aspect } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourMeetingPointLogic(

@@ -1,3 +1,4 @@
+import { ILike } from 'typeorm';
 import type { Repository } from 'typeorm';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
@@ -352,29 +353,47 @@ export async function resolveCustomerForPatientChart(
     });
     if (byId) return byId;
 
+    // e2e-bug.443 shape / §223 — this used to load an arbitrary 200 customers
+    // and prefix-match in memory. `take` with no `order` is a storage-ordered
+    // slice, so past 200 customers a real id prefix simply was not in the set
+    // and silently failed to resolve, and *which* 200 you got could differ
+    // between identical calls. Matching the prefix in SQL makes the cap bound
+    // matching rows instead of arbitrary ones, and the order deterministic.
+    const idPrefix = (parsed.customerId ?? '').replace(
+      /[\\%_]/g,
+      (ch) => `\\${ch}`,
+    );
     const customers = await deps.customerRepo.find({
-      where: { businessId, isActive: true },
+      where: { businessId, isActive: true, id: ILike(`${idPrefix}%`) },
+      order: { id: 'ASC' },
       take: 200,
     });
-    return (
-      customers.find(
-        (customer) =>
-          customer.id === parsed.customerId ||
-          customer.id.startsWith(parsed.customerId ?? ''),
-      ) ?? null
-    );
+    return customers[0] ?? null;
   }
 
   if (parsed.customerName) {
+    // e2e-bug.443 shape / §223 — same fault as the id branch above, and the
+    // same one `resolvePatientForClinicalMutation` was fixed for: an arbitrary
+    // 200 rows filtered in memory. Filtering by name in SQL means the cap
+    // bounds *matching* patients. Exact beats substring, which the in-memory
+    // version did not do — it returned `matches[0]`, so "Ann" could win over
+    // an exact "Anna" purely on storage order.
+    const needle = parsed.customerName.toLowerCase();
+    const escaped = needle.replace(/[\\%_]/g, (ch) => `\\${ch}`);
     const customers = await deps.customerRepo.find({
-      where: { businessId, isActive: true },
+      where: {
+        businessId,
+        isActive: true,
+        name: ILike(`%${escaped}%`),
+      },
+      order: { name: 'ASC', id: 'ASC' },
       take: 200,
     });
-    const needle = parsed.customerName.toLowerCase();
-    const matches = customers.filter((customer) =>
-      customer.name.toLowerCase().includes(needle),
+    return (
+      customers.find((customer) => customer.name.toLowerCase() === needle) ??
+      customers[0] ??
+      null
     );
-    return matches[0] ?? null;
   }
 
   return null;

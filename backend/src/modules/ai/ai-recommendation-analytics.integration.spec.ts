@@ -4,6 +4,7 @@ import { EXPLAIN_RECOMMENDATION_ANALYTICS_PROMPTS } from './ai-recommendation-an
 import { handleExplainRecommendationAnalyticsLogic } from './ai-recommendation-analytics.logic.js';
 import { AI_COMMAND_EVAL_EXPLAIN_RECOMMENDATION_ANALYTICS_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai recommendation analytics integration (ai-cmd-rec-8)', () => {
   const business = { id: 'biz-1', settings: {} };
@@ -35,15 +36,14 @@ describe('ai recommendation analytics integration (ai-cmd-rec-8)', () => {
       const params: Record<string, unknown> = {};
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_recommendation_analytics',
         params,
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
     },
   );

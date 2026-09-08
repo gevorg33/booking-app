@@ -7,9 +7,10 @@ import { BusinessService } from '../business/business.service.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Booking } from './entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 const hipaaBusiness = (): Business =>
-  ({
+  makeBusiness({
     id: 'biz-clinic',
     name: 'City Clinic',
     timezone: 'UTC',
@@ -23,7 +24,7 @@ const hipaaBusiness = (): Business =>
         sessionTimeoutMinutes: 15,
       },
     },
-  }) as Business;
+  });
 
 function createBookingPhiHarness() {
   const auditRepo = {
@@ -135,7 +136,7 @@ describe('Sprint 37 — booking PHI compliance integration', () => {
     bookingRepo.findOne.mockResolvedValue(storedBooking);
 
     const result = await bookingService.findOne('book-phi-1', {
-      staffUserId: 'staff-1',
+      staffUserId: '11111111-1111-4111-8111-111111111111',
     });
 
     expect(result.notes).toBe('Confidential intake');
@@ -220,7 +221,7 @@ describe('Sprint 37 — booking PHI compliance integration', () => {
     const result = await bookingService.searchDashboard(
       'biz-clinic',
       {},
-      'staff-1',
+      '11111111-1111-4111-8111-111111111111',
     );
 
     expect(result.appointments[0].notes).toBe('Dashboard note');
@@ -284,7 +285,7 @@ describe('Sprint 37 — booking PHI compliance integration', () => {
     'HIPAA encryption matrix: type=$businessType enabled=$hipaaEnabled',
     async ({ businessType, hipaaEnabled, expectEncrypted }) => {
       const { phiFieldService } = createBookingPhiHarness();
-      const business = {
+      const business = makeBusiness({
         id: 'biz-matrix',
         settings: {
           businessType,
@@ -293,7 +294,7 @@ describe('Sprint 37 — booking PHI compliance integration', () => {
             baaAcceptedAt: hipaaEnabled ? '2026-01-01' : null,
           },
         },
-      } as Business;
+      });
 
       const result = await phiFieldService.encryptBookingForStorage(business, {
         notes: 'Matrix note',

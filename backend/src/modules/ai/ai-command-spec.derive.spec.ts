@@ -75,11 +75,12 @@ describe('ai-command-spec derivations', () => {
       expect(entry).toMatchObject({
         command: 'appointment.create',
         requiredVariables: ['customerName', 'serviceName', 'date'],
-        optionalVariables: [
-          'timeSlot',
-          'bookingFirstAvailable',
-          'employeeName',
-        ],
+        // e2e-bug.485 — `bookingFirstAvailable` was here and is deliberately
+        // gone: it is `source: 'orchestrator'`, so it stays *declared* (the
+        // handler reads it) but is no longer offered to the model as a field
+        // to fill from prose. Removing it from this list is the fix, not a
+        // regression.
+        optionalVariables: ['timeSlot', 'employeeName'],
       });
       expect(entry?.description).toContain('Book a new appointment');
       expect(entry?.examples.length).toBeGreaterThan(0);
@@ -109,10 +110,6 @@ describe('ai-command-spec derivations', () => {
             serviceName: { type: 'string', description: expect.any(String) },
             date: { type: 'string', description: expect.any(String) },
             timeSlot: { type: 'string', description: expect.any(String) },
-            bookingFirstAvailable: {
-              type: 'boolean',
-              description: expect.any(String),
-            },
             employeeName: { type: 'string', description: expect.any(String) },
           },
           required: ['customerName', 'serviceName', 'date'],

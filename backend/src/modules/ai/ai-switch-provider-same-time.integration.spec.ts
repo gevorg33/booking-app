@@ -8,6 +8,7 @@ import { SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_SCENARIOS } from './ai-switch-pr
 import { handleSwitchProviderSameTimeLogic } from './ai-switch-provider-same-time.logic.js';
 import { rescueSwitchProviderSameTimeIntent } from './ai-switch-provider-same-time.util.js';
 import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', () => {
   const startTime = '2026-07-01T15:00:00.000Z';
@@ -89,7 +90,7 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
     );
     expect(directRescue?.action).toBe('switch_provider_same_time');
 
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'switch_provider_same_time',
       params: {
         mode: row.mode,
@@ -97,11 +98,10 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
         ...(row.timeSlot ? { timeSlot: row.timeSlot } : {}),
       },
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt: row.prompt,
-    });
+    }));
     expect(validation.issues).toEqual([]);
 
     const result = await handleSwitchProviderSameTimeLogic(

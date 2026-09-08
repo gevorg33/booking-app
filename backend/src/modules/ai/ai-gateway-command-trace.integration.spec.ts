@@ -1,5 +1,9 @@
 import { AiGatewayService } from './ai-gateway.service.js';
-import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
+import {
+  createAiGatewayPlatformMocks,
+  dashboardExecuteCommandMock,
+  ragContextBlockMock,
+} from './ai-gateway.test-mocks.js';
 import { COMMAND_TRACE_ID_CONTEXT_KEY } from './ai-command-trace-recorder.util.js';
 import type { CommandResult } from './command-completion.types.js';
 
@@ -9,7 +13,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
     plannerShadow?: { runInBackground: jest.Mock },
   ) {
     const dashboardCommands = {
-      executeCommand: jest.fn(async () => result),
+      executeCommand: dashboardExecuteCommandMock(async () => result),
       approveTask: jest.fn(),
       retryWorkflowStep: jest.fn(),
     };
@@ -24,7 +28,7 @@ describe('AiGatewayService command trace (pipe-1.10.3 / acc-1)', () => {
         summaryBlock: '',
       })),
     };
-    const rag = { buildRagContextBlock: jest.fn(async () => '') };
+    const rag = { buildRagContextBlock: ragContextBlockMock(async () => '') };
     const promptSecurity = { preflightBlock: jest.fn(() => null) };
     const planEntitlements = {
       assertCanRunDashboardAiCommand: jest.fn(async () => undefined),

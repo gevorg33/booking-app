@@ -1,4 +1,4 @@
-import type { Repository } from 'typeorm';
+import { extractTimeSlotFromPrompt as extractStructuralTimeSlotFromPrompt } from './ai-structural-extractors.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicLabQueueItem } from '../clinic-test-results/order/clinic-test-order.service.js';
 import type { ClinicLabBookingRequestView } from '../../common/utils/clinic-lab-booking-request.util.js';
@@ -645,38 +645,21 @@ export function isAwaitingPatientBookingListPrompt(prompt: string): boolean {
   );
 }
 
-function extractTimeSlotFromPrompt(prompt: string): string | null {
-  // e2e-bug.364, second variant. `atTime` below handles "at 3:30 pm" correctly
-  // because it captures the meridiem itself — but it requires the word "at".
-  // Without it, "3:30 pm" fell through to `plainTime`, which matches "3:30" and
-  // returned 03:30: twelve hours early. Any prompt with a meridiem is resolved
-  // here first, with or without "at".
-  const meridiemTime = prompt.match(
-    /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
-  );
-  if (meridiemTime) {
-    let hour = Number(meridiemTime[1]);
-    const minute = meridiemTime[2] ?? '00';
-    const meridiem = meridiemTime[3].toLowerCase();
-    if (meridiem === 'pm' && hour < 12) hour += 12;
-    if (meridiem === 'am' && hour === 12) hour = 0;
-    return normalizeTime24(`${hour}:${minute}`);
-  }
-
-  const atTime = prompt.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i);
-  if (atTime) {
-    let hour = Number(atTime[1]);
-    const minute = atTime[2] ?? '00';
-    const meridiem = atTime[3]?.toLowerCase();
-    if (meridiem === 'pm' && hour < 12) hour += 12;
-    if (meridiem === 'am' && hour === 12) hour = 0;
-    return normalizeTime24(`${hour}:${minute}`);
-  }
-
-  const plainTime = prompt.match(/\b(\d{1,2}):(\d{2})\b/);
-  if (plainTime) {
-    return normalizeTime24(`${plainTime[1]}:${plainTime[2]}`);
-  }
+function resolveClinicTimeSlotFromPrompt(prompt: string): string | null {
+  // §184 (e2e-bug.367 / B7) — delegates to the canonical extractor instead of
+  // re-parsing. This copy had its own `e2e-bug.364` fix and it was the weaker of
+  // the two: it matched `\b(am|pm)\b`, and a word boundary cannot follow the
+  // period in "p.m.", so "book for 6:45 p.m." fell past the meridiem branch to
+  // the bare-24h one and returned **06:45** — twelve hours early on a lab
+  // collection. The canonical extractor uses `(?!\w)` and handles the dotted
+  // form; measured side by side, the two agreed on "3:30 pm", "3:30pm" and
+  // "11:15 am" and disagreed on every dotted variant.
+  //
+  // The time-of-day words below are genuinely clinic-local — the canonical
+  // extractor has no such fallback — so they stay, applied only after it
+  // declines. That ordering matters: they are a last resort, not a competitor.
+  const canonical = extractStructuralTimeSlotFromPrompt(prompt);
+  if (canonical) return canonical;
 
   if (/\bmorning\b/i.test(prompt)) return '09:00';
   if (/\bafternoon\b/i.test(prompt)) return '14:00';
@@ -703,7 +686,7 @@ export function buildStartTimeIso(
     (typeof params.startTime === 'string' && params.startTime.includes('T')
       ? params.startTime
       : undefined) ??
-    extractTimeSlotFromPrompt(prompt) ??
+    resolveClinicTimeSlotFromPrompt(prompt) ??
     undefined;
 
   if (!date || !timeSlot) return null;

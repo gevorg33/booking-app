@@ -5,13 +5,18 @@ import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.serv
 import { AiSettingsService } from './ai-settings.service.js';
 
 describe('AiEntityMemoryService', () => {
+  // F1 — typed rather than bare `jest.fn()`: with @types/jest 30 a bare mock
+  // infers an `unknown` return, so `mockResolvedValue(...)` resolves its
+  // parameter to `never`.
   const openAi = {
-    isAvailableForBusiness: jest.fn(),
-    completeJson: jest.fn(),
+    isAvailableForBusiness:
+      jest.fn<(businessId: string) => Promise<boolean>>(),
+    completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
   const aiSettings = {
-    getEntityMemory: jest.fn(),
-    mergeEntityMemory: jest.fn(),
+    getEntityMemory: jest.fn<(businessId: string) => Promise<unknown>>(),
+    mergeEntityMemory:
+      jest.fn<(businessId: string, aliases: unknown) => Promise<void>>(),
   };
 
   let service: AiEntityMemoryService;

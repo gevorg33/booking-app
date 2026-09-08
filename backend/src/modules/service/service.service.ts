@@ -52,6 +52,46 @@ import {
   extractServiceRankMetadata,
 } from '../../common/utils/service-rank-metadata.util.js';
 
+/**
+ * A `Service` plus the fields `enrichService` derives from `metadata`.
+ *
+ * Named and exported because it was previously an **anonymous type on a private
+ * method**, so callers could not refer to it — and `create()` annotated its
+ * return as `Promise<Service>`, which silently narrowed every derived field
+ * away. The fields are present at runtime (`service.tax.integration.spec.ts`
+ * asserts `created.taxRatePercent === 10` and passes); they were simply
+ * invisible to the type system, which is why tests reading them report
+ * "Property 'taxRatePercent' does not exist on type 'Service'".
+ *
+ * **Two** methods carried the lossy annotation, not one: `create` and `update`
+ * both declared `Promise<Service>` while returning the enriched value. Only
+ * `findAll` and `findOne` carry no return annotation, and those inferred this
+ * shape correctly all along — an annotation here was strictly worse than
+ * inference.
+ */
+/**
+ * The nested `category` relation is enriched too — `enrichService` calls
+ * `Object.assign(enriched.category, { localizedNames })`. Because
+ * `Object.assign`'s **return value is discarded** there, the mutation is
+ * invisible to the type system, so `service.category.localizedNames` reported
+ * "does not exist" despite being present at runtime
+ * (`service.service.spec.ts` asserts it and passes).
+ */
+export type EnrichedServiceCategory = ServiceCategory & {
+  localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
+};
+
+export type EnrichedService = Service & {
+  category?: EnrichedServiceCategory | null;
+  localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
+  tour?: ReturnType<typeof extractTourMetadata>;
+  clinic?: ReturnType<typeof extractClinicMetadata>;
+  taxRatePercent?: number | null;
+  diagnosticCode?: ClinicDiagnosticCodeLinkView | null;
+  isFeatured?: boolean;
+  serviceTier?: ReturnType<typeof extractServiceRankMetadata>['serviceTier'];
+};
+
 @Injectable()
 export class ServiceService {
   constructor(
@@ -225,19 +265,7 @@ export class ServiceService {
     });
   }
 
-  private async enrichService(service: Service): Promise<
-    Service & {
-      localizedNames?: ReturnType<typeof extractLocalizedNamesFromMetadata>;
-      tour?: ReturnType<typeof extractTourMetadata>;
-      clinic?: ReturnType<typeof extractClinicMetadata>;
-      taxRatePercent?: number | null;
-      diagnosticCode?: ClinicDiagnosticCodeLinkView | null;
-      isFeatured?: boolean;
-      serviceTier?: ReturnType<
-        typeof extractServiceRankMetadata
-      >['serviceTier'];
-    }
-  > {
+  private async enrichService(service: Service): Promise<EnrichedService> {
     const localizedNames = extractLocalizedNamesFromMetadata(service.metadata);
     const tour = extractTourMetadata(service.metadata);
     const clinic = extractClinicMetadata(service.metadata);
@@ -290,7 +318,7 @@ export class ServiceService {
     businessId: string,
     dto: CreateServiceDto,
     userId?: string,
-  ): Promise<Service> {
+  ): Promise<EnrichedService> {
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
     });
@@ -403,7 +431,7 @@ export class ServiceService {
     id: string,
     dto: UpdateServiceDto,
     userId?: string,
-  ): Promise<Service> {
+  ): Promise<EnrichedService> {
     const service = await this.findOne(id);
     const business = await this.businessRepo.findOne({
       where: { id: service.businessId },

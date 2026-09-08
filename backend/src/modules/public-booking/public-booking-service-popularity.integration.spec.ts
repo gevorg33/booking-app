@@ -1,9 +1,10 @@
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('PublicBookingService service popularity (rank-1.9)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-salon',
     name: 'Studio Salon',
     slug: 'studio-salon',
@@ -13,7 +14,7 @@ describe('PublicBookingService service popularity (rank-1.9)', () => {
       locale: 'en',
       publicBooking: { enabled: true },
     },
-  } as Business;
+  });
 
   const services = [
     {

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 
@@ -51,14 +51,38 @@ describe('sync mobile guide flows (ai-guide-1.9.1)', () => {
     const beforeProvider = readText(providerBundle);
     const beforeConsumerManifest = readManifestStableFields(consumerManifest);
     const beforeProviderManifest = readManifestStableFields(providerManifest);
-    execSync(`node ${SCRIPT}`, { cwd: ROOT, stdio: 'pipe' });
-    expect(readText(consumerBundle)).toBe(beforeConsumer);
-    expect(readText(providerBundle)).toBe(beforeProvider);
-    expect(readManifestStableFields(consumerManifest)).toBe(
-      beforeConsumerManifest,
-    );
-    expect(readManifestStableFields(providerManifest)).toBe(
-      beforeProviderManifest,
-    );
+
+    // e2e-bug.452 — the generator writes to the working tree, and this test runs
+    // it for real because running it for real is the point: it is what proves the
+    // committed bundles still match the backend corpus. But `syncedAt` is
+    // `new Date().toISOString()`, so every run left two tracked app manifests
+    // modified, and every sweep ended with `git status` showing changes nobody
+    // made. The assertions never noticed, because `readManifestStableFields`
+    // strips `syncedAt` before comparing — the test was correct and littering.
+    //
+    // Restoring in `finally` rather than after the assertions, so a genuine
+    // failure does not also leave the tree dirty for whoever debugs it.
+    const originals = [
+      [consumerBundle, beforeConsumer],
+      [providerBundle, beforeProvider],
+      [consumerManifest, readText(consumerManifest)],
+      [providerManifest, readText(providerManifest)],
+    ] as const;
+
+    try {
+      execSync(`node ${SCRIPT}`, { cwd: ROOT, stdio: 'pipe' });
+      expect(readText(consumerBundle)).toBe(beforeConsumer);
+      expect(readText(providerBundle)).toBe(beforeProvider);
+      expect(readManifestStableFields(consumerManifest)).toBe(
+        beforeConsumerManifest,
+      );
+      expect(readManifestStableFields(providerManifest)).toBe(
+        beforeProviderManifest,
+      );
+    } finally {
+      for (const [path, contents] of originals) {
+        if (readText(path) !== contents) writeFileSync(path, contents);
+      }
+    }
   });
 });

@@ -5,6 +5,7 @@ import {
   PAY_AT_VENUE_FALLBACK_RESCUE_SCENARIOS,
 } from './ai-pay-at-venue-fallback.fixtures.js';
 import { rescuePayAtVenueFallbackIntent } from './ai-pay-at-venue-fallback.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai pay at venue fallback integration (ai-cmd-customer-4.18.2)', () => {
   const businessRepo = { findOne: jest.fn() };
@@ -24,15 +25,14 @@ describe('ai pay at venue fallback integration (ai-cmd-customer-4.18.2)', () => 
   });
 
   it.each(PAY_AT_VENUE_FALLBACK_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'pay_at_venue_fallback',
       params: {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt,
-    });
+    }));
     expect(validation.issues).toEqual([]);
   });
 

@@ -42,10 +42,7 @@ import {
   isRescheduleExistingAppointmentPrompt,
 } from './ai-find-soonest-appointment.util.js';
 import { enrichCompareServicesParamsFromPrompt } from './ai-compare-services.util.js';
-import {
-  enrichFilterServicesNoPrepaymentParamsFromPrompt,
-  rescueFilterServicesNoPrepaymentIntent,
-} from './ai-filter-services-no-prepayment.util.js';
+import { enrichFilterServicesNoPrepaymentParamsFromPrompt } from './ai-filter-services-no-prepayment.util.js';
 import { enrichExplainBusinessHoursLocationParamsFromPrompt } from './ai-explain-business-hours-and-location.util.js';
 import {
   enrichCreateServicePrepaymentParamsFromPrompt,
@@ -108,18 +105,25 @@ import { rescueCustomerCrmIntent } from './ai-customer-crm.util.js';
 import { rescuePrivacyDeleteConfirmIntent } from './ai-privacy-delete.util.js';
 import { rescueCancelAllUpcomingConfirmIntent } from './ai-cancel-all-upcoming-bookings.util.js';
 import { rescueExplainMySubscriptionIntent } from './ai-explain-my-subscription.util.js';
-import { rescueScheduleResourceIntent } from './ai-schedule-resources.util.js';
+import {
+  rescueScheduleResourceIntent,
+  isEarliestSlotAllServicesPrompt,
+} from './ai-schedule-resources.util.js';
 import { rescueGiftFulfillmentIntent } from './ai-gift-fulfillment.util.js';
 import { rescueIntegrationsIntent } from './ai-integrations.util.js';
 import { rescueExplainSupportInboxIntent } from './ai-explain-support-inbox.util.js';
 import {
   extractBusinessEmailOnCustomerChangeToggleFromPrompt,
+  isAppointmentReminderPreferencesPrompt,
   isToggleBusinessEmailOnCustomerChangePrompt,
   rescuePushNotificationsIntent,
 } from './ai-push-notifications.util.js';
+import { isExplainTenantAppInstallPrompt } from './ai-tenant-app-install.util.js';
 import { rescueReschedulePackageVisitSelfIntent } from './ai-reschedule-package-visit-self.util.js';
 import { rescueCancelPackageVisitSelfIntent } from './ai-cancel-package-visit-self.util.js';
 import {
+  isBookPackagePrompt,
+  isBookWithCashPrompt,
   isMultiServiceAvailabilityDiscoveryPrompt,
   rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
@@ -143,6 +147,7 @@ import {
   enrichRecordExpenseParamsFromPrompt,
   isCreateProductPrompt,
   parseCreateCommissionRuleFromPrompt,
+  isSummarizeReviewsPrompt,
   parseExportAnalyticsReportFromPrompt,
   rescueRetailFinanceIntent,
 } from './ai-retail-finance.util.js';
@@ -167,7 +172,6 @@ import {
 import { parseExplainServiceOnlinePaymentSetupFromPrompt } from './ai-service-online-payment-setup.util.js';
 import { parseAuditServicesMissingOnlinePaymentFromPrompt } from './ai-audit-services-missing-online-payment.util.js';
 import {
-  enrichFindServicesUnderBudgetParamsFromPrompt,
   parseFindServicesUnderBudgetFromPrompt,
   rescueFindServicesUnderBudgetIntent,
 } from './ai-find-services-under-budget.util.js';
@@ -335,15 +339,18 @@ import {
   rescueExplainPublicIntakeFormIntent,
 } from './ai-explain-public-intake-form.util.js';
 import {
+  isExplainGuestCheckoutFieldsPrompt,
   parseExplainGuestCheckoutFieldsFromPrompt,
   rescueExplainGuestCheckoutFieldsIntent,
 } from './ai-explain-guest-checkout-fields.util.js';
 import {
+  isExplainWhySignInPrompt,
   parseExplainWhySignInFromPrompt,
   rescueExplainWhySignInIntent,
 } from './ai-explain-why-sign-in.util.js';
 import { rescueMyLocaleIntent } from './ai-my-locale.util.js';
 import {
+  isFixCheckoutValidationErrorPrompt,
   parseFixCheckoutValidationErrorFromPrompt,
   rescueFixCheckoutValidationErrorIntent,
 } from './ai-fix-checkout-validation-error.util.js';
@@ -366,7 +373,6 @@ import {
   rescueGetDirectionsToSalonIntent,
 } from './ai-get-directions-to-salon.util.js';
 import {
-  enrichExplainPreparationNotesParamsFromPrompt,
   parseExplainPreparationNotesFromPrompt,
   rescueExplainPreparationNotesIntent,
 } from './ai-explain-preparation-notes.util.js';
@@ -535,7 +541,6 @@ import {
 } from './ai-consumer-clinic-test-results.util.js';
 import {
   enrichListMyDocumentsParamsFromPrompt,
-  parseListMyDocumentsFromPrompt,
   rescueListMyDocumentsIntent,
 } from './ai-list-my-documents.util.js';
 import {
@@ -726,6 +731,8 @@ export interface IntentRescueInput {
   reasoning?: string;
   employees?: Array<{ id: string; name: string }>;
   customers?: Array<{ id: string; name: string }>;
+  /** Business locations — e2e-bug.460 needs a positive place test, see tryRescueStaffOperations. */
+  locations?: Array<{ id: string; name: string }>;
   timeZone?: string;
   /** When set, budget discovery rescue uses surface-specific misroute mapping. */
   surface?: 'dashboard' | 'customer' | 'public' | 'provider';
@@ -933,7 +940,13 @@ export class AiIntentRescueService {
     ctx: RescuePipelineContext,
   ): IntentRescueResult | null {
     const { prompt, action, params } = input;
-    const { employees, customers, timeZone, budgetSurface } = ctx;
+    const {
+      employees,
+      customers,
+      locations: knownLocations,
+      timeZone,
+      budgetSurface,
+    } = ctx;
     // e2e-bug.159 / e2e-bug.252 — owner cancel/reschedule email alert before
     // booking/reschedule disambiguation (and before react_agent unknown fallthrough).
     if (input.surface === 'dashboard') {
@@ -1115,6 +1128,7 @@ export class AiIntentRescueService {
       customers,
       timeZone,
       input.surface,
+      knownLocations,
     );
     if (disambiguated) return disambiguated;
     const clinicCompoundEarly = this.tryRescueClinicCompound(prompt, action);
@@ -1242,9 +1256,12 @@ export class AiIntentRescueService {
       return explainPostVisitReviewPromptEarly;
     }
     // e2e-bug.146 — configure_business_tax before leave_visit_review ("tax rate" ≠ review).
-    const businessTaxBeforeReviewEarly = this.tryRescueBusinessTaxEarly(
-      prompt,
-      action,
+    // §168 — gated: the tax intents are dashboard-only, and ungated this call
+    // proposed `explain_business_tax` for a public prompt, blocking the legal
+    // rescue behind it (`e2e-bug.455`).
+    const businessTaxBeforeReviewEarly = this.gateRescueBySurface(
+      this.tryRescueBusinessTaxEarly(prompt, action),
+      input.surface,
     );
     if (businessTaxBeforeReviewEarly) return businessTaxBeforeReviewEarly;
     const leaveVisitReviewEarly =
@@ -1456,7 +1473,11 @@ export class AiIntentRescueService {
     const createBookingNotEmployeeEarly =
       this.tryRescueCreateBookingNotEmployee(prompt, action, params);
     if (createBookingNotEmployeeEarly) return createBookingNotEmployeeEarly;
-    const staffOperationsEarly = this.tryRescueStaffOperations(prompt, action);
+    const staffOperationsEarly = this.tryRescueStaffOperations(
+      prompt,
+      action,
+      knownLocations,
+    );
     if (staffOperationsEarly) return staffOperationsEarly;
     const waitlistDashboardEarly =
       input.surface === 'provider'
@@ -1467,7 +1488,13 @@ export class AiIntentRescueService {
     if (operations) return operations;
     const providerBookingEarly = this.tryRescueProviderBooking(prompt, action);
     if (providerBookingEarly) return providerBookingEarly;
-    const catalogBeforeClientContext = this.tryRescueCatalog(prompt, action);
+    // §168 — gated at the point the phase consumes the result, which covers
+    // every intent `tryRescueCatalog` can return rather than one at a time
+    // (`e2e-bug.455`).
+    const catalogBeforeClientContext = this.gateRescueBySurface(
+      this.tryRescueCatalog(prompt, action),
+      input.surface,
+    );
     if (catalogBeforeClientContext) return catalogBeforeClientContext;
     const providerPushSetupEarly = this.tryRescueProviderPushSetup(
       prompt,
@@ -1747,7 +1774,13 @@ export class AiIntentRescueService {
     ctx: RescuePipelineContext,
   ): IntentRescueResult | null {
     const { prompt, action, params, reasoning } = input;
-    const { employees, customers, timeZone, budgetSurface } = ctx;
+    const {
+      employees,
+      customers,
+      locations: knownLocations,
+      timeZone,
+      budgetSurface,
+    } = ctx;
 
     // e2e-bug.280 — short give_ai_feedback cues ("Helpful", "Bad answer", …)
     // classify as unknown, so runRescueClassifiedPhase is skipped. Mirror the
@@ -1760,10 +1793,15 @@ export class AiIntentRescueService {
       if (speakAssistantReplyUnknownEarly) {
         return speakAssistantReplyUnknownEarly;
       }
-      const giveAiFeedbackUnknownEarly = this.tryRescueGiveAiFeedback(
+      // §173 — a checkout validation error is never AI feedback. The Armenian
+      // "Սխալ էլ. փոստ է ցույց տալիս գրանցման ձևում" ("shows a wrong email on
+      // the signup form") was landing here, and `fix_checkout_validation_error`
+      // only runs further down the phase.
+      const giveAiFeedbackUnknownEarly = isFixCheckoutValidationErrorPrompt(
         prompt,
-        action,
-      );
+      )
+        ? null
+        : this.tryRescueGiveAiFeedback(prompt, action);
       if (giveAiFeedbackUnknownEarly) return giveAiFeedbackUnknownEarly;
       const explainRtlLayoutUnknownEarly = this.tryRescueExplainRtlLayout(
         prompt,
@@ -1893,9 +1931,12 @@ export class AiIntentRescueService {
     }
 
     // e2e-bug.146 — configure_business_tax before leave_visit_review ("tax rate" ≠ review).
-    const businessTaxBeforeReviewUnknown = this.tryRescueBusinessTaxEarly(
-      prompt,
-      action,
+    // §168 — gated: the tax intents are dashboard-only, and ungated this call
+    // proposed `explain_business_tax` for a public prompt, blocking the legal
+    // rescue behind it (`e2e-bug.455`).
+    const businessTaxBeforeReviewUnknown = this.gateRescueBySurface(
+      this.tryRescueBusinessTaxEarly(prompt, action),
+      input.surface,
     );
     if (businessTaxBeforeReviewUnknown) return businessTaxBeforeReviewUnknown;
     // e2e-bug.137 — same "bare `rate`" steal as e2e-bug.146, this time for
@@ -1962,12 +2003,15 @@ export class AiIntentRescueService {
     }
 
     // e2e-bug.435 — same surface guard as the classified phase above.
-    const summarizeBookingsUnknown = this.rescueAllowedOnSurface(
-      'summarize_bookings',
-      input,
-    )
-      ? this.tryRescueSummarizeBookings(prompt, action, params)
-      : null;
+    // §174 — "How many spots are left on 15/08/2026 for the 3-Day Mountain Trek?"
+    // is a tour day-slots question; "how many" alone was enough to collapse it
+    // into a bookings summary. False for "How many bookings did I have this
+    // week?" and "Summarize my bookings for today", so the metric keeps its own.
+    const summarizeBookingsUnknown =
+      !isExplainTourDaySlotsPrompt(prompt) &&
+      this.rescueAllowedOnSurface('summarize_bookings', input)
+        ? this.tryRescueSummarizeBookings(prompt, action, params)
+        : null;
     if (summarizeBookingsUnknown) return summarizeBookingsUnknown;
 
     // e2e-bug.435 — same registry-backed surface guard.
@@ -2079,10 +2123,13 @@ export class AiIntentRescueService {
     const tourGroupBeforeClinicUnknown =
       this.tryRescueBookTourNearestDepartureCompound(prompt, action);
     if (tourGroupBeforeClinicUnknown) return tourGroupBeforeClinicUnknown;
-    const tourConsumerBeforeClinicUnknown = this.tryRescueTourConsumer(
+    // §173 — likewise not a tour question. "Checkout won't let me finish — keeps
+    // showing a validation error" was resolving to `diagnose_tour_capacity`.
+    const tourConsumerBeforeClinicUnknown = isFixCheckoutValidationErrorPrompt(
       prompt,
-      action,
-    );
+    )
+      ? null
+      : this.tryRescueTourConsumer(prompt, action);
     if (tourConsumerBeforeClinicUnknown) return tourConsumerBeforeClinicUnknown;
 
     // e2e-bug.94 — soonest/next-available before clinic/marketing steal.
@@ -2166,8 +2213,18 @@ export class AiIntentRescueService {
     }
     // e2e-bug.295 — adoption before calendar/list steals on unknown phase.
     if (input.surface === 'customer' || input.surface === 'public') {
+      // §173 — "What are the email and SMS reminder toggles on checkout?" is a
+      // checkout-fields question, not a notification-settings one. The detector
+      // and parser were both already right (`aspect: 'reminders'`); this chain
+      // simply ran first and answered `explain_my_notifications`.
+      // §174 — second steal by this chain: "Appointment reminder preferences"
+      // resolved to `manage_notification_preferences`. The predicate is false for
+      // "Manage my notification preferences", which that intent must keep.
       const consumerAdoptionBeforeCalendarUnknown =
-        this.tryRescueConsumerAdoption(prompt, action);
+        isExplainGuestCheckoutFieldsPrompt(prompt) ||
+        isAppointmentReminderPreferencesPrompt(prompt)
+          ? null
+          : this.tryRescueConsumerAdoption(prompt, action);
       if (consumerAdoptionBeforeCalendarUnknown) {
         return consumerAdoptionBeforeCalendarUnknown;
       }
@@ -2206,9 +2263,15 @@ export class AiIntentRescueService {
 
     // e2e-bug.88 / e2e-bug.435 — same registry-backed surface guard as the
     // classified phase above.
-    const payOnlineUnknown = this.rescueAllowedOnSurface('pay_online', input)
-      ? this.tryRescuePayOnline(prompt, action)
-      : null;
+    // §173 — "Can I complete guest checkout without signing in?" contains
+    // "checkout" but asks about signing in. `isExplainWhySignInPrompt` is false
+    // for "Pay online for my booking", "I want to pay now with card" and "Can I
+    // pay at checkout?", so pay_online keeps everything that is really its own.
+    const payOnlineUnknown =
+      !isExplainWhySignInPrompt(prompt) &&
+      this.rescueAllowedOnSurface('pay_online', input)
+        ? this.tryRescuePayOnline(prompt, action)
+        : null;
     if (payOnlineUnknown) return payOnlineUnknown;
 
     const listMyUpcomingAppointmentsUnknown =
@@ -2360,9 +2423,12 @@ export class AiIntentRescueService {
     );
     if (explainClinicBookingUnknown) return explainClinicBookingUnknown;
 
-    const explainClinicServicesUnknown = this.tryRescueExplainClinicServices(
-      prompt,
-      action,
+    // §168 — gated: `explain_clinic_services` is not a provider intent, and
+    // ungated this call blocked `summarize_my_revenue` for an Armenian provider
+    // earnings prompt (`e2e-bug.455`).
+    const explainClinicServicesUnknown = this.gateRescueBySurface(
+      this.tryRescueExplainClinicServices(prompt, action),
+      input.surface,
     );
     if (explainClinicServicesUnknown) return explainClinicServicesUnknown;
 
@@ -2402,6 +2468,7 @@ export class AiIntentRescueService {
     const staffOperationsBeforeCustomer = this.tryRescueStaffOperations(
       prompt,
       action,
+      knownLocations,
     );
     if (staffOperationsBeforeCustomer) return staffOperationsBeforeCustomer;
 
@@ -2802,6 +2869,7 @@ export class AiIntentRescueService {
     const staffOperationsUnknown = this.tryRescueStaffOperations(
       prompt,
       action,
+      knownLocations,
     );
     if (staffOperationsUnknown) return staffOperationsUnknown;
     const waitlistDashboardUnknown =
@@ -2816,7 +2884,13 @@ export class AiIntentRescueService {
       action,
     );
     if (providerBookingUnknownEarly) return providerBookingUnknownEarly;
-    const catalogUnknownEarly = this.tryRescueCatalog(prompt, action);
+    // §168 — gated at the point the phase consumes the result, which covers
+    // every intent `tryRescueCatalog` can return rather than one at a time
+    // (`e2e-bug.455`).
+    const catalogUnknownEarly = this.gateRescueBySurface(
+      this.tryRescueCatalog(prompt, action),
+      input.surface,
+    );
     if (catalogUnknownEarly) return catalogUnknownEarly;
     const providerPushSetupUnknownEarly = this.tryRescueProviderPushSetup(
       prompt,
@@ -3331,6 +3405,34 @@ export class AiIntentRescueService {
   ): IntentRescueResult | null {
     // e2e-bug.286 — classifier/rescue "Create a booking…" → create_employee.
     if (!isCreateBookingNotEmployeePrompt(prompt)) return null;
+    // e2e-bug.248 / e2e-bug.435 — do not claim a *reschedule*.
+    //
+    // "Move Gevorg's appointment on June 1 to June 2 nearest free time" trips
+    // `isCreateBookingNotEmployeePrompt` because it names an employee and asks
+    // for a slot. This rescue then returned `create_booking` and, being first,
+    // shadowed the `reschedule_pattern` rescue that handles the very same
+    // prompt correctly further down the chain — so the user's *existing*
+    // appointment would have been left alone and a second one created.
+    //
+    // The victim detector was innocent: `isRescheduleExistingAppointmentPrompt`
+    // is true for all of these, which is exactly why the guard belongs on the
+    // thief rather than in the reschedule path. Measured, not assumed — 6 of
+    // e2e-bug.248's 8 scenarios already resolved correctly; only the two that
+    // reached this branch first did not.
+    if (isRescheduleExistingAppointmentPrompt(prompt)) return null;
+    // e2e-bug.532 — same shape, same remedy, one intent over.
+    //
+    // 'Soonest appointment opening for multi-service block' trips this branch on
+    // 'soonest' + 'opening' and returned create_booking with
+    // bookingFirstAvailable, shadowing `earliest_slot_all_services` further down
+    // the chain — so a question about *when a multi-service block can fit* was
+    // answered by proposing to book something.
+    //
+    // The victim detector is innocent here too: `isEarliestSlotAllServicesPrompt`
+    // is true for this prompt (measured), and `isFindSoonestAppointmentPrompt` is
+    // false, so nothing downstream was ambiguous — this branch simply ran first.
+    // Guarding the thief follows e2e-bug.248's finding directly above.
+    if (isEarliestSlotAllServicesPrompt(prompt)) return null;
     if (
       action !== 'create_employee' &&
       action !== 'unknown' &&
@@ -3361,9 +3463,30 @@ export class AiIntentRescueService {
     };
   }
 
+  /**
+   * Is this name one of the business's locations?
+   *
+   * Strict on purpose — the whole name or one whole token of it, never a
+   * substring, so a location called "Salon Downtown" cannot swallow an
+   * employee named "Al" (e2e-bug.362, in a place where the cost is routing to
+   * the wrong command rather than picking the wrong row).
+   */
+  private namesAKnownLocation(
+    locations: ReadonlyArray<{ id: string; name: string }>,
+    name: string,
+  ): boolean {
+    const needle = name.trim().toLowerCase();
+    if (!needle) return false;
+    return locations.some((location) => {
+      const full = location.name.trim().toLowerCase();
+      return full === needle || full.split(/\s+/).includes(needle);
+    });
+  }
+
   private tryRescueStaffOperations(
     prompt: string,
     action: string,
+    locations: ReadonlyArray<{ id: string; name: string }> = [],
   ): IntentRescueResult | null {
     const rescued = rescueStaffOperationsIntent(prompt, action);
     if (!rescued) return null;
@@ -3372,6 +3495,32 @@ export class AiIntentRescueService {
       {},
       prompt,
     );
+
+    // e2e-bug.460 — "Set Downtown's phone number to 555-0100" was claimed here
+    // as update_employee with employeeName "Downtown", because this chain runs
+    // before the location rescue. Wording cannot fix it: isUpdateLocationPrompt
+    // is *also* true for "Set Maria's phone number to 555-0100" and parses
+    // "Maria" as a locationName, so the two sentences are grammatically
+    // identical and no predicate can separate a person from a place.
+    //
+    // The test is positive — "is this a known location?" — never "is this not a
+    // known employee". §188 measured that inverted form at -1.03%: you name a
+    // new hire when you create or invite them, so absence from the roster is
+    // the normal case for half the staff verbs. A positive location match
+    // cannot misfire that way, because a new hire's name is not a location.
+    //
+    // Declining lets the chain reach the location rescue, which already parses
+    // this prompt correctly. This guard only ever *gives up* a claim; it never
+    // asserts another domain's intent.
+    if (
+      locations.length > 0 &&
+      typeof params.employeeName === 'string' &&
+      params.employeeName.trim() &&
+      this.namesAKnownLocation(locations, params.employeeName)
+    ) {
+      return null;
+    }
+
     return {
       action: rescued.action,
       params,
@@ -3454,9 +3603,22 @@ export class AiIntentRescueService {
     // the prompt is indefinite anybody/anyone/who-is-open. Availability
     // disambiguation must remap to check_providers_for_service on
     // dashboard/customer (named "is Gevorg open…" stays check_availability).
+    // e2e-bug.532 — the guard fired on **named** prompts too, which its own
+    // comment above excludes. `isCheckProvidersForServicePrompt` is true for
+    // 'Which evening slots are available for Maria on Friday?' just as it is for
+    // the indefinite 'Which evening slots are available on Friday?', so a prompt
+    // that already identifies one provider was being dropped — taking its
+    // `timeOfDay: 'evening'` enrichment with it and returning no rescue at all.
+    //
+    // `params.employeeName` is the same signal the comment means by "named":
+    // when the provider is already pinned there is nothing to remap to
+    // check_providers_for_service, because the question is not "who".
+    const hasNamedProvider =
+      typeof params.employeeName === 'string' && params.employeeName.trim();
     if (
       rescued.action === 'check_availability' &&
       action === 'check_availability' &&
+      !hasNamedProvider &&
       isCheckProvidersForServicePrompt(prompt)
     ) {
       return null;
@@ -5219,6 +5381,17 @@ export class AiIntentRescueService {
     ) {
       return null;
     }
+    // §174 — "Show the Growth QR for customer app downloads" is about the tenant
+    // app install, not the customer roster. Second steal by this chain on the
+    // bare word "customer"; the first was the reviews case below.
+    if (isExplainTenantAppInstallPrompt(prompt)) return null;
+    // §171 — "Show me my customer reviews and ratings" is a reviews question that
+    // happens to contain the word "customer". This chain ran first and claimed it
+    // as `list_customers`, so `rescueRetailFinanceIntent`'s `summarize_reviews`
+    // never got the chance. Checked against controls: the predicate is false for
+    // "Show me my customers", "List all customers" and "How many customers do I
+    // have?", so the customer-read intents are unaffected.
+    if (isSummarizeReviewsPrompt(prompt)) return null;
     if (isCustomerRetentionPrompt(prompt)) {
       return {
         action: 'summarize_customers',
@@ -5427,6 +5600,30 @@ export class AiIntentRescueService {
     return !input.surface || isIntentAllowedOnSurface(intent, input.surface);
   }
 
+  /**
+   * Drop a rescue that proposes an action illegal on this surface — §168.
+   *
+   * `rescueAllowedOnSurface` above guards *before* producing a candidate, which
+   * works only where the call site knows which intent it is about to propose.
+   * Most of this file's chain does not: `tryRescueBusinessTaxEarly` and friends
+   * pick from many intents internally, so the only place the action is known is
+   * after they return.
+   *
+   * Returning `null` here is what makes the difference. A surface-illegal result
+   * that reaches `acceptRescueForSurface` is discarded *after* the phase has
+   * already committed to it, so it blocks every later rescue and the prompt
+   * resolves to nothing. Nulling it at the point of consumption lets the chain
+   * continue and the correct rescue win — the same outcome the gate was always
+   * meant to produce (`e2e-bug.455`).
+   */
+  private gateRescueBySurface(
+    result: IntentRescueResult | null,
+    surface: IntentRescueInput['surface'],
+  ): IntentRescueResult | null {
+    if (!result || !surface) return result;
+    return isIntentAllowedOnSurface(result.action, surface) ? result : null;
+  }
+
   private tryRescueSummarizeBookings(
     prompt: string,
     action: string,
@@ -5535,6 +5732,7 @@ export class AiIntentRescueService {
   private tryRescueBusinessLanguages(
     prompt: string,
     action: string,
+    surface?: IntentRescueInput['surface'],
   ): IntentRescueResult | null {
     const packageDisplayName = this.tryRescuePackageDisplayName(prompt, action);
     if (packageDisplayName) return packageDisplayName;
@@ -5610,10 +5808,20 @@ export class AiIntentRescueService {
       };
     }
 
-    const explainProviderAvailability = rescueExplainProviderAvailabilityIntent(
-      prompt,
-      action,
-    );
+    // §167 (e2e-bug.455) — the twin of the gate at `runRescueUnknownPhase`.
+    //
+    // e2e-bug.435 found `explain_provider_availability` claiming "Set up online
+    // payments with Stripe" on dashboard and gated the unknown-phase call site.
+    // This second, identical call was left ungated, so the bug survived its own
+    // fix. The symptom changed rather than disappeared: the action is illegal on
+    // dashboard, so `acceptRescueForSurface` drops it and the prompt resolves to
+    // `null` instead of resolving wrongly — which is why it read as "no rescue"
+    // and not as the misroute 435 described.
+    const explainProviderAvailability =
+      !surface ||
+      isIntentAllowedOnSurface('explain_provider_availability', surface)
+        ? rescueExplainProviderAvailabilityIntent(prompt, action)
+        : null;
     if (explainProviderAvailability) {
       return {
         action: explainProviderAvailability.action,
@@ -6210,7 +6418,13 @@ export class AiIntentRescueService {
       };
     }
 
-    const businessTax = this.tryRescueBusinessTaxEarly(prompt, action);
+    // §168 — `explain_business_tax` is dashboard-only, and this chain was
+    // proposing it for a public prompt ("Ինչու է հարկավոր էլ. փոստ այս էջում"),
+    // which blocked the legal `explain_guest_checkout_fields` behind it.
+    const businessTax = this.gateRescueBySurface(
+      this.tryRescueBusinessTaxEarly(prompt, action),
+      surface,
+    );
     if (businessTax) return businessTax;
 
     const businessDateFormat = this.tryRescueBusinessDateFormat(
@@ -6220,7 +6434,11 @@ export class AiIntentRescueService {
     );
     if (businessDateFormat) return businessDateFormat;
 
-    const businessLanguages = this.tryRescueBusinessLanguages(prompt, action);
+    const businessLanguages = this.tryRescueBusinessLanguages(
+      prompt,
+      action,
+      surface,
+    );
     if (businessLanguages) return businessLanguages;
 
     const reportsCurrency = this.tryRescueReportsCurrency(prompt, action);
@@ -7706,8 +7924,19 @@ export class AiIntentRescueService {
       manageLinkCredsForCollapseRescue.manageToken,
     );
 
+    // §170 — the same "must reach a later rescue, not be stolen here" guard the
+    // manage-link case above documents, for the two specific bookings that lose
+    // to the generic one whenever a time is present. "Buy the spa day package"
+    // resolves correctly today only because it names no time; add one and
+    // `isConcreteTimedBookAppointmentPrompt` collapses it to `book_appointment`
+    // before `tryRescueSelfServiceBooking` ever runs. Both predicates are false
+    // for plain timed bookings, so ordinary `book_appointment` is untouched.
+    const collapseWouldStealSpecificBooking =
+      isBookPackagePrompt(prompt) || isBookWithCashPrompt(prompt);
+
     if (
       !hasManageLinkCredsForCollapseRescue &&
+      !collapseWouldStealSpecificBooking &&
       isConcreteTimedBookAppointmentPrompt(prompt) &&
       action !== 'book_appointment' &&
       action !== 'book_nearest_slot'
@@ -8097,6 +8326,7 @@ export class AiIntentRescueService {
     customers: Array<{ id: string; name: string }> = [],
     timeZone = 'UTC',
     surface?: IntentRescueInput['surface'],
+    locations: ReadonlyArray<{ id: string; name: string }> = [],
   ): IntentRescueResult | null {
     // e2e-bug.134 — a pasted manage link combined with a concrete date/time
     // ("Reschedule my booking to Friday 2pm https://.../manage?bookingId=...")
@@ -8118,7 +8348,11 @@ export class AiIntentRescueService {
       params,
     );
     if (createBookingNotEmployee) return createBookingNotEmployee;
-    const staffOperations = this.tryRescueStaffOperations(prompt, action);
+    const staffOperations = this.tryRescueStaffOperations(
+      prompt,
+      action,
+      locations,
+    );
     if (staffOperations) return staffOperations;
     const waitlistDashboard = this.tryRescueWaitlistDashboard(prompt, action);
     if (waitlistDashboard) return waitlistDashboard;
@@ -8311,13 +8545,68 @@ export class AiIntentRescueService {
     );
     if (primaryAvailabilityResolved?.action !== action) {
       for (const availabilitySurface of secondaryAvailabilitySurfaces) {
+        // e2e-bug.521 — a surface that cannot run the current action can only
+        // ever answer with something else, so its answer is an *alias*, not a
+        // correction. 'Who has a gap soonest tomorrow for massage' on dashboard
+        // resolved to check_providers_for_service at 0.9786 confidence, but
+        // check_providers_for_service is not a public command, so the public
+        // surface necessarily replies check_availability — and because both are
+        // reads, the steal guard permits the swap and a correct answer is lost.
+        //
+        // e2e-bug.287's comment above already states this rule ('dashboard
+        // check_providers must not be aliased to public check_availability');
+        // what was missing is that it only held when the caller's surface had
+        // an opinion. Here dashboard resolves null, and null is silence, not
+        // disagreement — so the loop ran anyway.
+        //
+        // Deliberately narrower than skipping the loop on a null primary, which
+        // was measured first and cost book_appointment 0/2 (-0.03% corpus): that
+        // also blocked e2e-bug.92, where check_providers_for_service arrives on
+        // *public*, cannot run there, and must escape. The asymmetry is the
+        // whole fix — this guard only fires when the caller's surface can run
+        // the action and the answering surface cannot.
+        //
+        // Scoped to dashboard because e2e-bug.190 requires the opposite on
+        // customer: there, team-wide / OR-window browse is *meant* to alias to
+        // check_availability even though check_providers_for_service is a valid
+        // customer command. Measured — without this scope those two customer
+        // tests break. The product distinction is real: staff asking 'who has a
+        // gap' want the provider, a client browsing wants the times.
+        if (
+          surface === 'dashboard' &&
+          isIntentAllowedOnSurface(action, surface) &&
+          !isIntentAllowedOnSurface(action, availabilitySurface)
+        ) {
+          continue;
+        }
         const availabilityFix = disambiguateMisclassifiedAvailabilityIntent(
           availabilitySurface,
           prompt,
           action,
           params,
         );
-        if (availabilityFix) {
+        // e2e-bug.505 — a secondary surface must not answer for the caller's.
+        //
+        // This loop exists to catch cross-surface aliasing, but it returns the
+        // first candidate any surface produces, and the phase stops there. On a
+        // dashboard `create_booking`, the customer surface answers "Book
+        // walk-in haircut tomorrow 3pm pay at venue" with `book_appointment`,
+        // which is not a dashboard intent — so the pipeline's surface filter
+        // discards it and the whole rescue comes back null. The dashboard's own
+        // `create_booking_cash` rescue sits further down this same phase and
+        // never gets its turn: the guest is not given a wrong action, they are
+        // given none.
+        //
+        // e2e-bug.249 and e2e-bug.287 both fixed narrower versions of this — a
+        // secondary surface rewriting a dashboard action, and remapping after
+        // the caller surface had already decided. The rule they were reaching
+        // for is simply that a candidate the caller's surface cannot run is not
+        // a candidate. An absent surface keeps the permissive behaviour it has
+        // everywhere else in this pipeline.
+        if (
+          availabilityFix &&
+          (!surface || isIntentAllowedOnSurface(availabilityFix.action, surface))
+        ) {
           return {
             action: availabilityFix.action,
             params: availabilityFix.params ?? params,
@@ -8419,7 +8708,23 @@ export class AiIntentRescueService {
     }
 
     if (action === 'unknown') {
-      return this.rescue({ prompt, action, params, employees });
+      // e2e-bug.444 — forward `surface`, which this used to drop.
+      //
+      // **This branch is currently unreachable and the forwarding changes no
+      // observable behaviour** — stated plainly because the opposite is easy to
+      // assume. `disambiguateMisclassified` is only called from `rescue()`
+      // itself, so reaching this line would re-enter `rescue()` with the same
+      // inputs and recurse forever; probed with a prompt nothing claims and
+      // `action: 'unknown'`, the call returns `null` without overflowing, so
+      // every earlier return fires first.
+      //
+      // Kept rather than reverted because it is correct if the branch ever does
+      // become live: `blockProviderNests` is `surface === 'customer' ||
+      // 'public'`, so an **absent** surface is the permissive value and
+      // provider-only nests would become eligible for a customer prompt — the
+      // steal e2e-bug.77's guard exists to prevent. `customers`, `timeZone` and
+      // `locations` are dropped here too and are deliberately left alone.
+      return this.rescue({ prompt, action, params, employees, surface });
     }
 
     return null;

@@ -162,7 +162,7 @@
     {
       "symbol": "isActivateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 737,
+      "line": 807,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for activate_subscription_plan",
       "mapsToActions": [
@@ -232,7 +232,7 @@
     {
       "symbol": "isAddClientNotePrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 162,
+      "line": 177,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for add_client_note",
       "mapsToActions": [
@@ -338,7 +338,7 @@
     {
       "symbol": "isAddServicesToCartPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 657,
+      "line": 670,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for add_services_to_cart",
       "mapsToActions": [
@@ -362,7 +362,7 @@
     {
       "symbol": "isAdjustGiftCardBalancePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 266,
+      "line": 270,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for adjust_gift_card_balance",
       "mapsToActions": [
@@ -406,7 +406,7 @@
     {
       "symbol": "isAdminAppointmentAnalyticsRankPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 376,
+      "line": 393,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for analyze_appointments",
       "mapsToActions": [
@@ -572,7 +572,7 @@
     {
       "symbol": "isAdminServiceAnalyticsRankPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 356,
+      "line": 373,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for analyze_services",
       "mapsToActions": [
@@ -635,7 +635,7 @@
     {
       "symbol": "isAffordabilityListPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 192,
+      "line": 193,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -827,7 +827,7 @@
     {
       "symbol": "isApplyGiftCardCodePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 480,
+      "line": 503,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -986,7 +986,7 @@
     {
       "symbol": "isApplyTourPlaybookPrompt",
       "file": "modules/ai/ai-tour-service.util.ts",
-      "line": 705,
+      "line": 732,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for apply_tour_playbook",
       "mapsToActions": [
@@ -1062,7 +1062,8 @@
       "callers": [
         "classifyPushNotificationsSegment",
         "isEnableNotificationsPrompt",
-        "rescuePushNotificationsIntent"
+        "rescuePushNotificationsIntent",
+        "runRescueUnknownPhase"
       ],
       "fixtureIds": []
     },
@@ -1103,7 +1104,7 @@
     {
       "symbol": "isAssignBookingResourcePrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 416,
+      "line": 448,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for assign_booking_resource",
       "mapsToActions": [
@@ -1254,7 +1255,7 @@
     {
       "symbol": "isAssignServiceCategoryPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 342,
+      "line": 397,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_service",
       "mapsToActions": [
@@ -1275,7 +1276,7 @@
     {
       "symbol": "isAssignSubscriptionPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 750,
+      "line": 854,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for assign_subscription_to_customer",
       "mapsToActions": [
@@ -1357,7 +1358,7 @@
     {
       "symbol": "isAvailabilitySessionAppendPrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 962,
+      "line": 991,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -1481,7 +1482,7 @@
     {
       "symbol": "isAvailabilitySessionDropPrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 1029,
+      "line": 1058,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -2061,7 +2062,7 @@
     {
       "symbol": "isBookNearestSlotPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 448,
+      "line": 471,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -2127,6 +2128,7 @@
         "isExplainPackageSavingsPrompt",
         "isMultiServiceDayCompoundPrompt",
         "rescueSelfServiceBookingIntent",
+        "tryRescueCheckProvidersCollapseIntents",
         "wantsPackageBookingPrompt"
       ],
       "fixtureIds": []
@@ -2249,7 +2251,7 @@
     {
       "symbol": "isBookWithCashPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 624,
+      "line": 637,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -2265,7 +2267,8 @@
       "callers": [
         "classifyCustomerBookingSegment",
         "isBookPackageWithNearestSlotCompoundPrompt",
-        "rescueSelfServiceBookingIntent"
+        "rescueSelfServiceBookingIntent",
+        "tryRescueCheckProvidersCollapseIntents"
       ],
       "fixtureIds": []
     },
@@ -2346,7 +2349,7 @@
     {
       "symbol": "isBudgetAnyProviderListPrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 347,
+      "line": 365,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -2511,7 +2514,7 @@
     {
       "symbol": "isBudgetCartTotalPrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 631,
+      "line": 649,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -2631,7 +2634,7 @@
     {
       "symbol": "isBudgetDiscoverAndBookCompoundPrompt",
       "file": "modules/ai/ai-budget-discover-and-book-compound.util.ts",
-      "line": 140,
+      "line": 153,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -2665,7 +2668,7 @@
     {
       "symbol": "isBudgetLongServicePrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 474,
+      "line": 492,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -2781,7 +2784,7 @@
     {
       "symbol": "isBudgetPackageDiscoveryPrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 262,
+      "line": 280,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -2909,7 +2912,7 @@
     {
       "symbol": "isBudgetPriceRangePrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 334,
+      "line": 352,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -3052,7 +3055,7 @@
     {
       "symbol": "isBudgetShortServicePrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 442,
+      "line": 460,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -3169,7 +3172,7 @@
     {
       "symbol": "isBudgetSubscriptionBalancePrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 329,
+      "line": 347,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -3293,7 +3296,7 @@
     {
       "symbol": "isBudgetWithPromoPrompt",
       "file": "modules/ai/ai-budget-service-discovery.util.ts",
-      "line": 585,
+      "line": 603,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -3409,7 +3412,7 @@
     {
       "symbol": "isBulkAllAppointmentsPrompt",
       "file": "modules/ai/ai-booking-param-hints.util.ts",
-      "line": 243,
+      "line": 326,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher with no attributable command",
       "mapsToActions": [],
@@ -3452,7 +3455,7 @@
     {
       "symbol": "isBulkCreateCatalogPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 165,
+      "line": 190,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -3645,7 +3648,7 @@
     {
       "symbol": "isBuyGiftCardPhysicalPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 578,
+      "line": 601,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -3676,7 +3679,7 @@
     {
       "symbol": "isBuyGiftCardPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 567,
+      "line": 590,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -4186,7 +4189,7 @@
     {
       "symbol": "isCatalogCompoundPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 797,
+      "line": 901,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -4204,7 +4207,7 @@
     {
       "symbol": "isCatalogMutateCommandPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 722,
+      "line": 792,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -4280,7 +4283,7 @@
     {
       "symbol": "isChangeProviderOnReschedulePrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 641,
+      "line": 654,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for change_provider_on_reschedule",
       "mapsToActions": [
@@ -4302,7 +4305,7 @@
     {
       "symbol": "isCheckGiftCardBalancePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 526,
+      "line": 549,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for check_gift_card_balance",
       "mapsToActions": [
@@ -4494,7 +4497,7 @@
     {
       "symbol": "isCheckProvidersForServicePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 319,
+      "line": 332,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -4598,7 +4601,7 @@
     {
       "symbol": "isChoosePaymentMethodPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 589,
+      "line": 612,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -4722,7 +4725,7 @@
     {
       "symbol": "isClearSchedulePrompt",
       "file": "modules/ai/ai-orchestration.helpers.ts",
-      "line": 1634,
+      "line": 1902,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for clear_schedule",
       "mapsToActions": [
@@ -4905,7 +4908,7 @@
     {
       "symbol": "isCollectCashConfirmPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 311,
+      "line": 315,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for collect_cash_confirm",
       "mapsToActions": [
@@ -5511,7 +5514,7 @@
     {
       "symbol": "isConfigureBusinessTaxPrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 441,
+      "line": 447,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_business_tax",
       "mapsToActions": [
@@ -5553,7 +5556,7 @@
     {
       "symbol": "isConfigureCashPaymentsPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 248,
+      "line": 252,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_cash_payments",
       "mapsToActions": [
@@ -5664,7 +5667,7 @@
     {
       "symbol": "isConfigureGiftCardProductsPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 758,
+      "line": 862,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_gift_card_products",
       "mapsToActions": [
@@ -5990,7 +5993,7 @@
     {
       "symbol": "isConfigureMultiServiceSettingsPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 782,
+      "line": 886,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_multi_service_settings",
       "mapsToActions": [
@@ -6486,7 +6489,7 @@
     {
       "symbol": "isConfigureServiceOnlinePaymentPrompt",
       "file": "modules/ai/ai-service-online-payment.util.ts",
-      "line": 321,
+      "line": 328,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_service_online_payment",
       "mapsToActions": [
@@ -6500,6 +6503,7 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
+        "classifyCatalogSegment",
         "classifyPaymentsSegment",
         "hasOnlinePaymentMutateCue",
         "isBudgetDepositQuestion",
@@ -6690,7 +6694,7 @@
     {
       "symbol": "isConfigureTourServicePrompt",
       "file": "modules/ai/ai-tour-service.util.ts",
-      "line": 361,
+      "line": 388,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for configure_tour_service",
       "mapsToActions": [
@@ -7303,7 +7307,7 @@
     {
       "symbol": "isCreateGiftCardBundlePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 770,
+      "line": 874,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_gift_card_bundle",
       "mapsToActions": [
@@ -7352,7 +7356,7 @@
     {
       "symbol": "isCreatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 625,
+      "line": 680,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_package",
       "mapsToActions": [
@@ -7449,7 +7453,7 @@
     {
       "symbol": "isCreateServiceCategoryPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 229,
+      "line": 254,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_service_category",
       "mapsToActions": [
@@ -7527,7 +7531,7 @@
     {
       "symbol": "isCreateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 672,
+      "line": 742,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for create_subscription_plan",
       "mapsToActions": [
@@ -7662,7 +7666,7 @@
     {
       "symbol": "isCustomerBookingCompoundPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 1119,
+      "line": 1132,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -8057,7 +8061,7 @@
     {
       "symbol": "isDeactivatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 654,
+      "line": 724,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_package",
       "mapsToActions": [
@@ -8156,7 +8160,7 @@
     {
       "symbol": "isDeactivateServicePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 245,
+      "line": 270,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_service",
       "mapsToActions": [
@@ -8180,7 +8184,7 @@
     {
       "symbol": "isDeactivateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 731,
+      "line": 801,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for deactivate_subscription_plan",
       "mapsToActions": [
@@ -8302,7 +8306,7 @@
     {
       "symbol": "isDeleteScheduleBlockPrompt",
       "file": "modules/ai/ai-orchestration.helpers.ts",
-      "line": 1617,
+      "line": 1885,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for delete_schedule_block",
       "mapsToActions": [
@@ -8754,7 +8758,7 @@
     {
       "symbol": "isDuplicatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 660,
+      "line": 730,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for duplicate_package",
       "mapsToActions": [
@@ -8794,7 +8798,8 @@
         "classifyScheduleSegment",
         "isCheckProvidersForServicePrompt",
         "isFindSoonestAppointmentPrompt",
-        "rescueScheduleResourceIntent"
+        "rescueScheduleResourceIntent",
+        "tryRescueCreateBookingNotEmployee"
       ],
       "fixtureIds": []
     },
@@ -9487,7 +9492,7 @@
     {
       "symbol": "isExplainBookingPaymentBreakdownPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 307,
+      "line": 322,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_booking_payment_breakdown",
       "mapsToActions": [
@@ -9519,7 +9524,7 @@
     {
       "symbol": "isExplainBookingPolicyPrompt",
       "file": "modules/ai/ai-booking-depth.util.ts",
-      "line": 422,
+      "line": 454,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_booking_policy",
       "mapsToActions": [
@@ -9749,7 +9754,7 @@
     {
       "symbol": "isExplainBusinessTaxPrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 370,
+      "line": 376,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_business_tax",
       "mapsToActions": [
@@ -9820,7 +9825,7 @@
     {
       "symbol": "isExplainCancelPolicyForClientPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 524,
+      "line": 539,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_cancel_policy_for_client",
       "mapsToActions": [
@@ -10022,7 +10027,7 @@
     {
       "symbol": "isExplainCheckoutTotalPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 226,
+      "line": 230,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_checkout_total",
       "mapsToActions": [
@@ -10056,7 +10061,7 @@
     {
       "symbol": "isExplainClientIntakePrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 202,
+      "line": 217,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_client_intake",
       "mapsToActions": [
@@ -10547,7 +10552,7 @@
     {
       "symbol": "isExplainDepositBalanceDuePrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 367,
+      "line": 382,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_deposit_balance_due",
       "mapsToActions": [
@@ -10878,7 +10883,7 @@
     {
       "symbol": "isExplainGiftCardRedemptionPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 417,
+      "line": 432,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_gift_card_redemption",
       "mapsToActions": [
@@ -10931,7 +10936,8 @@
         "isExplainClinicBookingFieldsPrompt",
         "isRecoverLostManageLinkPrompt",
         "isSignInAfterBookingPrompt",
-        "parseExplainGuestCheckoutFieldsFromPrompt"
+        "parseExplainGuestCheckoutFieldsFromPrompt",
+        "runRescueUnknownPhase"
       ],
       "fixtureIds": [
         "booking-help-to-guest-fields",
@@ -11528,7 +11534,7 @@
     {
       "symbol": "isExplainMultiServiceTimelinePrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 282,
+      "line": 297,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_multi_service_timeline",
       "mapsToActions": [
@@ -11936,7 +11942,7 @@
     {
       "symbol": "isExplainPackageVisitContextPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 243,
+      "line": 258,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_package_visit_context",
       "mapsToActions": [
@@ -12054,7 +12060,7 @@
     {
       "symbol": "isExplainPatientChartPrompt",
       "file": "modules/ai/ai-clinic-patient-chart.util.ts",
-      "line": 54,
+      "line": 55,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_patient_chart",
       "mapsToActions": [
@@ -12194,7 +12200,7 @@
     {
       "symbol": "isExplainPaymentStatusPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 290,
+      "line": 294,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_payment_status",
       "mapsToActions": [
@@ -12406,6 +12412,8 @@
       "fixtureIds": [
         "blood-draw-fast-customer",
         "blood-draw-fast-public",
+        "bring-named-service-customer",
+        "bring-named-service-public",
         "bring-tomorrow-customer",
         "bring-tomorrow-public",
         "clinic-booking-to-prep-notes",
@@ -12414,6 +12422,8 @@
         "fast-before-appointment-public",
         "lab-prep-notes-customer",
         "lab-prep-notes-public",
+        "meeting-point-customer",
+        "meeting-point-public",
         "need-to-fast-customer",
         "need-to-fast-public",
         "prep-for-visit-customer",
@@ -12663,6 +12673,7 @@
       "callers": [
         "isExplainSalonProfilePrompt",
         "isPickProviderForServicePrompt",
+        "isProviderRankDiscoveryPrompt",
         "rescueExplainProviderSpecialtyIntent",
         "resolveRecommendSpecialistsSemanticHints"
       ],
@@ -13108,7 +13119,7 @@
     {
       "symbol": "isExplainRetailCartPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 490,
+      "line": 505,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_retail_cart",
       "mapsToActions": [
@@ -13815,7 +13826,8 @@
         "isExplainProviderSpecialtyPrompt",
         "isHowToDownloadAppPrompt",
         "isSummarizeClientPrompt",
-        "rescueExplainTenantAppInstallIntent"
+        "rescueExplainTenantAppInstallIntent",
+        "tryRescueDashboardCustomerRead"
       ],
       "fixtureIds": []
     },
@@ -14103,6 +14115,7 @@
         "isBookTourNearestDepartureCompoundPrompt",
         "isConfirmMyBookingDetailsPrompt",
         "parseExplainTourDaySlotsFromPrompt",
+        "runRescueUnknownPhase",
         "tryRescueTourConsumer"
       ],
       "fixtureIds": [
@@ -14139,7 +14152,7 @@
     {
       "symbol": "isExplainTourGroupOnBookingPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 452,
+      "line": 467,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_tour_group_on_booking",
       "mapsToActions": [
@@ -14213,7 +14226,7 @@
     {
       "symbol": "isExplainTourServicesPrompt",
       "file": "modules/ai/ai-tour-service.util.ts",
-      "line": 184,
+      "line": 210,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_tour_services",
       "mapsToActions": [
@@ -14227,7 +14240,6 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
-        "<module:modules/ai/command-completion.validator.ts>",
         "isConfigureTourServicePrompt",
         "isExplainCheckoutRecommendationsPrompt",
         "isExplainPreparationNotesPrompt",
@@ -14402,7 +14414,8 @@
         "handleExplainWhySignInLogic",
         "isExplainGuestCheckoutFieldsPrompt",
         "isSignInAfterBookingPrompt",
-        "parseExplainWhySignInFromPrompt"
+        "parseExplainWhySignInFromPrompt",
+        "runRescueUnknownPhase"
       ],
       "fixtureIds": [
         "account-history-customer",
@@ -14432,7 +14445,7 @@
     {
       "symbol": "isExplainWhyStripeRequiredPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 626,
+      "line": 649,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for explain_why_stripe_required",
       "mapsToActions": [
@@ -14508,7 +14521,7 @@
     {
       "symbol": "isExportAccountingPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 211,
+      "line": 215,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for export_accounting",
       "mapsToActions": [
@@ -14553,7 +14566,7 @@
     {
       "symbol": "isExportCommissionsPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 219,
+      "line": 223,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for export_commissions",
       "mapsToActions": [
@@ -14623,7 +14636,7 @@
     {
       "symbol": "isExtendGiftCardExpiryPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 274,
+      "line": 278,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for extend_gift_card_expiry",
       "mapsToActions": [
@@ -14975,7 +14988,8 @@
         "isExplainGuestCheckoutFieldsPrompt",
         "isExplainSlotNoLongerAvailablePrompt",
         "isRecoverLostManageLinkPrompt",
-        "parseFixCheckoutValidationErrorFromPrompt"
+        "parseFixCheckoutValidationErrorFromPrompt",
+        "runRescueUnknownPhase"
       ],
       "fixtureIds": [
         "booking-help-to-validation-fix",
@@ -15007,7 +15021,7 @@
     {
       "symbol": "isFlexibleAvailabilityAnyProviderPrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 405,
+      "line": 434,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -15194,7 +15208,7 @@
     {
       "symbol": "isFlexibleAvailabilityTeamWidePrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 423,
+      "line": 452,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -15487,7 +15501,7 @@
     {
       "symbol": "isGetGiftCardQuotePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 551,
+      "line": 574,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for get_gift_card_quote",
       "mapsToActions": [
@@ -16410,7 +16424,7 @@
     {
       "symbol": "isLabCollectionNearestCompoundPrompt",
       "file": "modules/ai/ai-clinic-lab-booking.util.ts",
-      "line": 792,
+      "line": 775,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -16957,7 +16971,7 @@
     {
       "symbol": "isListClientStaffNotesPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 184,
+      "line": 199,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_client_staff_notes",
       "mapsToActions": [
@@ -17249,7 +17263,7 @@
     {
       "symbol": "isListMyAppointmentsPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 507,
+      "line": 520,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_my_appointments",
       "mapsToActions": [
@@ -17482,7 +17496,7 @@
     {
       "symbol": "isListMyPackageVisitsCustomerPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 529,
+      "line": 542,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -17691,7 +17705,7 @@
     {
       "symbol": "isListPackagesPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 664,
+      "line": 734,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_packages",
       "mapsToActions": [
@@ -18261,7 +18275,7 @@
     {
       "symbol": "isListSubscriptionPlansPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 743,
+      "line": 846,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_subscription_plans",
       "mapsToActions": [
@@ -18283,7 +18297,7 @@
     {
       "symbol": "isListSubscriptionRevenuePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 240,
+      "line": 244,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for list_subscription_revenue",
       "mapsToActions": [
@@ -18667,7 +18681,7 @@
     {
       "symbol": "isLookupServiceAssignmentPrompt",
       "file": "modules/ai/ai-intent-disambiguation.util.ts",
-      "line": 77,
+      "line": 102,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for lookup_service_assignment",
       "mapsToActions": [
@@ -19208,7 +19222,7 @@
     {
       "symbol": "isMidRangeServiceListPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 177,
+      "line": 178,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -19412,7 +19426,7 @@
     {
       "symbol": "isMultilingualBookNearestPrompt",
       "file": "modules/ai/ai-check-and-book-multilingual.util.ts",
-      "line": 92,
+      "line": 93,
       "label": "routing_shape",
       "labelReason": "only consumed by other detectors, steers no command",
       "mapsToActions": [],
@@ -19443,7 +19457,7 @@
     {
       "symbol": "isMultilingualCheckProvidersPrompt",
       "file": "modules/ai/ai-check-and-book-multilingual.util.ts",
-      "line": 72,
+      "line": 73,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher with no attributable command",
       "mapsToActions": [],
@@ -19476,7 +19490,7 @@
     {
       "symbol": "isMultilingualFindSoonestAppointmentPrompt",
       "file": "modules/ai/ai-check-and-book-multilingual.util.ts",
-      "line": 105,
+      "line": 106,
       "label": "routing_shape",
       "labelReason": "only consumed by other detectors, steers no command",
       "mapsToActions": [],
@@ -19506,7 +19520,7 @@
     {
       "symbol": "isMultiServiceAvailabilityDiscoveryPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 953,
+      "line": 966,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for check_multi_service_availability",
       "mapsToActions": [
@@ -20725,7 +20739,7 @@
     {
       "symbol": "isPayCashAtVisitPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 614,
+      "line": 637,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -20753,7 +20767,7 @@
     {
       "symbol": "isPaymentsCompoundPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 648,
+      "line": 671,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -20771,7 +20785,7 @@
     {
       "symbol": "isPayOnlinePrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 610,
+      "line": 633,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -21732,7 +21746,7 @@
     {
       "symbol": "isProviderOrAnyoneBudgetLeadPrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 521,
+      "line": 550,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -21856,7 +21870,7 @@
     {
       "symbol": "isProviderOwnServicesPrompt",
       "file": "modules/ai/ai-orchestration.helpers.ts",
-      "line": 1062,
+      "line": 1293,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for assign_employee_services",
       "mapsToActions": [
@@ -21879,7 +21893,7 @@
     {
       "symbol": "isProviderRankDiscoveryPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 252,
+      "line": 253,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -22102,7 +22116,7 @@
     {
       "symbol": "isPurchaseSubscriptionCheckoutPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 619,
+      "line": 642,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for purchase_subscription_checkout",
       "mapsToActions": [
@@ -22323,7 +22337,7 @@
     {
       "symbol": "isRankDiscoverAndBookCompoundPrompt",
       "file": "modules/ai/ai-rank-discover-and-book-compound.util.ts",
-      "line": 137,
+      "line": 150,
       "label": "compound_connector",
       "labelReason": "symbol names a compound message shape",
       "mapsToActions": [],
@@ -22356,7 +22370,7 @@
     {
       "symbol": "isRankSessionBudgetRefinePrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 206,
+      "line": 207,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -22428,7 +22442,7 @@
     {
       "symbol": "isRankSessionUpgradePrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 201,
+      "line": 202,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -22564,7 +22578,7 @@
     {
       "symbol": "isReceiptStatusPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 641,
+      "line": 664,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for receipt_status",
       "mapsToActions": [
@@ -22714,7 +22728,7 @@
     {
       "symbol": "isRefundGiftCardOrderPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 282,
+      "line": 286,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for refund_gift_card_order",
       "mapsToActions": [
@@ -22861,7 +22875,7 @@
     {
       "symbol": "isRemoveServiceFromCartPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 672,
+      "line": 685,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for remove_service_from_cart",
       "mapsToActions": [
@@ -23174,7 +23188,8 @@
         "disambiguateMisclassified",
         "hasRescheduleMoveCue",
         "isFindSoonestAppointmentPrompt",
-        "isSingleRescheduleNearestContinuationPrompt"
+        "isSingleRescheduleNearestContinuationPrompt",
+        "tryRescueCreateBookingNotEmployee"
       ],
       "fixtureIds": []
     },
@@ -23728,7 +23743,7 @@
     {
       "symbol": "isSameProviderAcrossWindowsPrompt",
       "file": "modules/ai/ai-flexible-availability.util.ts",
-      "line": 383,
+      "line": 412,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -23891,7 +23906,7 @@
     {
       "symbol": "isScheduleTemplateCreationPrompt",
       "file": "modules/ai/ai-orchestration.helpers.ts",
-      "line": 1607,
+      "line": 1875,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -24192,7 +24207,7 @@
     {
       "symbol": "isServiceCatalogRankPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 537,
+      "line": 554,
       "label": "compound_connector",
       "labelReason": "consumed by a multi-intent decomposer",
       "mapsToActions": [
@@ -24305,7 +24320,7 @@
     {
       "symbol": "isServiceCatalogRankSpecialistPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 229,
+      "line": 230,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -24366,7 +24381,7 @@
     {
       "symbol": "isServiceCatalogRecommendNotProviderPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 217,
+      "line": 218,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -24441,7 +24456,7 @@
     {
       "symbol": "isServiceRankEnrichmentBlockedPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 384,
+      "line": 401,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],
@@ -24589,7 +24604,7 @@
     {
       "symbol": "isSetServiceCompatibilityPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 790,
+      "line": 894,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for set_service_compatibility",
       "mapsToActions": [
@@ -24611,7 +24626,7 @@
     {
       "symbol": "isSetServiceTaxRatePrompt",
       "file": "modules/ai/ai-business-tax.util.ts",
-      "line": 320,
+      "line": 326,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for set_service_tax_rate",
       "mapsToActions": [
@@ -24837,7 +24852,7 @@
     {
       "symbol": "isShowCartTotalDurationPrompt",
       "file": "modules/ai/ai-self-service-booking.util.ts",
-      "line": 707,
+      "line": 720,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for show_cart_total_duration",
       "mapsToActions": [
@@ -24859,7 +24874,7 @@
     {
       "symbol": "isShowClientHistoryPrompt",
       "file": "modules/ai/ai-provider-client-context.util.ts",
-      "line": 124,
+      "line": 139,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for show_client_history",
       "mapsToActions": [
@@ -25393,7 +25408,7 @@
     {
       "symbol": "isSubjectiveServiceRankPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 309,
+      "line": 326,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [
@@ -26096,14 +26111,15 @@
       "reachableFromProduction": true,
       "duplicateSymbol": false,
       "callers": [
-        "rescueRetailFinanceIntent"
+        "rescueRetailFinanceIntent",
+        "tryRescueDashboardCustomerRead"
       ],
       "fixtureIds": []
     },
     {
       "symbol": "isSummarizeUnpaidPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 196,
+      "line": 200,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for summarize_unpaid",
       "mapsToActions": [
@@ -26388,7 +26404,7 @@
     {
       "symbol": "isTeamWideProviderScopePrompt",
       "file": "modules/ai/ai-orchestration.helpers.ts",
-      "line": 1728,
+      "line": 1996,
       "label": "structural_slot",
       "labelReason": "only consumed by parameter extraction/enrichment",
       "mapsToActions": [],
@@ -27219,7 +27235,7 @@
     {
       "symbol": "isUpdatePackagePrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 641,
+      "line": 711,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_package",
       "mapsToActions": [
@@ -27441,7 +27457,7 @@
     {
       "symbol": "isUpdateSubscriptionPlanPrompt",
       "file": "modules/ai/ai-catalog.util.ts",
-      "line": 694,
+      "line": 764,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for update_subscription_plan",
       "mapsToActions": [
@@ -27647,7 +27663,7 @@
     {
       "symbol": "isValidateGiftCardPrompt",
       "file": "modules/ai/ai-payments.util.ts",
-      "line": 203,
+      "line": 207,
       "label": "legacy_paraphrase",
       "labelReason": "paraphrase matcher for validate_gift_card",
       "mapsToActions": [
@@ -27669,7 +27685,7 @@
     {
       "symbol": "isValueOrPremiumBudgetListPrompt",
       "file": "modules/ai/ai-service-rank-discovery.util.ts",
-      "line": 182,
+      "line": 183,
       "label": "routing_shape",
       "labelReason": "used to block or scope another detector",
       "mapsToActions": [],

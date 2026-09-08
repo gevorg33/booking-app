@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { createBookingManagerMock } from '../../common/utils/booking-manager.mock.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
 import { NotificationsService } from './notifications.service.js';
 import { renderBusinessEmailTemplate } from './notification-email-template.util.js';
@@ -13,12 +14,26 @@ function queryBuilderMock(bookings: unknown[]) {
 }
 
 function createNotificationsHarness() {
-  const bookingRepo = {
+  const bookingRepo: Record<string, any> = {
     findOne: jest.fn(),
     find: jest.fn(),
     save: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
+  // e2e-bug.471 — ensureBookingManageToken mints the manage token inside
+  // bookingRepo.manager.transaction. Delegated to this spec's own findOne/save
+  // so the manager sees exactly what each test configured, not a fake row.
+  bookingRepo.manager = createBookingManagerMock({
+    // `?? { id, metadata: {} }` matches the convention the public-booking
+    // repo doubles already use: the row exists in the scenario, it simply
+    // has no manage token yet — which is the case token minting is for.
+    find: async (id) =>
+      (await bookingRepo.findOne({ where: { id } })) ?? {
+        id,
+        metadata: {},
+      },
+    save: (booking) => bookingRepo.save(booking),
+  });
   const businessRepo = { findOne: jest.fn() };
   const customerRepo = { findOne: jest.fn() };
   const logRepo = {

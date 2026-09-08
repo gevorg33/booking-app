@@ -36,7 +36,8 @@ describe('Sprint 28 — service currency enforcement integration', () => {
     businessRepo as never,
     { publish: jest.fn() } as never,
     { isConnectReady: jest.fn().mockReturnValue(true) } as never,
-  );
+  
+    undefined as never);
 
   const checkoutPricingService = { calculate: jest.fn() };
   const bookingPaymentService = new BookingPaymentService(

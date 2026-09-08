@@ -198,7 +198,7 @@ function resolvedCreateBooking(
     action: 'create_booking',
     params,
     enrichedParams: { serviceId, allProviders: true },
-    entities: {
+    entities: { services: [],
       service: { id: serviceId, name: 'Permanent lashes' } as any,
       employees: [],
     },

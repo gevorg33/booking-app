@@ -27,7 +27,15 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'List services that cannot be paid for online, so the gaps can be fixed.',
-    variables: {},
+    // §190 (C2/T0) — one filter, read by the parser one level down.
+    variables: {
+      categoryName: {
+        type: 'string',
+        description: 'Restrict the audit to one category.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'which services have no online payment',
       'audit services missing card payment',
@@ -43,7 +51,17 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Report the remaining balance on a gift card.',
-    variables: {},
+    // §190 (C2/T0) — one field, with `extractGiftCardCodeFromPrompt` as the
+    // fallback (it reads no params of its own).
+    variables: {
+      giftCardCode: {
+        type: 'string',
+        description:
+          'Gift card code to look up. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ["what's left on my gift card", 'check my gift card balance'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -56,7 +74,47 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'], customer: ['client'] },
     risk: 'T0',
     description: 'List which providers offer a given service.',
-    variables: {},
+    // §190 (C2/T0) — `resolveServiceWithBudgetDetail` carries the budget-discovery
+    // family; the handler adds the window and the cap.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceCategory: {
+        type: 'string',
+        description: 'Category to search within.',
+        required: false,
+        resolver: 'none',
+      },
+      maxPrice: {
+        type: 'number',
+        description: 'Price ceiling for the service.',
+        required: false,
+        resolver: 'money',
+      },
+      timeOfDay: {
+        type: 'string',
+        description: 'Part of the day to check.',
+        required: false,
+        resolver: 'none',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many providers to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'who does deep tissue massage',
       'which staff can do a facial',
@@ -77,7 +135,16 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Compare services on price, duration and what they include.',
-    variables: {},
+    // §190 (C2/T0) — `enrichCompareServicesParamsFromPrompt` reads the list and
+    // falls back to extracting names from the prompt.
+    variables: {
+      serviceNames: {
+        type: 'string[]',
+        description: 'Services to compare.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['compare your massage options', 'which facial is best value'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -110,7 +177,23 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Break down the checkout total into its line items.',
-    variables: {},
+    // §190 (C2/T0) — `enrichPrepaymentExplainParamsFromPrompt` supplies the
+    // service name, plus the gift card being applied.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+      giftCardCode: {
+        type: 'string',
+        description: 'Gift card applied to the total.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is my total this much', 'break down the checkout price'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -126,7 +209,23 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how a particular service can be paid for.',
-    variables: {},
+    // §190 (C2/T0) — `enrichExplainPaymentOptionsParamsFromPrompt` and
+    // `resolveServiceForPaymentOptions` between them read name and id.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: [
       'how can I pay for a massage',
       'what payment options for the facial',
@@ -159,7 +258,22 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how to enable online payment for a service.',
-    variables: {},
+    // §190 (C2/T0) — the parser reads both filters.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Restrict the summary to one category.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how do I turn on online payment',
       'set up card payment for a service',
@@ -178,7 +292,22 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'State the price of a service and what it covers.',
-    variables: {},
+    // §190 (C2/T0) — `enrichExplainServicePriceParamsFromPrompt` and
+    // `resolveServiceForPrice` between them read the service by name or id.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service whose price is being explained.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: [
       'how much is a deep tissue massage',
       'what does the facial cost',
@@ -197,7 +326,17 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain why card details are required to complete a booking.',
-    variables: {},
+    // §190 (C2/T0) — `enrichPrepaymentExplainParamsFromPrompt` supplies the
+    // service name, via the shared prepayment enrichment.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: [
       'why do I need to enter a card',
       'why is payment required upfront',
@@ -213,7 +352,21 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Export accounting records for a period.',
-    variables: {},
+    // §190 (C2/T0) — a date window, read directly.
+    variables: {
+      from: {
+        type: 'string',
+        description: 'Start of the export window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the export window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'export last month accounting',
       'download the accounting report',
@@ -229,7 +382,27 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Export staff commission records for a period.',
-    variables: {},
+    // §190 (C2/T0) — a date window plus a location scope, all read directly.
+    variables: {
+      from: {
+        type: 'string',
+        description: 'Start of the export window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the export window.',
+        required: false,
+        resolver: 'date',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Location to export commissions for.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'export commissions for last month',
       'download the commission report',
@@ -248,7 +421,15 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List services that can be booked without paying in advance.',
-    variables: {},
+    // §190 (C2/T0) — one category filter, via the enrichment helper.
+    variables: {
+      serviceCategory: {
+        type: 'string',
+        description: 'Category to filter within.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what can I book without paying now',
       'services with no prepayment',
@@ -268,7 +449,36 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Find the earliest available appointment matching what the customer wants.',
-    variables: {},
+    // §190 (C2/T0) — `enrichFindSoonestParamsFromPrompt` and
+    // `resolveServiceForSoonest` supply the service; `allProviders` widens the
+    // search and `locale` shapes the reply.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service in question. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Search every provider rather than one.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the response copy.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['when is the soonest massage', 'earliest available appointment'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -284,7 +494,35 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Quote the price of a booking before it is made.',
-    variables: {},
+    // §190 (C2/T0) — the customer comes from `resolveQuoteCustomerId`
+    // (`customerId` / `sessionCustomerId`, both session-injected), so only the
+    // pricing inputs are declared.
+    variables: {
+      promoCode: {
+        type: 'string',
+        description: 'Promo code applied to the quote.',
+        required: false,
+        resolver: 'none',
+      },
+      loyaltyPointsToRedeem: {
+        type: 'number',
+        description: 'Loyalty points to spend against the total.',
+        required: false,
+        resolver: 'none',
+      },
+      paxCount: {
+        type: 'number',
+        description: 'Number of people the quote covers.',
+        required: false,
+        resolver: 'none',
+      },
+      purchasePlanId: {
+        type: 'string',
+        description: 'Subscription plan applied to the quote.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how much would that booking cost',
       'quote me for a massage friday',
@@ -300,7 +538,76 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Quote the cost of buying a gift card.',
-    variables: {},
+    // §190 (C2/T0) — the widest quote: twelve fields, with `amount` also
+    // recoverable from the prompt via `extractAmountFromPrompt`.
+    variables: {
+      amount: {
+        type: 'number',
+        description: 'Face value of the gift card.',
+        required: false,
+        resolver: 'money',
+      },
+      cardType: {
+        type: 'string',
+        description: 'Digital or physical card.',
+        required: false,
+        resolver: 'none',
+      },
+      deliveryMethod: {
+        type: 'string',
+        description: 'How the card reaches the recipient.',
+        required: false,
+        resolver: 'none',
+      },
+      shippingMethodId: {
+        type: 'string',
+        description: 'Shipping option for a physical card.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service the card is redeemable against.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceIds: {
+        type: 'string[]',
+        description: 'Several services the card covers.',
+        required: false,
+        resolver: 'service',
+      },
+      packageId: {
+        type: 'string',
+        description: 'Package the card is for.',
+        required: false,
+        resolver: 'none',
+      },
+      bundleId: {
+        type: 'string',
+        description: 'Gift card bundle being priced.',
+        required: false,
+        resolver: 'none',
+      },
+      subscriptionPlanId: {
+        type: 'string',
+        description: 'Subscription plan the card buys.',
+        required: false,
+        resolver: 'none',
+      },
+      purchaserName: {
+        type: 'string',
+        description: 'Who is buying the card.',
+        required: false,
+        resolver: 'none',
+      },
+      purchaserEmail: {
+        type: 'string',
+        description: 'Where the receipt goes.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how much for a 100 dollar gift card',
       'what would a gift card cost',
@@ -319,7 +626,40 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Quote the total for several services booked in one visit.',
-    variables: {},
+    // §190 (C2/T0) — the services come from `resolveQuoteServiceIds`, which reads
+    // `serviceIds`, `serviceNames` and the client-supplied `cartServiceIds`.
+    variables: {
+      serviceNames: {
+        type: 'string[]',
+        description: 'Services to quote together.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceIds: {
+        type: 'string[]',
+        description: 'Services by id.',
+        required: false,
+        resolver: 'service',
+      },
+      cartServiceIds: {
+        type: 'string[]',
+        description: 'Ids already in the cart, supplied by the client.',
+        required: false,
+        resolver: 'none',
+      },
+      promoCode: {
+        type: 'string',
+        description: 'Promo code applied to the quote.',
+        required: false,
+        resolver: 'none',
+      },
+      loyaltyPointsToRedeem: {
+        type: 'number',
+        description: 'Loyalty points to spend against the total.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how much for a massage and a facial', 'quote a spa day'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -335,7 +675,33 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Quote the price of a package.',
-    variables: {},
+    // §190 (C2/T0) — as `get_booking_quote`, scoped to a package.
+    variables: {
+      packageName: {
+        type: 'string',
+        description: 'Package being quoted.',
+        required: false,
+        resolver: 'none',
+      },
+      packageId: {
+        type: 'string',
+        description: 'Package id, when known.',
+        required: false,
+        resolver: 'none',
+      },
+      promoCode: {
+        type: 'string',
+        description: 'Promo code applied to the quote.',
+        required: false,
+        resolver: 'none',
+      },
+      loyaltyPointsToRedeem: {
+        type: 'number',
+        description: 'Loyalty points to spend against the total.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how much is the bridal package', 'what does the bundle cost'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -348,7 +714,27 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Report revenue from subscription plans.',
-    variables: {},
+    // §190 (C2/T0) — the window, via the shared `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Single day to report on.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'how much are subscriptions making',
       'subscription revenue this month',
@@ -365,7 +751,15 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Report whether a receipt has been issued and where to find it.',
-    variables: {},
+    // §190 (C2/T0) — the whole input is the booking, read directly.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking being asked about.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['where is my receipt', 'did I get a receipt'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -378,7 +772,28 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise appointments that have not been paid for.',
-    variables: {},
+    // §190 (C2/T0) — the whole input is the window, via the shared
+    // `resolveDateRange` (`date`, `dateFrom`, `dateTo`; `_timeZone` is injected).
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Single day to summarize.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['who has not paid', 'show me unpaid bookings'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -391,7 +806,22 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Check whether a gift card code is valid and usable.',
-    variables: {},
+    // §190 (C2/T0) — as `check_gift_card_balance`, plus the service the card is
+    // being validated against.
+    variables: {
+      giftCardCode: {
+        type: 'string',
+        description: 'Gift card code to validate.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service the card would be spent on.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['is this gift card code valid', 'check gift card ABC123'],
     confirm: 'never',
     handler: 'AiPaymentsService',
@@ -497,7 +927,47 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T1',
     description: 'Book the earliest slot matching what the customer asked for.',
-    variables: {},
+    // §177 (C2/T1) — `resolveDiscoverConstrainedService` supplies the discovery
+    // constraints; the handler refuses with `missing: ['serviceName']`.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service to book.',
+        required: true,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceCategory: {
+        type: 'string',
+        description: 'Category to search within.',
+        required: false,
+        resolver: 'none',
+      },
+      maxPrice: {
+        type: 'number',
+        description: 'Price ceiling for the service.',
+        required: false,
+        resolver: 'money',
+      },
+      serviceRank: {
+        type: 'string',
+        description:
+          'Ranking hint (cheapest, premium) used to pick among matches.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the response copy.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book the nearest slot', 'get me the soonest appointment'],
     confirm: 'always',
     compensation: {
@@ -650,7 +1120,40 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Choose how a booking will be paid for, before paying.',
-    variables: {},
+    // §177 (C2/T1) — `handleChoosePaymentMethodLogic` merges `params` with the
+    // prompt via `enrichCashPaymentParamsFromPrompt` (which reads `serviceName`),
+    // then passes the merged object to `resolveService`, which reads `serviceId`,
+    // `serviceName`, `serviceCategory` and `maxPrice`. The last two arrive only
+    // through that shared helper, but they are genuinely read on this path.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description:
+          'Service being paid for. Falls back to extraction from the prompt.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when the caller already has it.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceCategory: {
+        type: 'string',
+        description:
+          'Category scope, read by the shared `resolveService` helper.',
+        required: false,
+        resolver: 'none',
+      },
+      maxPrice: {
+        type: 'number',
+        description:
+          'Price ceiling, read by the shared `resolveService` helper.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['I want to pay by card', 'pay cash at the visit instead'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -702,7 +1205,18 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Turn cash payment on or off for the business.',
-    variables: {},
+    // §177 (C2/T1) — `handleConfigureCashPaymentsLogic` reads the boolean when the
+    // caller supplies it and otherwise parses the prompt. `params._prompt` is
+    // pipeline-injected, so it is not user input and is not declared.
+    variables: {
+      acceptCashPayments: {
+        type: 'boolean',
+        description:
+          'Whether the business accepts cash. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['stop accepting cash', 'allow cash payments'],
     confirm: 'always',
     compensation: {
@@ -720,7 +1234,24 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change the default checkout settings for new bookings.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Earlier exempted as prompt-parsed on a grep of
+    // the handler body, which showed only `params._prompt`. The reads happen inside
+    // `parseConfigureCheckoutDefaultsFromPrompt`, one level down.
+    variables: {
+      acceptCashPayments: {
+        type: 'boolean',
+        description:
+          'Whether cash is accepted by default. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+      defaultServiceDepositPercent: {
+        type: 'number',
+        description: 'Default deposit percentage applied to new services.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our checkout defaults', 'set default payment settings'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -738,7 +1269,35 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Set how much deposit a service requires up front.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Earlier exempted as prompt-parsed on a grep of
+    // the handler body, which showed only `params._prompt`. The reads happen inside
+    // `parseServiceDepositPolicyConfig`, one level down.
+    variables: {
+      depositPercent: {
+        type: 'number',
+        description: 'Deposit as a percentage of the service price.',
+        required: false,
+        resolver: 'none',
+      },
+      depositAmount: {
+        type: 'number',
+        description: 'Deposit as a fixed amount, instead of a percentage.',
+        required: false,
+        resolver: 'money',
+      },
+      serviceTier: {
+        type: 'string',
+        description: 'Restrict the policy to a service tier.',
+        required: false,
+        resolver: 'none',
+      },
+      featuredOnly: {
+        type: 'boolean',
+        description: 'Apply the policy only to featured services.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'require a 20 percent deposit for massages',
       'set the deposit policy',
@@ -759,7 +1318,42 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Turn online payment on or off for a service.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Earlier exempted as prompt-parsed on a grep of
+    // the handler body, which showed only `params._prompt`. The reads happen inside
+    // `parseServiceOnlinePaymentConfig`, one level down — and it reads five
+    // fields, which is why exempting this one was the costliest of the five.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service the policy applies to.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Several services the policy applies to.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Apply to every service in a category.',
+        required: false,
+        resolver: 'none',
+      },
+      allServices: {
+        type: 'boolean',
+        description: 'Apply to the whole catalogue.',
+        required: false,
+        resolver: 'none',
+      },
+      depositPercent: {
+        type: 'number',
+        description: 'Deposit percentage when the mode is a deposit.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'allow online payment for facials',
       'stop taking card for massages',
@@ -829,7 +1423,15 @@ export const PAYMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     // registered as a write. With the duplicate gone this can say what it is.
     risk: 'T0',
     description: 'Report whether a booking has been paid.',
-    variables: {},
+    // §190 (C2/T0) — the whole input is the booking, read directly.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking being asked about.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['has that booking been paid', 'payment status for my 3pm'],
     confirm: 'never',
     handler: 'AiPaymentsService',

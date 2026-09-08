@@ -25,7 +25,15 @@ ${NOTIFICATION_DATE_FORMAT_CLASSIFIER_RULES}
 
 ${DATE_INPUT_FORMAT_CLASSIFIER_RULES}`;
 
-export const CONFIGURE_BUSINESS_DATE_FORMAT_PROMPTS = [
+/** Declared so the array is one type, not a union of six literal shapes. */
+export type ConfigureBusinessDateFormatPromptFixture = {
+  id: string;
+  prompt: string;
+  dateFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+  timeFormat?: '12h' | '24h';
+};
+
+export const CONFIGURE_BUSINESS_DATE_FORMAT_PROMPTS: readonly ConfigureBusinessDateFormatPromptFixture[] = [
   {
     id: 'use-us-date-format',
     prompt: 'Use US date format',

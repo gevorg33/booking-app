@@ -3,9 +3,11 @@ import { EXPLAIN_DATA_RIGHTS_PROMPTS } from './ai-data-rights.fixtures.js';
 import { handleExplainDataRightsLogic } from './ai-business-compliance.logic.js';
 import { rescueExplainDataRightsIntent } from './ai-data-rights.util.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai data rights integration (ai-cmd-compliance-7)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -19,7 +21,7 @@ describe('ai data rights integration (ai-cmd-compliance-7)', () => {
         privacyPolicyVersion: '1.0',
       },
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -53,15 +55,14 @@ describe('ai data rights integration (ai-cmd-compliance-7)', () => {
       const rescued = rescueExplainDataRightsIntent(prompt, 'unknown');
       expect(rescued?.action).toBe('explain_data_rights');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_data_rights',
         params: { aspect },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainDataRightsLogic(

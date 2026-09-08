@@ -1,5 +1,6 @@
 import {
   applyUnavailableBlocksToPeriods,
+  fuzzyMatchByName,
   extractUnavailableBlocksFromPrompt,
   extractDateRangeFromPrompt,
   extractSingleIsoDayFromPrompt,
@@ -368,6 +369,54 @@ describe('applyAvailabilityDateFromPrompt', () => {
     expect(params.date).toBeUndefined();
     expect(params.dateFrom).toBeUndefined();
     expect(params.dateTo).toBeUndefined();
+  });
+});
+
+describe('resolveDateRange quarter and year (e2e-bug.467, §217)', () => {
+  // Before §217 every phrase below returned null: three parsers emitted
+  // `dateRange: 'this_quarter' | 'this_year'` and no branch here understood
+  // either, so "summarize P&L this quarter" fell back to a default window
+  // rather than the quarter the user asked for.
+  //
+  // The clock is pinned because `resolveDateRange` anchors on
+  // `getTodayDateKey(tz)` — the real clock — and ignores `params.date`. Without
+  // this, the expectations below would pass today and start failing on
+  // 1 October, which is the `clinic-task-auto.util` failure mode in
+  // `e2e-bug.471`: a test that expires rather than one that detects.
+  beforeAll(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T12:00:00.000Z'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  it.each([
+    ['this quarter', '2026-07-01', '2026-09-30'],
+    ['current quarter', '2026-07-01', '2026-09-30'],
+    ['last quarter', '2026-04-01', '2026-06-30'],
+    ['previous quarter', '2026-04-01', '2026-06-30'],
+    ['next quarter', '2026-10-01', '2026-12-31'],
+    ['this year', '2026-01-01', '2026-12-31'],
+    ['last year', '2025-01-01', '2025-12-31'],
+  ])('resolves %s', (phrase, start, end) => {
+    const range = resolveDateRange({}, `summarize revenue ${phrase}`, 'UTC');
+    expect(range).not.toBeNull();
+    expect(range!.start).toBe(start);
+    expect(range!.end).toBe(end);
+  });
+
+  it('does not swallow the month and week phrases it sits next to', () => {
+    // The quarter branch is tested after the month branch; a greedy pattern
+    // here would silently retune every existing range caller. 2026-08-15 is a
+    // Saturday, so "this week" is Mon 10th to Sun 16th.
+    expect(resolveDateRange({}, 'revenue this month', 'UTC')).toEqual({
+      start: '2026-08-01',
+      end: '2026-08-31',
+    });
+    expect(resolveDateRange({}, 'revenue this week', 'UTC')).toEqual({
+      start: '2026-08-10',
+      end: '2026-08-16',
+    });
   });
 });
 
@@ -883,5 +932,55 @@ describe('resolveDirectScheduleDateKeys', () => {
         dateRange: { start: '2026-07-01', end: '2026-07-03' },
       }),
     ).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
+  });
+
+  // e2e-bug.480 / e2e-bug.446 — name matching across scripts.
+  //
+  // The word-boundary tier (e2e-bug.362) stops a short name matching letters
+  // inside a longer word. Armenian attaches case endings straight onto the
+  // name, so that tier also refused every inflected form — and the three
+  // private copies of this matcher only handled them by accident, via the raw
+  // `includes` they were still running.
+  describe('fuzzyMatchByName across scripts', () => {
+    const staff = [
+      { name: 'Աննա' },
+      { name: 'Անի' },
+      { name: 'Արա' },
+      { name: 'Al' },
+      { name: 'Alice' },
+      { name: 'Мария' },
+    ];
+    const at = (q: string) => fuzzyMatchByName(staff, q)?.name ?? null;
+
+    it.each([
+      ['գրանցեք ինձ Աննայի մոտ', 'Աննա'],
+      ['Աննային զանգիր', 'Աննա'],
+      ['Աննա ազատ է՞', 'Աննա'],
+    ])('resolves the Armenian case ending in %s', (q, want) => {
+      expect(at(q)).toBe(want);
+    });
+
+    // The reason the allowance is a closed set of endings and not "any short
+    // suffix": these are ordinary words that merely start with a name.
+    it.each([['մի անիծիր ինձ'], ['արագ գրանցում']])(
+      'does not find a name inside the Armenian word in %s',
+      (q) => {
+        expect(at(q)).toBeNull();
+      },
+    );
+
+    // e2e-bug.362 must stay fixed — this is what the boundary tier is for.
+    it('does not match a short Latin name inside a word', () => {
+      expect(at('is the salon open')).toBeNull();
+      expect(at('book Alice for a haircut')).toBe('Alice');
+      expect(at('book me a haircut with Al')).toBe('Al');
+    });
+
+    // Recorded, not fixed: Russian inflects by stem change, so no suffix
+    // allowance reaches it. It failed before this change too.
+    it('still misses Russian stem-changed forms', () => {
+      expect(at('запишите меня к Марии')).toBeNull();
+      expect(at('запишите меня к Мария')).toBe('Мария');
+    });
   });
 });

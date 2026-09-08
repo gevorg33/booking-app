@@ -5,9 +5,10 @@ import { handleListUpcomingTourDeparturesLogic } from './ai-upcoming-tour-depart
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
-  const departureDate = addDaysToDateKey(getTodayDateKey(), 10);
+  const departureDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
 
   const mountainTrek = {
     id: 'svc-mountain',
@@ -23,7 +24,7 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
         endTime: new Date(
-          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+          `${addDaysToDateKey(departureDate, 2, 'UTC')}T18:00:00.000Z`,
         ),
         metadata: { paxCount: 6, tourStartDate: departureDate },
         service: mountainTrek,
@@ -49,7 +50,7 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
         endTime: new Date(
-          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+          `${addDaysToDateKey(departureDate, 2, 'UTC')}T18:00:00.000Z`,
         ),
         metadata: { paxCount: 6, tourStartDate: departureDate },
         service: mountainTrek,
@@ -68,18 +69,17 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
       });
       expect(rescued?.action).toBe('list_upcoming_tour_departures');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'list_upcoming_tour_departures',
         params: {
           ...(serviceName ? { serviceName } : {}),
           ...(daysAhead ? { daysAhead } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleListUpcomingTourDeparturesLogic(

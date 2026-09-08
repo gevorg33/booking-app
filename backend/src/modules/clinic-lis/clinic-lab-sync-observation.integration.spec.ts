@@ -35,7 +35,7 @@ describe('ClinicLabSyncObservationService (integration)', () => {
 
   const requestRepo = {
     find: jest.fn(async () => []),
-    findOne: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => {
       savedRequest = { ...savedRequest, ...value };

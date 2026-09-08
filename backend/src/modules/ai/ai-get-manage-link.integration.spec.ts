@@ -8,6 +8,7 @@ import { rescueGetManageLinkIntent } from './ai-get-manage-link.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_GET_MANAGE_LINK_CASES } from './eval/ai-command-eval.cases.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-get-manage-link integration (ai-cmd-customer-4.4.5)', () => {
   const guestBooking = {
@@ -29,6 +30,22 @@ describe('ai-get-manage-link integration (ai-cmd-customer-4.4.5)', () => {
       find: jest.fn(async () => [guestBooking]),
       findOne: jest.fn(async () => guestBooking),
       save: jest.fn(async (booking: typeof guestBooking) => booking),
+      // `manager.transaction` — the manifest's `mock_missing_transaction` class.
+      // The manage-link path mints a token via `ensureBookingManageToken`,
+      // which opens a transaction and locks the row inside it; with no
+      // `manager` every case died before reaching the behaviour under test.
+      // The locked read serves the same booking this mock already returns.
+      manager: {
+        transaction: async (cb: (m: any) => Promise<unknown>) =>
+          cb({
+            createQueryBuilder: () => ({
+              setLock: () => ({
+                where: () => ({ getOne: async () => guestBooking }),
+              }),
+            }),
+            save: async (_entity: unknown, row: any) => row,
+          }),
+      },
     },
     configService: { get: jest.fn(() => 'http://localhost:3000') },
     notificationsService: {
@@ -46,15 +63,14 @@ describe('ai-get-manage-link integration (ai-cmd-customer-4.4.5)', () => {
   it.each(GET_MANAGE_LINK_PROMPTS)(
     'validates and executes signed-in $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'get_manage_link',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleGetManageLinkLogic(

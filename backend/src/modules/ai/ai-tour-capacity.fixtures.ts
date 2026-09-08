@@ -8,7 +8,25 @@ export const TOUR_CAPACITY_CLASSIFIER_RULES = `- diagnose_tour_capacity: READ �
   - "Почему checkout отклонил 5 человек на Mountain Trek?" → diagnose_tour_capacity, serviceName=Mountain Trek, requestedPax=5
   - "Ինչու checkout-ը մերժեց 4 հոգի City Tour-ի համար" → diagnose_tour_capacity, serviceName=City Tour, requestedPax=4`;
 
-export const DIAGNOSE_TOUR_CAPACITY_PROMPTS = [
+/**
+ * Declared so the array is one type, not a union of twenty literal shapes.
+ *
+ * `aspect` and `surface` are narrowed to their real domains; `serviceName` is
+ * left `string` even though only five values appear — those are sample data,
+ * not a closed set, and pinning them would make the fixture reject a new
+ * service name for no reason.
+ */
+export type DiagnoseTourCapacityPromptFixture = {
+  id: string;
+  prompt: string;
+  aspect: 'all' | 'clampedPax' | 'fullyBooked' | 'insufficientSpots' | 'maxGroup';
+  surface: 'customer' | 'public';
+  serviceName?: string;
+  requestedPax?: number;
+  date?: string;
+};
+
+export const DIAGNOSE_TOUR_CAPACITY_PROMPTS: readonly DiagnoseTourCapacityPromptFixture[] = [
   {
     id: 'reject-4-mountain-date',
     prompt:

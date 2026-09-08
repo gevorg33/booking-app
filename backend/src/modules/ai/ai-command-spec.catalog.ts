@@ -224,6 +224,10 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
     description:
       'Create a bundle of services sold together at a package price.',
     variables: {
+      // §308 (`e2e-bug.462` reverse census). `handleCreatePackageLogic` reads
+      // `packageName`, `serviceNames`, `description`, `discountType`,
+      // `discountValue`, `expiresAt` and `notifyCustomers`. It never mentions
+      // `price` or `discountPercent`, both of which were declared here.
       packageName: {
         type: 'string',
         description: 'Name of the package.',
@@ -232,19 +236,37 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       serviceNames: {
         type: 'string[]',
-        description: 'Services included in the package.',
+        description: 'Services bundled into the package.',
         required: true,
         resolver: 'service',
       },
-      price: {
-        type: 'number',
-        description: 'Package price.',
+      discountType: {
+        type: 'string',
+        description: 'How the discount is expressed — a percentage or a fixed amount.',
         required: false,
-        resolver: 'money',
+        resolver: 'none',
       },
-      discountPercent: {
+      discountValue: {
         type: 'number',
-        description: 'Discount off the combined service prices.',
+        description: 'Size of the discount, interpreted according to discountType.',
+        required: false,
+        resolver: 'none',
+      },
+      description: {
+        type: 'string',
+        description: 'Customer-facing description of the package.',
+        required: false,
+        resolver: 'none',
+      },
+      expiresAt: {
+        type: 'string',
+        description: 'Date the package stops being sellable, ISO 8601.',
+        required: false,
+        resolver: 'date',
+      },
+      notifyCustomers: {
+        type: 'boolean',
+        description: 'Announce the new package to customers.',
         required: false,
         resolver: 'none',
       },
@@ -307,12 +329,10 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description: 'List the service packages this business offers.',
     variables: {
-      includeInactive: {
-        type: 'boolean',
-        description: 'Include packages that are currently deactivated.',
-        required: false,
-        resolver: 'none',
-      },
+      // §309 (`e2e-bug.462` reverse census): declared `includeInactive`, which
+      // nothing can read — `handleListPackagesLogic(deps, businessId)` takes no
+      // `params` argument at all. That is §190's documented no-input shape, so
+      // `{}` is the correct declaration and the command is a named exemption.
     },
     examples: [
       'what packages do we sell',
@@ -331,11 +351,14 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description: 'List the subscription/membership plans this business offers.',
     variables: {
-      includeInactive: {
-        type: 'boolean',
-        description: 'Include plans that are currently deactivated.',
+      // §309 (`e2e-bug.462` reverse census): declared `includeInactive`, which
+      // `handleListSubscriptionPlansLogic` never reads, and omitted
+      // `serviceName`, which it does. Wrong in both directions on one command.
+      serviceName: {
+        type: 'string',
+        description: 'Only list plans that include this service.',
         required: false,
-        resolver: 'none',
+        resolver: 'service',
       },
     },
     examples: ['show our membership plans', 'what subscriptions do we offer'],
@@ -853,16 +876,34 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T1',
     description: 'Declare which services can be booked together in one visit.',
     variables: {
-      serviceName: {
-        type: 'string',
-        description: 'Service to configure.',
+      // §308 (`e2e-bug.462` reverse census). This spec was wrong in **name and
+      // meaning**. `handleSetServiceCompatibilityLogic` reads
+      // `params.incompatibleServiceNames ?? params.serviceNames`, takes the
+      // first two, and records an *incompatible* pair — its own failure text is
+      // "Name two services that cannot be booked same visit" and its `missing`
+      // is `['incompatibleServiceNames']`.
+      //
+      // What was here: `serviceName` (singular — never read; the handler reads
+      // the plural) and `compatibleWith`, `required: true`, described as
+      // "Services bookable alongside it" — a required input no handler reads,
+      // documenting the opposite of what the command does.
+      //
+      // The command's `description` is inverted the same way and is NOT fixed
+      // here: descriptions feed `commandMatchText`, so editing one invalidates
+      // the committed embedding cache and needs `OPENAI_API_KEY`. Tracked
+      // separately.
+      incompatibleServiceNames: {
+        type: 'string[]',
+        description:
+          'The two services that cannot be booked in the same visit. Exactly two are used.',
         required: true,
         resolver: 'service',
       },
-      compatibleWith: {
+      serviceNames: {
         type: 'string[]',
-        description: 'Services bookable alongside it.',
-        required: true,
+        description:
+          'Fallback spelling the handler also accepts when incompatibleServiceNames is absent.',
+        required: false,
         resolver: 'service',
       },
     },

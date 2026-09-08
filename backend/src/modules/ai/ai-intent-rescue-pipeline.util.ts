@@ -29,6 +29,8 @@ export type RescuePipelineContext = {
   reasoning?: string;
   employees: Array<{ id: string; name: string }>;
   customers: Array<{ id: string; name: string }>;
+  /** e2e-bug.460 — lets the staff rescue tell a place from a person. */
+  locations: Array<{ id: string; name: string }>;
   timeZone: string;
   budgetSurface?: 'dashboard' | 'customer' | 'public';
 };
@@ -62,6 +64,7 @@ export function buildRescuePipelineContext(
     reasoning: input.reasoning,
     employees: input.employees ?? [],
     customers: input.customers ?? [],
+    locations: input.locations ?? [],
     timeZone: input.timeZone ?? 'UTC',
     budgetSurface,
   };

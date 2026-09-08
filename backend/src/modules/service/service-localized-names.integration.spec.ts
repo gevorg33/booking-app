@@ -94,7 +94,8 @@ describe('Service localized names integration', () => {
     businessRepo as any,
     { publish: jest.fn() } as any,
     stripeIntegrationService as any,
-  );
+  
+    undefined as never);
 
   const publicBookingService = createPublicBookingServiceHarness({
     businessService: businessService,

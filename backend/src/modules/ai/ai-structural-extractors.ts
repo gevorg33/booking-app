@@ -9,6 +9,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import { normalizeTime24 } from '../../common/utils/time-format.util.js';
+import { MERIDIEM_GROUP_SOURCE } from './ai-datetime-resolution.util.js';
 import {
   formatDateDisplay,
   getTodayDateKey,
@@ -77,17 +78,40 @@ export function extractStatusFiltersFromPrompt(prompt: string): string[] {
   return [...found];
 }
 
+/**
+ * `normalizeTime24` range-checks and, when the value fails, returns the input
+ * **unchanged** — a documented fallback, not an oversight. That is fine for
+ * display but wrong for an extractor, which should say "no time here" rather
+ * than hand back "24:00" or "99:99" as though they were times (e2e-bug.469).
+ */
+function asValidTime(value: string): string | null {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : null;
+}
+
 /** Parse hour + optional minutes with am/pm into 24h HH:mm. */
 export function parseAmPmClockTime(
   hour: number,
   minute: number | undefined,
   ampm: string,
-): string {
+): string | null {
+  // e2e-bug.469 — a 12-hour clock hour is 0-12. Anything else is not a
+  // meridiem time, and shifting it produced hours that are not times at all:
+  // "at 003:30 pm" reached here as hour 30 and left as **"42:00"**, which
+  // `normalizeTime24` then passed through unchanged (it range-checks, and its
+  // documented fallback is to return the input untouched).
+  //
+  // Returning null instead of a fabricated time lets the caller fall through to
+  // its 24-hour branches, which read such input correctly. 13-23 with a
+  // meridiem is the same case: the text is already 24-hour and the "pm" is
+  // noise, so the 24-hour branch is the right reader, not `h + 12`.
+  if (!Number.isInteger(hour) || hour < 0 || hour > 12) return null;
+  const m = minute ?? 0;
+  if (!Number.isInteger(m) || m < 0 || m > 59) return null;
+
   const isPm = /^p/i.test(ampm.trim());
   let h = hour;
   if (isPm && h !== 12) h += 12;
   if (!isPm && h === 12) h = 0;
-  const m = minute ?? 0;
   return normalizeTime24(`${h}:${String(m).padStart(2, '0')}`);
 }
 
@@ -116,21 +140,31 @@ export function extractTimeSlotFromPrompt(prompt: string): string | null {
     // character on one side, and "p.m." ends in a period — so `\b` could never
     // match the dotted form at all, and "book for 6:45 p.m." fell through to the
     // bare-24h branch and returned 06:45. Second variant of e2e-bug.364.
-    /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.m\.|p\.m\.|am|pm)(?!\w)/i,
+    new RegExp(
+      String.raw`\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*` + MERIDIEM_GROUP_SOURCE,
+      'i',
+    ),
   );
   if (amPm) {
-    return parseAmPmClockTime(
+    const parsed = parseAmPmClockTime(
       parseInt(amPm[1], 10),
       amPm[2] != null ? parseInt(amPm[2], 10) : undefined,
       amPm[3],
     );
+    if (parsed) return parsed;
   }
 
   const at24 = prompt.match(/\b(?:at|@)\s*(\d{1,2}):(\d{2})\b/i);
-  if (at24) return normalizeTime24(`${at24[1]}:${at24[2]}`);
+  if (at24) {
+    const t = asValidTime(normalizeTime24(`${at24[1]}:${at24[2]}`));
+    if (t) return t;
+  }
 
   const bare24 = prompt.match(/\b(\d{1,2}):(\d{2})\b/);
-  if (bare24) return normalizeTime24(`${bare24[1]}:${bare24[2]}`);
+  if (bare24) {
+    const t = asValidTime(normalizeTime24(`${bare24[1]}:${bare24[2]}`));
+    if (t) return t;
+  }
 
   const atHourOnly = prompt.match(/\b(?:at|@)\s*(\d{1,2})\b(?!\s*:\d)/i);
   if (atHourOnly) {
@@ -145,14 +179,19 @@ export function extractRescheduleTimeSlotFromPrompt(
   prompt: string,
 ): string | null {
   const toAmPm = prompt.match(
-    /\bto\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i,
+    new RegExp(
+      String.raw`\bto\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*` +
+        MERIDIEM_GROUP_SOURCE,
+      'i',
+    ),
   );
   if (toAmPm) {
-    return parseAmPmClockTime(
+    const parsed = parseAmPmClockTime(
       parseInt(toAmPm[1], 10),
       toAmPm[2] != null ? parseInt(toAmPm[2], 10) : undefined,
       toAmPm[3],
     );
+    if (parsed) return parsed;
   }
 
   const toAt = prompt.match(/\bto\s+(?:at\s+)?(\d{1,2}):(\d{2})\b/i);
@@ -433,15 +472,23 @@ export function extractRescheduleTargetTime(prompt: string): string | null {
     return normalizeTime24(`${toDayTime[1]}:${toDayTime[2] ?? '00'}`);
 
   const toDayFrom = prompt.match(
-    /\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+(?:from|at)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?\b/i,
+    new RegExp(
+      String.raw`\bto\s+(?:tomorrow|today|(?:next\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thurs|fri|sat|sun)|\d{1,2}(?:st|nd|rd|th)?(?:\s+of\s+|\s+)[a-z]+|\d{1,2}[/_]\d{1,2}(?:[/_]\d{2,4})?|[a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+(?:from|at)\s+(\d{1,2})(?::(\d{2}))?\s*` +
+        // Optional here, so it is wrapped rather than spliced bare. The old
+        // trailing `\b` did double duty — it also stopped "6:453" matching as
+        // "6:45" when no meridiem followed — so `(?!\d)` takes over that job.
+        String.raw`(?:${MERIDIEM_GROUP_SOURCE})?(?!\d)`,
+      'i',
+    ),
   );
   if (toDayFrom) {
     if (toDayFrom[3]) {
-      return parseAmPmClockTime(
+      const parsed = parseAmPmClockTime(
         parseInt(toDayFrom[1], 10),
         toDayFrom[2] != null ? parseInt(toDayFrom[2], 10) : undefined,
         toDayFrom[3],
       );
+      if (parsed) return parsed;
     }
     return normalizeTime24(`${toDayFrom[1]}:${toDayFrom[2] ?? '00'}`);
   }
@@ -450,14 +497,19 @@ export function extractRescheduleTargetTime(prompt: string): string | null {
   if (toAt) return toAt;
 
   const moveToAmPm = prompt.match(
-    /\b(?:move|reschedule|shift)\b[^.]{0,120}?\bto\b[^.]{0,80}?\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/i,
+    new RegExp(
+      String.raw`\b(?:move|reschedule|shift)\b[^.]{0,120}?\bto\b[^.]{0,80}?\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*` +
+        MERIDIEM_GROUP_SOURCE,
+      'i',
+    ),
   );
   if (moveToAmPm) {
-    return parseAmPmClockTime(
+    const parsed = parseAmPmClockTime(
       parseInt(moveToAmPm[1], 10),
       moveToAmPm[2] != null ? parseInt(moveToAmPm[2], 10) : undefined,
       moveToAmPm[3],
     );
+    if (parsed) return parsed;
   }
 
   if (

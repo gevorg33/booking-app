@@ -278,7 +278,14 @@ function hasServiceOnlinePaymentScope(prompt: string): boolean {
   return (
     /\bservices?\b/i.test(prompt) ||
     /\bpublic\s+booking\b/i.test(prompt) ||
-    /\bbooking\s+page\b/i.test(prompt)
+    /\bbooking\s+page\b/i.test(prompt) ||
+    // §175 — "Turn on online payment for everything" names the broadest scope
+    // there is, in a word this list did not know, so the last step of the
+    // e2e-bug.349 prompt classified as nothing and dropped out of the compound.
+    // Safe to widen because this is one of three required conjuncts: the caller
+    // also demands ONLINE_PAYMENT_SIGNAL and an enabling/disabling verb, so
+    // "Delete everything" and "Turn on notifications for everything" stay false.
+    /\b(?:everything|all\s+of\s+(?:them|it))\b/i.test(prompt)
   );
 }
 

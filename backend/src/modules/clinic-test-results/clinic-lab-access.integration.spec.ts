@@ -21,7 +21,8 @@ describe('Clinic lab API privacy (integration)', () => {
     bookingRepo as any,
     specimenRepo as any,
     resultRepo as any,
-  );
+  
+    undefined as never);
   const resultsService = new ClinicTestResultsService(
     businessService as any,
     orderRepo as any,

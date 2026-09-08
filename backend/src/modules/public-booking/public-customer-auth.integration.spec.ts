@@ -44,7 +44,7 @@ describe('Public customer auth integration', () => {
 
   const firebase = {
     isReady: true,
-    verifyIdToken: jest.fn(),
+    verifyIdToken: jest.fn<Promise<unknown>, unknown[]>(),
   };
 
   const jwtService = {

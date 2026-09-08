@@ -5,6 +5,28 @@ import {
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
+/**
+ * e2e-bug.503 — these bookings must stay in the future.
+ *
+ * `matchCustomerOwnedBooking` filters to `status === CONFIRMED && startTime >=
+ * now` before it looks at anything else, so a literal date silently empties the
+ * candidate list once it passes. That is what happened here: the two `Lipid
+ * Panel` visits below were written as 2026-07-15/16, and after those days went
+ * by the ambiguity test stopped seeing two candidates and started seeing none —
+ * reported as an assertion mismatch rather than the fixture expiry it was.
+ * Same class as e2e-bug.491.
+ *
+ * Computed once at module load so every booking in one run shares a single
+ * `now`, and offset in whole days so the assertions never straddle midnight.
+ */
+const FROZEN_NOW = new Date();
+const AT = (daysAhead: number, hour = 14): Date => {
+  const d = new Date(FROZEN_NOW);
+  d.setUTCDate(d.getUTCDate() + daysAhead);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+};
+
 function makeDeps(
   overrides: Partial<SelfServiceBookingLogicDeps> = {},
 ): SelfServiceBookingLogicDeps {
@@ -15,8 +37,8 @@ function makeDeps(
         businessId: 'biz-1',
         customerId: 'cust-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-07-15T14:00:00Z'),
-        endTime: new Date('2026-07-15T15:00:00Z'),
+        startTime: AT(7),
+        endTime: AT(7, 15),
         service: {
           id: 'svc-1',
           name: 'Lipid Panel',
@@ -152,7 +174,7 @@ describe('ai-explain-preparation-notes.logic (ai-cmd-customer-4.3.4)', () => {
             businessId: 'biz-1',
             customerId: 'cust-1',
             status: BookingStatus.CONFIRMED,
-            startTime: new Date('2026-07-15T14:00:00Z'),
+            startTime: AT(7),
             service: {
               id: 'svc-a',
               name: 'Lipid Panel',
@@ -164,7 +186,7 @@ describe('ai-explain-preparation-notes.logic (ai-cmd-customer-4.3.4)', () => {
             businessId: 'biz-1',
             customerId: 'cust-1',
             status: BookingStatus.CONFIRMED,
-            startTime: new Date('2026-07-16T14:00:00Z'),
+            startTime: AT(8),
             service: {
               id: 'svc-b',
               name: 'Lipid Panel',

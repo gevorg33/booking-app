@@ -19,11 +19,13 @@ import {
   resolveTimezone,
 } from '../../common/utils/timezone.util.js';
 import dayjs from 'dayjs';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 import { enrichListServicesPaymentFilterParamsFromPrompt } from './ai-list-services-payment-filters.util.js';
 import {
   normalizeAvailabilityWindows,
+  normalizeAvailabilityServiceCategory,
   type AvailabilityWindow,
 } from './ai-flexible-availability.util.js';
 
@@ -399,6 +401,65 @@ export function getRequestedEmployeeNames(params: {
  * ASCII-only and would break the Armenian and Russian names §48 documented
  * across this corpus.
  */
+/**
+ * Armenian case endings, longest first — e2e-bug.480.
+ *
+ * Armenian attaches case endings straight onto the name, so "Աննա" appears in a
+ * sentence as "Աննայի" / "Աննային". A plain boundary test refuses those,
+ * because the character after the name is a letter.
+ *
+ * A **closed set** rather than "allow a short suffix": measured, a blanket
+ * three-letter allowance matches "Անի" inside "անիծիր" (to curse) and "Արա"
+ * inside "արագ" (quick) — which is e2e-bug.362 again, in another script. Only
+ * real endings are accepted, and the ending must itself end the word.
+ *
+ * Russian is absent, and the reason needs stating carefully — §207 first got it
+ * wrong. «Мария» → «Марии» is a **stem change**, which no suffix rule reaches.
+ * But «Иван» → «Ивана» / «Ивану» is a **clean suffix**, which one would. So
+ * Russian is not out of reach on principle, only unfinished: the masculine
+ * forms are tractable and the feminine ones need stemming. Pinned as a known
+ * miss in `fuzzy-match-copies.boundary.spec.ts` and tracked in e2e-bug.481 —
+ * adding it needs its own corpus score, because Russian endings are single
+ * letters and far likelier to collide than the Armenian set.
+ */
+const ARMENIAN_CASE_SUFFIX =
+  /^(?:յին|յից|յով|ներին|ների|յի|ին|ից|ով|ուն|ու|ը|ն|ի)(?![\p{L}\p{N}])/u;
+
+const HAS_ARMENIAN = /\p{Script=Armenian}/u;
+
+/**
+ * Russian masculine case endings, longest first — e2e-bug.481 (D5-d).
+ *
+ * The tractable half of the Russian problem, exactly as the note above scopes
+ * it: «Иван» → «Ивана» / «Ивану» / «Иваном» / «Иване» are **clean suffixes**,
+ * so the name is still a prefix of the inflected word and a suffix rule reaches
+ * it. «Мария» → «Марии» is a **stem change** (я → ии) — the name is no longer a
+ * prefix at all — so no rule of this shape can reach it, and none is attempted.
+ * Feminine forms remain a known miss.
+ *
+ * Two guards, because the note is right that Russian endings collide far more
+ * readily than the Armenian set:
+ *
+ * 1. **A closed set of real endings**, and the ending must itself end the word
+ *    — the same rule Armenian uses. This is what stops "Ան"-style prefix
+ *    matches: «Анна» after «Ан» leaves "на", which is not an ending, so it is
+ *    refused. Likewise «Иванна» after «Иван» leaves "на".
+ * 2. **A minimum stem length of 3.** Armenian needs no such guard because its
+ *    endings are mostly multi-character; the Russian set is dominated by single
+ *    letters, where a two-letter name plus "а" would match almost anything.
+ *
+ * What this deliberately does **not** solve: a name that is also a common noun
+ * («Роман» → «романа», a novel) still collides. That is inherent to matching a
+ * name as a word and is equally true of the Armenian set; it is bounded by the
+ * candidate list only containing real employees.
+ */
+const RUSSIAN_CASE_SUFFIX = /^(?:ом|ем|а|у|е)(?![\p{L}\p{N}])/u;
+
+const HAS_CYRILLIC = /\p{Script=Cyrillic}/u;
+
+/** See guard 2 above. */
+const MIN_CYRILLIC_STEM = 3;
+
 function queryMentionsName(query: string, name: string): boolean {
   if (!name) return false;
   let from = 0;
@@ -409,7 +470,26 @@ function queryMentionsName(query: string, name: string): boolean {
     const after = query[at + name.length];
     const isLetter = (ch: string | undefined) =>
       ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
-    if (!isLetter(before) && !isLetter(after)) return true;
+    if (!isLetter(before)) {
+      if (!isLetter(after)) return true;
+      // e2e-bug.480 — the name is followed by letters; accept it only when
+      // those letters are an Armenian case ending on an Armenian name.
+      if (
+        HAS_ARMENIAN.test(name) &&
+        ARMENIAN_CASE_SUFFIX.test(query.slice(at + name.length))
+      ) {
+        return true;
+      }
+      // e2e-bug.481 — the same rule for Russian masculine endings. Gated on a
+      // minimum stem length; see `RUSSIAN_CASE_SUFFIX`.
+      if (
+        HAS_CYRILLIC.test(name) &&
+        name.length >= MIN_CYRILLIC_STEM &&
+        RUSSIAN_CASE_SUFFIX.test(query.slice(at + name.length))
+      ) {
+        return true;
+      }
+    }
     from = at + 1;
   }
 }
@@ -668,6 +748,56 @@ export function inferServiceGroupLabel(
   return `${services.length} services`;
 }
 
+/**
+ * Verdict-returning sibling of `resolveEmployees` — D5 / §231.
+ *
+ * `resolveEmployees` picks **one** employee per requested name via
+ * `fuzzyMatchByName` and cannot say "ambiguous", so two providers sharing a
+ * name resolve to whichever sorted first. Slice 8 fixed that for
+ * `handleCreateBooking` by checking each requested name at the handler; the
+ * audit in §231 found the same silent pick on seven further writing paths.
+ *
+ * `allProviders` short-circuits exactly as the original does — asking for
+ * everyone is never ambiguous. `not_found` is left to the caller's existing
+ * miss handling, so acceptance can only stay the same or widen.
+ */
+export function resolveEmployeesVerdict(
+  employees: Employee[],
+  params: {
+    employeeName?: string | null;
+    employeeNames?: string[] | null;
+    allProviders?: boolean | null;
+  },
+): {
+  targets: Employee[];
+  ambiguous?: {
+    requestedName: string;
+    clarification: string;
+    candidates: { id: string; name: string }[];
+  };
+} {
+  if (params.allProviders) return { targets: employees };
+
+  for (const name of getRequestedEmployeeNames(params)) {
+    const verdict = resolveEntity(employees, name, { entityLabel: 'provider' });
+    if (verdict.status === 'ambiguous') {
+      return {
+        targets: [],
+        ambiguous: {
+          requestedName: name,
+          clarification:
+            verdict.clarification ?? `More than one provider matches "${name}".`,
+          candidates: verdict.candidates.map((c) => ({
+            id: String(c.id ?? ''),
+            name: c.name,
+          })),
+        },
+      };
+    }
+  }
+  return { targets: resolveEmployees(employees, params) };
+}
+
 export function resolveEmployees(
   employees: Employee[],
   params: {
@@ -690,6 +820,44 @@ export function resolveEmployees(
     }
   }
   return resolved;
+}
+
+/**
+ * Verdict-returning sibling of `resolveTemplate` — D5 / §227.
+ *
+ * `resolveTemplate` returns `T | undefined` and so cannot say "ambiguous". Its
+ * fallback, `fuzzyMatchByName`, matches on **substring**, so "Summer" hits both
+ * "Summer 2025" and "Summer 2026" and the caller silently gets whichever sorted
+ * first — on paths that apply, update, duplicate or delete a schedule.
+ *
+ * This does not replace `resolveTemplate`: the nine call sites differ in what
+ * they can return on a refusal, so they migrate individually. `not_found` still
+ * falls back to the legacy matcher, so acceptance can only stay the same or
+ * widen — the rule every D5 migration has used.
+ */
+export function resolveTemplateVerdict(
+  templates: ScheduleTemplate[],
+  name?: string | null,
+): {
+  template?: ScheduleTemplate;
+  ambiguous?: { clarification: string; candidates: { id: string; name: string }[] };
+} {
+  if (!name?.trim()) return { template: resolveTemplate(templates, name) };
+
+  const verdict = resolveEntity(templates, name, { entityLabel: 'template' });
+  if (verdict.status === 'ambiguous') {
+    return {
+      ambiguous: {
+        clarification:
+          verdict.clarification ?? `More than one template matches "${name}".`,
+        candidates: verdict.candidates.map((c) => ({
+          id: String(c.id ?? ''),
+          name: c.name,
+        })),
+      },
+    };
+  }
+  return { template: verdict.match ?? resolveTemplate(templates, name) };
 }
 
 export function resolveTemplate(
@@ -953,7 +1121,17 @@ export function enrichListServicesParamsFromPrompt(
   if (!keyword) return cleaned;
   const sanitizedKeyword = sanitizeListServicesFilterValue(keyword);
   if (!sanitizedKeyword) return cleaned;
-  return { ...cleaned, serviceCategory: sanitizedKeyword };
+  // e2e-bug.517 — the capture above keeps the raw token, so 'Show haircuts under
+  // $50' produced the plural 'haircuts' while every other path folds it to
+  // 'haircut'. Fold through the declared vocabulary rather than a second copy of
+  // it: normalizeAvailabilityServiceCategory already states how these collapse
+  // (facials/haircuts/hairstyles/trims), and it deliberately leaves bare
+  // 'cut'/'cuts' alone for e2e-bug.323, so routing through it respects that
+  // carve-out by construction instead of restating it here.
+  return {
+    ...cleaned,
+    serviceCategory: normalizeAvailabilityServiceCategory(sanitizedKeyword),
+  };
 }
 
 /** Only persist service filters that resolve against the live catalog (public assistant session). */
@@ -989,6 +1167,59 @@ export function resolvePublicAssistantSessionServiceFields(
   }
 
   return { serviceName: null, serviceCategory: null };
+}
+
+/**
+ * Verdict-returning sibling of `resolveServices` — D5 / §236.
+ *
+ * `fuzzyMatchServiceByName`'s fourth tier is a **substring** match, so
+ * `"massage"` matches both `"Swedish massage"` and `"Deep tissue massage"` and
+ * `.find()` silently returns one. On a bulk cancel that means cancelling one
+ * service's bookings and reporting success, having ignored the other.
+ *
+ * **Refuses rather than widening.** Matching *both* would be a defensible
+ * reading of "cancel all massage bookings" on a read-only path, but on a
+ * destructive one it silently enlarges the blast radius, which is the worse of
+ * the two failure modes. Read-only callers keep `resolveServices`.
+ */
+export function resolveServicesVerdict(
+  catalog: Service[],
+  params: { serviceName?: string | null; serviceNames?: string[] | null },
+): {
+  services: Service[];
+  ambiguous?: {
+    requestedName: string;
+    clarification: string;
+    candidates: { id: string; name: string }[];
+  };
+} {
+  const names: string[] = params.serviceNames?.length
+    ? [...params.serviceNames]
+    : params.serviceName
+      ? params.serviceName
+          .split(/[/,]|(?:\s+and\s+)|(?:\s+or\s+)/i)
+          .map((n) => n.trim())
+          .filter(Boolean)
+      : [];
+
+  for (const name of names) {
+    const verdict = resolveEntity(catalog, name, { entityLabel: 'service' });
+    if (verdict.status === 'ambiguous') {
+      return {
+        services: [],
+        ambiguous: {
+          requestedName: name,
+          clarification:
+            verdict.clarification ?? `More than one service matches "${name}".`,
+          candidates: verdict.candidates.map((c) => ({
+            id: String(c.id ?? ''),
+            name: c.name,
+          })),
+        },
+      };
+    }
+  }
+  return { services: resolveServices(catalog, params) };
 }
 
 export function resolveServices(
@@ -1223,6 +1454,43 @@ export function resolveDateRange(
     return {
       start: prev.startOf('month').format('YYYY-MM-DD'),
       end: prev.endOf('month').format('YYYY-MM-DD'),
+    };
+  }
+
+  // e2e-bug.467 / §217 — quarter and year had no branch here at all, so
+  // "summarize P&L this quarter" resolved to null and the caller silently fell
+  // back to its default window. Three parsers already emit `dateRange:
+  // 'this_quarter' | 'this_year'`, and nothing could turn either into a range:
+  // the phrase map had no key and this resolver had no test. Computed from the
+  // month because dayjs' `quarterOfYear` plugin is not loaded in this file, and
+  // loading one for three lines of arithmetic is the larger change.
+  const quarterRange = (offsetQuarters: number) => {
+    const start = today
+      .startOf('month')
+      .subtract(today.month() % 3, 'month')
+      .add(offsetQuarters * 3, 'month');
+    return {
+      start: start.format('YYYY-MM-DD'),
+      end: start.add(2, 'month').endOf('month').format('YYYY-MM-DD'),
+    };
+  };
+
+  if (/\b(?:this|current)\s+quarter\b/i.test(lower)) return quarterRange(0);
+  if (/\b(?:last|previous)\s+quarter\b/i.test(lower)) return quarterRange(-1);
+  if (/\bnext\s+quarter\b/i.test(lower)) return quarterRange(1);
+
+  if (/\b(?:this|current)\s+year\b/i.test(lower)) {
+    return {
+      start: today.startOf('year').format('YYYY-MM-DD'),
+      end: today.endOf('year').format('YYYY-MM-DD'),
+    };
+  }
+
+  if (/\b(?:last|previous)\s+year\b/i.test(lower)) {
+    const prev = today.subtract(1, 'year');
+    return {
+      start: prev.startOf('year').format('YYYY-MM-DD'),
+      end: prev.endOf('year').format('YYYY-MM-DD'),
     };
   }
 

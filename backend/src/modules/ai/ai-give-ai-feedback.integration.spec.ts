@@ -5,18 +5,18 @@ import {
   GIVE_AI_FEEDBACK_RESCUE_SCENARIOS,
 } from './ai-give-ai-feedback.fixtures.js';
 import { rescueGiveAiFeedbackIntent } from './ai-give-ai-feedback.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai give AI feedback integration (ai-cmd-customer-4.19.3)', () => {
   it.each(GIVE_AI_FEEDBACK_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'give_ai_feedback',
       params: {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt,
-    });
+    }));
     expect(validation.issues).toEqual([]);
   });
 

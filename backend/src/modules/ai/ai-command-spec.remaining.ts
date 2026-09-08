@@ -112,7 +112,19 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T1',
     description: 'Change when appointment reminders are sent.',
-    variables: {},
+    // §177 (C2/T1) — `handleAppointmentReminderPreferencesLogic` reads
+    // `reminderHoursBefore`, falling back to `extractReminderHoursFromPrompt`.
+    // The customer comes from `resolveSessionCustomerId` (session state), so it
+    // is not user input and is not declared.
+    variables: {
+      reminderHoursBefore: {
+        type: 'number',
+        description:
+          'How many hours before the appointment to send the reminder. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['remind me a day before', 'change my reminder timing'],
     confirm: 'never',
     compensation: {
@@ -130,7 +142,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Assign a room or piece of equipment to a booking.',
-    variables: {},
+    // §177 (C2/T1) — both fields are required together: the handler refuses with
+    // `missing: ['bookingId', 'resourceName']`.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking the resource is assigned to.',
+        required: true,
+        resolver: 'appointment',
+      },
+      resourceName: {
+        type: 'string',
+        description: 'Room, chair or equipment being assigned.',
+        required: true,
+        resolver: 'none',
+      },
+    },
     examples: [
       'put that booking in room 2',
       'assign a chair to this appointment',
@@ -186,7 +213,23 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Cancel one visit from a package.',
-    variables: {},
+    // §177 (C2/T1) — the staff-side cancel, distinct from the customer's
+    // `cancel_package_visit_self`: it takes a booking id outright rather than
+    // resolving one from the session.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Package visit to cancel. The handler refuses without it.',
+        required: true,
+        resolver: 'appointment',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason recorded against the cancellation.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'cancel their package visit on friday',
       'drop that package session',
@@ -207,7 +250,33 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Check a client in for their appointment.',
-    variables: {},
+    // §177 (C2/T1) — identification via `resolveBookingForProviderAction`, which
+    // tries `bookingId` (then `context.bookingId`), and otherwise
+    // `extractBookingActionCustomerName` — which reads `params.customerName` one
+    // level down, so a grep of the resolver alone under-reports it.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking in context.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client whose booking it is, when no id is given. The handler refuses with `missing: [bookingId, customerName]` if neither resolves.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Appointment time, used to disambiguate same-day bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['check them in', 'my 3pm has arrived'],
     confirm: 'never',
     compensation: {
@@ -287,7 +356,76 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change where bookings can be taken from.',
-    variables: {},
+    // §177 (C2/T1) — eleven channel settings, all read directly by
+    // `handleConfigureDistributionChannelsLogic`.
+    variables: {
+      googleReserveEnabled: {
+        type: 'boolean',
+        description: 'Enable Reserve with Google.',
+        required: false,
+        resolver: 'none',
+      },
+      googleMerchantId: {
+        type: 'string',
+        description: 'Google merchant id.',
+        required: false,
+        resolver: 'none',
+      },
+      googlePartnerNotes: {
+        type: 'string',
+        description: 'Notes for the Google partner listing.',
+        required: false,
+        resolver: 'none',
+      },
+      metaBookingEnabled: {
+        type: 'boolean',
+        description: 'Enable booking through Meta surfaces.',
+        required: false,
+        resolver: 'none',
+      },
+      facebookPageId: {
+        type: 'string',
+        description: 'Facebook page id.',
+        required: false,
+        resolver: 'none',
+      },
+      facebookPageUrl: {
+        type: 'string',
+        description: 'Facebook page URL.',
+        required: false,
+        resolver: 'none',
+      },
+      instagramUsername: {
+        type: 'string',
+        description: 'Instagram handle.',
+        required: false,
+        resolver: 'none',
+      },
+      whatsappBookingEnabled: {
+        type: 'boolean',
+        description: 'Enable booking through WhatsApp.',
+        required: false,
+        resolver: 'none',
+      },
+      whatsappBusinessPhone: {
+        type: 'string',
+        description: 'WhatsApp Business phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      telegramEnabled: {
+        type: 'boolean',
+        description: 'Enable the Telegram channel.',
+        required: false,
+        resolver: 'none',
+      },
+      telegramBotUsername: {
+        type: 'string',
+        description: 'Telegram bot username.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'turn on the marketplace channel',
       'configure distribution channels',
@@ -308,7 +446,46 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change how loyalty points are earned and spent.',
-    variables: {},
+    // §177 slice 25 — **corrected twice**. Exempted as prompt-parsed, then cleared
+    // again by slice 16's own re-audit, because the reads are **three hops** from
+    // the handler: `parseConfigureLoyaltySettingsFromPrompt` calls
+    // `readBooleanParam(params, 'enabled', 'loyaltyEnabled')`,
+    // `readNumberParam(params, 'earnPercentCashback', 'earnPercent')` and
+    // `readUuidArrayParam(params, 'earnExcludedServiceIds')`. Each takes two key
+    // names, which is where the alias pairs below come from.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description:
+          'Turn the loyalty programme on or off. `loyaltyEnabled` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      loyaltyEnabled: {
+        type: 'boolean',
+        description: 'Alias for `enabled`.',
+        required: false,
+        resolver: 'none',
+      },
+      earnPercentCashback: {
+        type: 'number',
+        description: 'Cashback percentage earned. `earnPercent` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      earnPercent: {
+        type: 'number',
+        description: 'Alias for `earnPercentCashback`.',
+        required: false,
+        resolver: 'none',
+      },
+      earnExcludedServiceIds: {
+        type: 'string[]',
+        description: 'Services that earn no loyalty cashback.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['change our loyalty rules', 'configure loyalty settings'],
     confirm: 'always',
     compensation: {
@@ -326,7 +503,53 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change the automated marketing messages.',
-    variables: {},
+    // §177 (C2/T1) — `handleConfigureMarketingAutomationLogic` reads all seven
+    // directly; it refuses with `missing: ['reEngagementEnabled']`.
+    variables: {
+      reEngagementEnabled: {
+        type: 'boolean',
+        description: 'Turn re-engagement messaging on or off.',
+        required: true,
+        resolver: 'none',
+      },
+      inactiveDaysThreshold: {
+        type: 'number',
+        description: 'Days of inactivity before a customer is re-engaged.',
+        required: false,
+        resolver: 'none',
+      },
+      minDaysBetweenReEngagement: {
+        type: 'number',
+        description:
+          'Minimum gap between re-engagement messages to one customer.',
+        required: false,
+        resolver: 'none',
+      },
+      reEngagementEmailEnabled: {
+        type: 'boolean',
+        description: 'Send re-engagement by email.',
+        required: false,
+        resolver: 'none',
+      },
+      reEngagementSmsEnabled: {
+        type: 'boolean',
+        description: 'Send re-engagement by SMS.',
+        required: false,
+        resolver: 'none',
+      },
+      reEngagementPromoCode: {
+        type: 'string',
+        description: 'Promo code offered in the re-engagement message.',
+        required: false,
+        resolver: 'none',
+      },
+      postVisitReviewEnabled: {
+        type: 'boolean',
+        description: 'Ask for a review after a visit.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'change our win back automation',
       'configure marketing automation',
@@ -347,7 +570,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change the marketing email sent on registration.',
-    variables: {},
+    // §177 (C2/T1) — two settings, read directly.
+    variables: {
+      emailOnNewCustomerRegistration: {
+        type: 'boolean',
+        description: 'Email the marketing team when a customer registers.',
+        required: false,
+        resolver: 'none',
+      },
+      marketingTeamEmails: {
+        type: 'string[]',
+        description: 'Addresses that receive the registration email.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our welcome email', 'configure the registration email'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -412,7 +649,10 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
       reason:
         'A credential is shown once. Reversing its creation or rotation does not un-reveal it.',
     },
-    handler: 'AiIntegrationsService',
+    // §224 — was `AiIntegrationsService`, which neither serves this command nor
+    // delegates to the service that does. The dispatch map routes the alias to
+    // `AiOpenaiIntegrationService`; single-surface, so this was simply wrong.
+    handler: 'AiOpenaiIntegrationService',
   },
   {
     id: 'push.configure_push_recipients',
@@ -422,7 +662,18 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change who receives push notifications.',
-    variables: {},
+    // §177 (C2/T1) — `handleConfigurePushRecipientsLogic` reads `recipientNames`
+    // and otherwise falls back to `extractPushRecipientNamesFromPrompt`; the ids
+    // are then looked up by `resolveRecipientUserIds`.
+    variables: {
+      recipientNames: {
+        type: 'string[]',
+        description:
+          'Staff who should receive push notifications. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['send alerts to managers only', 'change push recipients'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -547,7 +798,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Configure the Zapier integration.',
-    variables: {},
+    // §177 (C2/T1) — `enabled` falls back to `resolveZapierEnabledFromPrompt`.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description: 'Turn the Zapier integration on or off.',
+        required: false,
+        resolver: 'none',
+      },
+      hookDescription: {
+        type: 'string',
+        description: 'Label for the Zapier hook.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['connect us to Zapier', 'set up zapier'],
     confirm: 'always',
     compensation: {
@@ -565,7 +830,44 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Configure the Zendesk integration.',
-    variables: {},
+    // §177 (C2/T1) — `handleConfigureZendeskLogic` reads the connection settings
+    // directly. **`apiToken` is a credential**: it is declared because the handler
+    // genuinely reads it, but a natural-language planner should never be asked to
+    // fill it from an utterance — see `e2e-bug.464`.
+    variables: {
+      subdomain: {
+        type: 'string',
+        description: 'Zendesk subdomain.',
+        required: false,
+        resolver: 'none',
+      },
+      apiUserEmail: {
+        type: 'string',
+        description: 'Zendesk API user email.',
+        required: false,
+        resolver: 'none',
+      },
+      apiToken: {
+        type: 'string',
+        description:
+          'Zendesk API token. Credential — should be supplied through settings, not conversation (`e2e-bug.464`).',
+        required: false,
+        resolver: 'none',
+      },
+      enabled: {
+        type: 'boolean',
+        description: 'Turn the Zendesk integration on or off.',
+        required: false,
+        resolver: 'none',
+      },
+      syncCustomersEnabled: {
+        type: 'boolean',
+        description:
+          'Sync customers into Zendesk. Falls back to `resolveZendeskSyncEnabledFromPrompt`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['connect Zendesk', 'set up our support integration'],
     confirm: 'always',
     compensation: {
@@ -614,7 +916,27 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Confirm a booking from a notification.',
-    variables: {},
+    // §178 (C2/T1, e2e-bug.463) — declarable at last: this command had no
+    // executor until §178 implemented `handleConfirmBookingFromPushLogic`, so it
+    // was the one T1 spec that could not be declared by reading a handler.
+    // Resolution mirrors `open_booking_from_push`: explicit `bookingId`, then the
+    // push payload, then the prompt.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to confirm. Falls back to the push payload, then the prompt.',
+        required: false,
+        resolver: 'appointment',
+      },
+      lastPush: {
+        type: 'object',
+        description:
+          'Push payload carried by the client, used to recover the booking id.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['confirm that booking', 'accept it from the alert'],
     confirm: 'always',
     compensation: {
@@ -631,7 +953,45 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain how to reach support.',
-    variables: {},
+    // §207 (C2/T0) — the ticket fields, plus the session customer.
+    variables: {
+      subject: {
+        type: 'string',
+        description: 'Ticket subject.',
+        required: false,
+        resolver: 'none',
+      },
+      body: {
+        type: 'string',
+        description: 'Ticket body.',
+        required: false,
+        resolver: 'none',
+      },
+      requesterName: {
+        type: 'string',
+        description: 'Who is raising it.',
+        required: false,
+        resolver: 'customer',
+      },
+      requesterEmail: {
+        type: 'string',
+        description: 'Reply-to address for the ticket.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer the ticket is raised for.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do I contact support', 'I need help from a person'],
     confirm: 'never',
     handler: 'AiIntegrationsService',
@@ -950,7 +1310,24 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Create a promotional discount code.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Earlier exempted as prompt-parsed on a grep of
+    // the handler body, which showed only `params._prompt`. The reads happen inside
+    // `parseCreatePromoCodeFromPrompt`, one level down. The remaining fields
+    // (discountValue, minOrderAmount, maxUses, expiresAt) are prompt-only.
+    variables: {
+      code: {
+        type: 'string',
+        description: 'The promo code itself.',
+        required: false,
+        resolver: 'none',
+      },
+      discountType: {
+        type: 'string',
+        description: 'Percent or fixed discount.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'create a code for 20 percent off',
       'make a promo code',
@@ -973,7 +1350,72 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Raise a support ticket.',
-    variables: {},
+    // §177 (C2/T1) — the widest input set in this cluster. The customer is
+    // resolved from `customerId` or `customerName` via `resolveCustomerByName`;
+    // `guideSnapshot` is parsed by `parseGuideSupportSnapshot`.
+    variables: {
+      subject: {
+        type: 'string',
+        description: 'Ticket subject.',
+        required: false,
+        resolver: 'none',
+      },
+      body: {
+        type: 'string',
+        description: 'Ticket body.',
+        required: false,
+        resolver: 'none',
+      },
+      tags: {
+        type: 'string[]',
+        description: 'Tags applied to the ticket.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer the ticket is about, when the id is known.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Customer the ticket is about, resolved by name.',
+        required: false,
+        resolver: 'customer',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking the ticket relates to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      requesterName: {
+        type: 'string',
+        description: 'Name of the person raising the ticket.',
+        required: false,
+        resolver: 'none',
+      },
+      requesterEmail: {
+        type: 'string',
+        description: 'Reply-to address for the ticket.',
+        required: false,
+        resolver: 'none',
+      },
+      snapshot: {
+        type: 'object',
+        description: 'Client state attached to the ticket.',
+        required: false,
+        resolver: 'none',
+      },
+      guideSnapshot: {
+        type: 'object',
+        description:
+          'Product-guide context, parsed by `parseGuideSupportSnapshot`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['raise a ticket about this', 'open a support case'],
     confirm: 'always',
     compensation: {
@@ -991,7 +1433,28 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Create a webhook endpoint.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateWebhookLogic` refuses without either `url` or
+    // `events`, each with its own `missing` hint.
+    variables: {
+      url: {
+        type: 'string',
+        description: 'Endpoint the webhook posts to.',
+        required: true,
+        resolver: 'none',
+      },
+      events: {
+        type: 'string[]',
+        description: 'Events that trigger the webhook.',
+        required: true,
+        resolver: 'none',
+      },
+      description: {
+        type: 'string',
+        description: 'Human-readable label for the webhook.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a webhook for new bookings', 'create a webhook'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1009,7 +1472,23 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Stop a promotional code working.',
-    variables: {},
+    // §177 (C2/T1) — either identifier; the handler refuses with
+    // `missing: ['code']`. Note its sibling `create_promo_code` is prompt-parsed,
+    // so the pair reads its inputs two different ways.
+    variables: {
+      code: {
+        type: 'string',
+        description: 'Promo code to turn off.',
+        required: true,
+        resolver: 'none',
+      },
+      promoId: {
+        type: 'string',
+        description: 'Promo id, as an alternative to the code.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['kill that promo code', 'deactivate SAVE20'],
     confirm: 'always',
     compensation: {
@@ -1027,7 +1506,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Delete a webhook endpoint.',
-    variables: {},
+    // §177 (C2/T1) — identification is the whole input, via `resolveWebhookTarget`
+    // (`webhookId` then `url`).
+    variables: {
+      webhookId: {
+        type: 'string',
+        description: 'Webhook to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      url: {
+        type: 'string',
+        description: 'Webhook URL, used to identify it when no id is given.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['delete that webhook', 'remove the booking webhook'],
     confirm: 'always',
     compensation: {
@@ -1063,7 +1557,23 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Draft a reply to a customer review.',
-    variables: {},
+    // §206 (C2/T0) — `resolveTargetReviewForDraftResponse` reads the review,
+    // then falls back to `extractBookingActionCustomerName`.
+    variables: {
+      reviewId: {
+        type: 'string',
+        description: 'Review being replied to.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the review when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'draft a reply to that review',
       'help me respond to this review',
@@ -1097,7 +1607,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the day at close.',
-    variables: {},
+    // §205 (C2/T0) — the summary is per provider.
+    variables: {
+      employeeId: {
+        type: 'string',
+        description: 'Provider the summary is for.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how did today go', 'end of day summary'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1110,7 +1634,35 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain what analytics data is collected and why.',
-    variables: {},
+    // §200 (C2/T0) — `resolveConsumerAnalyticsConsentExplainContext` delegates
+    // to `resolveAnalyticsConsentState`, which reads all four consent shapes.
+    variables: {
+      analyticsConsent: {
+        type: 'string',
+        description:
+          'Consent value: granted, denied, pending, or a boolean/null.',
+        required: false,
+        resolver: 'none',
+      },
+      analyticsConsentGranted: {
+        type: 'boolean',
+        description: 'Consent granted, as a flag.',
+        required: false,
+        resolver: 'none',
+      },
+      analyticsConsentDenied: {
+        type: 'boolean',
+        description: 'Consent denied, as a flag.',
+        required: false,
+        resolver: 'none',
+      },
+      analyticsConsentPending: {
+        type: 'boolean',
+        description: 'Consent not yet answered, as a flag.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what data do you collect', 'explain analytics consent'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1123,7 +1675,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain why the app is blocking until updated.',
-    variables: {},
+    // §205 (C2/T0) — the handler reads the gate state directly.
+    variables: {
+      blocked: {
+        type: 'boolean',
+        description: 'Whether the app is currently gated.',
+        required: false,
+        resolver: 'none',
+      },
+      currentVersion: {
+        type: 'string',
+        description: 'Version the app is running.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is the app blocking me', 'explain the update gate'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1136,7 +1702,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain why the app must be updated.',
-    variables: {},
+    // §200 (C2/T0) — `resolveConsumerAppUpdateExplainContext` reads whether the
+    // update nudge was already dismissed.
+    variables: {
+      appGateNudgeDismissed: {
+        type: 'boolean',
+        description: 'Update nudge already dismissed at the app gate.',
+        required: false,
+        resolver: 'none',
+      },
+      nudgeDismissed: {
+        type: 'boolean',
+        description: 'Update nudge already dismissed (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why do I need to update', 'explain the update requirement'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1149,7 +1730,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the booking and cancellation policy.',
-    variables: {},
+    // §212 (C2/T0) — the booking whose policy is explained.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose policy is explained.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['what is the booking policy', 'how late can they cancel'],
     confirm: 'never',
     handler: 'AiBookingDepthService',
@@ -1162,7 +1751,77 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain the home screen widget.',
-    variables: {},
+    // §200 (C2/T0) — the handler reads `locale`;
+    // `resolveConsumerHomeScreenWidgetExplainContext` reads the widget state.
+    variables: {
+      locale: {
+        type: 'string',
+        description: 'Locale for the explanation.',
+        required: false,
+        resolver: 'none',
+      },
+      homeScreenWidgetSupported: {
+        type: 'boolean',
+        description:
+          'Whether the device supports the home-screen widget.',
+        required: false,
+        resolver: 'none',
+      },
+      widgetAuthed: {
+        type: 'boolean',
+        description: 'Whether the widget is signed in.',
+        required: false,
+        resolver: 'none',
+      },
+      hasNextAppointment: {
+        type: 'boolean',
+        description: 'Whether a next appointment exists.',
+        required: false,
+        resolver: 'none',
+      },
+      widgetHasNextAppointment: {
+        type: 'boolean',
+        description: 'Whether the widget shows a next appointment.',
+        required: false,
+        resolver: 'none',
+      },
+      nextServiceName: {
+        type: 'string',
+        description: 'Service on the next appointment.',
+        required: false,
+        resolver: 'service',
+      },
+      widgetNextServiceName: {
+        type: 'string',
+        description: 'Service the widget shows for the next appointment.',
+        required: false,
+        resolver: 'service',
+      },
+      widgetNextSubtitle: {
+        type: 'string',
+        description: 'Subtitle line the widget shows.',
+        required: false,
+        resolver: 'none',
+      },
+      hasQuickRebook: {
+        type: 'boolean',
+        description: 'Whether quick rebook is available.',
+        required: false,
+        resolver: 'none',
+      },
+      widgetHasQuickRebook: {
+        type: 'boolean',
+        description: 'Whether the widget offers quick rebook.',
+        required: false,
+        resolver: 'none',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is the widget for', 'how do I add the widget'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1175,7 +1834,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the health of an integration.',
-    variables: {},
+    // §207 (C2/T0) — optionally narrowed to one integration.
+    variables: {
+      integrationFocus: {
+        type: 'string',
+        description: 'Integration the explanation is narrowed to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is zapier failing', 'explain the integration status'],
     confirm: 'never',
     handler: 'AiIntegrationsService',
@@ -1188,7 +1855,21 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the most recent notification.',
-    variables: {},
+    // §205 (C2/T0) — `resolveLastPush` reads the push off params.
+    variables: {
+      lastPush: {
+        type: 'object',
+        description: 'The push being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      lastPushPayload: {
+        type: 'object',
+        description: 'Payload of that push, when sent separately.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what was that notification', 'explain the last alert'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1233,7 +1914,33 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how the app behaves offline.',
-    variables: {},
+    // §205 (C2/T0) — `resolveOfflineState` reads both spellings of each field.
+    variables: {
+      online: {
+        type: 'boolean',
+        description: 'Whether the device is online.',
+        required: false,
+        resolver: 'none',
+      },
+      isOnline: {
+        type: 'boolean',
+        description: 'Whether the device is online (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      offlineQueueCount: {
+        type: 'number',
+        description: 'How many actions are queued offline.',
+        required: false,
+        resolver: 'none',
+      },
+      queuedCount: {
+        type: 'number',
+        description: 'How many actions are queued (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what happens if I lose signal', 'explain offline mode'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1246,7 +1953,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain an alert shown on the patient record.',
-    variables: {},
+    // §200 (C2/T0) — `resolveConsumerPatientAlertExplainContext` reads the alerts.
+    variables: {
+      patientAlerts: {
+        type: 'object[]',
+        description: 'Alerts to explain.',
+        required: false,
+        resolver: 'none',
+      },
+      patientAlertCount: {
+        type: 'number',
+        description:
+          'How many alerts there are, when the list is not sent.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is this alert', 'why am I flagged'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1285,7 +2007,41 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain the push notification permission prompt.',
-    variables: {},
+    // §200 (C2/T0) — the handler reads `pushReminders`, the local
+    // `resolveNativePlatform` reads the platform pair, and
+    // `resolvePushPermissionExplainContext` reads the permission pair.
+    variables: {
+      nativePlatform: {
+        type: 'string',
+        description: 'Device platform: ios or android.',
+        required: false,
+        resolver: 'none',
+      },
+      platform: {
+        type: 'string',
+        description: 'Device platform (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      permissionState: {
+        type: 'string',
+        description: 'Current push permission state.',
+        required: false,
+        resolver: 'none',
+      },
+      pushPermissionState: {
+        type: 'string',
+        description: 'Current push permission state (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      pushReminders: {
+        type: 'boolean',
+        description: 'Whether push reminders are switched on.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'why does it want notification permission',
       'explain the push prompt',
@@ -1314,7 +2070,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the reviews inbox.',
-    variables: {},
+    // §206 (C2/T0) — `inferReviewsInboxPeriodFromPrompt` and
+    // `inferReviewsInboxRatingFilterFromPrompt` read the two filters.
+    variables: {
+      period: {
+        type: 'string',
+        description: 'Window the inbox is scoped to.',
+        required: false,
+        resolver: 'none',
+      },
+      rating: {
+        type: 'number',
+        description: 'Only reviews at this rating.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is the reviews inbox', 'explain my reviews'],
     confirm: 'never',
     handler: 'AiProviderExp2Service',
@@ -1340,7 +2111,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain how sharing earns a reward.',
-    variables: {},
+    // §200 (C2/T0) — `resolveBusinessSlugFromParamsOrId` reads the slug.
+    variables: {
+      slug: {
+        type: 'string',
+        description: 'Business slug, used to build the share link.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do share rewards work', 'what do I get for sharing'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1379,7 +2158,23 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'List the salons the customer has saved.',
-    variables: {},
+    // §200 (C2/T0) — `parseFindMySavedSalonsFromPrompt` reads `aspect`;
+    // `parseRecentSalonsFromParams` reads the roster.
+    variables: {
+      aspect: {
+        type: 'string',
+        description:
+          'Which part of the saved-salon list is being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      recentSalons: {
+        type: 'object[]',
+        description: 'Recently visited salons held by the client.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what salons have I saved', 'show my saved places'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1408,7 +2203,27 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List bookings awaiting cash payment.',
-    variables: {},
+    // §212 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['who still owes cash', 'list cash pending bookings'],
     confirm: 'never',
     handler: 'AiBookingDepthService',
@@ -1447,7 +2262,27 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List multi-service visits.',
-    variables: {},
+    // §212 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what spa days are booked', 'list multi service bookings'],
     confirm: 'never',
     handler: 'AiBookingDepthService',
@@ -1460,7 +2295,27 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List bookings that belong to packages.',
-    variables: {},
+    // §212 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what package visits are booked', 'list package bookings'],
     confirm: 'never',
     handler: 'AiBookingDepthService',
@@ -1473,7 +2328,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List promotional codes and their status.',
-    variables: {},
+    // §190 (C2/T0) — one filter, read directly.
+    variables: {
+      activeOnly: {
+        type: 'boolean',
+        description: 'List only codes that are currently active.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what promo codes are live', 'list our codes'],
     confirm: 'never',
     handler: 'AiMarketingGrowthService',
@@ -1499,7 +2362,29 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List who a booking could be reassigned to.',
-    variables: {},
+    // §206 (C2/T0) — `resolveBookingForProviderAction`.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment being acted on.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Start time, used to pick between same-client appointments.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who could take my 3pm', 'list reassign options'],
     confirm: 'never',
     handler: 'AiProviderExp2Service',
@@ -1554,6 +2439,9 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Report a loyalty points balance.',
+    // §190 (C2/T0) — reads only `sessionCustomerId`, which the pipeline injects.
+    // Declared as nothing rather than exempted would be wrong either way, so it is
+    // recorded here explicitly: the balance is scoped by who is asking.
     variables: {},
     examples: ['how many points do I have', 'my points balance'],
     confirm: 'never',
@@ -1606,7 +2494,16 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark the notifications for a booking as read.',
-    variables: {},
+    // §177 (C2/T1) — reads `bookingId`, falling back to
+    // `extractBookingIdFromPushPrompt` and then to the last push payload.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose notifications should be marked read.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: [
       'mark that booking alerts read',
       'clear notifications for this booking',
@@ -1627,7 +2524,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark one notification as read.',
-    variables: {},
+    // §177 (C2/T1) — the whole input is the notification id.
+    variables: {
+      notificationId: {
+        type: 'string',
+        description: 'Notification to mark as read.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['mark that read', 'I have seen this one'],
     confirm: 'never',
     compensation: {
@@ -1645,7 +2550,33 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Signal that the provider is ready now.',
-    variables: {},
+    // §177 (C2/T1) — identification via `resolveBookingForProviderAction`, which
+    // tries `bookingId` (then `context.bookingId`), and otherwise
+    // `extractBookingActionCustomerName` — which reads `params.customerName` one
+    // level down, so a grep of the resolver alone under-reports it.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking in context.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client whose booking it is, when no id is given. The handler refuses with `missing: [bookingId, customerName]` if neither resolves.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Appointment time, used to disambiguate same-day bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['I am ready now', 'tell them I am free'],
     confirm: 'never',
     compensation: {
@@ -1662,7 +2593,41 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Signal that the provider is running late.',
-    variables: {},
+    // §177 (C2/T1) — identification via `resolveBookingForProviderAction`, which
+    // tries `bookingId` (then `context.bookingId`), and otherwise
+    // `extractBookingActionCustomerName` — which reads `params.customerName` one
+    // level down, so a grep of the resolver alone under-reports it. `minutesLate` is read by
+    // `extractRunningLateMinutesFromPrompt`, which also falls back to the prompt.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking in context.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client whose booking it is, when no id is given. The handler refuses with `missing: [bookingId, customerName]` if neither resolves.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Appointment time, used to disambiguate same-day bookings.',
+        required: false,
+        resolver: 'none',
+      },
+      minutesLate: {
+        type: 'number',
+        description:
+          'How late the provider is running. Extracted from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['I am running 15 minutes late', 'tell my clients I am behind'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1679,7 +2644,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Report the provider own performance statistics.',
-    variables: {},
+    // §206 (C2/T0) — `inferMyStatsPeriodFromPrompt` and
+    // `inferMyStatsScopeFromPrompt` read the window and the scope.
+    variables: {
+      period: {
+        type: 'string',
+        description: 'Window the stats cover.',
+        required: false,
+        resolver: 'none',
+      },
+      scope: {
+        type: 'string',
+        description: 'Whether the stats are personal or team-wide.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how am I doing', 'show my stats'],
     confirm: 'never',
     handler: 'AiProviderExp2Service',
@@ -1705,7 +2685,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List past notifications.',
-    variables: {},
+    // §205 (C2/T0) — paged history.
+    variables: {
+      limit: {
+        type: 'number',
+        description: 'How many notifications to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show my notification history', 'what alerts have I had'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1718,7 +2706,33 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Report what is waiting in the offline queue.',
-    variables: {},
+    // §205 (C2/T0) — same `resolveOfflineState` pair as `explain_offline_mode`.
+    variables: {
+      online: {
+        type: 'boolean',
+        description: 'Whether the device is online.',
+        required: false,
+        resolver: 'none',
+      },
+      isOnline: {
+        type: 'boolean',
+        description: 'Whether the device is online (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      offlineQueueCount: {
+        type: 'number',
+        description: 'How many actions are queued offline.',
+        required: false,
+        resolver: 'none',
+      },
+      queuedCount: {
+        type: 'number',
+        description: 'How many actions are queued (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is stuck offline', 'offline queue status'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1744,7 +2758,28 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Open the booking a notification refers to.',
-    variables: {},
+    // §205 (C2/T0) — the handler reads the booking; `resolveLastPush` falls
+    // back to the push payload, then the prompt.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking to open.',
+        required: false,
+        resolver: 'appointment',
+      },
+      lastPush: {
+        type: 'object',
+        description: 'The push being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      lastPushPayload: {
+        type: 'object',
+        description: 'Payload of that push, when sent separately.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['open that booking', 'show me the booking from the alert'],
     confirm: 'never',
     handler: 'AiPushNotificationsService',
@@ -1757,7 +2792,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Open the matching dashboard view.',
-    variables: {},
+    // §206 (C2/T0) — `extractBookingActionCustomerName` builds the deep link.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Client whose dashboard page is opened.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'open this on the dashboard',
       'take me to the dashboard for this',
@@ -1773,7 +2816,58 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Open the support ticket view for an order.',
-    variables: {},
+    // §207 (C2/T0) — the same ticket fields, scoped to an order: the handler
+    // reads whichever of the two order references it is given.
+    variables: {
+      subject: {
+        type: 'string',
+        description: 'Ticket subject.',
+        required: false,
+        resolver: 'none',
+      },
+      body: {
+        type: 'string',
+        description: 'Ticket body.',
+        required: false,
+        resolver: 'none',
+      },
+      requesterName: {
+        type: 'string',
+        description: 'Who is raising it.',
+        required: false,
+        resolver: 'customer',
+      },
+      requesterEmail: {
+        type: 'string',
+        description: 'Reply-to address for the ticket.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer the ticket is raised for.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking the ticket is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order the ticket is about.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show the ticket for that order', 'open support for this order'],
     confirm: 'never',
     handler: 'AiIntegrationsService',
@@ -1789,7 +2883,22 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Help with using a promotional code.',
-    variables: {},
+    // §190 (C2/T0) — two spellings of the same field, plus prompt extraction as
+    // the fallback.
+    variables: {
+      promoCode: {
+        type: 'string',
+        description: 'Code the customer is asking about. `code` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      code: {
+        type: 'string',
+        description: 'Alias for `promoCode`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['my promo code is not working', 'help with my code'],
     confirm: 'never',
     handler: 'AiMarketingGrowthService',
@@ -1802,7 +2911,46 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Move a booking to a different provider today.',
-    variables: {},
+    // §177 (C2/T1) — identification via `resolveBookingForProviderAction`, which
+    // tries `bookingId` (then `context.bookingId`), and otherwise
+    // `extractBookingActionCustomerName` — which reads `params.customerName` one
+    // level down, so a grep of the resolver alone under-reports it. The destination provider is
+    // required: the handler refuses with `missing: ['employeeName']`.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking in context.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client whose booking it is, when no id is given. The handler refuses with `missing: [bookingId, customerName]` if neither resolves.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Appointment time, used to disambiguate same-day bookings.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider the booking moves to.',
+        required: true,
+        resolver: 'employee',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Destination provider id, when known.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['give my 3pm to Mary', 'reassign that booking'],
     confirm: 'always',
     compensation: {
@@ -1820,7 +2968,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Offer to book the same thing the customer had last time.',
-    variables: {},
+    // §200 (C2/T0) — `resolveBusinessSlugFromParamsOrId` reads the slug.
+    variables: {
+      slug: {
+        type: 'string',
+        description: 'Business slug the rebook applies to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book what I had last time', 'same again please'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -1864,7 +3020,41 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T1',
     description: 'Register this device for push notifications.',
-    variables: {},
+    // §177 (C2/T1) — `token` is the device push token: client-generated and
+    // *presented*, like `manageToken`, not a secret being configured
+    // (`e2e-bug.464`). Platform comes from `resolveNativePlatform`.
+    variables: {
+      token: {
+        type: 'string',
+        description: 'Device push token supplied by the client.',
+        required: false,
+        resolver: 'none',
+      },
+      permissionState: {
+        type: 'string',
+        description: 'Whether the OS permission was granted.',
+        required: false,
+        resolver: 'none',
+      },
+      analyticsAnonId: {
+        type: 'string',
+        description: 'Anonymous analytics id for the device.',
+        required: false,
+        resolver: 'none',
+      },
+      nativePlatform: {
+        type: 'string',
+        description: 'Client platform. `platform` is accepted as an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      platform: {
+        type: 'string',
+        description: 'Alias for `nativePlatform`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['turn on notifications', 'register me for alerts'],
     confirm: 'never',
     compensation: {
@@ -1882,7 +3072,33 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Ask a client to leave a review.',
-    variables: {},
+    // §177 (C2/T1) — identification via `resolveBookingForProviderAction`, which
+    // tries `bookingId` (then `context.bookingId`), and otherwise
+    // `extractBookingActionCustomerName` — which reads `params.customerName` one
+    // level down, so a grep of the resolver alone under-reports it.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking in context.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client whose booking it is, when no id is given. The handler refuses with `missing: [bookingId, customerName]` if neither resolves.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Appointment time, used to disambiguate same-day bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['ask them for a review', 'request a review from that client'],
     confirm: 'always',
     compensation: {
@@ -1945,7 +3161,34 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Move one visit from a package.',
-    variables: {},
+    // §177 (C2/T1) — all three of booking, day and time are required together
+    // (`missing: ['bookingId', 'date', 'timeSlot']`); the provider is optional.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Package visit to move.',
+        required: true,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'New day.',
+        required: true,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'New time.',
+        required: true,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Move to a different provider at the same time.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['move their package visit', 'reschedule that session'],
     confirm: 'always',
     compensation: {
@@ -2111,7 +3354,8 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       planId: {
         type: 'string',
-        description: 'Plan to subscribe to, by id. Takes precedence over the name.',
+        description:
+          'Plan to subscribe to, by id. Takes precedence over the name.',
         required: false,
         resolver: 'none',
       },
@@ -2140,7 +3384,36 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Suggest wording for a cancellation message.',
-    variables: {},
+    // §206 (C2/T0) — the handler reads an existing draft;
+    // `resolveBookingForProviderAction` reads the appointment.
+    variables: {
+      draft: {
+        type: 'string',
+        description: 'Existing note draft to improve on.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Appointment being acted on.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Start time, used to pick between same-client appointments.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what should I say when cancelling',
       'draft a cancellation note',
@@ -2195,7 +3468,29 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise new customer registrations.',
-    variables: {},
+    // §190 (C2/T0) — the window, via `resolveMarketingDateRange`, which accepts
+    // either an explicit pair or a named range.
+    variables: {
+      from: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateRange: {
+        type: 'string',
+        description:
+          'A named range (this week, last month) instead of an explicit pair.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how many new customers', 'summarise registrations'],
     confirm: 'never',
     handler: 'AiMarketingGrowthService',
@@ -2208,7 +3503,35 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Switch which salon the customer is viewing.',
-    variables: {},
+    // §200 (C2/T0) — the handler reads `slug`;
+    // `parseSwitchSalonTenantFromPrompt` reads the target salon;
+    // `parseRecentSalonsFromParams` reads the roster.
+    variables: {
+      salonName: {
+        type: 'string',
+        description: 'Salon to switch to, by name.',
+        required: false,
+        resolver: 'none',
+      },
+      salonSlug: {
+        type: 'string',
+        description: 'Salon to switch to, by slug.',
+        required: false,
+        resolver: 'none',
+      },
+      slug: {
+        type: 'string',
+        description: 'Salon currently open.',
+        required: false,
+        resolver: 'none',
+      },
+      recentSalons: {
+        type: 'object[]',
+        description: 'Recently visited salons held by the client.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['switch to the other salon', 'change salon'],
     confirm: 'never',
     handler: 'AiConsumerAdoptionService',
@@ -2302,7 +3625,15 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Send a test event to a webhook and report the result.',
-    variables: {},
+    // §207 (C2/T0) — names the webhook to fire.
+    variables: {
+      webhookId: {
+        type: 'string',
+        description: 'Webhook to send the test to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['test that webhook', 'does the webhook work'],
     confirm: 'never',
     handler: 'AiIntegrationsService',
@@ -2345,7 +3676,17 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T1',
     description:
       'Turn on or off the email sent when a customer changes a booking.',
-    variables: {},
+    // §177 (C2/T1) — reads `enabled`, falling back to
+    // `extractBusinessEmailOnCustomerChangeToggleFromPrompt`.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description:
+          'Whether the business is emailed when a customer changes a booking. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     // §127 — both existing examples say "reschedule"/"changes", and the planner
     // declined on cancellation phrasings while handling the reschedule ones. A
     // cancellation IS a customer changing a booking, and nothing here said so.
@@ -2379,7 +3720,29 @@ export const REMAINING_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Turn a webhook on or off.',
-    variables: {},
+    // §177 (C2/T1) — `resolveWebhookTarget` for the webhook, plus the new state;
+    // `enabled` falls back to `resolveWebhookEnabledFromPrompt`.
+    variables: {
+      webhookId: {
+        type: 'string',
+        description: 'Webhook to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      url: {
+        type: 'string',
+        description: 'Webhook URL, used to identify it when no id is given.',
+        required: false,
+        resolver: 'none',
+      },
+      enabled: {
+        type: 'boolean',
+        description:
+          'Turn the webhook on or off. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['pause that webhook', 'turn the webhook back on'],
     confirm: 'if-ambiguous',
     compensation: {

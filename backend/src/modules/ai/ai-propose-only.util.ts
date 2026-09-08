@@ -239,6 +239,7 @@ export function summarizeExecutionModes(
     insufficient_evidence: 0,
     below_bar: 0,
     cleared: 0,
+    execution_unproven: 0,
   };
   let autonomous = 0;
   let proposeOnly = 0;

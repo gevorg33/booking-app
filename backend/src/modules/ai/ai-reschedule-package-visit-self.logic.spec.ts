@@ -8,6 +8,32 @@ import {
 import { rescueReschedulePackageVisitSelfIntent } from './ai-reschedule-package-visit-self.util.js';
 import type { ReschedulePackageVisitSelfLogicDeps } from './ai-reschedule-package-visit-self.logic.js';
 
+// e2e-bug.491's class — these fixtures expired on a calendar. The matchers
+// keep only bookings with `startTime >= now`, so hardcoded dates silently
+// stop matching once they pass, and the suite lands in the known-failures
+// manifest as though the behaviour were disputed. Relative to now instead:
+// the tests only need "a visit that has not happened yet", preserving the
+// original relative spacing between visits.
+/**
+ * One timestamp per offset, computed once at module load.
+ *
+ * These fixtures previously called `new Date(Date.now() + N).toISOString()`
+ * separately for a test's *input* and its *expected* value. Two calls land on
+ * different milliseconds whenever the clock ticks between them, so
+ * `toHaveBeenCalledWith` compared two strings that differed in the last digits
+ * — a flake that reproduced roughly one run in three.
+ *
+ * The dates they replaced were hardcoded literals, which were identical in both
+ * places by construction; making them relative is what introduced the race.
+ * Freezing each offset once restores that property while keeping the dates in
+ * the future (e2e-bug.491's requirement).
+ */
+const AT = (() => {
+  const base = Date.now();
+  return (daysAhead: number): string =>
+    new Date(base + daysAhead * 24 * 60 * 60 * 1000).toISOString();
+})();
+
 const business = {
   id: 'biz-1',
   slug: 'salon',
@@ -15,7 +41,7 @@ const business = {
 
 const packageBooking = {
   id: 'book-pkg-1',
-  startTime: '2026-07-10T10:00:00.000Z',
+  startTime: AT(11),
   status: BookingStatus.CONFIRMED,
   packagePurchaseId: 'purchase-1',
   packageName: 'Spa Day',
@@ -107,7 +133,7 @@ describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () =
               {
                 ...packageBooking,
                 id: 'book-pkg-2',
-                startTime: '2026-07-17T10:00:00.000Z',
+                startTime: AT(18),
               },
             ],
           }),
@@ -149,7 +175,7 @@ describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () =
               {
                 ...packageBooking,
                 id: 'book-pkg-2',
-                startTime: '2026-07-17T10:00:00.000Z',
+                startTime: AT(18),
               },
             ],
           }),
@@ -163,7 +189,7 @@ describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () =
         lines: [
           {
             bookingId: 'book-pkg-2',
-            startTime: '2026-07-20T10:00:00.000Z',
+            startTime: AT(21),
           },
         ],
       },
@@ -177,7 +203,7 @@ describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () =
         lines: [
           {
             bookingId: 'book-pkg-2',
-            startTime: '2026-07-20T10:00:00.000Z',
+            startTime: AT(21),
           },
         ],
       },
@@ -214,7 +240,7 @@ describe('ai-reschedule-package-visit-self.logic (ai-cmd-customer-4.15.3)', () =
             lines: [
               {
                 bookingId: 'book-pkg-1',
-                startTime: '2026-07-20T10:00:00.000Z',
+                startTime: AT(21),
               },
             ],
           },

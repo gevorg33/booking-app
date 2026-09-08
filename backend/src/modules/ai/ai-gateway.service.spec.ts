@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { ForbiddenException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AiGatewayService } from './ai-gateway.service.js';
@@ -14,6 +15,9 @@ import { AiPlatformService } from './ai-platform.service.js';
 import {
   createAiGatewayPlatformMocks,
   createCommandTraceServiceMock,
+  dashboardExecuteCommandMock,
+  providerExecuteCommandMock,
+  ragContextBlockMock,
 } from './ai-gateway.test-mocks.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
@@ -34,20 +38,39 @@ describe('AiGatewayService', () => {
 
   function createMocks() {
     const dashboardCommands = {
-      executeCommand: jest.fn(async () => dashboardResult),
-      approveTask: jest.fn(async () => ({ success: true })),
-      retryWorkflowStep: jest.fn(async () => ({ success: true })),
+      executeCommand: dashboardExecuteCommandMock(async () => dashboardResult),
+      approveTask: jest.fn(
+        async (_taskId: string, _userId: string, _businessId: string) => ({
+          success: true,
+        }),
+      ),
+      // retryWorkflowStep(businessId, taskId, stepId, userId) — ai-gateway.service.ts:625
+      retryWorkflowStep: jest.fn(
+        async (
+          _businessId: string,
+          _taskId: string,
+          _stepId: string,
+          _userId: string,
+        ) => ({ success: true }),
+      ),
     };
     const customerCommands = {
-      executeCommand: jest.fn(async () => ({
-        success: true,
-        action: 'list_providers',
-        summary: 'ok',
-        details: {},
-      })),
+      executeCommand: jest.fn(
+        async (
+          _businessId: string,
+          _prompt: string,
+          _history: unknown[],
+          _context: Record<string, unknown>,
+        ) => ({
+          success: true,
+          action: 'list_providers',
+          summary: 'ok',
+          details: {},
+        }),
+      ),
     };
     const providerCommands = {
-      executeCommand: jest.fn(async () => ({
+      executeCommand: providerExecuteCommandMock(async () => ({
         success: true,
         action: 'noop',
         summary: 'ok',
@@ -63,7 +86,16 @@ describe('AiGatewayService', () => {
         aiUsageWarning: false,
       })),
     };
-    const promptSecurity = { preflightBlock: jest.fn(() => null) };
+    const promptSecurity = {
+      preflightBlock: jest.fn(
+        (
+          _businessId: string,
+          _prompt: string,
+          _surface: string,
+          _locale: string | undefined,
+        ): CommandResult | null => null,
+      ),
+    };
     const entityMemory = {
       buildMemoryContextBlock: jest.fn(async () => ''),
       getEntityMemory: jest.fn(async () => ({
@@ -72,13 +104,19 @@ describe('AiGatewayService', () => {
       learnFromCommand: jest.fn(),
     };
     const conversationSummary = {
-      prepareHistoryForClassifier: jest.fn(async () => ({
-        history: [{ role: 'user' as const, content: 'hi' }],
-        summaryBlock: 'summary',
-      })),
+      prepareHistoryForClassifier: jest.fn(
+        async (
+          _businessId: string,
+          _history: unknown[] | undefined,
+          _channel: string,
+        ) => ({
+          history: [{ role: 'user' as const, content: 'hi' }],
+          summaryBlock: 'summary',
+        }),
+      ),
     };
     const rag = {
-      buildRagContextBlock: jest.fn(async () => 'rag context'),
+      buildRagContextBlock: ragContextBlockMock(async () => 'rag context'),
     };
     const sprintMocks = createAiGatewayPlatformMocks();
     return {

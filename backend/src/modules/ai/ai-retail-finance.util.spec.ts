@@ -20,7 +20,6 @@ import {
   isExportAnalyticsReportPrompt,
   parseCreateCommissionRuleFromPrompt,
   parseExportAnalyticsReportFromPrompt,
-  rescueRetailFinanceIntent,
   isSuggestRetailUpsellPrompt,
   isAddRetailToMyBookingPrompt,
   isSearchRetailSkuPrompt,

@@ -4,8 +4,8 @@ import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { handleListUpcomingTourDeparturesLogic } from './ai-upcoming-tour-departures.logic.js';
 
 describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
-  const departureDate = addDaysToDateKey(getTodayDateKey(), 10);
-  const departureDate2 = addDaysToDateKey(departureDate, 3);
+  const departureDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
+  const departureDate2 = addDaysToDateKey(departureDate, 3, 'UTC');
 
   const mountainTrek = {
     id: 'svc-mountain',
@@ -27,7 +27,7 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
         endTime: new Date(
-          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+          `${addDaysToDateKey(departureDate, 2, 'UTC')}T18:00:00.000Z`,
         ),
         metadata: { paxCount: 3, tourStartDate: departureDate },
         service: mountainTrek,
@@ -39,7 +39,7 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         status: BookingStatus.CONFIRMED,
         startTime: new Date(`${departureDate}T08:00:00.000Z`),
         endTime: new Date(
-          `${addDaysToDateKey(departureDate, 2)}T18:00:00.000Z`,
+          `${addDaysToDateKey(departureDate, 2, 'UTC')}T18:00:00.000Z`,
         ),
         metadata: { paxCount: 2, tourStartDate: departureDate },
         service: mountainTrek,

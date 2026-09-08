@@ -32,8 +32,20 @@ describe('AiCommandService unknown intent guard (pipe-1.8.1)', () => {
   });
 
   it('runs post-rescue clear schedule and vertical rescue before unknown guard', () => {
+    // e2e-bug.529 — this searched for
+    // "parsed.action === 'unknown' && isClearSchedulePrompt", i.e. two terms
+    // adjacent on one line. The guard itself is intact and still in the right
+    // place (the clear rescue, the vertical rescue and the unknown guard sit in
+    // that order in ai-command.service.ts); what changed is that the condition
+    // gained a `!skipClassifierRescues &&` term and prettier wrapped it across
+    // four lines, so the two searched terms are no longer neighbours.
+    //
+    // A source-text ordering test can only be as stable as the smallest string
+    // it can anchor on. Anchor on the call itself, which is what the assertion
+    // is really about, rather than on one particular formatting of the
+    // condition around it.
     const clearRescueIndex = AI_COMMAND_SERVICE_SOURCE.indexOf(
-      "parsed.action === 'unknown' && isClearSchedulePrompt",
+      'isClearSchedulePrompt(effectivePrompt)',
     );
     const verticalRescueIndex = AI_COMMAND_SERVICE_SOURCE.indexOf(
       'this.platform.rescueVerticalIntent(',

@@ -471,6 +471,19 @@ export function isRescheduleMyBookingPrompt(prompt: string): boolean {
       (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
         /\b(my|this|upcoming|next)\b/i.test(prompt) &&
         /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
+      // C3 / e2e-bug.360 — this command's own example is "can I push my booking
+      // to 4pm instead", and `push` was in none of the verb sets.
+      //
+      // Given its own branch rather than added to the shared verb alternation:
+      // `push` is the one verb here that has a strong unrelated sense on this
+      // platform — `configure_push_recipients` and `test_push` are real
+      // commands — so it carries guards the others do not need. It requires a
+      // possessive *and* a booking noun, and refuses anything mentioning
+      // notifications or recipients.
+      (/\bpush\b/i.test(prompt) &&
+        !/\bnotifications?\b|\brecipients?\b/i.test(prompt) &&
+        /\b(my|this|upcoming|next)\b/i.test(prompt) &&
+        /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
       (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
         /\b(to|for)\b/i.test(prompt) &&
         /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(

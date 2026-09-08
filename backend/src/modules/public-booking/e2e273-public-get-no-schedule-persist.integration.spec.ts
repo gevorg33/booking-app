@@ -8,6 +8,39 @@ import {
 } from './public-booking-test.harness.js';
 import { E2E254_EMPTY_REASON_ASSIGNED_UNSCHEDULED } from './e2e254-assigned-provider-hours.fixtures.js';
 
+/**
+ * e2e-bug.482 — anchored to today rather than to fixed 2026 dates.
+ *
+ * These tests used a pattern day of 2026-07-29 and a window of
+ * 2026-07-31 → 2026-08-20. Materialization fills *future* days only, so they
+ * passed exactly while a matching weekday fell strictly inside that window —
+ * Jul 29 + 21 days is 2026-08-19, future on the 18th and "today" on the 19th.
+ * The suite went red overnight with no code change.
+ *
+ * A weekly pattern seeded 21 days back always recurs inside a 21-day forward
+ * window, and `dayOffset(7)` is always a future day sharing its weekday.
+ */
+const DAY_MS = 86_400_000;
+
+function utcMidnightToday(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function dayOffset(days: number): Date {
+  return new Date(utcMidnightToday().getTime() + days * DAY_MS);
+}
+
+/** The pattern day, at a given UTC hour. */
+function patternAt(hour: number): Date {
+  const d = dayOffset(-21);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+}
+
+const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
+
 describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => {
   function createHarness() {
     const business = {
@@ -58,15 +91,15 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
       find: jest.fn().mockResolvedValue([
         {
           type: TemplatePeriodType.SERVICE_BLOCK,
-          startTime: new Date('2026-07-29T09:00:00.000Z'),
-          endTime: new Date('2026-07-29T13:00:00.000Z'),
+          startTime: patternAt(9),
+          endTime: patternAt(13),
           serviceIds: ['svc-face'],
           maxAppointmentCount: 1,
         },
         {
           type: TemplatePeriodType.SERVICE_BLOCK,
-          startTime: new Date('2026-07-29T14:00:00.000Z'),
-          endTime: new Date('2026-07-29T18:00:00.000Z'),
+          startTime: patternAt(14),
+          endTime: patternAt(18),
           serviceIds: ['svc-face'],
           maxAppointmentCount: 1,
         },
@@ -120,8 +153,8 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
       'biz-1',
       { id: 'svc-face' },
       [harness.employee],
-      '2026-07-31',
-      '2026-08-20',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(21)),
     );
 
     expect(plans.length).toBeGreaterThan(0);
@@ -141,8 +174,8 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
     const result = await harness.service.getServiceBookableDates(
       'studio',
       'svc-face',
-      '2026-07-31',
-      '2026-08-20',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(21)),
     );
 
     expect(result.dates.length).toBeGreaterThan(0);
@@ -157,11 +190,11 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
       .spyOn(harness.service as any, 'getEmployeeStartTimes')
       .mockResolvedValue([]);
 
-    // 2026-08-05 is Wednesday — matches past pattern weekday
+    // dayOffset(7) is a future day sharing the pattern's weekday.
     const result = await harness.service.getServiceDaySlots(
       'studio',
       'svc-face',
-      '2026-08-05',
+      isoDay(dayOffset(7)),
     );
 
     expect(result.slots.length).toBeGreaterThan(0);
@@ -176,8 +209,8 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
       'biz-1',
       { id: 'svc-face' },
       [harness.employee],
-      '2026-07-31',
-      '2026-08-20',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(21)),
     );
 
     expect(harness.savedPeriods.length).toBeGreaterThan(0);
@@ -195,8 +228,8 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
       'biz-1',
       { id: 'svc-face' },
       [harness.employee],
-      '2026-07-31',
-      '2026-08-20',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(21)),
       { persist: false },
     );
     expect(harness.slotRepo.save).not.toHaveBeenCalled();
@@ -213,8 +246,8 @@ describe('e2e-bug.273 public GET does not persist schedule roll-forward', () => 
     const result = await harness.service.getServiceBookableDates(
       'studio',
       'svc-face',
-      '2026-08-01',
-      '2026-08-07',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(7)),
     );
 
     expect(result.dates).toEqual([]);

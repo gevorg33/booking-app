@@ -5,6 +5,7 @@ import {
   FIX_CHECKOUT_VALIDATION_ERROR_RESCUE_SCENARIOS,
 } from './ai-fix-checkout-validation-error.fixtures.js';
 import { rescueFixCheckoutValidationErrorIntent } from './ai-fix-checkout-validation-error.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai fix checkout validation error integration (ai-cmd-customer-4.2.7)', () => {
   const businessRepo = { findOne: jest.fn() };
@@ -21,15 +22,14 @@ describe('ai fix checkout validation error integration (ai-cmd-customer-4.2.7)',
   it.each(FIX_CHECKOUT_VALIDATION_ERROR_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'fix_checkout_validation_error',
         params: { aspect },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleFixCheckoutValidationErrorLogic(

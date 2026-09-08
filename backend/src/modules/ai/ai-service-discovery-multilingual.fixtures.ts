@@ -25,12 +25,7 @@ export type ServiceDiscoveryMultilingualScenario = {
 };
 
 /** Classifier guidance for hy/ru/translit budget + rank + OR availability (discover-1.5). */
-export const SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES = `- Armenian/Russian/transliteration service discovery (budget + rank + OR availability):
-  - maxPrice: hy «ունեմ X դրամ», «X դոլար», «X-ից ցած»; ru «у меня X рублей», «до X рублей», «меньше X»; translit «u menya X dollarov», «do X rubley» → list_services / check with maxPrice.
-  - serviceRank: hy «ամենաէժան», «պրեմիում», «լյուքս»; ru «самый дешёвый», «люксовый», «премиум»; translit «samaya deshevaya», «premium uslugi» → list_services + serviceRank (NOT recommend_specialists for catalog rank).
-  - OR availabilityWindows: hy «վաղը երեկոյան կամ ուրբաթ», «երեկոյան կամ հանգստյան օր»; ru «завтра вечером или в пятницу», «вечером или в субботу»; translit «vagh@ yereko yan kam urbat» → check_availability / check_providers_for_service with availabilityWindows[] (NOT single timeOfDay when «կամ/or/или» splits windows).
-  - Compound: budget filter then OR scan — carry maxPrice + serviceRank through availabilityWindows; book compounds set bookingFirstAvailable when «ամենամոտ/blizhayshiy/забронируй» present.
-  - Disambiguation: hy/ru gift card / package / deposit phrases → NOT maxPrice (same as English budget-1.3 rules).`;
+export { SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-service-discovery-multilingual.rules.js';
 
 type SourceFixtureRow = {
   id: string;

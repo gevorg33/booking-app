@@ -1,4 +1,8 @@
 import { Repository } from 'typeorm';
+import type {
+  AmbiguityReport,
+  NamedResolver,
+} from './ai-name-resolution.types.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
 import { CustomerSubscription } from '../service-subscriptions/entities/subscription.entity.js';
@@ -84,18 +88,48 @@ function resolveByName<T extends { name: string }>(
   );
 }
 
+/**
+ * e2e-bug.488 — capture *why* the resolver declined, not just that it did.
+ *
+ * `resolveCustomerFn` refuses a tie by returning `undefined` (tech-debt D5-b),
+ * which is indistinguishable here from "no such customer". Every handler below
+ * therefore answered two Annas with "Specify which customer" — telling the
+ * caller the name is unknown when it actually matched twice, and withholding
+ * the one thing that would let them choose. `tie` is filled only on ambiguity,
+ * so a genuine miss still falls through to the handler's own message.
+ */
 function resolveCustomer(
   customers: Customer[],
   params: Record<string, any>,
-  resolveCustomerFn?: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn?: NamedResolver<Customer>,
+  tie?: { report?: AmbiguityReport },
 ): Customer | undefined {
   if (params.customerId)
     return customers.find((c) => c.id === params.customerId);
   const name = params.customerName as string | undefined;
   if (!name) return undefined;
   return resolveCustomerFn
-    ? resolveCustomerFn(customers, name)
+    ? resolveCustomerFn(customers, name, (report) => {
+        if (tie) tie.report = report;
+      })
     : resolveByName(customers, name);
+}
+
+/**
+ * The named-candidates refusal, matching `ambiguityRefusal` in
+ * `ai-booking-core.service.ts` so both routes answer a tie the same way.
+ */
+function ambiguityFailure(
+  action: string,
+  params: Record<string, any>,
+  report: AmbiguityReport,
+): CommandResult {
+  return failure(action, report.clarification, {
+    clarify: true,
+    missing: ['customerName'],
+    candidates: report.candidates,
+    params,
+  });
 }
 
 function resolveSessionCustomerId(
@@ -112,9 +146,18 @@ export async function handleListCustomerSubscriptionsLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('list_customer_subscriptions', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'list_customer_subscriptions',
@@ -143,9 +186,18 @@ export async function handleSubscriptionUsageHistoryLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('subscription_usage_history', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'subscription_usage_history',
@@ -192,9 +244,18 @@ export async function handleExtendSubscriptionLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('extend_subscription', params, customerTie.report);
+  }
   const extendMonths = Number(params.extendMonths ?? 0);
   if (!customer || extendMonths < 1) {
     return failure(
@@ -230,9 +291,18 @@ export async function handleCancelSubscriptionAdminLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('cancel_subscription_admin', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'cancel_subscription_admin',
@@ -280,9 +350,18 @@ export async function handleListCustomerGiftCardsLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('list_customer_gift_cards', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'list_customer_gift_cards',
@@ -312,9 +391,18 @@ export async function handleListCustomerBookingsLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('list_customer_bookings', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'list_customer_bookings',
@@ -442,9 +530,18 @@ export async function handleCustomerNoShowHistoryLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('customer_no_show_history', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'customer_no_show_history',
@@ -477,9 +574,18 @@ export async function handleTagCustomerLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('tag_customer', params, customerTie.report);
+  }
   const rawTag = ((params.tag as string) ?? '')
     .toLowerCase()
     .replace(/[\s-]/g, '_');
@@ -514,9 +620,18 @@ export async function handleUpdateCustomerLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('update_customer', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'update_customer',
@@ -577,9 +692,18 @@ export async function handleExportCustomerDataLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('export_customer_data', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'export_customer_data',
@@ -606,9 +730,18 @@ export async function handleDeleteCustomerDataLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('delete_customer_data', params, customerTie.report);
+  }
   if (!customer) {
     return failure(
       'delete_customer_data',
@@ -632,9 +765,18 @@ export async function handleSendReengagementMessageLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
-  const customer = resolveCustomer(customers, params, resolveCustomerFn);
+  const customerTie: { report?: AmbiguityReport } = {};
+  const customer = resolveCustomer(
+    customers,
+    params,
+    resolveCustomerFn,
+    customerTie,
+  );
+  if (!customer && customerTie.report) {
+    return ambiguityFailure('send_reengagement_message', params, customerTie.report);
+  }
   if (!customer?.email) {
     return failure(
       'send_reengagement_message',
@@ -683,7 +825,7 @@ export async function handleMergeCustomersLogic(
   businessId: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
 ): Promise<CommandResult> {
   const primaryName = params.primaryCustomerName as string | undefined;
   const secondaryName = params.secondaryCustomerName as string | undefined;
@@ -1211,7 +1353,7 @@ export async function handleCrmCompoundLogic(
   prompt: string,
   params: Record<string, any>,
   customers: Customer[],
-  resolveCustomerFn: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomerFn: NamedResolver<Customer>,
   userId?: string,
 ): Promise<CommandResult> {
   const steps: CrmCompoundStep[] =

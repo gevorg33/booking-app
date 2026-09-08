@@ -37,7 +37,46 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Show the patient their pending lab requests and how to book collection. Returns a booking URL; creates nothing.',
-    variables: {},
+    // §213 (C2/T0) — the order, the test, and the patient from session.
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Lab order being collected for.',
+        required: false,
+        resolver: 'none',
+      },
+      testName: {
+        type: 'string',
+        description: 'Test being collected.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Collection service booked.',
+        required: false,
+        resolver: 'service',
+      },
+      bookingFirstAvailable: {
+        type: 'boolean',
+        description: 'Take the first available slot.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient, by id.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'I need to book my blood test',
       'how do I book my lab collection',
@@ -56,7 +95,45 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain why a result was flagged abnormal.',
-    variables: {},
+    // §209 (C2/T0) — the flag being explained, plus the test it sits on.
+    variables: {
+      flag: {
+        type: 'string',
+        description: 'Abnormal flag being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      testName: {
+        type: 'string',
+        description: 'Test being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is my result flagged', 'what does abnormal mean here'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -69,7 +146,21 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain what a clinic task requires.',
-    variables: {},
+    // §213 (C2/T0) — the task, or the client it belongs to.
+    variables: {
+      taskId: {
+        type: 'string',
+        description: 'Task being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no task id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what is this task', 'explain this clinic task'],
     confirm: 'never',
     handler: 'AiProviderClinicTasksAndResultsService',
@@ -82,7 +173,15 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how a patient results have changed over time.',
-    variables: {},
+    // §213 (C2/T0) — the result whose history is explained.
+    variables: {
+      resultId: {
+        type: 'string',
+        description: 'Result whose history is explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how has this patient trended', 'show the result history'],
     confirm: 'never',
     handler: 'AiClinicTestResultService',
@@ -95,7 +194,21 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain a patient test results.',
-    variables: {},
+    // §213 (C2/T0) — the patient and order.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Patient whose results are explained.',
+        required: false,
+        resolver: 'customer',
+      },
+      orderId: {
+        type: 'string',
+        description: 'Order the results belong to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['explain these results', 'what do the labs show'],
     confirm: 'never',
     handler: 'AiClinicTestResultService',
@@ -111,7 +224,53 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Report where a test result has got to.',
-    variables: {},
+    // §209 (C2/T0) — the result, its status, and the compound hand-off flag.
+    variables: {
+      resultId: {
+        type: 'string',
+        description: 'Result being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      status: {
+        type: 'string',
+        description: 'Status being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      testName: {
+        type: 'string',
+        description: 'Test being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      resultsThenRebook: {
+        type: 'boolean',
+        description:
+          'Set when this arrives as the first step of a results-then-rebook compound.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['are my results ready', 'what is the status of my test'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -124,7 +283,51 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain why a specimen must be collected again.',
-    variables: {},
+    // §214 (C2/T0) — the specimen, plus the provider window.
+    variables: {
+      specimenId: {
+        type: 'string',
+        description: 'Specimen being recollected.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient the specimen belongs to.',
+        required: false,
+        resolver: 'customer',
+      },
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why do we need another sample', 'explain the recollect'],
     confirm: 'never',
     handler: 'AiProviderClinicCollectionService',
@@ -137,7 +340,21 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List results outside their reference range.',
-    variables: {},
+    // §213 (C2/T0) — optionally scoped to one patient.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Patient to scope to.',
+        required: false,
+        resolver: 'customer',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many results to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what results are abnormal', 'show flagged results'],
     confirm: 'never',
     handler: 'AiClinicTestResultService',
@@ -153,7 +370,15 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Summarise the lab work attached to bookings.',
-    variables: {},
+    // §213 (C2/T0) — scoped to one booking.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose lab summaries are listed.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: [
       'what labs are on today bookings',
       'lab summary for my appointments',
@@ -195,7 +420,39 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List specimens this provider needs to collect.',
-    variables: {},
+    // §214 (C2/T0) — the signed-in provider's queue over a window.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what collections do I have', 'my specimen queue'],
     confirm: 'never',
     handler: 'AiProviderClinicCollectionService',
@@ -208,7 +465,39 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'List the clinical documents shared with the patient.',
-    variables: {},
+    // §209 (C2/T0) — filtered listing.
+    variables: {
+      category: {
+        type: 'string',
+        description: 'Only documents in this category.',
+        required: false,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'Document searched for by title.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what documents do I have', 'show my clinic documents'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -224,7 +513,27 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List the lab bookings the patient has been asked to make.',
-    variables: {},
+    // §213 (C2/T0) — the patient's own requests.
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Only requests for this order.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient, by id.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what tests do I need to book', 'my pending lab requests'],
     confirm: 'never',
     handler: 'AiClinicLabBookingService',
@@ -240,7 +549,27 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List the patient own test results.',
-    variables: {},
+    // §209 (C2/T0) — optionally narrowed to one test.
+    variables: {
+      testName: {
+        type: 'string',
+        description: 'Test being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show my test results', 'what were my results'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -253,7 +582,21 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List lab requests a patient has not yet booked.',
-    variables: {},
+    // §213 (C2/T0) — scoped to the signed-in provider.
+    variables: {
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what has this patient not booked',
       'pending lab requests for them',
@@ -269,7 +612,63 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List test orders that have been raised.',
-    variables: {},
+    // §214 (C2/T0) — the full order filter set.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking the orders belong to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient filter.',
+        required: false,
+        resolver: 'customer',
+      },
+      testName: {
+        type: 'string',
+        description: 'Test filter.',
+        required: false,
+        resolver: 'none',
+      },
+      testNames: {
+        type: 'string[]',
+        description: 'Several tests to filter by.',
+        required: false,
+        resolver: 'none',
+      },
+      status: {
+        type: 'string',
+        description: 'Order status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      awaitingPatientBooking: {
+        type: 'boolean',
+        description: 'Only orders waiting on the patient to book.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what tests have been ordered', 'list test orders'],
     confirm: 'never',
     handler: 'AiClinicTestOrderService',
@@ -283,7 +682,39 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Prepare a prompt asking a patient to book their lab collection.',
-    variables: {},
+    // §213 (C2/T0) — who to notify, and about which order.
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Lab order the patient is asked to book.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient to notify.',
+        required: false,
+        resolver: 'customer',
+      },
+      collectionServiceName: {
+        type: 'string',
+        description: 'Collection service suggested.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'remind this patient to book their test',
       'nudge them about the blood test',
@@ -299,7 +730,39 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain how the patient will be told when results arrive.',
-    variables: {},
+    // §209 (C2/T0) — which test, and how to be told.
+    variables: {
+      testName: {
+        type: 'string',
+        description: 'Test being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      channel: {
+        type: 'string',
+        description: 'How to notify: push, email or sms.',
+        required: false,
+        resolver: 'none',
+      },
+      aspect: {
+        type: 'string',
+        description: 'Which part of the notification setup is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'tell me when my results are in',
       'how will I know results are ready',
@@ -315,7 +778,27 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Open a clinical document shared with the patient.',
-    variables: {},
+    // §209 (C2/T0) — names the document to open.
+    variables: {
+      documentId: {
+        type: 'string',
+        description: 'Document to open.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['open my lab report', 'show me that document'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -328,7 +811,33 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Track where a lab order has got to.',
-    variables: {},
+    // §209 (C2/T0) — optionally narrowed to one test.
+    variables: {
+      testName: {
+        type: 'string',
+        description: 'Test being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Patient the results belong to.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Patient from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['where is my lab order', 'track my test'],
     confirm: 'never',
     handler: 'AiConsumerClinicTestResultsService',
@@ -344,7 +853,25 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Book a lab collection against an existing test order.',
-    variables: {},
+    // §177 (C2/T1) — the handler body reads only `_prompt`; the structured fields
+    // are read one level down by its `parse*FromPrompt` helper, which takes
+    // `(prompt, params)` and prefers the param. This is the shape that caused five
+    // wrong exemptions before the entry criterion was corrected. The patient comes from the
+    // session (`missing: ['customerId']` is a sign-in prompt).
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Test order the booking is made against.',
+        required: false,
+        resolver: 'none',
+      },
+      testName: {
+        type: 'string',
+        description: 'Test being booked, when no order id is given.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book the collection for my order', 'schedule my blood draw'],
     confirm: 'always',
     compensation: {
@@ -362,7 +889,42 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Book a lab collection on a patient behalf.',
-    variables: {},
+    // §177 (C2/T1) — the handler body reads only `_prompt`; the structured fields
+    // are read one level down by its `parse*FromPrompt` helper, which takes
+    // `(prompt, params)` and prefers the param. This is the shape that caused five
+    // wrong exemptions before the entry criterion was corrected.
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Test order being collected against.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient the collection is for.',
+        required: false,
+        resolver: 'customer',
+      },
+      collectionServiceName: {
+        type: 'string',
+        description: 'Collection service being booked.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Staff member performing the collection.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Staff member id, when known.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: [
       'book the collection for this patient',
       'schedule their blood draw',
@@ -383,7 +945,32 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Send a patient a request to book their lab collection.',
-    variables: {},
+    // §177 (C2/T1) — the handler body reads only `_prompt`; the structured fields
+    // are read one level down by its `parse*FromPrompt` helper, which takes
+    // `(prompt, params)` and prefers the param. This is the shape that caused five
+    // wrong exemptions before the entry criterion was corrected. Unlike
+    // `staff_book_lab_collection` it names no staff member \u2014 the booking is
+    // handed to the patient rather than performed.
+    variables: {
+      orderId: {
+        type: 'string',
+        description: 'Test order being pushed to the patient.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient receiving the booking link.',
+        required: false,
+        resolver: 'customer',
+      },
+      collectionServiceName: {
+        type: 'string',
+        description: 'Collection service offered.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: [
       'ask this patient to book their test',
       'send the lab booking request',
@@ -403,7 +990,22 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Take ownership of a clinic task.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own; `resolveClinicTask` supplies both
+    // fields and the chain ends there.
+    variables: {
+      taskId: {
+        type: 'string',
+        description: 'Clinic task to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient the task belongs to, when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['I will take that task', 'claim this task'],
     confirm: 'never',
     compensation: {
@@ -421,7 +1023,34 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark a clinic task as done.',
-    variables: {},
+    // §177 (C2/T1) — same identification as `claim_clinic_task`, plus the two
+    // fields it records on completion.
+    variables: {
+      taskId: {
+        type: 'string',
+        description: 'Clinic task to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient the task belongs to, when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      notes: {
+        type: 'string',
+        description: 'Notes recorded against the completed task.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason recorded against the completion.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['mark that task done', 'I have finished this task'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -681,7 +1310,28 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T1',
     description:
       'Set the normal range for a test, which decides what is flagged abnormal.',
-    variables: {},
+    // §177 (C2/T1) — `resolveStaffContext` is a permission check and reads no
+    // params, so these three are the whole contract.
+    variables: {
+      measurementCode: {
+        type: 'string',
+        description: 'Measurement whose reference range is being set.',
+        required: false,
+        resolver: 'none',
+      },
+      normalLow: {
+        type: 'number',
+        description: 'Lower bound of the normal range.',
+        required: false,
+        resolver: 'none',
+      },
+      normalHigh: {
+        type: 'number',
+        description: 'Upper bound of the normal range.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'set the normal range for haemoglobin',
       'change the reference range',
@@ -758,7 +1408,22 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'], customer: ['client'] },
     risk: 'T1',
     description: 'Dismiss an alert raised on a patient record.',
-    variables: {},
+    // §177 (C2/T1) — both fields named in one refusal; the patient comes from the
+    // session.
+    variables: {
+      alertType: {
+        type: 'string',
+        description: 'Kind of alert being dismissed.',
+        required: true,
+        resolver: 'none',
+      },
+      sourceId: {
+        type: 'string',
+        description: 'Record the alert was raised against.',
+        required: true,
+        resolver: 'none',
+      },
+    },
     examples: ['dismiss that alert', 'clear this patient flag'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -776,7 +1441,53 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Add a test to the clinic catalogue.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateTestTypeLogic` refuses with `missing: ['title']`
+    // and reads the rest optionally. `resolveRoleOrFail` takes `userId`, not a
+    // param, so the permission check contributes no variables.
+    variables: {
+      title: {
+        type: 'string',
+        description: 'Name of the test type.',
+        required: true,
+        resolver: 'none',
+      },
+      code: {
+        type: 'string',
+        description: 'Short code for the test type.',
+        required: false,
+        resolver: 'none',
+      },
+      price: {
+        type: 'number',
+        description: 'Price charged for the test.',
+        required: false,
+        resolver: 'money',
+      },
+      unit: {
+        type: 'string',
+        description: 'Unit the result is measured in.',
+        required: false,
+        resolver: 'none',
+      },
+      normalLow: {
+        type: 'number',
+        description: 'Lower bound of the normal reference range.',
+        required: false,
+        resolver: 'none',
+      },
+      normalHigh: {
+        type: 'number',
+        description: 'Upper bound of the normal reference range.',
+        required: false,
+        resolver: 'none',
+      },
+      requiresFasting: {
+        type: 'boolean',
+        description: 'Whether the patient must fast before the test.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a vitamin D test', 'create a new test type'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -794,7 +1505,65 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change a test in the clinic catalogue.',
-    variables: {},
+    // §177 (C2/T1) — identified via `resolveTestTypeOrFail` →
+    // `resolveClinicTestTypeFromList`, then applies whichever fields are present.
+    variables: {
+      testTypeId: {
+        type: 'string',
+        description: 'Test type id — tried first by `resolveByIdCodeOrTitle`.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeCode: {
+        type: 'string',
+        description: 'Test type code, tried second.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeName: {
+        type: 'string',
+        description:
+          'Test type title, tried third. The handler\u2019s `missing` hint names only the id and code, though its message offers this route too.',
+        required: false,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'New name for the test type.',
+        required: false,
+        resolver: 'none',
+      },
+      price: {
+        type: 'number',
+        description: 'New price.',
+        required: false,
+        resolver: 'money',
+      },
+      normalLow: {
+        type: 'number',
+        description: 'Lower bound of the normal reference range.',
+        required: false,
+        resolver: 'none',
+      },
+      normalHigh: {
+        type: 'number',
+        description: 'Upper bound of the normal reference range.',
+        required: false,
+        resolver: 'none',
+      },
+      requiresFasting: {
+        type: 'boolean',
+        description: 'Whether the patient must fast before the test.',
+        required: false,
+        resolver: 'none',
+      },
+      isActive: {
+        type: 'boolean',
+        description: 'Activate or deactivate the test type.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['rename that test', 'change the test details'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -812,7 +1581,28 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Remove a test from the clinic catalogue.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own; identification is the whole input.
+    variables: {
+      testTypeId: {
+        type: 'string',
+        description: 'Test type id — tried first by `resolveByIdCodeOrTitle`.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeCode: {
+        type: 'string',
+        description: 'Test type code, tried second.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeName: {
+        type: 'string',
+        description:
+          'Test type title, tried third. The handler\u2019s `missing` hint names only the id and code, though its message offers this route too.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['delete the old vitamin test', 'remove that test type'],
     confirm: 'always',
     compensation: {
@@ -830,7 +1620,27 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Create a panel grouping several tests ordered together.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateTestPanelLogic` refuses with `missing: ['title']`.
+    variables: {
+      title: {
+        type: 'string',
+        description: 'Name of the test panel.',
+        required: true,
+        resolver: 'none',
+      },
+      code: {
+        type: 'string',
+        description: 'Short code for the panel.',
+        required: false,
+        resolver: 'none',
+      },
+      price: {
+        type: 'number',
+        description: 'Price charged for the panel.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: [
       'create a routine bloods panel',
       'group these tests into a panel',
@@ -851,7 +1661,47 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change a test panel - its name or description.',
-    variables: {},
+    // §177 (C2/T1) — identified via `resolvePanelOrFail` →
+    // `resolveClinicTestPanelFromList`.
+    variables: {
+      panelId: {
+        type: 'string',
+        description: 'Panel id — tried first by `resolveByIdCodeOrTitle`.',
+        required: false,
+        resolver: 'none',
+      },
+      panelCode: {
+        type: 'string',
+        description: 'Panel code, tried second.',
+        required: false,
+        resolver: 'none',
+      },
+      panelName: {
+        type: 'string',
+        description:
+          'Panel title, tried third. The handler\u2019s `missing` hint names only the id and code, though its message offers this route too.',
+        required: false,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'New name for the panel.',
+        required: false,
+        resolver: 'none',
+      },
+      price: {
+        type: 'number',
+        description: 'New price.',
+        required: false,
+        resolver: 'money',
+      },
+      isActive: {
+        type: 'boolean',
+        description: 'Activate or deactivate the panel.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['rename the bloods panel', 'update that panel'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -869,7 +1719,43 @@ export const CLINIC_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Set which tests a panel contains.',
-    variables: {},
+    // §177 (C2/T1) — identifies the panel, then requires the membership list:
+    // it refuses with `missing: ['testTypeIds', 'testTypeNames']`, so one of the
+    // two is needed.
+    variables: {
+      panelId: {
+        type: 'string',
+        description: 'Panel id — tried first by `resolveByIdCodeOrTitle`.',
+        required: false,
+        resolver: 'none',
+      },
+      panelCode: {
+        type: 'string',
+        description: 'Panel code, tried second.',
+        required: false,
+        resolver: 'none',
+      },
+      panelName: {
+        type: 'string',
+        description:
+          'Panel title, tried third. The handler\u2019s `missing` hint names only the id and code, though its message offers this route too.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeIds: {
+        type: 'string[]',
+        description: 'Test type ids that make up the panel.',
+        required: false,
+        resolver: 'none',
+      },
+      testTypeNames: {
+        type: 'string[]',
+        description:
+          'Test type names, when ids are not known. One of the two lists is required.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'add vitamin D to the bloods panel',
       'change what is in that panel',

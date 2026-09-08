@@ -5,6 +5,8 @@ import {
   extractRescheduleSourceDate,
   extractRescheduleSourceTime,
   extractRescheduleTargetTime,
+  extractTimeSlotFromPrompt,
+  extractRescheduleTimeSlotFromPrompt,
   parseAmPmClockTime,
   extractProviderPossessiveFromReschedulePrompt,
   extractCustomerFromReschedulePrompt,
@@ -161,7 +163,21 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
         serviceId: 'h1',
         serviceCategory: null,
         serviceNames: null,
-        date: '10/06/2026',
+        // e2e-bug.506 — the prompt says "tomorrow", so the explicit relative
+        // date wins over the stale session date; this expectation used to read
+        // '10/06/2026' and contradicted the sibling test below, which pins
+        // `date: 'tomorrow'` for the identical phrasing.
+        //
+        // The raw word is the deliberate intermediate representation stamped by
+        // `applySameDayRelativeDateToAvailabilityParams` (e2e-bug.296, which
+        // needs the keyword to survive so it can drop classifier dateFrom/dateTo
+        // ranges). It is resolved to an ISO day by `normalizeDateParams` ->
+        // `toIsoDay` -> `resolveRelativeDateKeyword` at every entry point that
+        // consumes these params: PublicBookingAssistantService.chat,
+        // executeDeterministicIntent, its compound `runStep`, and
+        // AiCommandService's dashboard path. See the contract test in
+        // ai-flexible-availability.util.spec.ts.
+        date: 'tomorrow',
         timeOfDay: 'afternoon',
       });
     });
@@ -320,7 +336,6 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       expect(
         extractRescheduleTargetTime(
           "Move Maria's appointment to tomorrow at 9 AM",
-          'UTC',
         ),
       ).toBe('09:00');
     });
@@ -329,7 +344,6 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       expect(
         extractRescheduleTargetTime(
           'Reschedule Jujo to Friday at 2:30 pm',
-          'UTC',
         ),
       ).toBe('14:30');
     });
@@ -338,7 +352,6 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
       expect(
         extractRescheduleTargetTime(
           'Move the 16:00 appointment to tomorrow at 3pm',
-          'UTC',
         ),
       ).toBe('15:00');
     });
@@ -346,6 +359,48 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
     it('normalizes noon and midnight via parseAmPmClockTime', () => {
       expect(parseAmPmClockTime(12, 0, 'pm')).toBe('12:00');
       expect(parseAmPmClockTime(12, 0, 'am')).toBe('00:00');
+    });
+
+    // e2e-bug.468. Every case above uses "AM", "pm" or "3pm" — the three forms
+    // that always worked — which is why four separate copies of this alternation
+    // shipped broken. The dotted forms fell through to a 24-hour reading, so
+    // "reschedule to 6:45 p.m." moved the appointment to 06:45.
+    //
+    // a.m. is deliberately included even though it cannot regress: its 12-hour
+    // and 24-hour readings coincide below noon, and that coincidence is what
+    // hid the bug from every earlier test. Pinning both halves keeps the next
+    // reader from "simplifying" the pattern back on the strength of the a.m.
+    // cases passing.
+    describe.each([
+      ['p.m.', '6:45 p.m.', '18:45'],
+      ['p.m (no trailing dot)', '6:45 p.m', '18:45'],
+      ['pm. (trailing dot only)', '6:45 pm.', '18:45'],
+      ['pm', '6:45 pm', '18:45'],
+      ['P.M. uppercase', '6:45 P.M.', '18:45'],
+      ['a.m.', '9 a.m.', '09:00'],
+      ['a.m (no trailing dot)', '9 a.m', '09:00'],
+    ])('dotted meridiem: %s', (_label, time, expected) => {
+      it(`slot extractor reads "${time}" as ${expected}`, () => {
+        expect(extractTimeSlotFromPrompt(`book me at ${time}`)).toBe(expected);
+      });
+
+      it(`reschedule extractor reads "${time}" as ${expected}`, () => {
+        expect(
+          extractRescheduleTimeSlotFromPrompt(`reschedule to ${time}`),
+        ).toBe(expected);
+      });
+
+      it(`reschedule target reads "${time}" as ${expected}`, () => {
+        expect(extractRescheduleTargetTime(`move it to ${time}`)).toBe(
+          expected,
+        );
+      });
+
+      it(`day-scoped reschedule reads "${time}" as ${expected}`, () => {
+        expect(
+          extractRescheduleTargetTime(`move it to tomorrow at ${time}`),
+        ).toBe(expected);
+      });
     });
   });
 
@@ -686,4 +741,34 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
   });
 
   describe('isRecommendSpecialistsPrompt', () => {});
+
+  // e2e-bug.469 — an extractor that cannot read a time must say so. These all
+  // used to come back as well-formed-looking strings that are not times:
+  // "at 003:30 pm" arrived at parseAmPmClockTime as hour 30 and left as
+  // "42:00"; "24:00" and "99:99" reached normalizeTime24, whose documented
+  // fallback is to return the input unchanged.
+  describe('invalid times are refused, not fabricated', () => {
+    it.each([['at 24:00'], ['at 99:99'], ['at 003:30 pm']])(
+      'returns null for %s',
+      (prompt) => {
+        expect(extractTimeSlotFromPrompt(prompt)).toBeNull();
+      },
+    );
+
+    // The fall-through is the point: a meridiem on an already-24h time is
+    // noise, and the 24-hour branch reads it correctly once the am/pm branch
+    // declines instead of returning hour + 12.
+    it('reads "at 14:00 pm" as 14:00 rather than 26:00', () => {
+      expect(extractTimeSlotFromPrompt('at 14:00 pm')).toBe('14:00');
+    });
+
+    it.each([
+      ['at 0:30', '00:30'],
+      ['at 23:59', '23:59'],
+      ['the 14:30 slot', '14:30'],
+      ['book me at 3:30 pm', '15:30'],
+    ])('still reads %s as %s', (prompt, want) => {
+      expect(extractTimeSlotFromPrompt(prompt)).toBe(want);
+    });
+  });
 });

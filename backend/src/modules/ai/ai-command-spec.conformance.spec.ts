@@ -140,6 +140,126 @@ describe('AI-ROADMAP Phase 1 — CommandSpec conformance with the live registry'
     expect(legacy.length).toBe(new Set(legacy).size);
   });
 
+  /**
+   * §241 — the same rule for `examples`, which had none.
+   *
+   * `commandMatchText` is `description + examples`, so two commands on one
+   * surface sharing an example string enter the planner's shortlist with
+   * matching retrieval text and must be separated on description alone. The
+   * examples also seed the few-shots and the eval goldens, so a shared string is
+   * contradictory training signal for whichever command loses.
+   *
+   * Cross-surface sharing is fine and common — "show my profile" means
+   * `customer.my_profile` to a customer and `provider.show_profile` to a
+   * provider, and the shortlist is surface-filtered before the planner sees it
+   * (7 of the 10 registry-wide collisions are this shape). Only a collision
+   * *within* one surface is a defect.
+   */
+  it('no two specs sharing a surface document the same example', () => {
+    const KNOWN: ReadonlyArray<readonly [string, string]> = [
+      // Near-duplicate commands, not typos — each group needs a registry
+      // decision about which command is canonical (e2e-bug.518), and inventing
+      // distinguishing examples here would paper over that.
+      ['customer', 'turn on notifications'],
+      ['dashboard', 'what are the ai settings'],
+      // A real defect with a ready fix, held only by credentials.
+      // `onboarding.apply_playbook` [T3] documents `clinic.apply_playbook`'s
+      // [T3] example; `ai-onboarding.fixtures.ts` says outright this string is
+      // NOT the onboarding command. The one-line fix is to replace it with the
+      // fixture's own trigger, 'apply our vertical playbook' — but any edit to a
+      // spec's description or examples changes `commandMatchText` and so
+      // invalidates the committed embedding cache, and
+      // `npm run build:ai-embeddings` needs OPENAI_API_KEY (e2e-bug.390's gate,
+      // §82's seven-point lesson). Applied and reverted here rather than left
+      // failing the chain. Whoever holds the key: make the swap, run the
+      // rebuild, drop this entry. See e2e-bug.518.
+      ['dashboard', 'apply the clinic playbook'],
+    ];
+    const seen = new Map<string, string[]>();
+    for (const spec of COMMAND_SPECS)
+      for (const surface of spec.surfaces)
+        for (const example of spec.examples) {
+          const key = `${surface}\u0000${example.trim().toLowerCase()}`;
+          if (!seen.has(key)) seen.set(key, []);
+          if (!seen.get(key)!.includes(spec.id)) seen.get(key)!.push(spec.id);
+        }
+    const collisions = [...seen.entries()]
+      .filter(([, ids]) => ids.length > 1)
+      .map(([key, ids]) => {
+        const [surface, example] = key.split('\u0000');
+        return `${surface}: "${example}" -> ${ids.sort().join(', ')}`;
+      })
+      .filter(
+        (line) =>
+          !KNOWN.some(([surface, example]) =>
+            line.startsWith(`${surface}: "${example}" ->`),
+          ),
+      );
+    expect(collisions.sort()).toEqual([]);
+  });
+
+  /**
+   * §242 — the same rule for `description`, the other half of
+   * `commandMatchText` and the field the type calls "what disambiguates
+   * commands". Two specs on one surface with the *same* description give the
+   * planner nothing to choose on.
+   *
+   * Clean at zero when written: 3 identical descriptions exist registry-wide and
+   * all 3 are cross-surface pairs of the same operation (`cancel_package_visit`
+   * / `_self`, `reschedule_package_visit` / `_self`, `give_ai_feedback` on
+   * provider vs customer). Those are correct — the shortlist is surface-filtered
+   * before the planner sees it — which is why this matches on surface rather
+   * than registry-wide, exactly as the examples rule does.
+   *
+   * Exact match only, deliberately. The near-duplicates are real
+   * ("Turn notifications on." vs "Turn on push notifications for this device.",
+   * e2e-bug.518) but catching them needs a similarity threshold, and a rule that
+   * fires on judgement gets switched off (§190). Exact collisions are
+   * unarguable; the near ones are tracked as a ticket instead.
+   */
+  it('no two specs sharing a surface document the same description', () => {
+    const seen = new Map<string, string[]>();
+    for (const spec of COMMAND_SPECS)
+      for (const surface of spec.surfaces) {
+        const key = `${surface}\u0000${spec.description
+          .trim()
+          .toLowerCase()
+          .replace(/\.$/, '')}`;
+        if (!seen.has(key)) seen.set(key, []);
+        seen.get(key)!.push(spec.id);
+      }
+    const collisions = [...seen.entries()]
+      .filter(([, ids]) => ids.length > 1)
+      .map(([key, ids]) => {
+        const [surface, description] = key.split('\u0000');
+        return `${surface}: "${description}" -> ${ids.sort().join(', ')}`;
+      });
+    expect(collisions.sort()).toEqual([]);
+  });
+
+  it('each named example-collision exemption still collides', () => {
+    // An exemption that no longer applies is worse than no exemption: it hides
+    // the next collision on that exact surface and string. Same reason §215's
+    // T0 exemptions are checked for continued relevance.
+    const KNOWN: ReadonlyArray<readonly [string, string]> = [
+      ['customer', 'turn on notifications'],
+      ['dashboard', 'what are the ai settings'],
+      ['dashboard', 'apply the clinic playbook'],
+    ];
+    for (const [surface, example] of KNOWN) {
+      const owners = COMMAND_SPECS.filter(
+        (s) =>
+          s.surfaces.includes(surface as (typeof s.surfaces)[number]) &&
+          s.examples.some((e) => e.trim().toLowerCase() === example),
+      ).map((s) => s.id);
+      expect({ surface, example, count: owners.length }).toEqual({
+        surface,
+        example,
+        count: owners.length > 1 ? owners.length : 'MORE THAN ONE',
+      });
+    }
+  });
+
   describe('compensation (AI-ROADMAP Phase 5)', () => {
     const mutating = COMMAND_SPECS.filter(isMutatingSpec);
 

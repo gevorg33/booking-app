@@ -111,7 +111,8 @@ describe('Gift card package & subscription integration', () => {
     creditRepo as any,
     redemptionRepo as any,
     expirationAuditRepo as any,
-  );
+  
+    undefined as never);
 
   const emailService = { send: jest.fn().mockResolvedValue({ ok: true }) };
   const whatsappService = {

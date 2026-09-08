@@ -16,47 +16,47 @@ export type RankDiscoverAndBookMultilingualScenario = {
 
 const I18N: Record<string, { hy: string; ru: string }> = {
   'rank-discover-book-premium-facial-e2e-en': {
-    hy: "Rank discover and book end-to-end: show premium facial options, check who's free tomorrow evening, book the nearest slot",
+    hy: "Rank discover and book end-to-end: show premium facial options, check ով է ազատ tomorrow evening, book the nearest slot",
     ru: 'Rank discover and book end-to-end: show premium facial options, check кто свободен tomorrow evening, book the nearest slot',
   },
   'filter-catalog-cheapest-massage-en': {
-    hy: 'Filter catalog for cheapest massage, check who is free tomorrow, and book the soonest appointment',
+    hy: 'Filter catalog for cheapest massage, check ով է ազատ tomorrow, and book the soonest appointment',
     ru: 'Filter catalog для cheapest massage, check who is free завтра, and book the soonest appointment',
   },
   'list-popular-manicure-friday-en': {
-    hy: 'List most popular manicure services, check providers available Friday, book nearest slot',
+    hy: 'List most popular manicure services, check ով է ազատ Friday, book nearest slot',
     ru: 'List most popular manicure services, check providers available пятницу, book nearest slot',
   },
   'show-luxury-color-saturday-en': {
-    hy: "Show top-tier color options, who's free Saturday morning, book the earliest slot",
+    hy: "Show top-tier color options, ով է ազատ Saturday morning, book the earliest slot",
     ru: "Show top-tier color options, who's free Saturday morning, book the earliest slot",
   },
   'semicolon-premium-haircut-en': {
-    hy: "Filter premium haircut services; check who's free tomorrow; book nearest slot",
+    hy: "Filter premium haircut services; check ով է ազատ tomorrow; book nearest slot",
     ru: "Filter premium haircut services; check who's free завтра; book nearest slot",
   },
   'client-deluxe-styling-en': {
-    hy: 'Client wants deluxe styling — list premium options, check availability tomorrow, book soonest',
+    hy: 'Client wants deluxe styling — list premium options, check availability վաղը, book soonest',
     ru: 'Client wants deluxe styling — list premium options, check availability завтра, book soonest',
   },
   'what-book-cheapest-facial-en': {
-    hy: "What can we book — cheapest facial tomorrow — check who's free and book nearest",
+    hy: "What can we book — cheapest facial tomorrow — check ով է ազատ and book nearest",
     ru: "What can we book — cheapest facial завтра — check who's free and book nearest",
   },
   'discover-luxury-massage-en': {
-    hy: 'Discover and book premium: options for massage, who is free Thursday, book ASAP',
+    hy: 'Discover and book premium: options for massage, ով է ազատ Thursday, book ASAP',
     ru: 'Discover and book premium: options for massage, who is free четверг, book ASAP',
   },
   'e2e-cheapest-haircut-afternoon-en': {
-    hy: 'End-to-end rank booking: cheapest haircut, check providers tomorrow afternoon, book first available',
+    hy: 'End-to-end rank booking: cheapest haircut, check providers վաղը afternoon, book first available',
     ru: 'End-to-end rank booking: cheapest haircut, check providers завтра afternoon, book first available',
   },
   'full-rank-check-book-massage-en': {
-    hy: 'Full rank-check-book for luxury massage — list options, check who is free, create booking for nearest slot',
+    hy: 'Full rank-check-book for luxury massage — list options, check ով է ազատ, create booking for nearest slot',
     ru: 'Full rank-check-book for luxury massage — list options, check who is free, create booking for nearest slot',
   },
   'reception-premium-haircut-en': {
-    hy: "Reception: show premium haircut services, check who's available tomorrow, create booking for nearest opening",
+    hy: "Reception: show premium haircut services, check who's available վաղը, create booking for nearest opening",
     ru: "Reception: show premium haircut services, check who's available завтра, create booking for nearest opening",
   },
 };

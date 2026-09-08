@@ -136,11 +136,11 @@ describe('ai-unknown-intent.util (pipe-1.6.2)', () => {
           originalPrompt: 'Block Gevorg schedule tomorrow',
           normalizedPrompt: 'Block Gevorg schedule tomorrow',
           classifierContext: null,
-          method: 'none',
+          method: 'passthrough',
         },
         normalization: {
           normalizedPrompt: 'Block Gevorg schedule tomorrow',
-          method: 'none',
+          method: 'passthrough',
           classifierContext: null,
         },
         surface: 'dashboard',

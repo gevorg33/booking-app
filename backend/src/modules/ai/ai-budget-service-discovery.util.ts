@@ -54,13 +54,13 @@ const WORD_NUMBER_MAP: Record<string, number> = {
 };
 
 const BUDGET_CEILING_PATTERN =
-  /\b(?:under|below|at most|no more than|less than|max(?:imum)?|up to|within|nothing over)\s+(?:[\$€£]|usd|eur|amd|dram|rub(?:le|les)?)?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
+  /\b(?:under|below|at most|no more than|less than|max(?:imum)?|up to|within|nothing over)\s+(?:[$€£]|usd|eur|amd|dram|rub(?:le|les)?)?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
 
 const BUDGET_HAVE_PATTERN =
-  /\b(?:i\s+)?(?:only\s+)?have\s+(?:[\$€£])?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
+  /\b(?:i\s+)?(?:only\s+)?have\s+(?:[$€£])?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
 
 const BUDGET_BETWEEN_PATTERN =
-  /\bbetween\s+[\$€£]?\s*([\d,]+(?:\.\d{1,2})?)\s+and\s+[\$€£]?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
+  /\bbetween\s+[$€£]?\s*([\d,]+(?:\.\d{1,2})?)\s+and\s+[$€£]?\s*([\d,]+(?:\.\d{1,2})?)\b/i;
 
 const BUDGET_VOICE_ASR_SERVICE_ALIASES: readonly {
   pattern: RegExp;
@@ -164,6 +164,24 @@ export function isBudgetAdministrativeOrExplainContext(
       prompt,
     )
   ) {
+    return true;
+  }
+
+  // §166 — the same explain cues in Russian and Armenian.
+  //
+  // Every clause above is English-only, so a non-English "why is this priced in
+  // rubles?" fell straight through to `resolveBudgetMisrouteAction`'s gift-card
+  // rules and came back `buy_gift_card_for_someone`. Measured: all 6 English
+  // package-currency prompts reached the guard, all 4 ru/hy missed it. The two
+  // ru/hy *package* prompts passed anyway, but only because no gift-card rule
+  // happened to match them — luck, not a guard, and this makes them pass for the
+  // stated reason instead.
+  //
+  // Deliberately no `\b`: JavaScript's word boundary is ASCII-only, so `\bпочему\b`
+  // never matches — there is no ASCII word character next to `п` for the boundary
+  // to sit against. Using it here would have produced a rule that reads correct
+  // and tests false.
+  if (/(?:почему|какой валюте|в какой валюте|ինչու|արժույթով)/iu.test(prompt)) {
     return true;
   }
 
@@ -644,8 +662,8 @@ export function extractMaxTotalPriceFromBudgetPrompt(
   if (!isBudgetCartTotalPrompt(prompt)) return null;
 
   const patterns = [
-    /\b(?:under|below|at most|up to|within|less than)\s+(?:[\$€£]|usd|eur|amd|dram|rub(?:le|les)?)?\s*([\d,]+(?:\.\d{1,2})?)\s+total\b/i,
-    /\b(?:[\$€£])\s*([\d,]+(?:\.\d{1,2})?)\s+total\b/i,
+    /\b(?:under|below|at most|up to|within|less than)\s+(?:[$€£]|usd|eur|amd|dram|rub(?:le|les)?)?\s*([\d,]+(?:\.\d{1,2})?)\s+total\b/i,
+    /\b(?:[$€£])\s*([\d,]+(?:\.\d{1,2})?)\s+total\b/i,
     /\b([\d,]+(?:\.\d{1,2})?)\s+(?:dollars?|bucks?)\s+total\b/i,
   ];
 

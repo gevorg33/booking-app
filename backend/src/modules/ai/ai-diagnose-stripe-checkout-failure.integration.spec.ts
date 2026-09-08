@@ -5,6 +5,7 @@ import {
   DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CONSUMER_RESCUE_SCENARIOS,
 } from './ai-diagnose-stripe-checkout-failure.fixtures.js';
 import { rescueConsumerDiagnoseStripeCheckoutFailureIntent } from './ai-diagnose-stripe-checkout-failure.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai diagnose stripe checkout failure integration (ai-cmd-customer-4.18.1)', () => {
   const businessRepo = { findOne: jest.fn() };
@@ -24,15 +25,14 @@ describe('ai diagnose stripe checkout failure integration (ai-cmd-customer-4.18.
   it.each(DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CONSUMER_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'diagnose_stripe_checkout_failure',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
     },
   );

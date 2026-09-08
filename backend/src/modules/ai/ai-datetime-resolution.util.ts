@@ -5,14 +5,19 @@
  * John"; this fixes "which day", which is broken in a way that is easier to
  * demonstrate and harder to notice.
  *
- * The current implementation, duplicated verbatim in `ai-payments.util.ts` and
- * `ai-compound-booking-context.util.ts`:
+ * The implementation this replaced, once duplicated verbatim in
+ * `ai-payments.util.ts` and `ai-compound-booking-context.util.ts`:
  *
  * ```ts
  * new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
  * ```
  *
- * It takes the **UTC** date of a moment 24 hours from now, which is not
+ * **Both copies were fixed and are now gone** — §185 hoisted the one survivor
+ * here, where the calendar primitives it needs already live. This paragraph is
+ * kept in the past tense rather than deleted, because the bug it describes is
+ * the reason the two design rules below exist.
+ *
+ * It took the **UTC** date of a moment 24 hours from now, which is not
  * "tomorrow" in the business's timezone whenever UTC has already rolled over
  * and the business has not. That is the local evening — prime booking time —
  * and it is wrong for 4 of 24 hours in New York, 7 of 24 in Los Angeles, and
@@ -100,6 +105,27 @@ export function addCalendarDays(isoDate: string, days: number): string {
   const [y, m, d] = isoDate.split('-').map(Number);
   const shifted = new Date(Date.UTC(y, m - 1, d) + days * 86_400_000);
   return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * Tomorrow's calendar date in the business timezone — §185 (e2e-bug.367 / B7).
+ *
+ * Lives here because `localCalendarDate` and `addCalendarDays` do: it is one
+ * line of composition over them, and hosting it anywhere else is what produced
+ * two copies. `ai-payments.util.ts` and `ai-compound-booking-context.util.ts`
+ * import each other, so neither could own it without deepening a cycle that
+ * already exists.
+ *
+ * Both former copies were byte-identical and both already correct — unlike the
+ * `extractTimeSlotFromPrompt` pair in §184, this was redundancy rather than
+ * divergence. Hoisting it removes the chance of the next fix landing in one and
+ * not the other.
+ */
+export function resolveTomorrowDateKey(
+  timeZone: string,
+  now: Date = new Date(),
+): string {
+  return addCalendarDays(localCalendarDate(now, timeZone), 1);
 }
 
 /** 0 = Sunday, matching `WEEKDAYS`. */
@@ -319,6 +345,29 @@ export interface TimeResolutionOptions {
   businessHours?: { openHour: number; closeHour: number };
 }
 
+/**
+ * The one meridiem pattern. A single capturing group, so callers can splice it
+ * into a larger regex without disturbing their group numbering.
+ *
+ * Two things here are load-bearing, and both are e2e-bug.364 — which has now
+ * been rediscovered in four separate hand-written copies of this alternation:
+ *
+ * 1. The dots are optional *individually* (`a\.?m\.?`), so `a.m.`, `a.m`, `am.`
+ *    and `am` all match. Copies that spelled the alternation out as
+ *    `am|pm|a\.m\.|p\.m\.` missed `p.m` — and because `a.m` coincidentally
+ *    falls through to the same value as its 24-hour reading, only the p.m.
+ *    forms ever revealed it.
+ * 2. It ends with `(?!\w)`, never `\b`. A word boundary needs a word character
+ *    on one side and `p.m.` ends in a period, so `\b` can never match the
+ *    dotted form at all. Every copy that used `\b` silently fell through to a
+ *    24-hour reading: "reschedule to 6:45 p.m." booked 06:45.
+ *
+ * Ordering no longer matters (it did when the dots were spelled out, because
+ * `am` would match the "a" of "a.m." and leave the dots dangling), but keep the
+ * group single and self-contained so splicing stays safe.
+ */
+export const MERIDIEM_GROUP_SOURCE = String.raw`(a\.?m\.?|p\.?m\.?)(?!\w)`;
+
 export function resolveTimeOfDay(
   phrase: string,
   options: TimeResolutionOptions = {},
@@ -336,7 +385,10 @@ export function resolveTimeOfDay(
 
   // Meridiem first — the whole point. Optional whitespace, optional dots.
   const withMeridiem = text.match(
-    /\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?![a-z])/i,
+    new RegExp(
+      String.raw`\b(\d{1,2})(?::(\d{2}))?\s*` + MERIDIEM_GROUP_SOURCE,
+      'i',
+    ),
   );
   if (withMeridiem) {
     const hour12 = Number(withMeridiem[1]);

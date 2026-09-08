@@ -13,6 +13,7 @@ import {
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour service integration (ai-cmd-tour-1)', () => {
   const services = [
@@ -52,8 +53,8 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
     },
   ];
 
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const bookingService = {
     findAll: jest.fn(async () => [
@@ -141,7 +142,7 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('configure_tour_service');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'configure_tour_service',
         params: {
           ...(serviceName ? { serviceName } : {}),
@@ -150,11 +151,10 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
           ...(difficulty ? { difficulty } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigureTourServiceLogic(
@@ -179,15 +179,14 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('apply_tour_playbook');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'apply_tour_playbook',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleApplyTourPlaybookLogic(
@@ -216,18 +215,17 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('explain_tour_services');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_tour_services',
         params: {
           ...(serviceName ? { serviceName } : {}),
           ...(daysAhead ? { daysAhead } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourServicesLogic(

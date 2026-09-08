@@ -1,5 +1,8 @@
 import { PaymentStatus } from './entities/booking.entity.js';
-import { recordTaxInclusivePaymentAmount } from './booking-payment-summary.util.js';
+import {
+  isTransitionToPaid,
+  recordTaxInclusivePaymentAmount,
+} from './booking-payment-summary.util.js';
 
 describe('Sprint 36 — mark paid tax-inclusive amount', () => {
   it('records tax-inclusive amount paid when provider marks booking paid', () => {
@@ -55,10 +58,10 @@ describe('Sprint 36 — mark paid tax-inclusive amount', () => {
       pricing: { amountDue: 120, taxAmount: 20 },
     };
 
-    if (
-      paymentStatus === PaymentStatus.PAID &&
-      previousPaymentStatus !== PaymentStatus.PAID
-    ) {
+    // Calls the production predicate rather than restating it. This block used
+    // to hand-copy the condition out of `booking.service.ts`, so a change there
+    // could not fail this test.
+    if (isTransitionToPaid(previousPaymentStatus, paymentStatus)) {
       bookingMetadata = recordTaxInclusivePaymentAmount(bookingMetadata);
     }
 

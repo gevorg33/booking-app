@@ -14,8 +14,8 @@ import { isListUpcomingTourDeparturesPrompt } from './ai-upcoming-tour-departure
 
 function expectedWeekAnchor(relative: 'next' | 'last' | 'this'): string {
   const today = getTodayDateKey();
-  if (relative === 'next') return addDaysToDateKey(today, 7);
-  if (relative === 'last') return addDaysToDateKey(today, -7);
+  if (relative === 'next') return addDaysToDateKey(today, 7, 'UTC');
+  if (relative === 'last') return addDaysToDateKey(today, -7, 'UTC');
   return today;
 }
 

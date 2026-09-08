@@ -67,7 +67,13 @@ describe('Sprint 37 — public booking consent integration', () => {
     {} as never,
     {} as never,
     {} as never,
-  );
+  
+    // e2e-bug: PublicBookingService gained four repositories;
+    // `undefined as never` keeps the runtime identical to omitting them.
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never);
 
   beforeEach(() => {
     jest.clearAllMocks();

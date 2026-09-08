@@ -1,8 +1,4 @@
 import {
-  addCalendarDays,
-  localCalendarDate,
-} from './ai-datetime-resolution.util.js';
-import {
   extractMultilingualServiceNameFromPrompt,
   isMultilingualCheckProvidersPrompt,
   parseMultilingualTimeOfDayWindow,
@@ -13,6 +9,7 @@ import {
   isFirstAvailableBookingPrompt,
 } from './ai-intent-heuristics.js';
 import { parseTimeOfDayWindow } from './ai-operations.util.js';
+import { resolveTomorrowDateKey } from './ai-datetime-resolution.util.js';
 import {
   extractSingleIsoDayFromPrompt,
   parseEarliestBookingTimeFromPrompt,
@@ -34,12 +31,6 @@ import {
  * timezone-correct and tested. `timeZone` is required, because a default would
  * silently reintroduce the bug for every caller that forgot it.
  */
-function resolveTomorrowDateKey(
-  timeZone: string,
-  now: Date = new Date(),
-): string {
-  return addCalendarDays(localCalendarDate(now, timeZone), 1);
-}
 
 function notBeforeTimeFromWindow(
   prompt: string,

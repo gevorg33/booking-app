@@ -308,6 +308,33 @@ export function resolveAvailabilityServiceFieldsFromKeyword(keyword: string): {
   };
 }
 
+// e2e-bug.517 — FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN captures lazily up
+// to a weekday, so on 'Lashes ASAP or Saturday if not' the shortest capture that
+// still reaches 'Saturday' is the whole clause 'Lashes ASAP or'. That is three
+// words, and
+// `resolveAvailabilityServiceFieldsFromKeyword` deliberately treats a multi-word
+// keyword as a literal serviceName so real catalog names ('Deep tissue massage')
+// survive intact — which means the category is silently lost and the garbage name
+// is kept. The sibling prompt 'Facial ASAP or Saturday if not' only resolves
+// because 'facial' happens to have a bare English entry in the multilingual
+// pattern table above; nothing about the shape of the sentence differs.
+//
+// Inside this enrichment a trailing 'ASAP or Saturday' is definitionally a
+// window, never part of a service name, so cut the candidate at the first
+// availability cue. The result is only used when it is still substantial, so a
+// name that is *entirely* cue-like ('Evening facial') falls back to the raw
+// candidate rather than collapsing to nothing.
+function stripAvailabilityCueTailFromServiceName(rawName: string): string {
+  const match = AVAILABILITY_CLAUSE_CUE.exec(rawName);
+  if (!match) return rawName;
+  const head = rawName
+    .slice(0, match.index)
+    .trim()
+    .replace(/\s+(?:or|and|կամ|или)$/iu, '')
+    .trim();
+  return head.length >= 3 ? head : rawName;
+}
+
 /** Leading service + optional inline budget before OR window parse (avail-budget-under-or-en). */
 export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
   prompt: string,
@@ -368,7 +395,9 @@ export function enrichFlexibleAvailabilityServiceCategoryFromPrompt(
     ?.trim()
     .replace(/[,.]$/, '');
   if (keyword && keyword.length >= 3) {
-    const fields = resolveAvailabilityServiceFieldsFromKeyword(keyword);
+    const fields = resolveAvailabilityServiceFieldsFromKeyword(
+      stripAvailabilityCueTailFromServiceName(keyword),
+    );
     return {
       ...params,
       serviceName: fields.serviceName,

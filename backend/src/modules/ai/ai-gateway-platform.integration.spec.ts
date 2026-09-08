@@ -1,6 +1,12 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { AiGatewayService } from './ai-gateway.service.js';
-import { createAiGatewayPlatformMocks } from './ai-gateway.test-mocks.js';
+import {
+  createAiGatewayPlatformMocks,
+  customerExecuteCommandMock,
+  dashboardExecuteCommandMock,
+  providerExecuteCommandMock,
+  ragContextBlockMock,
+} from './ai-gateway.test-mocks.js';
 
 describe('Sprint 22 AI gateway intelligence integration', () => {
   const dashboardResult = {
@@ -22,12 +28,12 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
     providerResult?: Record<string, unknown>;
   }) {
     const dashboardCommands = {
-      executeCommand: jest.fn(async () => dashboardResult),
+      executeCommand: dashboardExecuteCommandMock(async () => dashboardResult),
       approveTask: jest.fn(),
       retryWorkflowStep: jest.fn(),
     };
     const providerCommands = {
-      executeCommand: jest.fn(
+      executeCommand: providerExecuteCommandMock(
         async () =>
           overrides?.providerResult ?? {
             success: true,
@@ -53,7 +59,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
       })),
     };
     const rag = {
-      buildRagContextBlock: jest.fn(
+      buildRagContextBlock: ragContextBlockMock(
         async () => overrides?.ragBlock ?? 'rag block',
       ),
     };
@@ -161,7 +167,7 @@ describe('Sprint 22 AI gateway intelligence integration', () => {
 
   it('ai-guide-1.0.3 — resolves assistantMode for customer/public surface', async () => {
     const customerCommands = {
-      executeCommand: jest.fn(async () => dashboardResult),
+      executeCommand: customerExecuteCommandMock(async () => dashboardResult),
     };
     const { aiSettings, platform, commandTrace } =
       createAiGatewayPlatformMocks();

@@ -36,7 +36,7 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
       apiKey: 'sk-test-platform',
     });
     businessRepo.findOne.mockResolvedValue({
-      id: 'biz-embed-1',
+      id: '76c7fe27-5746-4f97-8899-f41b4ef8d41e',
       settings: {},
     });
 
@@ -50,7 +50,14 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
     service = new OpenAiGatewayService(
       businessRepo as never,
       config as unknown as ConfigService,
-      { resolveRuntimeConfig } as unknown as OpenAiIntegrationService,
+      {
+        resolveRuntimeConfig,
+        // e2e-bug.471 — the gateway gained a platform-level fallback
+        // (getPlatformClient). null is the honest answer for a spec that
+        // never declared a platform key, so it falls through to the
+        // per-business config these tests are about.
+        platformRuntimeConfig: jest.fn().mockReturnValue(null),
+      } as unknown as OpenAiIntegrationService,
       { recordUsage } as unknown as AiUsageService,
     );
   });
@@ -85,7 +92,7 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
 
   it('returns null without calling OpenAI when text is blank', async () => {
     const context: AiCallContext = {
-      businessId: 'biz-embed-1',
+      businessId: '76c7fe27-5746-4f97-8899-f41b4ef8d41e',
       surface: 'dashboard',
       operation: 'semantic_intent_match',
       actorType: 'system',
@@ -100,7 +107,7 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
     resolveRuntimeConfig.mockReturnValue(null);
 
     const context: AiCallContext = {
-      businessId: 'biz-missing',
+      businessId: 'fd9dc520-1fd6-4dfa-816f-85381fada4ed',
       surface: 'dashboard',
       operation: 'semantic_intent_match',
       actorType: 'system',
@@ -115,7 +122,7 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
     embeddingsCreate.mockRejectedValueOnce(new Error('rate limited'));
 
     const context: AiCallContext = {
-      businessId: 'biz-embed-1',
+      businessId: '76c7fe27-5746-4f97-8899-f41b4ef8d41e',
       surface: 'dashboard',
       operation: 'semantic_intent_match',
       actorType: 'system',
@@ -135,13 +142,20 @@ describe('OpenAiGatewayService embedText (pipe-1.4.2)', () => {
     const gateway = new OpenAiGatewayService(
       businessRepo as never,
       config as unknown as ConfigService,
-      { resolveRuntimeConfig } as unknown as OpenAiIntegrationService,
+      {
+        resolveRuntimeConfig,
+        // e2e-bug.471 — the gateway gained a platform-level fallback
+        // (getPlatformClient). null is the honest answer for a spec that
+        // never declared a platform key, so it falls through to the
+        // per-business config these tests are about.
+        platformRuntimeConfig: jest.fn().mockReturnValue(null),
+      } as unknown as OpenAiIntegrationService,
       { recordUsage } as unknown as AiUsageService,
     );
 
     await gateway.embedText(
       {
-        businessId: 'biz-embed-1',
+        businessId: '76c7fe27-5746-4f97-8899-f41b4ef8d41e',
         surface: 'dashboard',
         operation: 'semantic_intent_anchor',
         actorType: 'system',

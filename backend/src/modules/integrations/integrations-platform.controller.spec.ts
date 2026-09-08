@@ -33,7 +33,8 @@ describe('IntegrationsController platform maturity endpoints', () => {
     {} as DistributionIntegrationService,
     zapierIntegrationService as unknown as ZapierIntegrationService,
     accountingIntegrationService as unknown as AccountingIntegrationService,
-  );
+  
+    undefined as never);
 
   const membership = { role: 'owner' };
   const user = { id: 'user-1' };

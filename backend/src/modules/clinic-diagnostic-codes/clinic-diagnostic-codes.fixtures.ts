@@ -76,7 +76,20 @@ export const FORBIDDEN_BILLING_CODE_SYSTEM_SCENARIOS = [
   { id: 'reject-md-billing', codeSystem: 'MD-BILLING' },
 ] as const;
 
-export const CLINIC_DIAGNOSTIC_CODE_NORMALIZATION_SCENARIOS = [
+/**
+ * Declared so the array is one type, not a union of two literal shapes. The two
+ * members assert different outputs — one normalisation, one search string — so
+ * each expectation is optional.
+ */
+export type ClinicDiagnosticCodeNormalizationScenario = {
+  id: string;
+  input: { code: string; description: string };
+  expectedCode?: string;
+  expectedDescription?: string;
+  expectedSearch?: string;
+};
+
+export const CLINIC_DIAGNOSTIC_CODE_NORMALIZATION_SCENARIOS: readonly ClinicDiagnosticCodeNormalizationScenario[] = [
   {
     id: 'trim-and-uppercase-code',
     input: { code: ' e11.9 ', description: '  Type 2 diabetes  ' },

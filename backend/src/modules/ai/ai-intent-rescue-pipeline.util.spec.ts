@@ -85,11 +85,17 @@ describe('ai-intent-rescue-pipeline.util (pipe-1.5.1)', () => {
     ]);
   });
 
+  // e2e-bug.531 — this used `list_my_bookings`, which is **not** allowed on the
+  // provider surface, so `acceptRescueForSurface` discarded the hit exactly as
+  // e2e-bug.435 intends and the pipeline returned nothing. The test is about
+  // *ordering* — that a legitimate hit stops the chain — so it needs an action
+  // the surface can actually run. `list_bookings` is provider-legal; verified
+  // rather than assumed via isIntentAllowedOnSurface.
   it('stops after provider hit without later phases', () => {
     const host = createTrackingHost();
     host.runRescueProviderPhase = () => {
       host.calls.push('provider_surface');
-      return rescueResult('list_my_bookings');
+      return rescueResult('list_bookings');
     };
     const result = runIntentRescuePipeline(host, {
       prompt: 'my bookings',
@@ -97,7 +103,7 @@ describe('ai-intent-rescue-pipeline.util (pipe-1.5.1)', () => {
       params: {},
       surface: 'provider',
     });
-    expect(result?.action).toBe('list_my_bookings');
+    expect(result?.action).toBe('list_bookings');
     expect(host.calls).toEqual(['provider_surface']);
   });
 

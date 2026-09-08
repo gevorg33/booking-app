@@ -4,7 +4,10 @@ import {
   FAST_HEURISTIC_FORBIDDEN_PARAPHRASE_SYMBOLS,
   FAST_INTENT_HEURISTICS_BOUNDARY_DOC,
 } from './fast-intent-heuristics.boundary.js';
-import { checkFastIntentHeuristicsBoundary } from './fast-intent-heuristics-boundary-gate.util.js';
+import {
+  listDelegationImports,
+  checkFastIntentHeuristicsBoundary,
+} from './fast-intent-heuristics-boundary-gate.util.js';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -27,9 +30,10 @@ describe('fast-intent-heuristics boundary gate (pipe-1.2.3 / acc-3.14)', () => {
   it('allowlist covers current fast-heuristics delegation imports', () => {
     for (const rel of FAST_HEURISTIC_BOUNDARY_RELATIVE_FILES) {
       const content = readFileSync(path.join(MODULE_DIR, rel), 'utf8');
-      const imports = [...content.matchAll(/from\s+['"](\.\/[^'"]+)['"]/g)].map(
-        (match) => path.basename((match[1] ?? '').replace(/\.js$/, '')),
-      );
+      // §229 — use the gate's own scanner rather than a second copy of the
+      // regex. The duplicate is what kept this test red after the checker
+      // learned to ignore `import type`.
+      const imports = listDelegationImports(content);
       for (const mod of imports) {
         expect(FAST_HEURISTIC_ALLOWED_IMPORT_MODULES).toContain(mod);
       }

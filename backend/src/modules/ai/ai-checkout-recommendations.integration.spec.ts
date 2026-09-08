@@ -4,6 +4,7 @@ import { EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS } from './ai-checkout-recommen
 import { handleExplainCheckoutRecommendationsLogic } from './ai-checkout-recommendations.logic.js';
 import { AI_COMMAND_EVAL_EXPLAIN_CHECKOUT_RECOMMENDATIONS_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai checkout recommendations integration (ai-cmd-rec-5)', () => {
   const business = {
@@ -56,15 +57,14 @@ describe('ai checkout recommendations integration (ai-cmd-rec-5)', () => {
       if (aspect) params.aspect = aspect;
       if (serviceName) params.serviceName = serviceName;
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_checkout_recommendations',
         params,
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
     },
   );

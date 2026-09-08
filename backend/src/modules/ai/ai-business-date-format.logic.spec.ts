@@ -18,15 +18,16 @@ import {
   DASHBOARD_DATE_SURFACE_MIGRATED,
 } from './ai-dashboard-date-surface-audit.fixtures.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-business-date-format.logic (ai-cmd-fmt-1..2)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { dateFormat: 'DD/MM/YYYY', timeFormat: '24h' },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),

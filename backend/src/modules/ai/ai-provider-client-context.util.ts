@@ -87,7 +87,7 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
         prompt,
       )) ||
     (containsCyrillicScript(prompt) &&
-      /(кратко|расскаж|об этом клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
+      /(кратко|расскаж|обзор|об этом клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
         prompt,
       )) ||
     /\bhow many times has [A-Z]/i.test(prompt);
@@ -105,10 +105,25 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
     (containsCyrillicScript(prompt) &&
       /(клиент|лояльн|визит|referral|no-show)/i.test(prompt));
 
-  const marketingSnapshot =
+  // acc-2.4 / §225 — both halves must accept non-Latin scripts.
+  //
+  // The subject words (marketing, referral, loyalty, no-show) are borrowed
+  // verbatim into hy and ru, so the first half already matched — but the second
+  // half only knew the English words for "client", so
+  // «Этот клиент согласен на marketing email?» and
+  // «Այս հաճախորդին referral-ով եկե՞լ է մեկը» failed on the half that was
+  // already spelled out in `clientCue` a few lines above. Reusing that instead
+  // of a second, narrower copy is what keeps the two from drifting again.
+  const marketingSubject =
     /\b(marketing|opted in|opt in|referral|loyalty|no[\s-]?shows?)\b/i.test(
       lower,
-    ) && /\b(client|customer|this customer|guest)\b/i.test(lower);
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(լոյալ|referral|marketing)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(лояльн|referral|marketing|no-show)/i.test(prompt));
+
+  const marketingSnapshot = marketingSubject && clientCue;
 
   if (
     marketingSnapshot &&

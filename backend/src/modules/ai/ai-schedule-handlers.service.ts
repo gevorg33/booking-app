@@ -1,3 +1,4 @@
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
@@ -12,6 +13,8 @@ import { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
 import {
   resolveEmployees,
   resolveTemplate,
+  resolveTemplateVerdict,
+  resolveEmployeesVerdict,
   resolveServices,
   resolveScheduleServicesForEmployee,
   resolveDateRange,
@@ -77,7 +80,24 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ): Promise<CommandResult> {
-    const targets = resolveEmployees(employees, params);
+    // D5 / §233 — `resolveEmployees` picks one provider per requested name
+    // and cannot say "ambiguous", so a namesake tie acted on whichever
+    // sorted first. The `allProviders` arm is left untouched: it is also set
+    // by a prompt regex here, and asking for everyone names nobody.
+    const providerVerdict = resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'apply_schedule',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     if (targets.length === 0) {
       return {
         success: false,
@@ -101,7 +121,26 @@ export class AiScheduleHandlersService {
       where: { businessId, isDeleted: false },
       order: { name: 'ASC' },
     });
-    const template = resolveTemplate(templates, params.templateName);
+    // D5 / §227 — refuse a substring tie before acting. `resolveTemplate`
+    // cannot say "ambiguous", so "Summer" silently picked between
+    // "Summer 2025" and "Summer 2026" on a path that writes.
+    const templateVerdict = resolveTemplateVerdict(
+      templates,
+      params.templateName,
+    );
+    if (templateVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'apply_schedule',
+        summary: templateVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          candidates: templateVerdict.ambiguous.candidates,
+          availableTemplates: templates.map((t) => t.name),
+        },
+      };
+    }
+    const template = templateVerdict.template;
     if (!template) {
       return {
         success: false,
@@ -137,6 +176,31 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ): Promise<CommandResult> {
+    const allProviders =
+      params.allProviders === true ||
+      /all providers|everyone|all staff|all employees/i.test(prompt);
+    // D5 / §233 — hoisted above the plan build on purpose. `resolveEmployees`
+    // picks one provider per requested name and cannot say "ambiguous", and
+    // `prepareBlockSchedulePlan` resolves providers itself, so leaving the
+    // guard below it meant a plan was *built* against the silently-picked
+    // namesake before anything refused. The write was still blocked, but there
+    // is no reason to compute the wrong plan first.
+    const providerVerdict = allProviders
+      ? { targets: employees }
+      : resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'block_schedule',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+
     const plan = await this.prepareBlockSchedulePlan(
       businessId,
       prompt,
@@ -153,12 +217,7 @@ export class AiScheduleHandlersService {
         details: { params },
       };
     }
-    const allProviders =
-      params.allProviders === true ||
-      /all providers|everyone|all staff|all employees/i.test(prompt);
-    const targets = allProviders
-      ? employees
-      : resolveEmployees(employees, params);
+    const targets = providerVerdict.targets;
     return this.executePlan(plan, businessId, userId, targets.length);
   }
 
@@ -174,9 +233,26 @@ export class AiScheduleHandlersService {
       params.allProviders === true ||
       /all providers|everyone|all staff/i.test(prompt);
 
-    const targets = allProviders
-      ? employees
-      : resolveEmployees(employees, params);
+    // D5 / §233 — `resolveEmployees` picks one provider per requested name and
+    // cannot say "ambiguous", so a namesake tie acted on whichever sorted
+    // first. The `allProviders` arm is untouched: it is also set by a prompt
+    // regex here, and asking for everyone names nobody.
+    const providerVerdict = allProviders
+      ? { targets: employees }
+      : resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'fill_unused_slots',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     if (targets.length === 0) {
       return {
         success: false,
@@ -415,6 +491,33 @@ export class AiScheduleHandlersService {
     services: Service[],
     userId?: string,
   ): Promise<CommandResult> {
+    // D5 / §234 — `prepareDirectSchedulePlan` returns `AgentPlan | null` and so
+    // cannot carry a refusal; the tracker classified this site as return-shape
+    // blocked on that basis. It is not blocked — the *caller* can refuse. Same
+    // hoist as `handleBlockSchedule` in §233, and it also stops a plan being
+    // built against the silently-picked namesake.
+    // No prompt-regex arm here on purpose. `resolveEmployeesVerdict` already
+    // short-circuits `params.allProviders`, and a team-wide phrasing names no
+    // provider at all — `getRequestedEmployeeNames` returns nothing, so there
+    // is nothing to be ambiguous about. Re-deriving the scope from the prompt
+    // would duplicate `prepareDirectSchedulePlan`'s own logic and adds a call
+    // site to `isTeamWideProviderScopePrompt`, which reclassifies that detector
+    // in the Phase 8 inventory (548 → 549 paraphrase detectors) — a real gate
+    // failure for no behavioural gain.
+    const providerVerdict = resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'create_direct_schedule',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+
     const plan = await this.prepareDirectSchedulePlan(
       businessId,
       prompt,
@@ -590,9 +693,26 @@ export class AiScheduleHandlersService {
       params.allProviders === true ||
       /all providers|everyone|whole team|all staff/i.test(prompt);
 
-    const targets = allProviders
-      ? employees
-      : resolveEmployees(employees, params);
+    // D5 / §233 — `resolveEmployees` picks one provider per requested name and
+    // cannot say "ambiguous", so a namesake tie acted on whichever sorted
+    // first. The `allProviders` arm is untouched: it is also set by a prompt
+    // regex here, and asking for everyone names nobody.
+    const providerVerdict = allProviders
+      ? { targets: employees }
+      : resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'setup_week_schedule',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     if (targets.length === 0) {
       return {
         success: false,
@@ -617,7 +737,28 @@ export class AiScheduleHandlersService {
       where: { businessId, isDeleted: false },
       order: { name: 'ASC' },
     });
-    const template = resolveTemplate(templates, params.templateName);
+    // D5 / §227 — refuse a substring tie before acting. `resolveTemplate`
+    // cannot say "ambiguous", so "Summer" silently picked between
+    // "Summer 2025" and "Summer 2026" on a path that writes.
+    const templateVerdict = resolveTemplateVerdict(
+      templates,
+      params.templateName,
+    );
+    if (templateVerdict.ambiguous) {
+      return {
+        success: false,
+        // matches the miss return below — this handler answers as
+        // `setup_week_schedule`, so the refusal must not invent a new action.
+        action: 'setup_week_schedule',
+        summary: templateVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          candidates: templateVerdict.ambiguous.candidates,
+          availableTemplates: templates.map((t) => t.name),
+        },
+      };
+    }
+    const template = templateVerdict.template;
     if (!template) {
       return {
         success: false,
@@ -1082,7 +1223,26 @@ export class AiScheduleHandlersService {
       where: { businessId, isDeleted: false },
       order: { name: 'ASC' },
     });
-    const template = resolveTemplate(templates, params.templateName);
+    // D5 / §227 — refuse a substring tie before acting. `resolveTemplate`
+    // cannot say "ambiguous", so "Summer" silently picked between
+    // "Summer 2025" and "Summer 2026" on a path that writes.
+    const templateVerdict = resolveTemplateVerdict(
+      templates,
+      params.templateName,
+    );
+    if (templateVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'update_schedule_template',
+        summary: templateVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          candidates: templateVerdict.ambiguous.candidates,
+          availableTemplates: templates.map((t) => t.name),
+        },
+      };
+    }
+    const template = templateVerdict.template;
     if (!template) {
       return {
         success: false,
@@ -1141,8 +1301,36 @@ export class AiScheduleHandlersService {
     });
     const matched: ScheduleTemplate[] = [];
     const notFound: string[] = [];
+    // D5 / §226 — this **deletes**, and `resolveTemplate` cannot say
+    // "ambiguous". Its second tier is a substring match, so "Summer" matches
+    // both "Summer 2025" and "Summer 2026" and the silent pick deleted
+    // whichever sorted first — then reported success naming that one, so the
+    // user had no way to notice the other was the one they meant. Refuse the
+    // tie before deleting anything; `not_found` still falls through to the
+    // legacy matcher so acceptance can only stay the same or widen.
     for (const name of requestedNames) {
-      const template = resolveTemplate(templates, name);
+      const verdict = resolveEntity(templates, name, {
+        entityLabel: 'template',
+      });
+      if (verdict.status === 'ambiguous') {
+        return {
+          success: false,
+          action: 'delete_schedule_templates',
+          summary:
+            verdict.clarification ??
+            `More than one template matches "${name}".`,
+          details: {
+            clarify: true,
+            requestedName: name,
+            candidates: verdict.candidates.map((c) => ({
+              id: String(c.id ?? ''),
+              name: c.name,
+            })),
+            availableTemplates: templates.map((t) => t.name),
+          },
+        };
+      }
+      const template = verdict.match ?? resolveTemplate(templates, name);
       if (template) matched.push(template);
       else notFound.push(name);
     }
@@ -1182,7 +1370,26 @@ export class AiScheduleHandlersService {
       where: { businessId, isDeleted: false },
       order: { name: 'ASC' },
     });
-    const template = resolveTemplate(templates, params.templateName);
+    // D5 / §227 — refuse a substring tie before acting. `resolveTemplate`
+    // cannot say "ambiguous", so "Summer" silently picked between
+    // "Summer 2025" and "Summer 2026" on a path that writes.
+    const templateVerdict = resolveTemplateVerdict(
+      templates,
+      params.templateName,
+    );
+    if (templateVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'duplicate_schedule_template',
+        summary: templateVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          candidates: templateVerdict.ambiguous.candidates,
+          availableTemplates: templates.map((t) => t.name),
+        },
+      };
+    }
+    const template = templateVerdict.template;
     if (!template) {
       return {
         success: false,
@@ -1212,7 +1419,24 @@ export class AiScheduleHandlersService {
     employees: Employee[],
     userId?: string,
   ): Promise<CommandResult> {
-    const targets = resolveEmployees(employees, params);
+    // D5 / §231 — this **removes** a block. `resolveEmployees` picks one
+    // employee per requested name and cannot say "ambiguous", so with two
+    // providers sharing a name "delete John's Tuesday block" deleted whichever
+    // sorted first — the same shape as §226's template delete.
+    const providerVerdict = resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'delete_schedule_block',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     const employee = targets[0];
     if (!employee) {
       return {

@@ -8,6 +8,7 @@ import { rescueExplainPostVisitReviewPromptIntent } from './ai-explain-post-visi
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_EXPLAIN_POST_VISIT_REVIEW_PROMPT_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-explain-post-visit-review-prompt integration (ai-cmd-customer-4.12.2)', () => {
   const deps = () => ({
@@ -31,15 +32,14 @@ describe('ai-explain-post-visit-review-prompt integration (ai-cmd-customer-4.12.
   it.each(EXPLAIN_POST_VISIT_REVIEW_PROMPT_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_post_visit_review_prompt',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPostVisitReviewPromptLogic(

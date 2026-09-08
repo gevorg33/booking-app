@@ -3,6 +3,7 @@ import { validateCommand } from './command-completion.validator.js';
 import { DIAGNOSE_TOUR_CAPACITY_PROMPTS } from './ai-tour-capacity.fixtures.js';
 import { handleDiagnoseTourCapacityLogic } from './ai-tour-capacity.logic.js';
 import { rescueDiagnoseTourCapacityIntent } from './ai-tour-capacity.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour capacity integration (ai-cmd-tour-9)', () => {
   const mountainTrek = {
@@ -55,7 +56,7 @@ describe('ai tour capacity integration (ai-cmd-tour-9)', () => {
       const rescued = rescueDiagnoseTourCapacityIntent(prompt, 'unknown');
       expect(rescued?.action).toBe('diagnose_tour_capacity');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'diagnose_tour_capacity',
         params: {
           ...(serviceName ? { serviceName } : {}),
@@ -64,11 +65,10 @@ describe('ai tour capacity integration (ai-cmd-tour-9)', () => {
           ...(aspect ? { aspect } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleDiagnoseTourCapacityLogic(

@@ -1,3 +1,4 @@
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -40,12 +41,38 @@ function resolveSessionCustomerId(
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 }
 
+/**
+ * tech-debt B7 / e2e-bug.367 — this local copy now refuses a tie.
+ *
+ * §187 filed the four remaining re-parsers as blocked on one decision: "may
+ * these surfaces ask a clarifying question", on the grounds that every copy
+ * *guesses* while `EntityResolutionService` *asks*, making each migration a
+ * contract change for its callers.
+ *
+ * Checked, and this caller needs no contract change: an unresolved service simply leaves
+ * `serviceName` as the typed text and navigates to the professionals list
+ * instead of a booking — already the "I could not pin this down" behaviour.
+ *
+ * So the tie is detected with the shared `resolveEntity` and answered with
+ * `undefined`, which the existing path already handles. Acceptance is otherwise
+ * untouched — the original tiers still run for every non-tied name — so this
+ * can only refuse a name that previously resolved to an arbitrary one of
+ * several equally good matches.
+ */
 function resolveServiceByName(
   services: readonly Service[],
   serviceName: string,
 ): Service | undefined {
   const needle = serviceName.trim().toLowerCase();
   if (!needle) return undefined;
+  if (
+    resolveEntity(services, serviceName, {
+      entityLabel: 'service',
+      threshold: 0,
+    }).status === 'ambiguous'
+  ) {
+    return undefined;
+  }
   return (
     services.find((entry) => entry.name.toLowerCase() === needle) ??
     services.find((entry) => entry.name.toLowerCase().includes(needle)) ??

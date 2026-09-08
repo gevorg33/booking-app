@@ -1,3 +1,4 @@
+import { isExplainProviderSpecialtyPrompt } from './ai-explain-provider-specialty.util.js';
 import { isExplainCheckoutCurrencyPrompt } from './ai-checkout-currency.util.js';
 import {
   isBudgetGiftCardMisroute,
@@ -254,6 +255,22 @@ export function isProviderRankDiscoveryPrompt(prompt: string): boolean {
   if (isBudgetGiftCardMisroute(prompt)) return false;
   if (isBudgetPackageDiscoveryPrompt(prompt)) return false;
   if (isServiceCatalogRecommendNotProviderPrompt(prompt)) return false;
+  // e2e-bug.434 — a specialty *read* is not a ranking ask.
+  //
+  // "Who is best for curly hair?" is claimed by both this detector and
+  // `explain_provider_specialty`, and the two are genuinely close: one ranks
+  // providers, the other answers who has a given skill. Probed across the
+  // neighbouring phrasings, only this one is ambiguous —
+  //
+  //     "Who is best for curly hair?"              specialty ✓  rank ✓   ← both
+  //     "Who is the best stylist?"                 specialty ✗  rank ✓
+  //     "Which provider is top rated for massage?" specialty ✗  rank ✓
+  //     "Who is the expert in balayage?"           specialty ✓  rank ✗
+  //
+  // — so the exclusion costs the ranking detector nothing it uniquely owns. It
+  // sits above `isServiceCatalogRankSpecialistPrompt`, which returns `true`
+  // outright and would otherwise short-circuit the question.
+  if (isExplainProviderSpecialtyPrompt(prompt)) return false;
   if (isServiceCatalogRankSpecialistPrompt(prompt)) return true;
   if (
     PROVIDER_RATING_PATTERN.test(prompt) &&

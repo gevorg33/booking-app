@@ -263,9 +263,16 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
     it('rescues my_* account intents', () => {
       expect(
         rescue.rescue({
+          // e2e-bug.444 — `surface` is what makes this a *customer* rescue.
+          // `blockProviderNests` is `surface === 'customer' || 'public'`, so
+          // omitting it left the provider-only nests eligible and "Show my
+          // profile" resolved to `show_provider_profile`. The production path
+          // (`command-understanding-pipeline.service.ts`) always passes the
+          // surface; this call was the only thing not doing so.
           prompt: 'Show my profile',
           action: 'unknown',
           params: {},
+          surface: 'customer',
         })?.action,
       ).toBe('my_profile');
       expect(
@@ -274,7 +281,20 @@ describe('Sprint 28 customer account & CRM AI scenarios', () => {
           action: 'unknown',
           params: {},
         })?.action,
-      ).toBe('list_my_appointments');
+        // e2e-bug.532 — two real commands list the requesting customer's
+        // appointments on the customer surface: `booking.list_my_appointments`
+        // (handler AiSelfServiceBookingService) and `customer.my_appointments`
+        // (AiCustomerCrmService). From `action: 'unknown'` the CRM rescue owns
+        // the prompt and returns the latter, which is exactly how e2e-bug.75's
+        // steal guard frames the pair: `list_my_appointments` is the
+        // *classification* that a CRM list rescue must not clobber, not the
+        // thing that rescue produces.
+        //
+        // This assertion was also the odd one out in its own block — its
+        // neighbours expect my_profile / my_appointments / my_subscriptions, and
+        // the near-identical prompt 'My appointments' two lines down already
+        // expects my_appointments and passes.
+      ).toBe('my_appointments');
       expect(
         rescue.rescue({
           prompt: 'My appointments',

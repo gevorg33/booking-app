@@ -4,6 +4,7 @@ import { createPublicBookingServiceHarness } from './public-booking-test.harness
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('PublicBookingService appointment reminder profile', () => {
   const stripeIntegrationService = {
@@ -27,7 +28,7 @@ describe('PublicBookingService appointment reminder profile', () => {
     configService: config as unknown as ConfigService,
   });
 
-  const baseBusiness: Business = {
+  const baseBusiness: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -43,7 +44,7 @@ describe('PublicBookingService appointment reminder profile', () => {
         defaultCustomerReminderHours: 12,
       },
     },
-  } as Business;
+  });
 
   it('exposes appointment reminder options on the public profile when enabled', () => {
     const profile = service.toPublicProfile(baseBusiness);
@@ -82,13 +83,13 @@ describe('PublicBookingService appointment reminder profile', () => {
       resolve(baseBusiness, { name: 'Alex', reminderHoursBefore: 99 }),
     ).toThrow(BadRequestException);
 
-    const disabledBusiness = {
+    const disabledBusiness = makeBusiness({
       ...baseBusiness,
       settings: {
         ...baseBusiness.settings,
         notifications: { allowCustomerReminderChoice: false },
       },
-    } as Business;
+    });
     expect(
       resolve(disabledBusiness, { name: 'Alex', reminderHoursBefore: 6 }),
     ).toEqual({});

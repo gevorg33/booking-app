@@ -24,6 +24,7 @@ import {
   narrowShortlist,
 } from './ai-command-shortlist.util.js';
 import type { CommandSpec } from './ai-command-spec.types.js';
+import { applyAnaphoraToPlan } from './ai-anaphora.util.js';
 import {
   decodePlanResponse,
   type PlanDecodeFailure,
@@ -227,20 +228,77 @@ export class AiCommandPlannerService {
     // from `allSpecs` via `isSpecAllowedForTier`, so widening the input here
     // cannot let an impermissible command through. It only restores the correct
     // rejection reason.
-    const validation = validatePlan(
+    let plan = decoded.plan;
+    let validation = validatePlan(
       allSpecs,
-      decoded.plan,
+      plan,
       request.surface,
       request.tier,
     );
 
+    // B4 / e2e-bug.370 — bind same-message anaphora before giving up.
+    //
+    // §49 built `resolveAnaphora`/`bindAnaphorToReference` and nothing called
+    // them. This is the call. It runs only when the plan is already failing,
+    // and only against steps `validatePlan` reported as short a variable, so a
+    // plan that validates first time is untouched — the pass can turn a clarify
+    // into an execution, never the reverse.
+    //
+    // Why here rather than inside `validatePlan`: resolution needs the user's
+    // message, which validation deliberately does not take (it validates a
+    // plan against specs, not against prose). Threading the message into it
+    // would widen a security-relevant function for an unrelated reason.
+    if (!validation.executable) {
+      const missingByStepId = new Map<string, readonly string[]>();
+      for (const problem of validation.problems) {
+        if (problem.code === 'missing_variables' && problem.stepId) {
+          missingByStepId.set(problem.stepId, problem.details ?? []);
+        }
+      }
+
+      if (missingByStepId.size) {
+        const bound = applyAnaphoraToPlan(
+          request.message,
+          plan.steps,
+          missingByStepId,
+          allSpecs,
+        );
+
+        if (bound.ambiguous) {
+          // The resolver found more than one candidate referent. That is a
+          // question for the user, and a better one than the generic
+          // missing-variable clarification it would otherwise get.
+          return {
+            status: 'clarify',
+            plan,
+            validation,
+            question:
+              bound.ambiguous.clarification ??
+              describePlanClarification(validation, plan) ??
+              'I need a bit more detail before I can do that.',
+            repairs: decoded.repairs,
+          };
+        }
+
+        if (bound.changed) {
+          plan = { ...plan, steps: bound.steps };
+          validation = validatePlan(
+            allSpecs,
+            plan,
+            request.surface,
+            request.tier,
+          );
+        }
+      }
+    }
+
     if (!validation.executable) {
       return {
         status: 'clarify',
-        plan: decoded.plan,
+        plan,
         validation,
         question:
-          describePlanClarification(validation, decoded.plan) ??
+          describePlanClarification(validation, plan) ??
           'I need a bit more detail before I can do that.',
         repairs: decoded.repairs,
       };
@@ -248,7 +306,7 @@ export class AiCommandPlannerService {
 
     return {
       status: 'executable',
-      plan: decoded.plan,
+      plan,
       validation,
       repairs: decoded.repairs,
     };

@@ -10,9 +10,10 @@ import {
 } from './ai-business-tax.fixtures.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-business-tax.logic (ai-cmd-tax-1..3)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -26,7 +27,7 @@ describe('ai-business-tax.logic (ai-cmd-tax-1..3)', () => {
         taxNumber: 'GB123456789',
       },
     },
-  } as Business;
+  });
 
   const services: Service[] = [
     {

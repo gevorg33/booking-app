@@ -6,9 +6,10 @@ import { PhiFieldService } from '../compliance/phi-field.service.js';
 import { BusinessService } from '../business/business.service.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 const hipaaBusiness = (): Business =>
-  ({
+  makeBusiness({
     id: 'biz-clinic',
     timezone: 'UTC',
     settings: {
@@ -19,7 +20,7 @@ const hipaaBusiness = (): Business =>
         sessionTimeoutMinutes: 15,
       },
     },
-  }) as Business;
+  });
 
 function createHarness(staffEmployeeId: string | null) {
   const auditRepo = {
@@ -110,7 +111,7 @@ describe('Sprint 37 — booking PHI minimum necessary access', () => {
     });
 
     const result = await bookingService.findOne('book-1', {
-      staffUserId: 'staff-1',
+      staffUserId: '11111111-1111-4111-8111-111111111111',
     });
 
     expect(result.notes).toBeNull();
@@ -138,7 +139,7 @@ describe('Sprint 37 — booking PHI minimum necessary access', () => {
     });
 
     const result = await bookingService.findOne('book-2', {
-      staffUserId: 'staff-1',
+      staffUserId: '11111111-1111-4111-8111-111111111111',
     });
 
     expect(result.notes).toBe('Assigned note');

@@ -3,6 +3,7 @@ import { handleExplainTourBookingLogic } from './ai-tour-booking.logic.js';
 import { EXPLAIN_TOUR_BOOKING_PROMPTS } from './ai-tour-booking.fixtures.js';
 import { rescueTourBookingIntent } from './ai-tour-booking.util.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour booking integration (ai-cmd-tour-5)', () => {
   const services = [
@@ -96,15 +97,14 @@ describe('ai tour booking integration (ai-cmd-tour-5)', () => {
       const rescued = rescueTourBookingIntent(prompt, 'unknown');
       expect(rescued?.action).toBe('explain_tour_booking');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_tour_booking',
         params: { serviceName },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourBookingLogic(

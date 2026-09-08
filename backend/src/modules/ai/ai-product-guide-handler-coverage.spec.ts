@@ -41,6 +41,7 @@ import {
   shouldValidateProviderAction,
   validateProviderCommand,
 } from './provider-command-completion.validator.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 const AI_COMMAND_SERVICE_SOURCE = readFileSync(
   join(__dirname, 'ai-command.service.ts'),
@@ -247,15 +248,14 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
       expect(APP_GUIDE_VALIDATED_ACTIONS.has(intent)).toBe(true);
       expect(shouldValidateAction(intent)).toBe(true);
       expect(
-        validateCommand({
+        validateCommand(makeResolvedCommand({
           action: intent,
           prompt: 'Walk me through schedule templates',
           params: { topicId: 'dashboard.core.schedule' },
           enrichedParams: {},
-          entities: {},
+          entities: { employees: [], services: [] },
           reasoning: 'test',
-          confidence: 0.9,
-        }).ok,
+        })).ok,
       ).toBe(true);
     }
     for (const intent of META_PRODUCT_GUIDE_INTENTS) {

@@ -11,9 +11,11 @@ import {
 import { parseConfigureStackedTaxRulesFromPrompt } from './ai-stacked-tax.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai stacked tax integration (ai-cmd-tax-6..7)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -31,7 +33,7 @@ describe('ai stacked tax integration (ai-cmd-tax-6..7)', () => {
         ],
       },
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -86,15 +88,14 @@ describe('ai stacked tax integration (ai-cmd-tax-6..7)', () => {
     });
     expect(rescued?.action).toBe('configure_stacked_tax_rules');
 
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'configure_stacked_tax_rules',
       params: parsed ?? {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt,
-    });
+    }));
     expect(validation.ok).toBe(true);
 
     const result = await handleConfigureStackedTaxRulesLogic(

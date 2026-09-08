@@ -1590,3 +1590,101 @@ describe('ai-customer-crm.logic', () => {
     });
   });
 });
+
+/**
+ * e2e-bug.488 — a tie must name the candidates, not read as "who?".
+ *
+ * tech-debt D5-b stopped these handlers mutating the wrong namesake: when two
+ * customers are called "Anna", the injected resolver returns `undefined` rather
+ * than whichever row sorted first. Safe, but every handler rendered that as its
+ * not-found clarify — "Specify which customer" — which tells the caller the
+ * name is unknown when it actually matched twice, and withholds the only thing
+ * that would let them choose.
+ *
+ * The two cases are pinned together on purpose: the fix must separate them, and
+ * a guard that fired on a genuine miss too would be a regression, not a fix.
+ */
+describe('e2e-bug.488 — ambiguous customer names name their candidates', () => {
+  const twoAnnas = [
+    { id: 'cust-a', name: 'Anna Petrosyan', email: 'a@example.com' },
+    { id: 'cust-b', name: 'Anna Sargsyan', email: 'b@example.com' },
+  ] as any;
+
+  /** Mirrors `resolveCustomerStrict`: refuse a tie, and say who tied. */
+  const strictResolver = (list: any[], name: string, onAmbiguous?: any) => {
+    const hits = list.filter((c) =>
+      c.name.toLowerCase().includes(name.toLowerCase()),
+    );
+    if (hits.length > 1) {
+      onAmbiguous?.({
+        candidates: hits.map((c) => ({ id: c.id, name: c.name })),
+        clarification: `Which customer did you mean by "${name}"?`,
+      });
+      return undefined;
+    }
+    return hits[0];
+  };
+
+  it('refuses with both names instead of the generic clarify', async () => {
+    const result = await handleListCustomerSubscriptionsLogic(
+      buildDeps(),
+      'biz-1',
+      { customerName: 'Anna' },
+      twoAnnas,
+      strictResolver,
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Anna');
+    expect(result.summary).not.toContain('Specify which customer');
+    expect(result.details?.candidates).toEqual([
+      { id: 'cust-a', name: 'Anna Petrosyan' },
+      { id: 'cust-b', name: 'Anna Sargsyan' },
+    ]);
+  });
+
+  it('still refuses — it does not pick one of the namesakes', async () => {
+    // The D5-b guarantee this sits on top of. If a future edit made the
+    // resolver fall back to "first match" the message above would still look
+    // fine, so assert the mutation did not happen rather than only the wording.
+    const deps = buildDeps();
+    const result = await handleListCustomerSubscriptionsLogic(
+      deps,
+      'biz-1',
+      { customerName: 'Anna' },
+      twoAnnas,
+      strictResolver,
+    );
+    expect(result.success).toBe(false);
+    expect(
+      (deps.subscriptionsService.listCustomerSubscriptions as jest.Mock).mock
+        .calls,
+    ).toHaveLength(0);
+  });
+
+  it('leaves the genuine not-found message alone', async () => {
+    // The guard must fire only on a tie. A name that matches nobody is a real
+    // miss and keeps the handler's own wording, which names an example.
+    const result = await handleListCustomerSubscriptionsLogic(
+      buildDeps(),
+      'biz-1',
+      { customerName: 'Nobody' },
+      twoAnnas,
+      strictResolver,
+    );
+    expect(result.success).toBe(false);
+    expect(result.summary).toContain('Specify which customer');
+    expect(result.details?.candidates).toBeUndefined();
+  });
+
+  it('an unambiguous name still resolves', async () => {
+    const result = await handleListCustomerSubscriptionsLogic(
+      buildDeps(),
+      'biz-1',
+      { customerName: 'Anna Petrosyan' },
+      twoAnnas,
+      strictResolver,
+    );
+    expect(result.success).toBe(true);
+  });
+});

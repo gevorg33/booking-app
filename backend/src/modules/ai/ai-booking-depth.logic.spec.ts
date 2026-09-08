@@ -85,7 +85,6 @@ function buildDeps(
       }
     : baseBookingRepo;
   return {
-    bookingRepo: bookingRepo as any,
     businessRepo: {
       findOne: jest.fn().mockResolvedValue({ settings: {} }),
     } as any,
@@ -804,7 +803,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Gevorg Gasparyan' },
@@ -840,7 +839,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Gevorg Gasparyan' },
@@ -881,7 +880,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime,
         customer: { name: 'Gevorg Gasparyan' },
@@ -929,7 +928,7 @@ describe('ai-booking-depth.logic', () => {
           employeeId: 'emp-karo',
           multiServiceGroupId: 'grp-1',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime,
           customer: { name: 'Gevorg Gasparyan' },
@@ -940,7 +939,7 @@ describe('ai-booking-depth.logic', () => {
           employeeId: 'emp-karo',
           multiServiceGroupId: 'grp-1',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime,
           customer: { name: 'Gevorg Gasparyan' },
@@ -986,7 +985,7 @@ describe('ai-booking-depth.logic', () => {
           businessId: 'biz-1',
           employeeId: 'emp-karo',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime: startMorning,
           endTime: new Date('2026-06-05T10:00:00.000Z'),
         },
@@ -995,7 +994,7 @@ describe('ai-booking-depth.logic', () => {
           businessId: 'biz-1',
           employeeId: 'emp-karo',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime: startAfternoon,
           endTime: new Date('2026-06-05T15:00:00.000Z'),
         },
@@ -1047,7 +1046,7 @@ describe('ai-booking-depth.logic', () => {
           businessId: 'biz-1',
           employeeId: 'emp-karo',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime: new Date('2026-06-05T10:50:00.000Z'),
           customer: { name: 'Gevorg Gasparyan' },
@@ -1057,7 +1056,7 @@ describe('ai-booking-depth.logic', () => {
           businessId: 'biz-1',
           employeeId: 'emp-karo',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime: new Date('2026-06-05T10:50:00.000Z'),
           customer: { name: 'Other Client' },
@@ -1133,7 +1132,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Gevorg Gasparyan' },
@@ -1174,7 +1173,7 @@ describe('ai-booking-depth.logic', () => {
           employeeId: 'emp-karo',
           multiServiceGroupId: 'grp-a',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime: new Date('2026-06-05T10:50:00.000Z'),
         },
@@ -1184,7 +1183,7 @@ describe('ai-booking-depth.logic', () => {
           employeeId: 'emp-karo',
           multiServiceGroupId: 'grp-b',
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime,
           endTime: new Date('2026-06-05T10:50:00.000Z'),
         },
@@ -1226,7 +1225,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
       };
@@ -1336,7 +1335,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Sam' },
@@ -1395,7 +1394,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-karo',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T06:50:00.000Z'),
         customer: { name: 'Gevorg Gasparyan' },
@@ -1431,7 +1430,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-other',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Karo Mazmanyan' },
@@ -1481,7 +1480,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-gevorg',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Karo Mazmanyan' },
@@ -1528,7 +1527,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-other',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Karo Mazmanyan' },
@@ -1542,7 +1541,7 @@ describe('ai-booking-depth.logic', () => {
               id: 'other',
               businessId: 'biz-1',
               status: BookingStatus.CONFIRMED,
-              paymentStatus: PaymentStatus.UNPAID,
+              paymentStatus: PaymentStatus.PENDING,
               startTime,
               endTime: new Date('2026-06-05T10:50:00.000Z'),
               customer: { name: 'Someone Else' },
@@ -1577,7 +1576,7 @@ describe('ai-booking-depth.logic', () => {
         businessId: 'biz-1',
         employeeId: 'emp-gevorg',
         status: BookingStatus.CONFIRMED,
-        paymentStatus: PaymentStatus.UNPAID,
+        paymentStatus: PaymentStatus.PENDING,
         startTime,
         endTime: new Date('2026-06-05T10:50:00.000Z'),
         customer: { name: 'Gevorg Gasparyan' },
@@ -1930,6 +1929,52 @@ describe('ai-booking-depth.logic', () => {
         'user-1',
       );
       expect(lineOnly.success).toBe(true);
+    });
+
+    it('names a line it had to skip instead of reporting a clean success', async () => {
+      // tech-debt D5-b / e2e-bug.448(a) shape. The loop's `continue` dropped a
+      // line whose provider could not be resolved and still reported "Booked N
+      // appointment(s)" — a partial success the user is never told about. Two
+      // lines are needed to reach this: with one, `created` is empty and the
+      // failure branch answers instead.
+      //
+      // This is also what made refusing an ambiguous provider name safe here:
+      // before it, a tie would have become a silent skip rather than a guess.
+      const deps = buildDeps();
+      const sparsePkg = { ...pkg, items: [{ service: services[0] }] };
+      const result = await handleCreatePackageBookingLogic(
+        deps,
+        'biz-1',
+        {
+          packageName: 'Spa Day',
+          customerName: 'Maria',
+          packageLines: [
+            {
+              employeeName: 'Anna',
+              serviceId: 's1',
+              startTime: '2026-06-12T10:00:00.000Z',
+            },
+            {
+              employeeName: 'Nobody By That Name',
+              serviceId: 's1',
+              startTime: '2026-06-12T11:00:00.000Z',
+            },
+          ],
+        },
+        business,
+        employees,
+        services,
+        customers,
+        resolveEmployee,
+        resolveCustomer,
+        jest.fn().mockResolvedValue(sparsePkg),
+        'user-1',
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.summary).toContain('1 line(s) skipped');
+      expect(result.summary).toContain('Nobody By That Name');
+      expect((result.details as any)?.skippedLines).toHaveLength(1);
     });
 
     it('creates package booking from packageLines', async () => {

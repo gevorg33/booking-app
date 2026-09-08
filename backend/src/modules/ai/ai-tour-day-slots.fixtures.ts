@@ -9,7 +9,17 @@ export const TOUR_DAY_SLOTS_CLASSIFIER_RULES = `- explain_tour_day_slots: READ �
   - "Քանի տեղ է մնացել 15/08/2026-ին Mountain Trek-ի համար" → explain_tour_day_slots, serviceName=Mountain Trek, date=15/08/2026
   - "Why does Mountain Trek show only one departure time per day when I book?" → explain_tour_day_slots, serviceName=Mountain Trek`;
 
-export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS = [
+/** Declared so the array is one type, not a union of twenty-eight literal shapes. */
+export type ExplainTourDaySlotsPromptFixture = {
+  id: string;
+  prompt: string;
+  aspect: 'fullyBooked' | 'oneDeparture' | 'remainingSpots';
+  surface: 'customer' | 'public';
+  serviceName?: string;
+  date?: string;
+};
+
+export const EXPLAIN_TOUR_DAY_SLOTS_PROMPTS: readonly ExplainTourDaySlotsPromptFixture[] = [
   {
     id: 'public-one-departure-mountain-trek',
     prompt: 'Why does the 3-Day Mountain Trek only show one departure per day?',

@@ -5,6 +5,7 @@ import {
   EXPLAIN_CLINIC_BOOKING_PROMPTS,
 } from './ai-clinic-booking.fixtures.js';
 import { rescueExplainClinicBookingIntent } from './ai-clinic-booking.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai clinic booking integration (ai-cmd-clinic-5)', () => {
   const businessRepo = { findOne: jest.fn() };
@@ -46,15 +47,14 @@ describe('ai clinic booking integration (ai-cmd-clinic-5)', () => {
   it.each(EXPLAIN_CLINIC_BOOKING_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_clinic_booking',
         params: serviceName ? { serviceName } : {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainClinicBookingLogic(

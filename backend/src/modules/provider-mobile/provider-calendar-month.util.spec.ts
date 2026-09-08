@@ -130,7 +130,7 @@ describe('provider-calendar-month.util (prov-exp-10.2)', () => {
       bookings: [
         {
           status: 'cancelled',
-          paymentStatus: 'unpaid',
+          paymentStatus: 'pending',
           startTime: new Date('2026-06-15T10:00:00.000Z'),
           endTime: new Date('2026-06-15T11:00:00.000Z'),
         },

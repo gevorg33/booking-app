@@ -11,8 +11,8 @@ import * as helpers from './ai-orchestration.helpers.js';
 
 describe('AiWeeklyReportService', () => {
   const bookingRepo = {
-    find: jest.fn(),
-    count: jest.fn(),
+    find: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    count: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
   const businessRepo = {
     findOne: jest
@@ -20,13 +20,13 @@ describe('AiWeeklyReportService', () => {
       .mockResolvedValue({ id: 'biz-1', settings: { currency: 'USD' } }),
   };
   const employeeRepo = {
-    find: jest.fn(),
+    find: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
   const schedulingEngine = {
-    findConflicts: jest.fn(),
+    findConflicts: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
   const intelligence = {
-    generateWeeklyReport: jest.fn(),
+    generateWeeklyReport: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
 
   const service = new AiWeeklyReportService(

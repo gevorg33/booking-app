@@ -48,7 +48,8 @@ describe('Sprint 36 — service tax override integration', () => {
     businessRepo as never,
     eventStore as never,
     stripeIntegrationService as never,
-  );
+  
+    undefined as never);
 
   beforeEach(() => {
     services.length = 0;

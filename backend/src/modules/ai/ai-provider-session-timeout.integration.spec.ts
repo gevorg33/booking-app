@@ -4,9 +4,10 @@ import { EXPLAIN_PROVIDER_SESSION_TIMEOUT_PROMPTS } from './ai-provider-session-
 import { AI_COMMAND_EVAL_EXPLAIN_PROVIDER_SESSION_TIMEOUT_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai provider session timeout integration (ai-cmd-compliance-20)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Clinic',
     slug: 'clinic',
@@ -15,7 +16,7 @@ describe('ai provider session timeout integration (ai-cmd-compliance-20)', () =>
       businessType: 'clinic',
       hipaa: { enabled: true, sessionTimeoutMinutes: 15 },
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),

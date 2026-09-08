@@ -24,10 +24,21 @@ describe('AiClinicLabBooking integration', () => {
   it.each(DASHBOARD_LAB_BOOKING_RESCUE_SCENARIOS)(
     'rescues dashboard prompt $id',
     ({ prompt, misclassifiedAction, expectedAction }) => {
+      // e2e-bug.523 — this block is named for the dashboard but never said so.
+      // With surface omitted, 'Book lab collection for Maria tomorrow at 9am'
+      // was taken by the *public* disambiguation path — book verb plus concrete
+      // time — and returned book_appointment under rescueReason
+      // 'public_timed_book', before the dashboard clinic-lab rescue ran.
+      // `rescueDashboardClinicLabBookingIntent` answers this prompt correctly on
+      // its own, so the intent was never in doubt; the request simply did not
+      // say which surface was asking. These commands are dashboard-only by
+      // design (see the e2e-bug.77 gate in the rescue service), so naming the
+      // surface is what the scenario always meant.
       const rescued = rescueService.rescue({
         prompt,
         action: misclassifiedAction,
         params: {},
+        surface: 'dashboard',
       });
       expect(rescued?.action).toBe(expectedAction);
       expect(rescued?.rescued).toBe(true);

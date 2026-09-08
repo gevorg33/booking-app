@@ -135,7 +135,19 @@ export const CANONICAL_PHRASING_BANK: CanonicalPhrasingBankDocument = {
       surfaces: ['dashboard', 'customer', 'public'],
       paramHints: { bookingFirstAvailable: true },
       conceptGroups: [
-        ['забронир', 'запиш', 'заказ', 'оформ'],
+        // e2e-bug.527 — 'запис' and 'запиш' are different stems, not variants:
+        // 'запис' covers записаться / запись / записать, 'запиш' covers the
+        // imperative запиши / запишите, and neither prefix matches the other's
+        // forms (с vs ш at the fifth character). This group had only the
+        // imperative, while the two sibling ru create_booking groups in this
+        // bank already carry 'запис' — so 'хочу записаться на массаж', the most
+        // common Russian booking phrasing, matched none of its tokens.
+        //
+        // It matters beyond this one entry because resolveConceptGroupsForAnchor
+        // inherits by `.find(action + locale)` — first match wins — and this is
+        // the first ru create_booking entry in the bank, so every eval anchor
+        // that inherits ru create_booking groups inherits exactly this list.
+        ['забронир', 'запис', 'запиш', 'заказ', 'оформ'],
         ['или', 'суббот', 'вечер', 'завтра'],
         ['стрижк', 'услуг', 'время', 'слот', 'массаж'],
       ],
@@ -171,6 +183,11 @@ export const CANONICAL_PHRASING_BANK: CanonicalPhrasingBankDocument = {
           'facial',
           'massage',
           'manicure',
+          // e2e-bug.519 — 'makeup' was the one service token this group omitted,
+          // so 'Overdue for a makeup session, need an appointment soon' matched
+          // nothing here and lost to en-asap-booking on the literal 'soon'. The
+          // dental sibling passes only because 'dental' is listed.
+          'makeup',
           'beard',
           'brows',
           'dental',

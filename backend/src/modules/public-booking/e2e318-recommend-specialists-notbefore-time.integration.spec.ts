@@ -60,7 +60,13 @@ describe('e2e-bug.318 recommendProviders honors notBeforeTime for sample slot ti
 
     // Raw same-day slots spanning both afternoon (before 17:00) and evening
     // (17:00+) — mirrors the exact e2e-bug.318 repro shape.
-    const dateKey = '2026-08-05';
+    // e2e-bug.491's class — a same-day slot list anchored to a past date stops
+    // producing sample times once today moves beyond it, so the assertions saw
+    // empty arrays. The day is relative; the times of day stay fixed because
+    // the whole point is the 17:00 boundary.
+    const dateKey = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
     const rawSlots = [
       new Date(`${dateKey}T13:30:00.000Z`),
       new Date(`${dateKey}T14:00:00.000Z`),

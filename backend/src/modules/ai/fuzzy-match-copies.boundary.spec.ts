@@ -65,18 +65,69 @@ describe('e2e-bug.447 — the word-boundary fix drops inflected hy/ru name forms
    * accident, via the same broad substring tier that causes e2e-bug.446. So the
    * two bugs pull against each other and cannot be closed independently.
    */
-  const INFLECTED: [string, string, string][] = [
+  /**
+   * **Armenian was closed in §207; Russian was not.** The swap this file was
+   * written to inform happened in §206, and the Armenian half of the regression
+   * was removed first (`ARMENIAN_CASE_SUFFIX`), so those two rows moved to
+   * RESOLVED below.
+   *
+   * Russian is the harder half and the distinction is worth stating, because
+   * §207 first got it wrong: «Мария» → «Марии» is a **stem change** and no
+   * suffix rule reaches it, but «Иван» → «Ивана» / «Ивану» is a **clean
+   * suffix** and one would. So Russian is not out of reach on principle — it is
+   * unfinished, and the masculine forms below are the tractable part.
+   */
+  /**
+   * **Empty as of e2e-bug.481 (D5-d).** Both Russian rows moved to
+   * `RESOLVED_MASCULINE_RU` below when `RUSSIAN_CASE_SUFFIX` landed. What
+   * remains unreached is feminine stem change («Мария» → «Марии»), which is
+   * asserted as a known miss in its own test rather than listed here — a stem
+   * change is not the same defect as a missing suffix rule, and conflating them
+   * is what made §207 get this wrong the first time.
+   */
+  const INFLECTED: [string, string, string][] = [];
+
+  /** Closed in §207 — the export now resolves these, the copies did too. */
+  const RESOLVED_IN_207: [string, string, string][] = [
     ['Կարո', 'Կարոյին գրանցիր', 'hy dative — "book Karo"'],
     ['Կարո', 'Կարոյի մոտ', 'hy genitive — "at Karo\'s"'],
-    ['Иван', 'запиши Ивана', 'ru accusative — "book Ivan"'],
-    ['Иван', 'к Ивану', 'ru dative — "to Ivan"'],
   ];
 
-  it.each(INFLECTED.map((c) => [c[2], c] as const))(
-    'export MISSES %s where the unfixed copy resolves it',
+  /** Closed by e2e-bug.481 — Russian masculine clean suffixes. */
+  const RESOLVED_MASCULINE_RU: [string, string, string][] = [
+    ['Иван', 'запиши Ивана', 'ru accusative — "book Ivan"'],
+    ['Иван', 'к Ивану', 'ru dative — "to Ivan"'],
+    ['Иван', 'с Иваном', 'ru instrumental — "with Ivan"'],
+    ['Иван', 'об Иване', 'ru prepositional — "about Ivan"'],
+  ];
+
+  it.each(RESOLVED_MASCULINE_RU.map((c) => [c[2], c] as const))(
+    'export now RESOLVES %s (e2e-bug.481)',
     (_label, [name, query]) => {
-      expect(privateCopy(one(name), query)).toBeDefined();
-      expect(fuzzyMatchByName(one(name), query)).toBeUndefined();
+      expect(fuzzyMatchByName(one(name), query)?.id).toBe('e1');
+    },
+  );
+
+  it('still misses feminine stem change, which no suffix rule reaches', () => {
+    // «Мария» → «Марии»: the name is not a prefix of the inflected form at all,
+    // so this is out of scope for `RUSSIAN_CASE_SUFFIX` by construction rather
+    // than by omission. Pinned so the limitation stays visible.
+    expect(fuzzyMatchByName(one('Мария'), 'запиши Марии')).toBeUndefined();
+  });
+
+  it('does not let the Russian rule re-open e2e-bug.362', () => {
+    // The collision guards. A prefix that is not a real ending must not match,
+    // and a two-letter stem must not match at all.
+    expect(fuzzyMatchByName(one('Ан'), 'Анна գրանցիր')).toBeUndefined();
+    expect(fuzzyMatchByName(one('Иван'), 'запиши Иванна')).toBeUndefined();
+    // Below MIN_CYRILLIC_STEM even with a real ending.
+    expect(fuzzyMatchByName(one('Ир'), 'запиши Ира')).toBeUndefined();
+  });
+
+  it.each(RESOLVED_IN_207.map((c) => [c[2], c] as const))(
+    'export now RESOLVES %s (e2e-bug.480, closed §207)',
+    (_label, [name, query]) => {
+      expect(fuzzyMatchByName(one(name), query)?.id).toBe('e1');
     },
   );
 
@@ -85,18 +136,13 @@ describe('e2e-bug.447 — the word-boundary fix drops inflected hy/ru name forms
     expect(fuzzyMatchByName(one('Anna'), 'book Anna')?.id).toBe('e1');
   });
 
-  it('quantifies both directions so the swap is decided on evidence', () => {
-    const lostByExport = INFLECTED.filter(
-      ([n, q]) =>
-        privateCopy(one(n), q) !== undefined &&
-        fuzzyMatchByName(one(n), q) === undefined,
-    );
-    console.log(
-      `[e2e-bug.447] the shared export loses ${lostByExport.length}/${INFLECTED.length} inflected hy/ru forms ` +
-        `that the unfixed private copies still resolve:\n    ` +
-        lostByExport.map(([, , label]) => label).join('\n    '),
-    );
-    expect(lostByExport).toHaveLength(INFLECTED.length);
+  it('has no remaining inflected form the private copies resolve and the export does not', () => {
+    // This file existed to quantify what a swap would cost. hy was paid off in
+    // §207 and ru masculine in e2e-bug.481, so the ledger is empty and the two
+    // implementations no longer disagree on any listed form. Kept as an
+    // assertion rather than deleted: if a future narrowing re-opens a gap, this
+    // is where it shows up.
+    expect(INFLECTED).toHaveLength(0);
   });
 });
 

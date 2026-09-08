@@ -45,7 +45,14 @@ const REPARSER_PATTERNS = [
  * timezone-correct, so §32 extended it in place. Counting it as a re-parser
  * would demand deleting the very function the service wraps.
  */
-const CANONICAL = new Set(['ai-orchestration.helpers.ts::resolveDateRange']);
+const CANONICAL = new Set([
+  'ai-orchestration.helpers.ts::resolveDateRange',
+  // §185 — the surviving `resolveTomorrowDateKey`, hoisted into the datetime
+  // util beside the primitives it composes. It matches the pattern because it
+  // *is* the implementation, the same reason `resolveDateRange` above is
+  // exempt: counting it would demand deleting the function the others now call.
+  'ai-datetime-resolution.util.ts::resolveTomorrowDateKey',
+]);
 
 /**
  * Every local re-parser as of §46, each with what replaces it.
@@ -56,6 +63,26 @@ const CANONICAL = new Set(['ai-orchestration.helpers.ts::resolveDateRange']);
  * kind needs the clarify path wired through the handler first.
  */
 const KNOWN_REPARSERS: Record<string, string> = {
+  // e2e-bug.367, 2026-08-17 (§185): both `resolveTomorrowDateKey` copies are
+  // gone, hoisted into `ai-datetime-resolution.util.ts` beside the
+  // `localCalendarDate` / `addCalendarDays` primitives they compose.
+  //
+  // Unlike the pair below, these two were byte-identical and both already
+  // correct — e2e-bug.363 had been fixed in each. This was redundancy, not
+  // divergence, and the reason to remove it is that the *next* fix would have
+  // had two places to land and only one author. Neither original file could
+  // host it: `ai-payments.util.ts` and `ai-compound-booking-context.util.ts`
+  // import each other, so either choice deepened an existing cycle.
+  //
+  // e2e-bug.367, 2026-08-17 (§184/§185): `ai-clinic-lab-booking.util.ts`'s
+  // `extractTimeSlotFromPrompt` is gone. It delegates to the canonical extractor
+  // and is renamed `resolveClinicTimeSlotFromPrompt`, because it is no longer a
+  // second parser — it is a clinic-local fallback (`morning`/`afternoon`/
+  // `evening`) applied only when the canonical one declines.
+  //
+  // It was not merely a duplicate: both copies carried their own e2e-bug.364
+  // fix, and this one's was weaker (`\b(am|pm)\b` cannot follow the period in
+  // "p.m."), so "6:45 p.m." scheduled a lab collection at 06:45.
   // e2e-bug.367, 2026-08-08 (§112): the five byte-identical
   // `resolveServiceByName` copies are gone, collapsed into
   // `ai-legacy-service-match.util.ts::matchServiceByNameLegacy`. That is a pure
@@ -74,18 +101,13 @@ const KNOWN_REPARSERS: Record<string, string> = {
     'variant with reverse-substring rule → EntityResolutionService.serviceOrClarify; behaviour change, it currently guesses',
   'ai-customer-waitlist.logic.ts::resolveServiceIdByName':
     'async id lookup → EntityResolutionService.serviceOrClarify',
-  'ai-payments.util.ts::resolveTomorrowDateKey':
-    'e2e-bug.363 — UTC date, a day late every local evening → EntityResolutionService.resolveDate',
-  'ai-compound-booking-context.util.ts::resolveTomorrowDateKey':
-    'e2e-bug.363 — second copy of the same bug → EntityResolutionService.resolveDate',
   'ai-structural-extractors.ts::extractTimeSlotFromPrompt':
-    'e2e-bug.364 — "3:30 pm" becomes 03:30 → EntityResolutionService.resolveTime',
-  'ai-clinic-lab-booking.util.ts::extractTimeSlotFromPrompt':
-    'e2e-bug.364 — second copy of the same bug → EntityResolutionService.resolveTime',
-  'ai-marketing-growth.logic.ts::resolveDateRange':
-    'local range parser → EntityResolutionService.resolveRange',
-  'ai-retail-finance.logic.ts::resolveDateRange':
-    'local range parser → EntityResolutionService.resolveRange',
+    // §187 fixed the parsing (the meridiem pattern now has one home in
+    // MERIDIEM_GROUP_SOURCE), so this is no longer a correctness gap. What is
+    // left is a contract change: this returns string|null and guesses a bare
+    // "at 8", where resolveTime reports ambiguity. Blocked on the same
+    // guess-vs-clarify decision as the resolveServiceByName entries.
+    'contract change → EntityResolutionService.resolveTime; it guesses where resolveTime would ask',
 };
 
 function findReparsers(): Set<string> {
@@ -142,6 +164,7 @@ describe('re-parser ratchet', () => {
     // improved.
     expect([...CANONICAL]).toEqual([
       'ai-orchestration.helpers.ts::resolveDateRange',
+      'ai-datetime-resolution.util.ts::resolveTomorrowDateKey',
     ]);
   });
 });

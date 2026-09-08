@@ -35,7 +35,6 @@ import {
   isSelfServiceBookingIntent,
   isUseSubscriptionCreditPrompt,
   parseCartServiceIds,
-  rescueSelfServiceBookingIntent,
 } from './ai-self-service-booking.util.js';
 import { isListMyUpcomingAppointmentsPrompt } from './ai-list-my-upcoming-appointments.util.js';
 
@@ -568,5 +567,50 @@ describe('ai-self-service-booking.util', () => {
         );
       }
     });
+  });
+});
+
+/**
+ * C3 / e2e-bug.360 — `appointment.reschedule_mine`'s own example,
+ * `"can I push my booking to 4pm instead"`, matched no verb set: the detector
+ * knew `reschedule|move|change|shift` and not `push`.
+ *
+ * `push` got its own branch rather than joining the shared alternation, because
+ * it is the one verb here with a strong unrelated sense on this platform —
+ * `configure_push_recipients` and `test_push` are real commands. So it demands
+ * a possessive *and* a booking noun, and refuses anything mentioning
+ * notifications or recipients.
+ *
+ * The time half needed no work, which was checked rather than assumed:
+ * `extractTimeSlotFromPrompt` already reads "4pm" as `16:00`.
+ */
+describe('C3 — reschedule_mine understands "push my booking to …"', () => {
+  it.each([
+    'can I push my booking to 4pm instead',
+    'push my appointment to 5pm',
+    'could you push this booking to Friday',
+  ])('claims the reschedule: %s', (prompt) => {
+    expect(isRescheduleMyBookingPrompt(prompt)).toBe(true);
+  });
+
+  it.each([
+    // The steal this branch invites. Push notifications are a different feature
+    // with their own commands.
+    ['push notifications to my phone', 'notifications'],
+    ['configure push recipients for my team', 'recipients'],
+    ['test push notification', 'test_push'],
+    // `push` alone is not a reschedule without something to reschedule.
+    ['push the price up', 'no booking noun'],
+  ])('does not claim %s (%s)', (prompt) => {
+    expect(isRescheduleMyBookingPrompt(prompt)).toBe(false);
+  });
+
+  it('leaves the existing verbs working', () => {
+    expect(isRescheduleMyBookingPrompt('reschedule my booking to tomorrow')).toBe(
+      true,
+    );
+    expect(isRescheduleMyBookingPrompt('move my appointment to Friday')).toBe(
+      true,
+    );
   });
 });

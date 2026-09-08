@@ -2,7 +2,9 @@ import { isClarifyResult } from './ai-clarify.util.js';
 import { randomUUID } from 'node:crypto';
 import {
   redactEmbeddedPhiFromPrompt,
+  redactSecretsFromPrompt,
   redactPhiFromValue,
+  redactSecretDetailFields,
 } from '../../common/utils/phi-ai-guard.util.js';
 import type {
   CommandResult,
@@ -67,7 +69,11 @@ export type RecordAiCommandTraceInput = {
 };
 
 export function redactCommandTracePrompt(prompt: string): string {
-  return redactEmbeddedPhiFromPrompt(prompt);
+  // e2e-bug.464 — secrets as well as PHI. The redaction seam was already here
+  // and already correct for PHI; it simply had no credential patterns, so an
+  // OpenAI `sk-` key pasted at the completion validator's own invitation was
+  // stored verbatim in `prompt_raw`, a column with no retention policy.
+  return redactSecretsFromPrompt(redactEmbeddedPhiFromPrompt(prompt));
 }
 
 export function redactCommandTraceParams(
@@ -75,7 +81,15 @@ export function redactCommandTraceParams(
 ): Record<string, unknown> | null {
   if (!params || Object.keys(params).length === 0) return null;
 
-  const redacted = redactPhiFromValue(params) as Record<string, unknown>;
+  // e2e-bug.464 residue / §222 — PHI redaction alone is not enough here.
+  // `redactCommandTracePrompt` has stripped credentials from the prompt text
+  // since §170, but the structured params went through `redactPhiFromValue`
+  // only, which knows about patients and not about secrets. So a key the user
+  // typed was scrubbed from `promptRaw` and then stored verbatim one field
+  // over, in `params.apiKey` — the same value, the same row.
+  const redacted = redactSecretDetailFields(
+    redactPhiFromValue(params) as Record<string, unknown>,
+  );
   const next: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(redacted)) {
     if (key.startsWith(INTERNAL_PARAM_PREFIX)) continue;

@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { BusinessService } from './business.service.js';
 import type { Business } from './entities/business.entity.js';
+import { makeBusiness } from './entities/business.test-fixture.js';
 
 describe('BusinessService currency (Sprint 28)', () => {
   const businessRepo = {
@@ -14,13 +15,13 @@ describe('BusinessService currency (Sprint 28)', () => {
     memberRepo as never,
   );
 
-  const baseBusiness: Business = {
+  const baseBusiness: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { locale: 'en', publicBooking: { enabled: true } },
-  } as Business;
+  });
 
   beforeEach(() => {
     jest.clearAllMocks();

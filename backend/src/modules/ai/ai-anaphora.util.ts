@@ -232,3 +232,63 @@ export function bindAnaphorToReference(
       : [...step.dependsOn, referentStepId],
   };
 }
+
+/**
+ * B4 / e2e-bug.370 — apply anaphora resolution across a whole plan.
+ *
+ * `resolveAnaphora` answers "what does the anaphor in this step point at";
+ * this is the pass that runs it over every step and rewrites the ones it can.
+ * It exists so the planner service does not have to own the loop, the
+ * one-variable rule, or the ambiguity precedence — three decisions that belong
+ * with the resolver, not with its caller.
+ *
+ * **`missingByStepId` rather than a validation result.** The trigger condition
+ * is "this step is short a variable", which `validatePlan` already computes
+ * (`missing_variables`, whose `details` are the missing names). Passing the
+ * names keeps this module independent of `PlanValidationResult` — and, more to
+ * the point, stops a second implementation of "is this step incomplete" from
+ * existing. That duplication is precisely what e2e-bug.409 was about.
+ *
+ * **Only steps missing exactly one variable are bound.** With two or more
+ * missing, nothing in the message says which one "it" fills, and guessing
+ * writes a reference into an arbitrary field. Fewer bindings is the right error
+ * here: an unbound step still clarifies, whereas a wrongly-bound step executes
+ * against the wrong entity.
+ *
+ * **Ambiguity stops the pass.** A resolver that says "more than one earlier step
+ * could be the referent" has found a question for the user, not a repair, and
+ * continuing to bind later steps would bury it.
+ */
+export function applyAnaphoraToPlan(
+  message: string,
+  steps: readonly PlanStep[],
+  missingByStepId: ReadonlyMap<string, readonly string[]>,
+  specs: readonly CommandSpec[],
+): {
+  steps: PlanStep[];
+  changed: boolean;
+  ambiguous: AnaphoraResolution | null;
+} {
+  const next = [...steps];
+  let changed = false;
+
+  for (let i = 0; i < next.length; i++) {
+    const step = next[i];
+    const missing = missingByStepId.get(step.id) ?? [];
+    // Exactly one missing variable — see the note above.
+    if (missing.length !== 1) continue;
+
+    const resolution = resolveAnaphora(message, next, i, specs);
+    if (resolution.status === 'ambiguous') {
+      return { steps: next, changed, ambiguous: resolution };
+    }
+    if (resolution.status !== 'resolved' || !resolution.referentStepId) {
+      continue;
+    }
+
+    next[i] = bindAnaphorToReference(step, missing[0], resolution.referentStepId);
+    changed = true;
+  }
+
+  return { steps: next, changed, ambiguous: null };
+}

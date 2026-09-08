@@ -9,6 +9,7 @@ import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js'
 import { AI_COMMAND_EVAL_NOTIFY_RUNNING_LATE_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-notify-running-late integration (ai-cmd-customer-4.4.6)', () => {
   const startTime = new Date(Date.now() + 60 * 60 * 1000);
@@ -62,15 +63,14 @@ describe('ai-notify-running-late integration (ai-cmd-customer-4.4.6)', () => {
   it.each(NOTIFY_RUNNING_LATE_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'notify_running_late',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

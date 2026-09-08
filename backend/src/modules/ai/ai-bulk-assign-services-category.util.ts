@@ -262,6 +262,19 @@ export function isBulkAssignServicesCategoryPrompt(prompt: string): boolean {
 
   const hasBulkScope =
     /\b(?:all|every|each)\s+(?:\w+\s+)?services?\b/i.test(text) ||
+    // C3 / e2e-bug.360 — this command's own example, "put all the massages
+    // under the Massage category", names the service *type* rather than the
+    // literal word "services". `all the massages` is exactly as bulk as `all
+    // services`; requiring the noun be spelled "services" was an accident of
+    // how the first examples happened to be phrased.
+    //
+    // Safe because it is the *third* condition, not the first: the prompt has
+    // already had to name a category target and a move verb, and person nouns
+    // are excluded here as well as at the top of the function, so "move all the
+    // customers to the VIP category" does not become a service move.
+    /\b(?:all|every|each)\s+(?:the\s+)?(?!customers?\b|clients?\b|people\b)\w+s\b/i.test(
+      text,
+    ) ||
     /\bservices?\s+(?:in|from|under)\s+(?:the\s+)?[A-Za-z]/i.test(text) ||
     extractBulkServiceNamesFromPrompt(text)?.length !== undefined;
 

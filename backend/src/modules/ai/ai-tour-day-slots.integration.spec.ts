@@ -4,6 +4,7 @@ import { handleExplainTourDaySlotsLogic } from './ai-tour-day-slots.logic.js';
 import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js';
 import { rescueTourDaySlotsIntent } from './ai-tour-day-slots.util.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour day slots integration (ai-cmd-tour-6)', () => {
   const mountainTrek = {
@@ -64,15 +65,14 @@ describe('ai tour day slots integration (ai-cmd-tour-6)', () => {
       if (date) params.date = date;
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_tour_day_slots',
         params,
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourDaySlotsLogic(

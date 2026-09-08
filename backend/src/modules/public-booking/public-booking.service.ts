@@ -1095,6 +1095,17 @@ export class PublicBookingService {
     serviceId: string;
     serviceName: string;
     slots: PublicServiceDaySlot[];
+    /**
+     * Present only for capacity-bounded tours — the body adds it with a
+     * conditional spread (`...(remainingSpots != null ? { remainingSpots } : {})`).
+     *
+     * Declared here because the annotation omitted it while the body returned
+     * it, so callers reading `result.remainingSpots` reported "Property
+     * 'remainingSpots' does not exist". Same class as `e2e-bug.494`; the twist
+     * is that a conditional spread also defeats inference, so removing the
+     * annotation would not have fixed it either.
+     */
+    remainingSpots?: number;
   }> {
     const business = await this.resolveBusiness(slug);
     this.assertPublicBookingEnabled(business);

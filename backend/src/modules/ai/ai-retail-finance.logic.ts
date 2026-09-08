@@ -17,10 +17,7 @@ import type { CommissionsService } from '../commissions/commissions.service.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { CommandResult } from './command-completion.types.js';
-import {
-  extractDateRangeFromPrompt,
-  resolveDateRange as resolveFullDateRange,
-} from './ai-orchestration.helpers.js';
+import { resolveDateRange as resolveFullDateRange } from './ai-orchestration.helpers.js';
 import {
   decomposeRetailFinanceCompoundPrompt,
   extractBookingIdFromPrompt,
@@ -89,7 +86,7 @@ function resolveByName<T extends { name: string }>(
   );
 }
 
-function resolveDateRange(
+function resolveFinanceDateRange(
   params: Record<string, any>,
   prompt?: string,
 ): { from?: string; to?: string } {
@@ -99,7 +96,8 @@ function resolveDateRange(
       to: params.to as string | undefined,
     };
   }
-  const range = extractDateRangeFromPrompt(
+  const range = resolveFullDateRange(
+    { _timeZone: params._timeZone as string | undefined },
     prompt ?? (params._prompt as string) ?? '',
   );
   if (!range) return {};
@@ -949,7 +947,7 @@ export async function handleSummarizePlLogic(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const { from, to } = resolveDateRange(
+  const { from, to } = resolveFinanceDateRange(
     params,
     prompt ?? (params._prompt as string),
   );
@@ -976,7 +974,7 @@ export async function handleCommissionReportLogic(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const { from, to } = resolveDateRange(
+  const { from, to } = resolveFinanceDateRange(
     params,
     prompt ?? (params._prompt as string),
   );
@@ -1224,7 +1222,7 @@ export async function handlePayoutExportLogic(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const { from, to } = resolveDateRange(
+  const { from, to } = resolveFinanceDateRange(
     params,
     prompt ?? (params._prompt as string),
   );
@@ -1251,7 +1249,7 @@ export async function handleExportAnalyticsReportLogic(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const { from, to } = resolveDateRange(
+  const { from, to } = resolveFinanceDateRange(
     params,
     prompt ?? (params._prompt as string),
   );

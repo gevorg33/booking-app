@@ -403,7 +403,14 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
       },
       expectedDiscovery: {
         maxPrice: 60,
-        serviceCategory: 'haircut',
+        // e2e-bug.323 / §231 — the enrichment deliberately keeps the *raw*
+        // token: pre-aliasing `cut` to `haircut` discards it before
+        // matchServicesByQuery runs, so catalogs with literal "Men's cut" rows
+        // lose to an unrelated `hairstyle` match. `expandServiceLookupQueries('cut')`
+        // still returns the whole haircut family, so nothing is lost downstream —
+        // which is why `classifierParams` and `catalogParams` below stay
+        // 'haircut' while the enrichment's own output is 'cut'.
+        serviceCategory: 'cut',
       },
       forbiddenDiscoveryKeys: ['serviceRank'],
       catalogParams: {
@@ -427,7 +434,8 @@ export const SERVICE_DISCOVERY_PUBLIC_INTEGRATION_SCENARIOS: ServiceDiscoveryPub
         maxPrice: 50,
       },
       expectedDiscovery: {
-        serviceCategory: 'haircut',
+        // §231 — same as above: "premium cut tomorrow" carries the raw `cut`.
+        serviceCategory: 'cut',
         date: 'tomorrow',
       },
       forbiddenDiscoveryKeys: [

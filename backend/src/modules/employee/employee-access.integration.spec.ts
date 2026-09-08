@@ -81,7 +81,8 @@ describe('Employee access integration', () => {
     employeeRepo as any,
     emailService as any,
     tenantContactService as any,
-  );
+  
+    undefined as never);
 
   const teamMembersService = new TeamMembersService(
     memberRepo as any,

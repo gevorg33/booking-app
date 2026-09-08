@@ -101,7 +101,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Analyse appointment patterns.',
-    variables: {},
+    // §211 (C2/T0) — `resolveAppointmentMetric` + `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      appointmentMetric: {
+        type: 'string',
+        description: 'Which appointment metric to rank by.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['analyse our appointments', 'what do the bookings show'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -114,7 +140,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Analyse how services are performing.',
-    variables: {},
+    // §211 (C2/T0) — `resolveServiceMetric` + `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      serviceMetric: {
+        type: 'string',
+        description: 'Which service metric to rank by.',
+        required: false,
+        resolver: 'none',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many rows to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['which services sell best', 'analyse our services'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -146,7 +204,8 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       applyDays: {
         type: 'string[]',
-        description: 'Alternative spelling of `weekdays`; the parser accepts either.',
+        description:
+          'Alternative spelling of `weekdays`; the parser accepts either.',
         required: false,
         resolver: 'none',
       },
@@ -158,7 +217,8 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       employeeName: {
         type: 'string',
-        description: 'Provider the schedule is applied to and whose gaps are then filled.',
+        description:
+          'Provider the schedule is applied to and whose gaps are then filled.',
         required: false,
         resolver: 'employee',
       },
@@ -299,7 +359,7 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       reason:
         'Changes many provider schedules at once; restoring them needs per-row pre-state.',
     },
-    handler: 'AiCommandService',
+    handler: 'AiScheduleHandlersService',
   },
   {
     id: 'tour.apply_playbook',
@@ -327,7 +387,47 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Assign services a staff member can perform.',
-    variables: {},
+    // §177 (C2/T1) — `resolveAssignEmployeeServicesInput` combines
+    // `resolveEmployees` (employeeName / employeeNames / allProviders) with
+    // `resolveServicesForEmployeeAssignment` (categoryName), plus its own reads.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service being assigned.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Assign every service in a category.',
+        required: false,
+        resolver: 'none',
+      },
+      assignFromCategory: {
+        type: 'boolean',
+        description: 'Treat `categoryName` as the source of the service list.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['Mary can do facials', 'assign services to that employee'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -361,7 +461,80 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Block time in a schedule.',
-    variables: {},
+    // §177 (C2/T1) — `prepareBlockSchedulePlan` composes four helpers:
+    // `resolveEmployees`, `resolveDateRange`, `parseTimeWindow` and
+    // `parseWeekdaysFromParams`. Every field below is read by one of them.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Start of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'End of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      weekdays: {
+        type: 'string[]',
+        description: 'Days of the week the window applies to.',
+        required: false,
+        resolver: 'none',
+      },
+      applyDays: {
+        type: 'string[]',
+        description: 'Alias for `weekdays`, read by `parseWeekdaysFromParams`.',
+        required: false,
+        resolver: 'none',
+      },
+      // §306 (`e2e-bug.462`): `prepareBlockSchedulePlan` calls
+      // `isFullDayBlock(params, prompt)`, whose first line is
+      // `if (params.blockFullDay) return true`.
+      blockFullDay: {
+        type: 'boolean',
+        description: 'Block the entire day rather than a time window.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['block Gevorg out tomorrow', 'block that time'],
     confirm: 'always',
     compensation: {
@@ -422,7 +595,8 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       statusFilters: {
         type: 'string[]',
-        description: 'Several statuses at once; the resolver accepts either spelling.',
+        description:
+          'Several statuses at once; the resolver accepts either spelling.',
         required: false,
         resolver: 'none',
       },
@@ -505,7 +679,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     // correctly — fails a spec that disagrees with the registry.
     risk: 'T0',
     description: 'Check schedules against working time rules.',
-    variables: {},
+    // §214 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['are our schedules compliant', 'check schedule compliance'],
     confirm: 'never',
     handler: 'AiOperationsService',
@@ -546,6 +740,23 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
           'Last day affected, ISO 8601 date. Same as `dateFrom` for a single day.',
         required: false,
         resolver: 'date',
+      },
+      // §305 (`e2e-bug.462`): `handleClearSchedule` delegates to
+      // `prepareClearSchedulePlan`, which calls `resolveScheduleDates(params,
+      // prompt)` (reads `date`) and `resolveEmployees(employees, params)`
+      // (reads `employeeNames` via `getRequestedEmployeeNames`). Depth 2 — the
+      // handler body is nine lines and reads no params at all.
+      date: {
+        type: 'string',
+        description: 'Single day to clear, ISO 8601 date. Alternative to dateFrom/dateTo.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Clear the schedule for these providers.',
+        required: false,
+        resolver: 'employee',
       },
     },
     examples: ['clear Gevorg schedule', 'wipe next week hours'],
@@ -589,7 +800,7 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       command: 'operations.configure_ai_autopilot',
       captures: ['previousValues'],
     },
-    handler: 'AiCommandService',
+    handler: 'AiMetaOpsService',
   },
   {
     id: 'business.configure_currency',
@@ -628,7 +839,24 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Set how dates are displayed.',
-    variables: {},
+    // §177 (C2/T1) — chain followed to termination: the handler reads `_prompt`,
+    // `parseBusinessDateFormatFromPrompt` reads both fields, and its own helpers
+    // (`extractExplicitDateFormat` / `extractExplicitTimeFormat`) read none. Both
+    // appear in the handler's `missing` hint.
+    variables: {
+      dateFormat: {
+        type: 'string',
+        description: 'Date display format for the business.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFormat: {
+        type: 'string',
+        description: 'Time display format for the business.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['use day month year', 'change our date format'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -646,7 +874,35 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Set which languages the business offers.',
-    variables: {},
+    // §177 (C2/T1) — read by `parseBusinessLanguagesFromPrompt`; its own helpers
+    // (`extractLocalesFromPrompt`, `resolveOperation`) read none.
+    variables: {
+      operation: {
+        type: 'string',
+        description: 'Add, remove or replace the enabled locales.',
+        required: false,
+        resolver: 'none',
+      },
+      locales: {
+        type: 'string[]',
+        description:
+          'Locales the operation applies to. `enabledLocales` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      enabledLocales: {
+        type: 'string[]',
+        description: 'Alias for `locales`.',
+        required: false,
+        resolver: 'none',
+      },
+      defaultLocale: {
+        type: 'string',
+        description: 'Locale used when none is requested.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add Armenian', 'change our languages'],
     confirm: 'always',
     compensation: {
@@ -711,7 +967,40 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Configure a clinical service and what it requires.',
-    variables: {},
+    // §177 (C2/T1) — read by `parseConfigureClinicServiceFromPrompt`; the four
+    // `extract*` helpers below it read no params.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service being configured as a clinic service.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceType: {
+        type: 'string',
+        description: 'Clinic service type.',
+        required: false,
+        resolver: 'none',
+      },
+      requiresFasting: {
+        type: 'boolean',
+        description: 'Whether the patient must fast beforehand.',
+        required: false,
+        resolver: 'none',
+      },
+      preparationNotes: {
+        type: 'string',
+        description: 'Preparation instructions shown to the patient.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'set up the blood test service',
       'configure that clinic service',
@@ -732,7 +1021,24 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change what consent customers are asked for.',
-    variables: {},
+    // §177 (C2/T1) — read by `parseConfigureGranularConsentFromPrompt`, which the
+    // dispatch calls before the handler and merges over `params`. Both toggles
+    // appear in the handler's `missing` hint.
+    variables: {
+      requireAiProcessing: {
+        type: 'boolean',
+        description: 'Require explicit consent before AI processing.',
+        required: false,
+        resolver: 'none',
+      },
+      requireThirdPartyIntegrations: {
+        type: 'boolean',
+        description:
+          'Require explicit consent before sharing with integrations.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our consent options', 'configure granular consent'],
     confirm: 'always',
     compensation: {
@@ -750,7 +1056,18 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Set how long a HIPAA session stays open.',
-    variables: {},
+    // §177 (C2/T1) — **two** levels down: the handler reads `_prompt`,
+    // `parseConfigureHipaaSessionTimeoutFromPrompt` delegates to
+    // `parseHipaaSessionTimeoutMinutes`, and that is what reads the param. A
+    // one-level check finds nothing here and would have exempted the command.
+    variables: {
+      sessionTimeoutMinutes: {
+        type: 'number',
+        description: 'Idle minutes before a HIPAA session is ended.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['log staff out after 10 minutes', 'set the HIPAA timeout'],
     confirm: 'always',
     compensation: {
@@ -768,7 +1085,17 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change how online booking behaves.',
-    variables: {},
+    // §177 (C2/T1) — one toggle; `parseOnlineBookingEnabledFromPrompt` reads no
+    // params, so the prompt is the fallback rather than a second source.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description:
+          'Turn online booking on or off. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['turn off online booking', 'configure online booking'],
     confirm: 'always',
     compensation: {
@@ -786,7 +1113,40 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Set package names per language.',
-    variables: {},
+    // §177 (C2/T1) — read by `parsePackageLocalizedNamesFromPrompt`; the three
+    // `extract*` helpers and `resolveOperation` read none.
+    variables: {
+      packageName: {
+        type: 'string',
+        description: 'Package whose localized name is being set.',
+        required: false,
+        resolver: 'none',
+      },
+      packageId: {
+        type: 'string',
+        description: 'Package id, when known.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale the name applies to.',
+        required: false,
+        resolver: 'none',
+      },
+      displayName: {
+        type: 'string',
+        description: 'Name shown in that locale. `localizedName` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      localizedName: {
+        type: 'string',
+        description: 'Alias for `displayName`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['name the package in Armenian', 'set localised package names'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -868,7 +1228,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Set the date format used in provider notifications.',
-    variables: {},
+    // §177 (C2/T1) — the only field read directly, with no parser in between: the
+    // provider-push variant sets the time format alone.
+    variables: {
+      timeFormat: {
+        type: 'string',
+        description: 'Time format used in provider push notifications.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'change dates in push alerts',
       'set the notification date format',
@@ -889,7 +1258,86 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Configure a product recommendation.',
-    variables: {},
+    // §177 (C2/T1) — the parser is called by the *dispatch*, which merges its
+    // output over `ctx.params` before the handler runs; the handler then adds
+    // `locationId`. Chain terminates at the five `extract*` helpers, none of
+    // which read params.
+    variables: {
+      productName: {
+        type: 'string',
+        description:
+          'Product being configured. `name` is accepted as an alias.',
+        required: true,
+        resolver: 'none',
+      },
+      name: {
+        type: 'string',
+        description: 'Alias for `productName`.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id, when known.',
+        required: false,
+        resolver: 'none',
+      },
+      retailPrice: {
+        type: 'number',
+        description:
+          'Retail price shown with the recommendation. `price` is an alias.',
+        required: false,
+        resolver: 'money',
+      },
+      price: {
+        type: 'number',
+        description: 'Alias for `retailPrice`.',
+        required: false,
+        resolver: 'money',
+      },
+      description: {
+        type: 'string',
+        description: 'Recommendation copy.',
+        required: false,
+        resolver: 'none',
+      },
+      imageUrl: {
+        type: 'string',
+        description: 'Product image.',
+        required: false,
+        resolver: 'none',
+      },
+      externalLink: {
+        type: 'string',
+        description: 'Where the recommendation links to.',
+        required: false,
+        resolver: 'none',
+      },
+      wantsImage: {
+        type: 'boolean',
+        description: 'Whether an image was asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      wantsLink: {
+        type: 'boolean',
+        description: 'Whether a link was asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      isUpdate: {
+        type: 'boolean',
+        description: 'Update an existing product rather than create one.',
+        required: false,
+        resolver: 'none',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Location scope, read by the handler itself.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['recommend this after a cut', 'configure that recommendation'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -907,7 +1355,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Configure the customer referral programme.',
-    variables: {},
+    // §177 (C2/T1) — six fields, all read directly with no helper in between.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description: 'Turn the referral programme on or off.',
+        required: false,
+        resolver: 'none',
+      },
+      referrerRewardType: {
+        type: 'string',
+        description: 'How the referrer is rewarded.',
+        required: false,
+        resolver: 'none',
+      },
+      referrerBonusPoints: {
+        type: 'number',
+        description: 'Points awarded to the referrer.',
+        required: false,
+        resolver: 'none',
+      },
+      referrerGiftCardAmount: {
+        type: 'number',
+        description: 'Gift card value awarded to the referrer.',
+        required: false,
+        resolver: 'money',
+      },
+      refereeBonusPoints: {
+        type: 'number',
+        description: 'Points awarded to the person referred.',
+        required: false,
+        resolver: 'none',
+      },
+      refereePromoCode: {
+        type: 'string',
+        description: 'Promo code given to the person referred.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our referral rewards', 'configure referrals'],
     confirm: 'always',
     compensation: {
@@ -960,7 +1446,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Configure the canned messages staff can send.',
-    variables: {},
+    // §177 (C2/T1) — `readStaffMessageTemplatesSettings` reads business settings,
+    // not params, so the chain ends at the handler.
+    variables: {
+      enabled: {
+        type: 'boolean',
+        description: 'Turn staff message templates on or off.',
+        required: false,
+        resolver: 'none',
+      },
+      templates: {
+        type: 'object[]',
+        description: 'The templates themselves.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a running late template', 'configure staff messages'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -978,7 +1479,71 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Configure a tour and its capacity.',
-    variables: {},
+    // §177 (C2/T1) — the widest of the `configure_*` family: ten fields via
+    // `parseConfigureTourServiceFromPrompt`, whose eight `extract*` helpers read
+    // no params. Its refusal names `serviceName`, `maxGroupSize` and `difficulty`.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service being configured as a tour.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceType: {
+        type: 'string',
+        description: 'Tour service type.',
+        required: false,
+        resolver: 'none',
+      },
+      enableTour: {
+        type: 'boolean',
+        description: 'Mark the service as a tour.',
+        required: false,
+        resolver: 'none',
+      },
+      maxGroupSize: {
+        type: 'number',
+        description: 'Largest group the tour accepts.',
+        required: false,
+        resolver: 'none',
+      },
+      difficulty: {
+        type: 'string',
+        description: 'Difficulty rating shown to customers.',
+        required: false,
+        resolver: 'none',
+      },
+      durationDays: {
+        type: 'number',
+        description: 'Length of the tour in days.',
+        required: false,
+        resolver: 'none',
+      },
+      meetingPoint: {
+        type: 'string',
+        description: 'Where the tour departs from.',
+        required: false,
+        resolver: 'none',
+      },
+      includedItems: {
+        type: 'string[]',
+        description: 'What the price includes.',
+        required: false,
+        resolver: 'none',
+      },
+      coverImage: {
+        type: 'string',
+        description: 'Cover image for the tour listing.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['set up the harbour tour', 'configure that tour'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -996,7 +1561,103 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Create a schedule directly.',
-    variables: {},
+    // §177 (C2/T1) — the schedule family, plus the fields this command adds.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Start of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'End of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      weekdays: {
+        type: 'string[]',
+        description: 'Days of the week the window applies to.',
+        required: false,
+        resolver: 'none',
+      },
+      applyDays: {
+        type: 'string[]',
+        description: 'Alias for `weekdays`, read by `parseWeekdaysFromParams`.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description:
+          'Services the schedule covers. Left empty means the provider\u2019s own services.',
+        required: false,
+        resolver: 'service',
+      },
+      notifyCustomers: {
+        type: 'boolean',
+        description: 'Notify affected customers.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason recorded with the change.',
+        required: false,
+        resolver: 'none',
+      },
+      // §306 (`e2e-bug.462`): `inferDirectSchedulePeriods(params, prompt)`
+      // returns `params.periods` verbatim when it is a non-empty array;
+      // `employeeId` is read directly by `handleCreateDirectSchedule`.
+      periods: {
+        type: 'object[]',
+        description: 'Explicit working periods for the day, instead of inferring them from the message.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider id, when the caller already resolved one instead of naming them.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['set Gevorg hours to 9 to 5', 'create their schedule'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1162,7 +1823,70 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Create a reusable schedule template.',
-    variables: {},
+    // §177 (C2/T1) — `prepareCreateScheduleTemplatePlan` reads the name and
+    // periods directly and shares `parseTimeWindow` / `parseWeekdaysFromParams`.
+    variables: {
+      templateName: {
+        type: 'string',
+        description: 'Name of the template. `name` is accepted as an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      name: {
+        type: 'string',
+        description: 'Alias for `templateName`.',
+        required: false,
+        resolver: 'none',
+      },
+      periods: {
+        type: 'object[]',
+        description:
+          'Explicit working periods, when not expressed as a window.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Start of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'End of the daily window.',
+        required: false,
+        resolver: 'none',
+      },
+      weekdays: {
+        type: 'string[]',
+        description: 'Days of the week the window applies to.',
+        required: false,
+        resolver: 'none',
+      },
+      applyDays: {
+        type: 'string[]',
+        description: 'Alias for `weekdays`, read by `parseWeekdaysFromParams`.',
+        required: false,
+        resolver: 'none',
+      },
+      // §304 (`e2e-bug.462`): found by following the chain, not by the validator
+      // diff — `handleCreateScheduleTemplate` delegates to
+      // `prepareCreateScheduleTemplatePlan`, which reads both directly and also
+      // calls `resolveServices(services, params)`. The validator never mentions
+      // them, so only the chain walk surfaced these two.
+      serviceName: {
+        type: 'string',
+        description: 'Service this template schedules.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Services this template schedules.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['save this as a template', 'create a schedule template'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1180,7 +1904,59 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Create a bookable service in the catalogue.',
-    variables: {},
+    // §177 (C2/T1) — `parseServiceDraft` reads these, each with an alias pair for
+    // name and duration.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Name of the service. `name` is accepted as an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      name: {
+        type: 'string',
+        description: 'Alias for `serviceName`.',
+        required: false,
+        resolver: 'none',
+      },
+      durationMinutes: {
+        type: 'number',
+        description:
+          'Length of the service. `duration` is accepted as an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      duration: {
+        type: 'number',
+        description: 'Alias for `durationMinutes`.',
+        required: false,
+        resolver: 'none',
+      },
+      price: {
+        type: 'number',
+        description: 'Price charged.',
+        required: false,
+        resolver: 'money',
+      },
+      currency: {
+        type: 'string',
+        description: 'Currency for the price.',
+        required: false,
+        resolver: 'none',
+      },
+      bufferMinutes: {
+        type: 'number',
+        description: 'Gap left after the service.',
+        required: false,
+        resolver: 'none',
+      },
+      description: {
+        type: 'string',
+        description: 'Customer-facing description.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a new haircut service', 'create a service'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1198,7 +1974,32 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T3',
     description: 'Create several services at once.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Was exempted as `ORCHESTRATION_NO_CONTRACT`
+    // on the stated grounds that it "routes through `runOrchestrationIntent`,
+    // which takes the raw message as its `intent`". It does not:
+    // `ai-command.service.ts` builds `bulkCreateParams` from `params` and calls
+    // `handleCreateServices`, which reads three structured fields.
+    variables: {
+      services: {
+        type: 'object[]',
+        description:
+          'The services to create, as structured rows rather than prose.',
+        required: true,
+        resolver: 'none',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Category the new services belong to.',
+        required: false,
+        resolver: 'none',
+      },
+      currency: {
+        type: 'string',
+        description: 'Currency for the supplied prices.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add these five services', 'create them all'],
     confirm: 'always',
     compensation: {
@@ -1219,9 +2020,31 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     variables: {
       // `handleDayReplan`. `_timeZone` is pipeline-injected and deliberately
       // not declared.
+      //
+      // §303: `dateFrom`/`dateTo` were missing. `handleDayReplan` calls
+      // `resolveDateRange(params, prompt, timeZone)`, which reads both at depth
+      // 1 — the command's own completion rule already says so
+      // (`date || (dateFrom && dateTo)`), and the validator was the only place
+      // that admitted it. Found by diffing `ACTION_RULES` against the declared
+      // variables (`e2e-bug.462`); the handler *body* writes `dateFrom` onto a
+      // downstream object and never reads it, so a body grep says the opposite.
       date: {
         type: 'string',
         description: 'Day to replan, ISO 8601 date.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description:
+          'Start of a multi-day replan window, ISO 8601 date. Used with dateTo when no single date is given.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description:
+          'End of a multi-day replan window, ISO 8601 date. Used with dateFrom.',
         required: false,
         resolver: 'date',
       },
@@ -1282,7 +2105,34 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Delete a schedule block, freeing the time.',
-    variables: {},
+    // §177 (C2/T1) — `resolveEmployees` supplies the provider trio; the day comes
+    // from `params.date` (`resolveScheduleDates` reads no params of its own).
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose block is being removed.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Remove the block for every provider.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Day the block sits on.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['remove that block', 'delete the block on friday'],
     confirm: 'always',
     compensation: {
@@ -1300,7 +2150,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Delete schedule templates.',
-    variables: {},
+    // §177 (C2/T1) — one template or several. `resolveTemplate` takes the name as
+    // a string argument rather than reading `params`, so the reads are here.
+    variables: {
+      templateName: {
+        type: 'string',
+        description: 'Template to delete.',
+        required: false,
+        resolver: 'none',
+      },
+      templateNames: {
+        type: 'string[]',
+        description: 'Several templates to delete.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['delete that template', 'remove the old templates'],
     confirm: 'always',
     compensation: {
@@ -1338,7 +2203,60 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Diagnose why a tour cannot take more bookings.',
-    variables: {},
+    // §202 (C2/T0) — `parseDiagnoseTourCapacityFromPrompt` and the proactive
+    // variant read the pax and date pair; the handler reads the checkout flag.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      tourGroupCheckout: {
+        type: 'boolean',
+        description: 'Whether the ask is part of a group-checkout flow.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      date: {
+        type: 'string',
+        description: 'Departure date asked about.',
+        required: false,
+        resolver: 'date',
+      },
+      dateKey: {
+        type: 'string',
+        description: 'Departure date as a day key.',
+        required: false,
+        resolver: 'date',
+      },
+      paxCount: {
+        type: 'number',
+        description: 'How many travellers.',
+        required: false,
+        resolver: 'none',
+      },
+      requestedPax: {
+        type: 'number',
+        description:
+          'Travellers requested, when different from the party size.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is the tour full', 'diagnose tour capacity'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -1351,7 +2269,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T1',
     description: 'Dismiss product recommendations.',
-    variables: {},
+    // §177 (C2/T1) — the customer-side dismissal; `parseDismissRecommendationsFromPrompt`
+    // reads both fields and the chain ends there.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose recommendations are dismissed.',
+        required: false,
+        resolver: 'appointment',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service whose recommendations are dismissed.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['stop showing me these', 'dismiss the recommendations'],
     confirm: 'never',
     compensation: {
@@ -1369,7 +2302,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Copy a schedule template.',
-    variables: {},
+    // §177 (C2/T1) — the source template is the whole input; the copy is named by
+    // the handler.
+    variables: {
+      templateName: {
+        type: 'string',
+        description: 'Template to copy.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['copy that template', 'duplicate the standard week'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1425,7 +2367,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the assistant audit log.',
-    variables: {},
+    // §211 (C2/T0) — page size.
+    variables: {
+      limit: {
+        type: 'number',
+        description: 'How many log entries to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is in the AI audit log', 'explain the audit trail'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -1451,7 +2401,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the assistant settings.',
-    variables: {},
+    // §190 (C2/T0) — `dispatchMetaProductGuideIntent` reads only the date.
+    variables: {
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what are the AI settings', 'explain assistant options'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -1464,7 +2423,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how assistant usage is measured.',
-    variables: {},
+    // §211 (C2/T0) — window length.
+    variables: {
+      days: {
+        type: 'number',
+        description: 'How many days the analytics cover.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how is AI usage tracked', 'explain usage analytics'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -1480,7 +2447,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what booking with any available provider means.',
-    variables: {},
+    // §212 (C2/T0) — aspect plus reply locale.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what does any provider mean',
       'explain the any specialist option',
@@ -1501,7 +2482,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain a feature of the app.',
-    variables: {},
+    // §190 (C2/T0) — `dispatchProductGuideIntent` reads both.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what does this do', 'explain this feature'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -1583,7 +2579,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the opening hours and where the business is.',
-    variables: {},
+    // §213 (C2/T0) — aspect plus the day asked about.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      weekday: {
+        type: 'string',
+        description: 'Day of the week asked about.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['when are you open', 'where are you based'],
     confirm: 'never',
     handler: 'AiBusinessHoursLocationService',
@@ -1609,7 +2619,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how tax is charged.',
-    variables: {},
+    // §208 (C2/T0) — same worked-example price.
+    variables: {
+      samplePrice: {
+        type: 'number',
+        description: 'Price the worked example is calculated from.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['how does tax work here', 'explain our tax setup'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -1641,7 +2659,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the products suggested at checkout.',
-    variables: {},
+    // §212 (C2/T0) — the checkout being explained.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking at checkout.',
+        required: false,
+        resolver: 'appointment',
+      },
+      productName: {
+        type: 'string',
+        description: 'Recommended product in question.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['why is it suggesting this', 'explain checkout recommendations'],
     confirm: 'never',
     handler: 'AiRecommendationProductService',
@@ -1657,7 +2707,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the tax charged at checkout.',
-    variables: {},
+    // §208 (C2/T0) — `parseExplainCheckoutTaxFromPrompt` reads the aspect.
+    variables: {
+      aspect: {
+        type: 'string',
+        description:
+          'Which part of the tax breakdown is being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is there tax on this', 'explain checkout tax'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -1673,7 +2732,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how clinic bookings work.',
-    variables: {},
+    // §214 (C2/T0) — aspect plus the service.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['how does clinic booking work', 'explain clinic appointments'],
     confirm: 'never',
     handler: 'AiClinicBookingService',
@@ -1686,7 +2765,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the clinical services offered.',
-    variables: {},
+    // §214 (C2/T0) — the service, and the reply locale.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what clinic services do we offer',
       'explain our clinical services',
@@ -1704,7 +2803,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Report the current compliance posture.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of compliance status to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['are we compliant', 'explain our compliance status'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1717,7 +2825,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain what happens after a successful checkout.',
-    variables: {},
+    // §212 (C2/T0) — the completed checkout.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking that completed.',
+        required: false,
+        resolver: 'appointment',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for the reply.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['what happens now I have paid', 'explain the success screen'],
     confirm: 'never',
     handler: 'AiRecommendationProductService',
@@ -1730,7 +2870,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Explain the tax a customer is charged.',
-    variables: {},
+    // §208 (C2/T0) — the consumer-side twin, same aspect.
+    variables: {
+      aspect: {
+        type: 'string',
+        description:
+          'Which part of the tax breakdown is being asked about.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why am I paying tax', 'explain the tax on my booking'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -1748,7 +2897,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the screen the user is looking at.',
-    variables: {},
+    // §190 (C2/T0) — `dispatchProductGuideIntent` reads both.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what is this screen', 'explain what I am looking at'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -1764,7 +2928,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what data rights customers have.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which data right to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what rights do customers have', 'explain data rights'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1808,7 +2981,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the enterprise trust and security posture.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which trust topic to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what do we tell enterprise buyers',
       'explain our trust posture',
@@ -1824,7 +3006,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the GDPR compliance checklist.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which checklist item to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show our GDPR checklist', 'are we GDPR ready'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1840,7 +3031,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the fields asked for at guest checkout.',
-    variables: {},
+    // §213 (C2/T0) — aspect only.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why do you need my email', 'explain these checkout fields'],
     confirm: 'never',
     handler: 'AiGuestCheckoutFieldsService',
@@ -1853,7 +3052,17 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the HIPAA session timeout rule.',
-    variables: {},
+    // §190 (C2/T0) — a boolean rather than an aspect: whether the question is
+    // about the caller's own logout or the business policy.
+    variables: {
+      personalLogout: {
+        type: 'boolean',
+        description:
+          'Explain the caller\u2019s own logout rather than the business policy.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why did it log me out', 'explain the HIPAA timeout'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1866,7 +3075,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the minimum-necessary rule for PHI access.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which aspect of minimum-necessary access to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who can see patient data', 'explain minimum necessary access'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1880,7 +3098,51 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Explain what happens after returning from a multi-service checkout.',
-    variables: {},
+    // §214 (C2/T0) — the pending multi-service checkout being returned to.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      slug: {
+        type: 'string',
+        description: 'Business slug.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingDraftSlug: {
+        type: 'string',
+        description: 'Slug held on the booking draft.',
+        required: false,
+        resolver: 'none',
+      },
+      cartServiceIds: {
+        type: 'string[]',
+        description: 'Services in the cart.',
+        required: false,
+        resolver: 'service',
+      },
+      services: {
+        type: 'string[]',
+        description: 'Services in the cart (alternate key).',
+        required: false,
+        resolver: 'service',
+      },
+      pendingMultiCheckoutPayment: {
+        type: 'object',
+        description: 'The pending checkout payment.',
+        required: false,
+        resolver: 'none',
+      },
+      pendingMultiCheckoutSessionId: {
+        type: 'string',
+        description: 'Checkout session being returned from.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'I paid but the booking is not confirmed',
       'what happens after paying for a spa day',
@@ -1942,7 +3204,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain which package name is shown and why.',
-    variables: {},
+    // §214 (C2/T0) — the package and the locale it is shown in.
+    variables: {
+      packageId: {
+        type: 'string',
+        description: 'Package, by id.',
+        required: false,
+        resolver: 'none',
+      },
+      packageName: {
+        type: 'string',
+        description: 'Package, by name.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale the name is shown in.',
+        required: false,
+        resolver: 'none',
+      },
+      visitorLocale: {
+        type: 'string',
+        description: 'Visitor locale (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why is the package called that', 'explain the package name'],
     confirm: 'never',
     handler: 'AiPackageLocalizedNamesService',
@@ -1955,7 +3243,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Report how patient data is encrypted.',
-    variables: {},
+    // §190 (C2/T0) — scoped to one field rather than a topic.
+    variables: {
+      fieldName: {
+        type: 'string',
+        description: 'PHI field whose encryption status is being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['is patient data encrypted', 'explain PHI encryption'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -1971,7 +3267,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what is on a provider professional profile.',
-    variables: {},
+    // §212 (C2/T0) — the provider whose profile is explained.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      providerName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['what is on their profile', 'explain the professional profile'],
     confirm: 'never',
     handler: 'AiProviderSpecialtyService',
@@ -2026,7 +3342,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what a provider specialises in.',
-    variables: {},
+    // §212 (C2/T0) — the provider and the topic asked about.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      providerName: {
+        type: 'string',
+        description: 'Provider whose specialty is explained.',
+        required: false,
+        resolver: 'employee',
+      },
+      specialtyTopic: {
+        type: 'string',
+        description: 'Specialty topic asked about.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is Gevorg best at', 'explain their specialty'],
     confirm: 'never',
     handler: 'AiProviderSpecialtyService',
@@ -2039,7 +3375,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how recommendation performance is measured.',
-    variables: {},
+    // §212 (C2/T0) — scoped by product, surface and window.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product the analytics cover.',
+        required: false,
+        resolver: 'none',
+      },
+      surface: {
+        type: 'string',
+        description: 'Surface the analytics cover.',
+        required: false,
+        resolver: 'none',
+      },
+      daysAhead: {
+        type: 'number',
+        description: 'How many days the window covers.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how are recommendations measured',
       'explain recommendation analytics',
@@ -2055,7 +3417,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how to set up product recommendations.',
-    variables: {},
+    // §212 (C2/T0) — what the recommendation is being set up against.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryId: {
+        type: 'string',
+        description: 'Category, by id.',
+        required: false,
+        resolver: 'none',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Category, by name.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how do I set up recommendations',
       'explain recommendation setup',
@@ -2087,7 +3475,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain right-to-left layout support.',
-    variables: {},
+    // §214 (C2/T0) — the direction and locale in play.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale in play.',
+        required: false,
+        resolver: 'none',
+      },
+      dir: {
+        type: 'string',
+        description: 'Text direction.',
+        required: false,
+        resolver: 'none',
+      },
+      documentDirection: {
+        type: 'string',
+        description: 'Document direction (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     // Armenian phrasing from live traffic. §86 — examples feed the embedding
     // cache as well as the few-shots, so a command whose users write Armenian
     // needs Armenian here to be retrievable at all.
@@ -2110,7 +3524,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what is on the public salon profile.',
-    variables: {},
+    // §213 (C2/T0) — aspect only.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what does our profile show', 'explain the salon profile'],
     confirm: 'never',
     handler: 'AiBusinessHoursLocationService',
@@ -2126,7 +3548,63 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain that a slot has been taken.',
-    variables: {},
+    // §214 (C2/T0) — the slot that was lost.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the lost slot.',
+        required: false,
+        resolver: 'date',
+      },
+      bookingDraftDate: {
+        type: 'string',
+        description: 'Day held on the booking draft.',
+        required: false,
+        resolver: 'date',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Start time of the lost slot.',
+        required: false,
+        resolver: 'datetime',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Slot, as a time string.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['that slot has gone', 'why can I not book that time'],
     confirm: 'never',
     handler: 'AiExplainSlotNoLongerAvailableService',
@@ -2139,7 +3617,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how stacked tax rules combine.',
-    variables: {},
+    // §208 (C2/T0) — the explanation is worked through a sample price.
+    variables: {
+      samplePrice: {
+        type: 'number',
+        description: 'Price the worked example is calculated from.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['why are there two taxes', 'explain stacked tax'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -2152,7 +3638,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the recorded compliance strategy evaluation.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the strategy evaluation to explain.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is our strategy evaluation', 'explain the assessment'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -2214,7 +3709,23 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the tax line Stripe charged.',
-    variables: {},
+    // §208 (C2/T0) — `parseExplainStripeTaxChargeFromPrompt` reads the booking;
+    // `resolveBookingForTaxQuery` then looks it up by id or by customer.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose tax is being explained.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Customer, used to find the booking when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what is this stripe tax', 'explain the stripe tax charge'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -2243,7 +3754,42 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how tour booking works.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourBookingFromPrompt`.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      tourGroupCheckout: {
+        type: 'boolean',
+        description: 'Whether the ask is part of a group-checkout flow.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      bookingFirstAvailable: {
+        type: 'boolean',
+        description:
+          'Whether the ask is for the first available departure.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+    },
     examples: ['how do tour bookings work', 'explain tour booking'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -2260,7 +3806,46 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain what is recorded on a tour booking.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourBookingRecordFromPrompt` reads the
+    // booking and customer; `resolveSessionCustomerId` reads the session.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Tour booking in question.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Traveller on the booking.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer the record belongs to.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what is on that tour booking', 'explain the tour record'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -2273,7 +3858,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how a tour spans the calendar.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourCalendarSpanFromPrompt` plus the locale.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Date inside the span wanted.',
+        required: false,
+        resolver: 'date',
+      },
+      weekStartDate: {
+        type: 'string',
+        description: 'First day of the span.',
+        required: false,
+        resolver: 'date',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for day and month names.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'why does the tour block the whole day',
       'explain the tour span',
@@ -2293,7 +3916,54 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the departure slots on a tour day.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourDaySlotsFromPrompt`.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      tourGroupCheckout: {
+        type: 'boolean',
+        description: 'Whether the ask is part of a group-checkout flow.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      bookingFirstAvailable: {
+        type: 'boolean',
+        description:
+          'Whether the ask is for the first available departure.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      date: {
+        type: 'string',
+        description: 'Day asked about.',
+        required: false,
+        resolver: 'date',
+      },
+      dateKey: {
+        type: 'string',
+        description: 'Day asked about, as a day key.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what departures are there', 'explain tour day slots'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -2309,7 +3979,52 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain where a tour meets.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourMeetingPointFromPrompt` reads the booking;
+    // the handler falls back from `_timeZone` to `timeZone`.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the answer is being asked for.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Tour booking whose meeting point is wanted.',
+        required: false,
+        resolver: 'appointment',
+      },
+      sessionBookingId: {
+        type: 'string',
+        description: 'Booking the traveller is currently viewing.',
+        required: false,
+        resolver: 'none',
+      },
+      timeZone: {
+        type: 'string',
+        description: 'Time zone for the meeting time.',
+        required: false,
+        resolver: 'none',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer the record belongs to.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['where does the tour start', 'what is the meeting point'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -2322,7 +4037,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the tours offered.',
-    variables: {},
+    // §202 (C2/T0) — `parseExplainTourServicesFromPrompt`.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      daysAhead: {
+        type: 'number',
+        description: 'How far ahead to look.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what tours do we run', 'explain our tours'],
     confirm: 'never',
     handler: 'AiTourServiceService',
@@ -2338,7 +4073,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how to dictate to the assistant.',
-    variables: {},
+    // §214 (C2/T0) — the speech error being explained.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      voiceError: {
+        type: 'string',
+        description: 'Voice error reported.',
+        required: false,
+        resolver: 'none',
+      },
+      voiceErrorCode: {
+        type: 'string',
+        description: 'Voice error code.',
+        required: false,
+        resolver: 'none',
+      },
+      speechErrorCode: {
+        type: 'string',
+        description: 'Speech recognition error code.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['can I talk to it', 'explain voice input'],
     confirm: 'never',
     handler: 'AiExplainVoiceInputService',
@@ -2354,7 +4115,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain why signing in is worth it.',
-    variables: {},
+    // §213 (C2/T0) — aspect only.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why should I sign in', 'what do I get by signing in'],
     confirm: 'never',
     handler: 'AiGuestCheckoutFieldsService',
@@ -2392,7 +4161,7 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       kind: 'none',
       reason: 'The customer has been offered and told about the slot.',
     },
-    handler: 'AiCommandService',
+    handler: 'AiBookingCoreService',
   },
   {
     id: 'operations.fill_unused_slots',
@@ -2410,7 +4179,8 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       // `resolveEmployees` + `resolveScheduleServicesForEmployee`.
       allProviders: {
         type: 'boolean',
-        description: 'Fill gaps across the whole team rather than one provider.',
+        description:
+          'Fill gaps across the whole team rather than one provider.',
         required: false,
         resolver: 'none',
       },
@@ -2445,6 +4215,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
         required: false,
         resolver: 'date',
       },
+      // §304 (`e2e-bug.462`): `handleFillScheduleGaps` calls
+      // `resolveDateRange(params, …)` (reads `date`) and
+      // `resolveEmployeesVerdict(employees, params)` (reads `employeeNames` via
+      // `getRequestedEmployeeNames`). Both were read at depth 1 and undeclared.
+      date: {
+        type: 'string',
+        description: 'Single day to fill gaps on, ISO 8601 date. Alternative to dateFrom/dateTo.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Fill gaps for these providers.',
+        required: false,
+        resolver: 'employee',
+      },
     },
     examples: ['fill my empty slots', 'offer the gaps to someone'],
     confirm: 'always',
@@ -2465,7 +4251,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain how to fix a checkout validation error.',
-    variables: {},
+    // §213 (C2/T0) — the field that failed, and the booking being attempted.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service on the attempted booking.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider on the attempted booking.',
+        required: false,
+        resolver: 'employee',
+      },
+      packageId: {
+        type: 'string',
+        description: 'Package on the attempted booking.',
+        required: false,
+        resolver: 'none',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Start time on the attempted booking.',
+        required: false,
+        resolver: 'datetime',
+      },
+    },
     examples: ['it says my email is invalid', 'how do I fix this error'],
     confirm: 'never',
     handler: 'AiGuestCheckoutFieldsService',
@@ -2481,7 +4299,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Give directions to the business.',
-    variables: {},
+    // §213 (C2/T0) — aspect only.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do I get there', 'give me directions'],
     confirm: 'never',
     handler: 'AiBusinessHoursLocationService',
@@ -2494,7 +4320,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Show a provider calendar.',
-    variables: {},
+    // §211 (C2/T0) — `resolveDateRange` + `resolveEmployees`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Providers, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Whether the whole team is in scope.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show Gevorg calendar', 'what is on their schedule'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2533,7 +4397,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Walk the user through how to do something.',
-    variables: {},
+    // §190 (C2/T0) — `dispatchProductGuideIntent` reads both.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'how do I do this',
       'walk me through it',
@@ -2553,7 +4432,74 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Hide appointments from the calendar view.',
-    variables: {},
+    // §177 (C2/T1) — narrows by provider and day.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      // §304 (`e2e-bug.462`): the service filter was read but never declared.
+      serviceName: {
+        type: 'string',
+        description: 'Restrict to appointments for this service.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Restrict to appointments for these services.',
+        required: false,
+        resolver: 'service',
+      },
+      // §305 (`e2e-bug.462`): read one hop down by
+      // `resolveCalendarVisibilityStatusFilters(params)`, which the handler
+      // calls directly. The first mapping pass reported these as read by
+      // nothing — the helper's own name says otherwise.
+      statusFilter: {
+        type: 'string',
+        description: 'Restrict to appointments with this status.',
+        required: false,
+        resolver: 'none',
+      },
+      statusFilters: {
+        type: 'string[]',
+        description: 'Restrict to appointments with any of these statuses.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['hide those appointments', 'take them off my calendar'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -2650,7 +4596,58 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Link products to be recommended together.',
-    variables: {},
+    // §177 (C2/T1) — four separate refusals: the target needs a service or a
+    // category, and the payload needs product names or ids.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service the products are recommended for.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id, when known.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Category scope, as an alternative to a service.',
+        required: false,
+        resolver: 'none',
+      },
+      categoryId: {
+        type: 'string',
+        description: 'Category id, when known.',
+        required: false,
+        resolver: 'none',
+      },
+      productNames: {
+        type: 'string[]',
+        description: 'Products to recommend, by name.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Single product, as an alternative to the list.',
+        required: false,
+        resolver: 'none',
+      },
+      productIds: {
+        type: 'string[]',
+        description: 'Products to recommend, by id.',
+        required: false,
+        resolver: 'none',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Location scope, read by the handler itself.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['recommend these together', 'link those products'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -2671,7 +4668,69 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List bookings across the business.',
-    variables: {},
+    // §211 (C2/T0) — `handleListBookings` + `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer whose bookings are listed.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Customer, by name.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service filter.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Provider filter.',
+        required: false,
+        resolver: 'employee',
+      },
+      statusFilter: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time filter.',
+        required: false,
+        resolver: 'none',
+      },
+      upcomingOnly: {
+        type: 'boolean',
+        description: 'Only future bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['list our bookings', 'what is booked'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2684,7 +4743,16 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List recorded data breach incidents.',
-    variables: {},
+    // §190 (C2/T0) — `aspect` is this cluster's house pattern: the sub-topic the
+    // explainer narrows to, read by its `parse*FromPrompt` helper.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which breach detail to list.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what breaches have we logged', 'list security incidents'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -2697,7 +4765,81 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the customers on record.',
-    variables: {},
+    // §211 (C2/T0) — `handleListCustomersLogic` owns the whole filter set.
+    variables: {
+      searchTerm: {
+        type: 'string',
+        description: 'Free-text search over customers.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description: 'Filter by email.',
+        required: false,
+        resolver: 'customer',
+      },
+      phone: {
+        type: 'string',
+        description: 'Filter by phone.',
+        required: false,
+        resolver: 'customer',
+      },
+      segment: {
+        type: 'string',
+        description: 'Customer segment filter.',
+        required: false,
+        resolver: 'none',
+      },
+      tags: {
+        type: 'string[]',
+        description: 'Tag filter.',
+        required: false,
+        resolver: 'none',
+      },
+      isVip: {
+        type: 'boolean',
+        description: 'Only VIP customers.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingStatus: {
+        type: 'string',
+        description: 'Filter by their booking status.',
+        required: false,
+        resolver: 'none',
+      },
+      sortBy: {
+        type: 'string',
+        description: 'Sort column.',
+        required: false,
+        resolver: 'none',
+      },
+      sortOrder: {
+        type: 'string',
+        description: 'Sort direction.',
+        required: false,
+        resolver: 'none',
+      },
+      page: {
+        type: 'number',
+        description: 'Page of results.',
+        required: false,
+        resolver: 'none',
+      },
+      pageSize: {
+        type: 'number',
+        description: 'Rows per page.',
+        required: false,
+        resolver: 'none',
+      },
+      limit: {
+        type: 'number',
+        description: 'Row cap.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['list our customers', 'who are our clients'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2723,7 +4865,33 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List external doctors on record.',
-    variables: {},
+    // §214 (C2/T0) — paged, searchable directory.
+    variables: {
+      q: {
+        type: 'string',
+        description: 'Free-text search over doctors.',
+        required: false,
+        resolver: 'none',
+      },
+      activeOnly: {
+        type: 'boolean',
+        description: 'Only active doctors.',
+        required: false,
+        resolver: 'none',
+      },
+      page: {
+        type: 'number',
+        description: 'Page of results.',
+        required: false,
+        resolver: 'none',
+      },
+      pageSize: {
+        type: 'number',
+        description: 'Rows per page.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who are our referring doctors', 'list external doctors'],
     confirm: 'never',
     handler: 'AiExternalDoctorsService',
@@ -2739,7 +4907,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List reviews for a provider.',
-    variables: {},
+    // §212 (C2/T0) — paged, scoped to one provider.
+    variables: {
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      providerName: {
+        type: 'string',
+        description: 'Provider, by name (alternate key).',
+        required: false,
+        resolver: 'employee',
+      },
+      slug: {
+        type: 'string',
+        description: 'Business slug the reviews belong to.',
+        required: false,
+        resolver: 'none',
+      },
+      page: {
+        type: 'number',
+        description: 'Page of reviews.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what do reviews say about Gevorg', 'list their reviews'],
     confirm: 'never',
     handler: 'AiProviderSpecialtyService',
@@ -2752,7 +4952,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List blocks placed in schedules.',
-    variables: {},
+    // §211 (C2/T0) — `resolveEmployees`.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Providers, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Whether the whole team is in scope.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what time is blocked out', 'list schedule blocks'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2768,7 +4988,57 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List gaps in the schedule.',
-    variables: {},
+    // §211 (C2/T0) — `resolveEmployees`, `resolveDateRange`, `parseTimeWindow`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Providers, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Whether the whole team is in scope.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Start of the time window.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'End of the time window.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['where are my gaps', 'list schedule gaps'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2781,7 +5051,20 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the sub-processors handling customer data.',
-    variables: {},
+    // §190 (C2/T0) — narrowed by GDPR article rather than a generic aspect.
+    variables: {
+      // §308 (`e2e-bug.462` reverse census): declared as `article`, a string,
+      // "GDPR article the sub-processor list is scoped to". Nothing reads that
+      // name. `parseListSubProcessorsFromPrompt` reads `params.article28`, a
+      // **boolean** — "Show Article 28 processor list" sets it true. Wrong name
+      // and wrong type.
+      article28: {
+        type: 'boolean',
+        description: 'Scope the list to Article 28 processors.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who processes our data', 'list sub processors'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',
@@ -2813,7 +5096,51 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     // prompts started routing there. Reverted. Being right about the scope and
     // being retrievable are not the same objective.
     description: 'List the tours running this week.',
-    variables: {},
+    // §202 (C2/T0) — `parseListTourCalendarWeekFromPrompt` plus the locale.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Date inside the week wanted.',
+        required: false,
+        resolver: 'date',
+      },
+      weekStartDate: {
+        type: 'string',
+        description: 'First day of the week.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Guide, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Guide, by name.',
+        required: false,
+        resolver: 'employee',
+      },
+      locale: {
+        type: 'string',
+        description: 'Locale for day and month names.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     // 121 of this command's 168 traces are Armenian or Russian. §86.
     examples: [
       'what tours are on this week',
@@ -2839,7 +5166,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     // them is a running forward list with no week in view.
     description:
       'List tour departures coming up, as a running forward schedule with no particular week in view.',
-    variables: {},
+    // §202 (C2/T0) — `parseListUpcomingTourDeparturesFromPrompt`.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Tour, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Tour, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      daysAhead: {
+        type: 'number',
+        description: 'How far ahead to look.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what tours are departing',
       'list upcoming departures',
@@ -2857,7 +5204,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List who is on the waitlist.',
-    variables: {},
+    // §211 (C2/T0) — page size.
+    variables: {
+      limit: {
+        type: 'number',
+        description: 'How many entries to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who is waiting', 'list the waitlist'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2870,7 +5225,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Show the tax metadata recorded on a booking.',
-    variables: {},
+    // §208 (C2/T0) — same booking-or-customer pair via the shared query util.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose tax is being explained.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Customer, used to find the booking when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what tax data is on that booking', 'look up the tax metadata'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -2883,7 +5253,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Find a customer record.',
-    variables: {},
+    // §211 (C2/T0) — the client, and the appointment used to disambiguate.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer being looked up.',
+        required: false,
+        resolver: 'customer',
+      },
+      date: {
+        type: 'string',
+        description: 'Day used to disambiguate.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time used to disambiguate.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider used to disambiguate.',
+        required: false,
+        resolver: 'employee',
+      },
+      bookingContext: {
+        type: 'object',
+        description: 'Booking context carried in from the caller.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['find Gevorg record', 'look up that customer'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2896,7 +5298,51 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Find who is assigned to a service.',
-    variables: {},
+    // §211 (C2/T0) — `enrichDashboardLookupAssignmentParams` adds the service pair.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceCategory: {
+        type: 'string',
+        description: 'Service category, used when no service is named.',
+        required: false,
+        resolver: 'service',
+      },
+      assignmentLookup: {
+        type: 'string',
+        description: 'What is being looked up about the assignment.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose assignment is checked.',
+        required: false,
+        resolver: 'employee',
+      },
+      date: {
+        type: 'string',
+        description: 'Day the assignment applies to.',
+        required: false,
+        resolver: 'date',
+      },
+      serviceRank: {
+        type: 'string',
+        description: 'Rank used to pick between services.',
+        required: false,
+        resolver: 'none',
+      },
+      maxPrice: {
+        type: 'number',
+        description: 'Price ceiling for the service.',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['who does facials', 'look up that service assignment'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -2974,7 +5420,7 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       command: 'operations.mark_no_shows',
       captures: ['bookingIds', 'previousStatuses'],
     },
-    handler: 'AiCommandService',
+    handler: 'AiBookingCoreService',
   },
   {
     id: 'business.migrate_date_display',
@@ -3082,7 +5528,7 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       kind: 'none',
       reason: 'The message has been sent and cannot be unsent.',
     },
-    handler: 'AiOperationsService',
+    handler: 'AiBookingCoreService',
   },
   {
     id: 'business.notify_patient_result_ready',
@@ -3092,7 +5538,29 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Tell a patient their results are ready.',
-    variables: {},
+    // §177 (C2/T1) — read by `parsePatientResultReadyParams`; the sibling helpers
+    // (`resolveReleasedResultIdForNotify`, `readBusinessDateFormatSettings`,
+    // `readBusinessType`) read none, so the chain terminates there.
+    variables: {
+      resultId: {
+        type: 'string',
+        description: 'Released lab result being announced.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking the result belongs to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient being notified.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['tell them their results are in', 'notify the patient'],
     confirm: 'always',
     compensation: {
@@ -3109,7 +5577,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Offer a slot to someone on the waitlist.',
-    variables: {},
+    // §177 (C2/T1) — `handleOfferWaitlistSlotLogic` reads the slot being offered.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day of the slot being offered.',
+        required: false,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Time of the slot being offered.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider whose slot it is.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['offer this to the waitlist', 'tell them a slot opened'],
     confirm: 'always',
     compensation: {
@@ -3139,7 +5627,19 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['owner'] },
     risk: 'T3',
     description: 'Rearrange bookings to use time better.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Was exempted as passing "nothing beyond the
+    // message and the session". It passes `date: params.date` into
+    // `runOrchestrationIntent` — which is precisely the criterion that exemption
+    // list cited for *declaring* `resolve_conflicts` and `reassign_cancelled`.
+    variables: {
+      date: {
+        type: 'string',
+        description:
+          'Day to optimise. Passed straight into the orchestration run.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['optimise my schedule', 'tidy up the day'],
     confirm: 'always',
     compensation: {
@@ -3285,7 +5785,42 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Choose which provider will perform a service.',
-    variables: {},
+    // §177 (C2/T1) — `parsePickProviderForServiceFromPrompt` reads the provider,
+    // service and mode; the handler refuses with `missing: ['providerName']`.
+    variables: {
+      providerName: {
+        type: 'string',
+        description: 'Provider the customer wants.',
+        required: true,
+        resolver: 'employee',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service they want that provider for.',
+        required: false,
+        resolver: 'service',
+      },
+      mode: {
+        type: 'string',
+        description: 'Which selection behaviour to apply.',
+        required: false,
+        resolver: 'none',
+      },
+      providerSameDayMulti: {
+        type: 'boolean',
+        description: 'Keep the same provider across a multi-service day.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+      slug: {
+        type: 'string',
+        description:
+          'Business slug. A tenant identifier from the URL rather than something the user says; read by `resolveBusinessSlugFromParamsOrId`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['book me with Gevorg', 'pick a provider for this'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -3303,7 +5838,22 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Preview how dates will look in a chosen format.',
-    variables: {},
+    // §203 (C2/T0) — `parseBusinessDateFormatFromPrompt` reads the pair the
+    // preview is rendered for before falling back to the prompt.
+    variables: {
+      dateFormat: {
+        type: 'string',
+        description: 'Date format to preview.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFormat: {
+        type: 'string',
+        description: 'Time format to preview.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show me how that date format looks', 'preview the date format'],
     confirm: 'never',
     handler: 'AiBusinessDateFormatService',
@@ -3316,7 +5866,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Show how a typed date would be read.',
-    variables: {},
+    // §203 (C2/T0) — `parseDateStringsFromPrompt` reads the strings to parse.
+    variables: {
+      dateStrings: {
+        type: 'string[]',
+        description: 'Date strings to try parsing.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what would 03/04 mean', 'preview how that date parses'],
     confirm: 'never',
     handler: 'AiBusinessDateFormatService',
@@ -3329,7 +5887,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Preview how a date and time will appear in a notification.',
-    variables: {},
+    // §203 (C2/T0) — `resolveNotificationMessageKind` reads the message kind.
+    variables: {
+      messageKind: {
+        type: 'string',
+        description: 'Which notification the sample is rendered for.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how will the reminder look',
       'preview the notification datetime',
@@ -3345,7 +5911,34 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Quote the tax on a booking a staff member is making.',
-    variables: {},
+    // §208 (C2/T0) — the quote needs a service and a price; both are accepted
+    // under two keys each.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service being quoted, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceQuery: {
+        type: 'string',
+        description: 'Service being quoted, as free text.',
+        required: false,
+        resolver: 'service',
+      },
+      price: {
+        type: 'number',
+        description: 'Price to quote tax on.',
+        required: false,
+        resolver: 'money',
+      },
+      samplePrice: {
+        type: 'number',
+        description: 'Price to quote tax on (alternate key).',
+        required: false,
+        resolver: 'money',
+      },
+    },
     examples: ['how much tax on this booking', 'quote the tax'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -3459,7 +6052,69 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Restore a booking the user started and left.',
-    variables: {},
+    // §214 (C2/T0) — the whole draft is carried in params.
+    variables: {
+      bookingDraft: {
+        type: 'object',
+        description: 'The saved draft.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingDraftServiceId: {
+        type: 'string',
+        description: 'Service on the draft.',
+        required: false,
+        resolver: 'service',
+      },
+      bookingDraftEmployeeId: {
+        type: 'string',
+        description: 'Provider on the draft.',
+        required: false,
+        resolver: 'employee',
+      },
+      bookingDraftDate: {
+        type: 'string',
+        description: 'Date on the draft.',
+        required: false,
+        resolver: 'date',
+      },
+      bookingDraftSlot: {
+        type: 'string',
+        description: 'Slot on the draft.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingDraftSlug: {
+        type: 'string',
+        description: 'Business slug on the draft.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingDraftGuestContact: {
+        type: 'object',
+        description: 'Guest contact held on the draft.',
+        required: false,
+        resolver: 'customer',
+      },
+      bookingDraftUpdatedAt: {
+        type: 'string',
+        description: 'When the draft was last touched.',
+        required: false,
+        resolver: 'datetime',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service, when not taken from the draft.',
+        required: false,
+        resolver: 'service',
+      },
+      slug: {
+        type: 'string',
+        description: 'Business slug, when not taken from the draft.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['pick up where I left off', 'resume my booking'],
     confirm: 'never',
     handler: 'AiResumeBookingDraftService',
@@ -3472,7 +6127,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Restore a checkout the user left mid-payment.',
-    variables: {},
+    // §214 (C2/T0) — the pending checkout being resumed.
+    variables: {
+      pendingCheckoutPayment: {
+        type: 'object',
+        description: 'The pending payment.',
+        required: false,
+        resolver: 'none',
+      },
+      pendingCheckoutSessionId: {
+        type: 'string',
+        description: 'Checkout session to resume.',
+        required: false,
+        resolver: 'none',
+      },
+      pendingSessionId: {
+        type: 'string',
+        description: 'Session id (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      pendingCheckoutServiceId: {
+        type: 'string',
+        description: 'Service on the pending checkout.',
+        required: false,
+        resolver: 'service',
+      },
+      pendingCheckoutEmployeeId: {
+        type: 'string',
+        description: 'Provider on the pending checkout.',
+        required: false,
+        resolver: 'employee',
+      },
+      pendingCheckoutStartTime: {
+        type: 'string',
+        description: 'Start time on the pending checkout.',
+        required: false,
+        resolver: 'datetime',
+      },
+    },
     examples: ['continue my payment', 'I closed the app mid checkout'],
     confirm: 'never',
     handler: 'AiResumePendingPaymentService',
@@ -3489,7 +6182,52 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     // abandoned, so the examples now carry a failed attempt.
     description:
       'Retry an action that was attempted and failed, typically on a bad connection.',
-    variables: {},
+    // §214 (C2/T0) — the offline state, both spellings of each field.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      online: {
+        type: 'boolean',
+        description: 'Whether the device is online.',
+        required: false,
+        resolver: 'none',
+      },
+      isOnline: {
+        type: 'boolean',
+        description: 'Whether the device is online (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      offlineQueueCount: {
+        type: 'number',
+        description: 'How many actions are queued.',
+        required: false,
+        resolver: 'none',
+      },
+      queuedCount: {
+        type: 'number',
+        description: 'How many actions are queued (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      fromCache: {
+        type: 'boolean',
+        description: 'Whether the last answer came from cache.',
+        required: false,
+        resolver: 'none',
+      },
+      offlineFromCache: {
+        type: 'boolean',
+        description:
+          'Whether the last answer came from cache (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'try that again',
       'retry the failed action',
@@ -3511,7 +6249,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     // correctly — fails a spec that disagrees with the registry.
     risk: 'T0',
     description: 'Forecast revenue for a coming period.',
-    variables: {},
+    // §214 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what will we make next month', 'forecast our revenue'],
     confirm: 'never',
     handler: 'AiOperationsService',
@@ -3645,7 +6403,69 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Show appointments for a chosen day or range.',
-    variables: {},
+    // §211 (C2/T0) — same handler as `list_bookings`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer whose bookings are listed.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Customer, by name.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service filter.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Provider filter.',
+        required: false,
+        resolver: 'employee',
+      },
+      statusFilter: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time filter.',
+        required: false,
+        resolver: 'none',
+      },
+      upcomingOnly: {
+        type: 'boolean',
+        description: 'Only future bookings.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show me today appointments', 'what is on'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -3664,7 +6484,8 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
       // pipeline-injected and not declared.
       employeeName: {
         type: 'string',
-        description: 'Provider who is off sick and whose day is being replanned.',
+        description:
+          'Provider who is off sick and whose day is being replanned.',
         required: false,
         resolver: 'employee',
       },
@@ -3785,7 +6606,25 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Show which staff can perform which services.',
-    variables: {},
+    // §177 (C2/T1) — four levels down: service method \u2192 plan builder \u2192
+    // `prepareStaffServiceMatrixPlanLogic`, which is the only thing that reads
+    // params. Its own four helpers (`resolveEmployeesBySeniority`,
+    // `resolveServicesByCategoryHint`, and the two plan builders) read none, so
+    // the chain terminates there.
+    variables: {
+      serviceName: {
+        type: 'string',
+        description: 'Service the matrix is scoped to.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Category hint used to select the services.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who can do what', 'show the staff service matrix'],
     confirm: 'never',
     compensation: {
@@ -3806,7 +6645,56 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Leave a review for a provider.',
-    variables: {},
+    // §177 (C2/T1) — three separate refusals: `providerName`, `rating` and
+    // `idToken`. The token is *presented* by the signed-in session, not set by the
+    // user — the distinction `e2e-bug.464` draws between credentials a caller
+    // already holds and secrets being configured.
+    variables: {
+      providerName: {
+        type: 'string',
+        description: 'Provider being reviewed.',
+        required: true,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Alias for `providerName`.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider id, when known.',
+        required: false,
+        resolver: 'employee',
+      },
+      rating: {
+        type: 'number',
+        description: 'Star rating.',
+        required: true,
+        resolver: 'none',
+      },
+      comment: {
+        type: 'string',
+        description: 'Free-text review.',
+        required: false,
+        resolver: 'none',
+      },
+      idToken: {
+        type: 'string',
+        description:
+          'Session identity token. Presented, not authored — see `e2e-bug.464`.',
+        required: true,
+        resolver: 'none',
+      },
+      slug: {
+        type: 'string',
+        description:
+          'Business slug. A tenant identifier from the URL rather than something the user says; read by `resolveBusinessSlugFromParamsOrId`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['review Gevorg', 'leave a review for my stylist'],
     confirm: 'always',
     compensation: {
@@ -3824,7 +6712,48 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T1',
     description: 'Leave a review using a link from a message.',
-    variables: {},
+    // §177 (C2/T1) — the emailed-link variant: `token` stands in for a session,
+    // and is likewise presented rather than authored.
+    variables: {
+      token: {
+        type: 'string',
+        description:
+          'Review token from the emailed link. Presented, not authored.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking being reviewed.',
+        required: false,
+        resolver: 'appointment',
+      },
+      rating: {
+        type: 'number',
+        description: 'Star rating. The handler refuses without it.',
+        required: true,
+        resolver: 'none',
+      },
+      comment: {
+        type: 'string',
+        description: 'Free-text review.',
+        required: false,
+        resolver: 'none',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Name shown against the review.',
+        required: false,
+        resolver: 'customer',
+      },
+      slug: {
+        type: 'string',
+        description:
+          'Business slug. A tenant identifier from the URL rather than something the user says; read by `resolveBusinessSlugFromParamsOrId`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['review from my link', 'submit my review'],
     confirm: 'always',
     compensation: {
@@ -3881,7 +6810,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise bookings over a period.',
-    variables: {},
+    // §211 (C2/T0) — `resolveBookingMetric` + `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      bookingMetric: {
+        type: 'string',
+        description: 'Which booking metric to report.',
+        required: false,
+        resolver: 'none',
+      },
+      statusFilter: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      allTime: {
+        type: 'boolean',
+        description: 'Ignore the window and count everything.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'how were bookings this month',
       'summarise our bookings',
@@ -3899,7 +6866,15 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the tax a customer has paid.',
-    variables: {},
+    // §208 (C2/T0) — scoped to one customer.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer whose tax total is summarized.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['how much tax has this customer paid', 'summarise their tax'],
     confirm: 'never',
     handler: 'AiBusinessTaxService',
@@ -3912,7 +6887,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the customer base.',
-    variables: {},
+    // §211 (C2/T0) — `resolveCustomerMetric`.
+    variables: {
+      customerMetric: {
+        type: 'string',
+        description: 'Which customer metric to rank by.',
+        required: false,
+        resolver: 'none',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many rows to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['tell me about our customers', 'summarise our clients'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -3928,7 +6917,93 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Summarise what is happening on a given day.',
-    variables: {},
+    // §211 (C2/T0) — reads `date`, then forwards `{ ...params, date }` to both
+    // `handleListBookings` and `handleCheckAvailability`, so their fields are
+    // reachable through it too (same spread rule as §199).
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day to summarize.',
+        required: false,
+        resolver: 'date',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer whose bookings are listed.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Customer, by name.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service filter.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Provider filter.',
+        required: false,
+        resolver: 'employee',
+      },
+      statusFilter: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time filter.',
+        required: false,
+        resolver: 'none',
+      },
+      upcomingOnly: {
+        type: 'boolean',
+        description: 'Only future bookings.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description:
+          'Start of the time window, forwarded to the availability check.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description:
+          'End of the time window, forwarded to the availability check.',
+        required: false,
+        resolver: 'none',
+      },
+      timeOfDay: {
+        type: 'string',
+        description:
+          'Part of the day, forwarded to the availability check.',
+        required: false,
+        resolver: 'none',
+      },
+      dayPart: {
+        type: 'string',
+        description: 'Part of the day (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      serviceCategory: {
+        type: 'string',
+        description:
+          'Service category, forwarded to the availability check.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['how does today look', 'summarise my day'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -3941,7 +7016,39 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise how recommendations are performing.',
-    variables: {},
+    // §212 (C2/T0) — same scoping as the analytics command.
+    variables: {
+      aspect: {
+        type: 'string',
+        description: 'Which part of the explanation is wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product summarized.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service the product attaches to.',
+        required: false,
+        resolver: 'service',
+      },
+      surface: {
+        type: 'string',
+        description: 'Surface summarized.',
+        required: false,
+        resolver: 'none',
+      },
+      daysAhead: {
+        type: 'number',
+        description: 'How many days the window covers.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'are recommendations working',
       'summarise recommendation performance',
@@ -3957,7 +7064,24 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the revenue key figures.',
-    variables: {},
+    // §190 (C2/T0) — the one command in the currency cluster that reads params:
+    // `resolveRevenueKpiDateRange` takes an explicit window, falling back to
+    // `extractDateRangeFromPrompt`. The other ten are dispatched as
+    // `(deps, businessId)` and take nothing.
+    variables: {
+      from: {
+        type: 'string',
+        description: 'Start of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['how is revenue doing', 'summarise our revenue KPIs'],
     confirm: 'never',
     handler: 'AiBusinessCurrencyService',
@@ -3970,7 +7094,45 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise staff activity.',
-    variables: {},
+    // §211 (C2/T0) — `resolveStaffMetric` + `resolveDateRange`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      staffMetric: {
+        type: 'string',
+        description: 'Which staff metric to rank by.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider to scope to.',
+        required: false,
+        resolver: 'employee',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many rows to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how is the team doing', 'summarise our staff'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -3983,7 +7145,27 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'], provider: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise how fully time is booked.',
-    variables: {},
+    // §211 (C2/T0) — `resolveDateRange` only.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['how busy are we', 'summarise utilisation'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -3996,7 +7178,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the waitlist.',
-    variables: {},
+    // §211 (C2/T0) — day and page size.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day to summarize.',
+        required: false,
+        resolver: 'date',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many entries.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how long is the waitlist', 'summarise who is waiting'],
     confirm: 'never',
     handler: 'AiCommandService',
@@ -4012,7 +7208,66 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Change provider while keeping the same time.',
-    variables: {},
+    // §177 (C2/T1) — four refusals (`serviceId`, `date`, `timeSlot`, `mode`); the
+    // slot comes from `resolveTimeSlot`, which accepts `timeSlot` or `startTime`.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Service of the booking being moved.',
+        required: true,
+        resolver: 'service',
+      },
+      date: {
+        type: 'string',
+        description: 'Day of the booking.',
+        required: true,
+        resolver: 'date',
+      },
+      timeSlot: {
+        type: 'string',
+        description:
+          'Time of the booking. `startTime` is accepted by `resolveTimeSlot`.',
+        required: true,
+        resolver: 'none',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Alias for `timeSlot`.',
+        required: false,
+        resolver: 'none',
+      },
+      mode: {
+        type: 'string',
+        description: 'Which switch behaviour to apply.',
+        required: true,
+        resolver: 'none',
+      },
+      providerName: {
+        type: 'string',
+        description: 'Provider to switch to.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider id to switch to.',
+        required: false,
+        resolver: 'employee',
+      },
+      excludeEmployeeId: {
+        type: 'string',
+        description: 'Provider to switch away from.',
+        required: false,
+        resolver: 'employee',
+      },
+      slug: {
+        type: 'string',
+        description:
+          'Business slug. A tenant identifier from the URL rather than something the user says; read by `resolveBusinessSlugFromParamsOrId`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['can I see someone else at the same time', 'switch provider'],
     confirm: 'always',
     compensation: {
@@ -4076,6 +7331,14 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
         required: false,
         resolver: 'none',
       },
+      // §307 (`e2e-bug.462`): read by
+      // `resolveTransferEmployeeServicesInput` alongside `unassignAllServices`.
+      transferFromCategory: {
+        type: 'boolean',
+        description: 'Move every service in the named category to the target provider.',
+        required: false,
+        resolver: 'none',
+      },
     },
     examples: ['move Mary services to Gevorg', 'transfer their services'],
     confirm: 'always',
@@ -4094,7 +7357,65 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Remove services from what a staff member can perform.',
-    variables: {},
+    // §177 (C2/T1) — `resolveAssignEmployeeServicesInput` combines
+    // `resolveEmployees` (employeeName / employeeNames / allProviders) with
+    // `resolveServicesForEmployeeAssignment` (categoryName), plus its own reads.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service being assigned.',
+        required: false,
+        resolver: 'service',
+      },
+      categoryName: {
+        type: 'string',
+        description: 'Assign every service in a category.',
+        required: false,
+        resolver: 'none',
+      },
+      // §307 (`e2e-bug.462`): `unassignFromCategory`, not `assignFromCategory`.
+      // `resolveUnassignEmployeeServicesInput` reads `params.unassignFromCategory`;
+      // `assignFromCategory` is read only by `resolveAssignEmployeeServicesInput`,
+      // the *sibling* command, and was declared here in error — a declared input
+      // no handler reads, which is `e2e-bug.399`'s mistake and the exact mirror
+      // of the one `e2e-bug.462` describes.
+      unassignFromCategory: {
+        type: 'boolean',
+        description: 'Remove every service in the named category from this provider.',
+        required: false,
+        resolver: 'none',
+      },
+      unassignAllServices: {
+        type: 'boolean',
+        description: 'Remove every assigned service from this provider.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Services to remove from this provider.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['Mary no longer does facials', 'unassign those services'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -4112,7 +7433,75 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Show appointments hidden from the calendar.',
-    variables: {},
+    // §177 (C2/T1) — as `hide_appointments_from_calendar`; this one also accepts a
+    // range.
+    variables: {
+      employeeName: {
+        type: 'string',
+        description: 'Provider to act on.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeNames: {
+        type: 'string[]',
+        description: 'Several providers.',
+        required: false,
+        resolver: 'employee',
+      },
+      allProviders: {
+        type: 'boolean',
+        description: 'Apply to every provider instead of naming any.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of a date range.',
+        required: false,
+        resolver: 'date',
+      },
+      // §304 (`e2e-bug.462`): the service filter was read but never declared.
+      serviceName: {
+        type: 'string',
+        description: 'Restrict to appointments for this service.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceNames: {
+        type: 'string[]',
+        description: 'Restrict to appointments for these services.',
+        required: false,
+        resolver: 'service',
+      },
+      // §305 (`e2e-bug.462`): read one hop down by
+      // `resolveCalendarVisibilityStatusFilters(params)`, which the handler
+      // calls directly. The first mapping pass reported these as read by
+      // nothing — the helper's own name says otherwise.
+      statusFilter: {
+        type: 'string',
+        description: 'Restrict to appointments with this status.',
+        required: false,
+        resolver: 'none',
+      },
+      statusFilters: {
+        type: 'string[]',
+        description: 'Restrict to appointments with any of these statuses.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show the hidden appointments', 'unhide them'],
     confirm: 'never',
     compensation: {
@@ -4323,7 +7712,21 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change a schedule template.',
-    variables: {},
+    // §177 (C2/T1) — identify by name, rename with `newName`.
+    variables: {
+      templateName: {
+        type: 'string',
+        description: 'Template to update.',
+        required: false,
+        resolver: 'none',
+      },
+      newName: {
+        type: 'string',
+        description: 'New name for the template.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change that template', 'update the standard week'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -4409,7 +7812,46 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Update the recorded compliance strategy evaluation.',
-    variables: {},
+    // §177 (C2/T1) — the widest input set in this cluster; three separate
+    // refusals name `evalType`, `answers` and `criterionWeights`.
+    variables: {
+      evalType: {
+        type: 'string',
+        description: 'Which strategy evaluation is being updated.',
+        required: true,
+        resolver: 'none',
+      },
+      answers: {
+        type: 'object',
+        description: 'Answers supplied for the evaluation.',
+        required: false,
+        resolver: 'none',
+      },
+      criterionWeights: {
+        type: 'object',
+        description: 'Weighting applied to each criterion.',
+        required: false,
+        resolver: 'none',
+      },
+      decision: {
+        type: 'string',
+        description: 'Recorded decision for the evaluation.',
+        required: false,
+        resolver: 'none',
+      },
+      directoryOptIn: {
+        type: 'boolean',
+        description: 'Whether the business opts into the directory.',
+        required: false,
+        resolver: 'none',
+      },
+      notes: {
+        type: 'string',
+        description: 'Free-text notes on the evaluation.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'update our strategy evaluation',
       'revise the compliance assessment',
@@ -4467,7 +7909,29 @@ export const CORE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Show who has accessed patient data.',
-    variables: {},
+    // §190 (C2/T0) — the only one in the cluster with a real query shape:
+    // `parseViewPhiAccessAuditFromPrompt` reads the field and limit, and
+    // `parsePhiAccessAuditDaysBack` adds the window.
+    variables: {
+      fieldName: {
+        type: 'string',
+        description: 'Restrict the audit to accesses of one PHI field.',
+        required: false,
+        resolver: 'none',
+      },
+      daysBack: {
+        type: 'number',
+        description: 'How far back the audit reaches.',
+        required: false,
+        resolver: 'none',
+      },
+      limit: {
+        type: 'number',
+        description: 'How many audit rows to return.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['who looked at this patient record', 'show the PHI access log'],
     confirm: 'never',
     handler: 'AiBusinessComplianceService',

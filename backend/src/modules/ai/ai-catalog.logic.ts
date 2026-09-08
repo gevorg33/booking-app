@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -911,7 +912,7 @@ export async function handleAssignSubscriptionToCustomerLogic(
   params: Record<string, any>,
   services: Service[],
   customers: Customer[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
 ): Promise<CommandResult> {
   const customerName = params.customerName as string | undefined;
   const planName = params.planName as string | undefined;
@@ -1264,8 +1265,31 @@ export async function handleCatalogCompoundLogic(
   params: Record<string, any>,
   services: Service[],
   customers: Customer[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
   userId?: string,
+  /**
+   * e2e-bug.448(b) / D3 item (5) — the online-payment step, injected rather
+   * than imported.
+   *
+   * Both e2e-bug.348's and e2e-bug.349's reported prompts end with "Turn on
+   * online payment for …", which is not a catalog action: it is handled by
+   * `AiPaymentsService`. Until now it hit the `default` branch below, which
+   * fails the **whole** compound — so a prompt whose catalog work had already
+   * succeeded was reported as a failure. That is the shared reason both
+   * tickets lingered as "partial" long after their named root causes closed.
+   *
+   * Taking it as a callback rather than adding the payments service to
+   * `CatalogLogicDeps` is the D5-b pattern: `ai-catalog.logic.ts` gains no
+   * dependency on another domain, and a caller that cannot supply it simply
+   * does not (the step then reports as unsupported, exactly as before).
+   */
+  configureServiceOnlinePayment?: (
+    businessId: string,
+    params: Record<string, any>,
+    prompt: string,
+    services: Service[],
+    userId?: string,
+  ) => Promise<CommandResult>,
 ): Promise<CommandResult> {
   const steps: CatalogCompoundStep[] = chooseCatalogCompoundSteps(
     prompt,
@@ -1407,6 +1431,24 @@ export async function handleCatalogCompoundLogic(
           customers,
           resolveCustomer,
         );
+        break;
+      // e2e-bug.448(b). `enable_online_payment` is the shape the planner emits;
+      // `configure_service_online_payment` is the canonical spec id. Both are
+      // accepted so a plan is not failed over a naming difference.
+      case 'enable_online_payment':
+      case 'configure_service_online_payment':
+        result = configureServiceOnlinePayment
+          ? await configureServiceOnlinePayment(
+              businessId,
+              stepParams,
+              step.segment,
+              services,
+              userId,
+            )
+          : failure(
+              step.action,
+              'Online payment could not be configured as part of this compound.',
+            );
         break;
       default:
         result = failure(

@@ -23,7 +23,7 @@ describe('Provider product guide intents (ai-guide-1.4.1)', () => {
   beforeEach(() => {
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
-      completeJson: jest.fn(),
+      completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     providerMobile = {
       resolveMobileAccess: jest.fn(async () => staffAccess),
@@ -92,7 +92,7 @@ describe('Provider voice next client (ai-guide-1.4.4 / 5.24.5)', () => {
     service = createProviderAiCommandHarness({
       llm: {
         isAvailableForBusiness: jest.fn(async () => true),
-        completeJson: jest.fn(),
+        completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       },
       providerMobile: {
         resolveMobileAccess: jest.fn(async () => ({
@@ -138,7 +138,7 @@ describe('Provider guide screen context (ai-guide-1.4.2)', () => {
     service = createProviderAiCommandHarness({
       llm: {
         isAvailableForBusiness: jest.fn(async () => true),
-        completeJson: jest.fn(),
+        completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       },
       providerMobile: {
         resolveMobileAccess: jest.fn(async () => ({

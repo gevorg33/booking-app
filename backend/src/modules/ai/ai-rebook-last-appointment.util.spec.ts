@@ -106,13 +106,50 @@ describe('D1 — "same <contact field>" is not a prior-visit cue', () => {
     // function, before any prior-visit reasoning. Pinned because "same stylist"
     // reads like a rebook cue and a future edit might well add it.
     expect(hasRebookLastAppointmentCoreCue('Book the same stylist')).toBe(false);
-    // Pre-existing and NOT caused by the whitelist: "Rebook the same stylist as
-    // last time" is also false, because `\bbook\b` does not match "Rebook" and
-    // neither explicit cue covers this shape (they want `rebook…last` or the
-    // literal "same as last"). Pinned as current behaviour, not as desired
-    // behaviour — see e2e-bug.450.
+    // e2e-bug.450, fixed 2026-08-20 — this now resolves. It used to be false
+    // because `\bbook\b` does not match "Rebook" and `same as last` requires
+    // the two words to be adjacent, so "same **stylist** as last" reached
+    // nothing. `EXPLICIT_REBOOK_CUE` now allows one bounded noun between them,
+    // and the block above already lets `rebook` through its allowlist.
     expect(
       hasRebookLastAppointmentCoreCue('Rebook the same stylist as last time'),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  describe('e2e-bug.450 — one noun between "same" and "as last"', () => {
+    it.each([
+      'Rebook the same stylist as last time',
+      'Rebook the same service as last time',
+      'Rebook the same treatment as last visit',
+    ])('resolves: %s', (prompt) => {
+      expect(hasRebookLastAppointmentCoreCue(prompt)).toBe(true);
+    });
+
+    it.each([
+      // The widening must not reopen e2e-bug.362. A contact field between
+      // "same" and "as last" is a guest-checkout question, not a rebook.
+      'Will my booking link if I use the same email as last time?',
+      'Can I check out with the same phone as last time?',
+      'Does it work with the same contact details as last time?',
+    ])('does not claim: %s', (prompt) => {
+      expect(hasRebookLastAppointmentCoreCue(prompt)).toBe(false);
+    });
+
+    it('a provider noun without an explicit rebook word still goes to provider-pick', () => {
+      // "Book the same therapist as last visit" is NOT a rebook: it names a
+      // provider, so `STYLIST_ONLY_PICK_BLOCK` claims it first and its
+      // allowlist ("same as last", "rebook", …) is not satisfied by "as last
+      // visit". The e2e-bug.450 cue is deliberately reached only after that
+      // block, so widening it did not take provider picks away from
+      // `pick_provider_for_service`.
+      expect(
+        hasRebookLastAppointmentCoreCue('Book the same therapist as last visit'),
+      ).toBe(false);
+      // …and adding the explicit word flips it, which is the distinction the
+      // block is drawing.
+      expect(
+        hasRebookLastAppointmentCoreCue('Rebook the same therapist as last visit'),
+      ).toBe(true);
+    });
   });
 });

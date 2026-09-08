@@ -23,43 +23,72 @@ describe('CustomerAiCommandService', () => {
   function createMocks() {
     const llm = {
       isAvailableForBusiness: jest.fn(async () => true),
-      completeJson: jest.fn(async () => ({
-        action: 'list_my_appointments',
-        params: {},
-        reasoning: 'list appointments',
-      })),
+      // Return type declared, parameters deliberately not: two tests omit
+      // `action` / `params` to exercise classifier normalisation, and this file
+      // uses the ambient `@types/jest` `Mock<R, A, C>`, whose argument tuple `A`
+      // is invariant — declaring parameters here rejects all twenty-odd
+      // `mocks.llm.completeJson = jest.fn(async () => …)` reassignments. Measured:
+      // it takes this file from 8 errors to 26.
+      completeJson: jest.fn(
+        async (): Promise<{
+          action?: string;
+          params?: Record<string, unknown>;
+          reasoning?: string;
+        }> => ({
+          action: 'list_my_appointments',
+          params: {},
+          reasoning: 'list appointments',
+        }),
+      ),
     };
     const promptSecurity = {
-      preflightBlock: jest.fn(() => null),
+      preflightBlock: jest.fn((): CommandResult | null => null),
       prepareUserPromptForClassifier: jest.fn((p: string) => p),
       stripParams: jest.fn((p: Record<string, unknown>) => p),
     };
-    const platform = { gateCustomerAction: jest.fn(() => null) };
+    const platform = {
+      gateCustomerAction: jest.fn((): CommandResult | null => null),
+    };
     const aiEvents = { emitMisrouteTelemetry: jest.fn() };
     const selfServiceBooking = {
       isCustomerBookingCompound: jest.fn(() => true),
       handleCustomerBookingCompound: jest.fn(async () => compoundResult),
-      handleBookPackage: jest.fn(async () => ({
-        success: true,
-        action: 'book_package',
-        summary: 'package',
-        details: { packageId: 'pkg-1' },
-      })),
+      handleBookPackage: jest.fn(
+        async (): Promise<CommandResult> => ({
+          success: true,
+          action: 'book_package',
+          summary: 'package',
+          details: { packageId: 'pkg-1' },
+        }),
+      ),
       handleListMyAppointments: jest.fn(async () => ({
         success: true,
         action: 'list_my_appointments',
         summary: 'ok',
         details: {},
       })),
+      handleShowCartTotalDuration: jest.fn(async () => ({
+        success: true,
+        action: 'show_cart_total_duration',
+        summary: 'ok',
+        details: {},
+      })),
     };
     const marketingGrowth = {
       isMarketingGrowthCompound: jest.fn(() => false),
-      handlePromoCodeHelp: jest.fn(async () => ({
-        success: true,
-        action: 'promo_code_help',
-        summary: 'promo ok',
-        details: { promoCode: 'SPRING25' },
-      })),
+      // Paired with the predicate above, as `selfServiceBooking` pairs its own.
+      // The predicate defaults to false so the guard short-circuits, but a test
+      // that flips it without replacing this whole object would otherwise call
+      // an undefined method.
+      handleMarketingGrowthCompound: jest.fn(async () => compoundResult),
+      handlePromoCodeHelp: jest.fn(
+        async (): Promise<CommandResult> => ({
+          success: true,
+          action: 'promo_code_help',
+          summary: 'promo ok',
+          details: { promoCode: 'SPRING25' },
+        }),
+      ),
       handleApplyPromoCodeCheckout: jest.fn(async () => ({
         success: true,
         action: 'apply_promo_code_checkout',
@@ -221,6 +250,15 @@ describe('CustomerAiCommandService', () => {
       })),
     };
 
+    /*
+     * Stands in for every sprint handler the service may consult: answers any
+     * `is*Compound` with false and any `handle*` with a result. Typed as an
+     * index signature of mocks because tests replace a whole slot
+     * (`mocks.payments = { … }`) and then assert on it; untyped, the `{}` target
+     * made every such read an error. Nothing asserts against the Proxy itself —
+     * and nothing should, since the `jest.fn()` fallback below hands back a
+     * *fresh* mock on every property access.
+     */
     const noopSprint = new Proxy(
       {},
       {
@@ -248,7 +286,7 @@ describe('CustomerAiCommandService', () => {
           return jest.fn();
         },
       },
-    );
+    ) as Record<string, jest.Mock>;
 
     return {
       llm,
@@ -623,17 +661,36 @@ describe('CustomerAiCommandService', () => {
     expect(selfServiceBooking.handleShowCartTotalDuration).toHaveBeenCalled();
   });
 
+  type CustomerCommandMocks = ReturnType<typeof createMocks>;
+
   function mockCompoundFallback(
-    overrides: Partial<ReturnType<typeof createMocks>> & {
+    overrides: {
+      [K in keyof CustomerCommandMocks]?: Partial<CustomerCommandMocks[K]>;
+    } & {
       prompt: string;
       expectedSummary: string;
-      assertCalled: (mocks: ReturnType<typeof createMocks>) => void;
+      assertCalled: (mocks: CustomerCommandMocks) => void;
     },
   ) {
     it(`uses compound fallback for "${overrides.prompt.slice(0, 40)}..."`, async () => {
       const mocks = createMocks();
       mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
-      Object.assign(mocks, overrides);
+      // Layers each override *over* the default slot instead of replacing it.
+      // `Object.assign(mocks, overrides)` swapped the whole service mock out, so
+      // an override naming two methods silently removed every other method that
+      // service exposes — and it also copied `prompt`/`expectedSummary`/
+      // `assertCalled` onto `mocks`. Spreading works for the `noopSprint` slots
+      // too: that Proxy has no own keys, so spreading it yields `{}` and the
+      // override stands alone, exactly as the wholesale replacement did.
+      for (const key of Object.keys(overrides)) {
+        if (key === 'prompt' || key === 'expectedSummary') continue;
+        if (key === 'assertCalled') continue;
+        const slot = key as keyof CustomerCommandMocks;
+        (mocks as Record<string, unknown>)[slot] = {
+          ...(mocks[slot] as object),
+          ...(overrides[slot] as object),
+        };
+      }
       jest.spyOn(intentDecomposition, 'isCompoundPrompt').mockReturnValue(true);
       jest
         .spyOn(intentDecomposition, 'decomposeDeterministicForSurface')
@@ -1297,6 +1354,7 @@ describe('CustomerAiCommandService', () => {
     mocks.selfServiceBooking.isCustomerBookingCompound = jest.fn(() => false);
     mocks.payments = { isPaymentsCompound: jest.fn(() => false) };
     mocks.marketingGrowth = {
+      ...mocks.marketingGrowth,
       isMarketingGrowthCompound: jest.fn(() => true),
       handleMarketingGrowthCompound: jest.fn(async () => ({
         success: false,
@@ -1346,6 +1404,7 @@ describe('CustomerAiCommandService', () => {
       })),
     };
     mocks.marketingGrowth = {
+      ...mocks.marketingGrowth,
       isMarketingGrowthCompound: jest.fn(() => true),
       handleMarketingGrowthCompound: jest.fn(async () => ({
         success: true,

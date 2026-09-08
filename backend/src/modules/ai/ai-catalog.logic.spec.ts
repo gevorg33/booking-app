@@ -1609,6 +1609,92 @@ describe('ai-catalog.logic', () => {
       expect((unsupported.details as any).failedStep).toBe('list_packages');
     });
 
+    describe('e2e-bug.448(b) — the online-payment tail no longer fails the compound', () => {
+      /**
+       * Both e2e-bug.348's and e2e-bug.349's reported prompts end with "Turn on
+       * online payment for …". That is a payments action, so it hit the
+       * executor's `default` branch, which fails the WHOLE compound — reporting
+       * failure on top of catalog work that had already been written. This is
+       * the shared reason both tickets lingered as "partial" long after their
+       * named root causes were fixed.
+       */
+      const catalogStep = {
+        action: 'bulk_create_catalog',
+        params: {
+          catalogDraft: {
+            categoryName: 'Hair',
+            services: [{ serviceName: 'Cut', durationMinutes: 30, price: 40 }],
+          },
+        },
+        segment: 'a',
+      };
+
+      const run = (delegate?: any, action = 'enable_online_payment') =>
+        handleCatalogCompoundLogic(
+          buildDeps(),
+          'biz-1',
+          'compound',
+          {
+            compoundSteps: [
+              catalogStep,
+              { action: action as any, params: {}, segment: 'turn on online payment' },
+            ],
+          },
+          services,
+          customers,
+          resolveCustomer,
+          'user-1',
+          delegate,
+        );
+
+      it('delegates the step instead of failing on `default`', async () => {
+        const delegate = jest.fn().mockResolvedValue({
+          success: true,
+          action: 'configure_service_online_payment',
+          summary: 'Online payment enabled.',
+        });
+
+        const result = await run(delegate);
+
+        expect(delegate).toHaveBeenCalled();
+        expect(result.success).toBe(true);
+        expect((result.details as any).failedStep).toBeUndefined();
+      });
+
+      it('accepts the canonical spec id as well as the planner shape', async () => {
+        const delegate = jest.fn().mockResolvedValue({
+          success: true,
+          action: 'configure_service_online_payment',
+          summary: 'ok',
+        });
+
+        await run(delegate, 'configure_service_online_payment');
+
+        expect(delegate).toHaveBeenCalled();
+      });
+
+      it('still fails cleanly when no delegate is supplied', async () => {
+        // A caller that cannot provide the payments service is not broken by
+        // this change — it reports the step as unsupported, as before.
+        const result = await run(undefined);
+
+        expect(result.success).toBe(false);
+        expect((result.details as any).failedStep).toBe('enable_online_payment');
+      });
+
+      it('reports the catalog work that landed before a delegate failure', async () => {
+        // e2e-bug.448(a) — the completed-steps report must survive.
+        const delegate = jest
+          .fn()
+          .mockResolvedValue({ success: false, action: 'x', summary: 'nope' });
+
+        const result = await run(delegate);
+
+        expect(result.success).toBe(false);
+        expect(result.summary).toContain('Completed before stopping');
+      });
+    });
+
     it('runs each compound step type', async () => {
       const deps = buildDeps();
       const runTwo = async (steps: any[]) => {

@@ -1,6 +1,7 @@
 import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Employee } from '../employee/entities/employee.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('AiScheduleHandlersService locale dates', () => {
   const employee: Employee = {
@@ -10,10 +11,10 @@ describe('AiScheduleHandlersService locale dates', () => {
     isActive: true,
   } as Employee;
 
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     settings: { locale: 'hy' },
-  } as Business;
+  });
 
   const periodRepo = {
     find: jest.fn().mockResolvedValue([]),

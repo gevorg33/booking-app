@@ -8,7 +8,15 @@ export const UPCOMING_TOUR_DEPARTURES_CLASSIFIER_RULES = `- list_upcoming_tour_d
   - "Покажи предстоящие выезды туров с pax и оставшимися местами" → list_upcoming_tour_departures
   - "Ցուցադրիր առաջիկա մեկնումները pax-ով և մնացած տեղերով" → list_upcoming_tour_departures`;
 
-export const LIST_UPCOMING_TOUR_DEPARTURES_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ListUpcomingTourDeparturesPromptFixture = {
+  id: string;
+  prompt: string;
+  daysAhead?: number;
+  serviceName?: string;
+};
+
+export const LIST_UPCOMING_TOUR_DEPARTURES_PROMPTS: readonly ListUpcomingTourDeparturesPromptFixture[] = [
   {
     id: 'list-departures-capacity',
     prompt: 'List upcoming tour departures with pax and remaining capacity',

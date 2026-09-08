@@ -156,11 +156,11 @@ describe('ai-misroute-telemetry.util (pipe-1.10.2)', () => {
           originalPrompt: 'book nearest haircut tomorrow',
           normalizedPrompt: 'book nearest haircut tomorrow',
           classifierContext: null,
-          method: 'none',
+          method: 'passthrough',
         },
         normalization: {
           normalizedPrompt: 'book nearest haircut tomorrow',
-          method: 'none',
+          method: 'passthrough',
           classifierContext: null,
         },
         surface: 'dashboard',

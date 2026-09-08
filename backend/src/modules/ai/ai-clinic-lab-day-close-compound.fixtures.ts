@@ -8,7 +8,7 @@ export type ClinicLabDayCloseCompoundFixture = {
   misclassifiedAction?: string;
 };
 
-export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
+export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS: readonly ClinicLabDayCloseCompoundFixture[] = [
   {
     id: 'lab-day-close-maria-e2e-en',
     prompt:
@@ -18,7 +18,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Maria',
       orderId: 'abc123',
@@ -38,7 +38,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'John',
       orderId: 'ord-42',
@@ -57,7 +57,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Sofia',
       orderId: 'abc123',
@@ -74,7 +74,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Anna',
       orderId: 'abc123',
@@ -92,7 +92,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Alex',
       orderId: 'ord-55',
@@ -109,7 +109,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'James',
       orderId: 'abc123',
@@ -127,7 +127,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Elena',
       orderId: 'abc123',
@@ -145,7 +145,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Maria',
       orderId: 'ord-99',
@@ -162,7 +162,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'David',
       orderId: 'abc123',
@@ -179,7 +179,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Nina',
       orderId: 'abc123',
@@ -197,7 +197,7 @@ export const CLINIC_LAB_DAY_CLOSE_COMPOUND_PROMPTS = [
       'enter_test_result',
       'release_test_result',
       'notify_patient_result_ready',
-    ] as const,
+    ],
     expectedParams: {
       customerName: 'Leo',
       orderId: 'ord-12',

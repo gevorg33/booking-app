@@ -2,9 +2,10 @@ import { ForbiddenException } from '@nestjs/common';
 import { EventType } from '../../events/event-types.js';
 import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function createAnalyticsHarness() {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-rec',
     name: 'Glow Salon',
     slug: 'glow-salon',
@@ -17,7 +18,7 @@ function createAnalyticsHarness() {
         recommendations: { maxProductCount: 2 },
       },
     },
-  } as Business;
+  });
 
   const productRecommendationService = {
     getCheckoutRecommendations: jest.fn(),

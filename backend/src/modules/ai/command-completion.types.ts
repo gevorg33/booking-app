@@ -15,6 +15,12 @@ export interface BusinessCatalog {
   services: Service[];
   customers: Customer[];
   templates: ScheduleTemplate[];
+  /**
+   * Optional because not every catalog producer loads them. A path that omits
+   * them degrades to today's behaviour (the staff rescue keeps its claim)
+   * rather than silently mis-routing — see e2e-bug.460.
+   */
+  locations?: Array<{ id: string; name: string }>;
 }
 
 export interface ResolvedEntities {
@@ -162,4 +168,19 @@ export interface CommandResult {
   details: Record<string, any>;
   /** Populated for product-guide intents (`explain_app_feature`, `guide_user_flow`, …). */
   guide?: GuideResponse;
+  /**
+   * Key/value state the surface should carry into the next turn.
+   *
+   * e2e-bug.494's sibling: this was **produced but never declared**.
+   * `ai-dismiss-recommendations.logic.ts` spreads it into its result and
+   * `provider-ai-command.service.ts` sets it in several places, yet the type
+   * stopped at `guide`, so every consumer reading it reported
+   * "Property 'sessionContext' does not exist on type 'CommandResult'".
+   *
+   * Typed `unknown` rather than `string` because the producers disagree — the
+   * dismiss handler builds `Record<string, string>` while the provider service
+   * passes `Record<string, unknown>`. Narrowing to `string` here would make the
+   * type lie in the other direction.
+   */
+  sessionContext?: Record<string, unknown>;
 }

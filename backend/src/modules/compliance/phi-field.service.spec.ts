@@ -4,9 +4,10 @@ import { PhiAccessAuditService } from './phi-access-audit.service.js';
 import { PhiFieldService } from './phi-field.service.js';
 import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 const clinicBusiness = (overrides: Record<string, unknown> = {}): Business =>
-  ({
+  makeBusiness({
     id: 'biz-clinic',
     settings: {
       businessType: 'clinic',
@@ -19,7 +20,7 @@ const clinicBusiness = (overrides: Record<string, unknown> = {}): Business =>
       },
       ...overrides,
     },
-  }) as Business;
+  });
 
 describe('PhiFieldService', () => {
   const auditRepo = {
@@ -47,10 +48,10 @@ describe('PhiFieldService', () => {
 
   it('passes through booking fields when HIPAA mode is off', async () => {
     const service = buildService({ PHI_ENCRYPTION_MASTER_KEY: 'master' });
-    const salon = {
+    const salon = makeBusiness({
       id: 'biz-salon',
       settings: { businessType: 'hair_salon', hipaa: { enabled: true } },
-    } as Business;
+    });
     const booking = { notes: 'plain', metadata: { symptoms: 'cough' } };
 
     await expect(
@@ -195,10 +196,10 @@ describe('PhiFieldService', () => {
 
   it('skips write audit when HIPAA is inactive or no fields changed', async () => {
     const service = buildService({ PHI_ENCRYPTION_MASTER_KEY: 'master' });
-    const salon = {
+    const salon = makeBusiness({
       id: 'biz-salon',
       settings: { businessType: 'hair_salon' },
-    } as Business;
+    });
 
     await service.auditBookingPhiWrite(
       salon,

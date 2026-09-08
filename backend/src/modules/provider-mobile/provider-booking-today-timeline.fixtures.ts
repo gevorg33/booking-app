@@ -1,6 +1,42 @@
 /** prov-exp-3.3 — Today timeline scenarios. */
 
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import type { ProviderTodayTimelineBookingLike } from './provider-booking-today-timeline.util.js';
+
+/**
+ * Declared so each array is one type rather than a union of readonly tuples.
+ *
+ * `bookings` is typed from the consumer's own `ProviderTodayTimelineBookingLike`
+ * rather than restated, and `as const` is dropped from these arrays: it was
+ * turning them into `readonly [...]` tuples, which are not assignable to the
+ * `ProviderTodayTimelineBookingLike[]` parameter the utils take.
+ */
+export type ProviderTodayTimelineSegmentScenario = {
+  id: string;
+  bookings: ProviderTodayTimelineBookingLike[];
+  expectedKinds: string[];
+  gapMinutes: number[];
+};
+
+export type ProviderTodayTimelineNextClientScenario = {
+  id: string;
+  now: string;
+  bookings: ProviderTodayTimelineBookingLike[];
+  expectedBookingId: string | null;
+  expectedMinutes: number | null;
+};
+
+export type ProviderTodayTimelineViewScenario = {
+  id: string;
+  enabled: boolean;
+  now?: string;
+  bookings: ProviderTodayTimelineBookingLike[];
+  expectEmpty: boolean;
+  activeBookingId?: string | null;
+  nextBookingId?: string | null;
+};
+
+
 
 export const PROVIDER_TODAY_TIMELINE_NOW_MARKER_SCENARIOS = [
   {
@@ -33,7 +69,7 @@ export const PROVIDER_TODAY_TIMELINE_DURATION_SCENARIOS = [
   { id: 'zero', minutes: 0, expected: '0m' },
 ] as const;
 
-export const PROVIDER_TODAY_TIMELINE_SEGMENT_SCENARIOS = [
+export const PROVIDER_TODAY_TIMELINE_SEGMENT_SCENARIOS: readonly ProviderTodayTimelineSegmentScenario[] = [
   {
     id: 'single-booking',
     bookings: [
@@ -90,9 +126,9 @@ export const PROVIDER_TODAY_TIMELINE_SEGMENT_SCENARIOS = [
     expectedKinds: ['booking'],
     gapMinutes: [],
   },
-] as const;
+];
 
-export const PROVIDER_TODAY_TIMELINE_NEXT_CLIENT_SCENARIOS = [
+export const PROVIDER_TODAY_TIMELINE_NEXT_CLIENT_SCENARIOS: readonly ProviderTodayTimelineNextClientScenario[] = [
   {
     id: 'upcoming-confirmed',
     now: '2026-06-09T09:30:00.000Z',
@@ -130,9 +166,9 @@ export const PROVIDER_TODAY_TIMELINE_NEXT_CLIENT_SCENARIOS = [
     expectedBookingId: null,
     expectedMinutes: null,
   },
-] as const;
+];
 
-export const PROVIDER_TODAY_TIMELINE_VIEW_SCENARIOS = [
+export const PROVIDER_TODAY_TIMELINE_VIEW_SCENARIOS: readonly ProviderTodayTimelineViewScenario[] = [
   {
     id: 'disabled',
     enabled: false,
@@ -171,4 +207,4 @@ export const PROVIDER_TODAY_TIMELINE_VIEW_SCENARIOS = [
     activeBookingId: 'active',
     nextBookingId: 'next',
   },
-] as const;
+];

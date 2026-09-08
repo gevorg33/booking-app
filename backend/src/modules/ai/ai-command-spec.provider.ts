@@ -25,7 +25,72 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Work out which waitlisted customer to offer a freed slot to.',
-    variables: {},
+    // §210 (C2/T0) — the booking picker's full set, plus the waitlist client
+    // and the provider being offered the slot.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, used to narrow between appointments.',
+        required: false,
+        resolver: 'service',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time, used to narrow between appointments.',
+        required: false,
+        resolver: 'none',
+      },
+      status: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      paymentStatus: {
+        type: 'string',
+        description: 'Payment status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason given, carried into the action.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description:
+          'Whether the whole day is in scope rather than one booking.',
+        required: false,
+        resolver: 'none',
+      },
+      waitlistCustomerName: {
+        type: 'string',
+        description: 'Client on the waitlist being offered the slot.',
+        required: false,
+        resolver: 'customer',
+      },
+      employeeName: {
+        type: 'string',
+        description: 'Provider the offer is coordinated with.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: [
       'who should get this cancelled slot',
       'coordinate the waitlist offer',
@@ -79,7 +144,19 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain where the assistant suggestions come from.',
-    variables: {},
+    // §190 (C2/T0) — the meta-guide path. `dispatchProviderMetaGuideIntent` reads
+    // client state only, but the same action also routes through
+    // `dispatchMetaProductGuideIntent` on the dashboard, which reads `date`; it is
+    // declared because one live path reads it.
+    variables: {
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['why is it suggesting this', 'how do AI suggestions work'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -92,7 +169,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the tax lines on an appointment payment breakdown.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['why is there tax on this', 'explain the tax on this booking'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -108,7 +201,19 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain when the assistant needs approval before acting.',
-    variables: {},
+    // §190 (C2/T0) — the meta-guide path. `dispatchProviderMetaGuideIntent` reads
+    // client state only, but the same action also routes through
+    // `dispatchMetaProductGuideIntent` on the dashboard, which reads `date`; it is
+    // declared because one live path reads it.
+    variables: {
+      date: {
+        type: 'string',
+        description:
+          'Day the explanation is scoped to, when the topic is time-bound.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'why is it asking me to approve',
       'when does the assistant need approval',
@@ -124,7 +229,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the swipe-to-confirm gesture.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do I confirm this', 'what is the swipe for'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -225,7 +341,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain the provider profile settings.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what can I change in my profile', 'explain profile settings'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -238,7 +365,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain what each tab in the provider app is for.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is the Today tab', 'explain the app tabs'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -251,7 +389,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how a multi-step request is carried out.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['why did it do three things', 'explain the steps it took'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -293,7 +442,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how staff are invited to the app.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do I invite a colleague', 'explain staff invites'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -306,7 +466,18 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain whose bookings the team view shows.',
-    variables: {},
+    // §190 (C2/T0) — routed through `dispatchProviderProductGuideIntent`, which
+    // reads `topicId` alongside client state (`bookingId`, `lastPush`,
+    // `nativePlatform`, `online`, `offlineQueueCount`). Only the topic is user
+    // input; the rest is what the mobile client attaches.
+    variables: {
+      topicId: {
+        type: 'string',
+        description: 'Guide topic being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['whose calendar am I seeing', 'what does the team view include'],
     confirm: 'never',
     handler: 'AiProductGuideService',
@@ -348,7 +519,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Show the provider calendar for a month.',
-    variables: {},
+    // §210 (C2/T0) — the month being fetched.
+    variables: {
+      month: {
+        type: 'string',
+        description: 'Month to return.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['show me next month', 'my calendar for March'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -361,7 +540,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the provider schedule.',
-    variables: {},
+    // §210 (C2/T0) — window length in days.
+    variables: {
+      days: {
+        type: 'number',
+        description: 'How many days the summary covers.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what does my week look like', 'summarise my schedule'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -374,7 +561,39 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List multi-service visits assigned to this provider.',
-    variables: {},
+    // §213 (C2/T0) — `resolveDateRange(params, prompt, tz)` plus the provider.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what spa days do I have', 'my multi service bookings'],
     confirm: 'never',
     handler: 'AiProviderBookingService',
@@ -390,7 +609,59 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List package visits for this provider.',
-    variables: {},
+    // §213 (C2/T0) — `resolveDateRange(params, prompt, tz)` plus the provider.
+    // §224 — this command has **two implementations**, one per surface, and
+    // §213 traced only the provider one. `surfaces: ['provider', 'customer']`:
+    // the provider surface dispatches to `AiProviderBookingService` (the range
+    // and provider fields below), the customer surface to
+    // `AiSelfServiceBookingService.handleListMyPackageVisits` — a same-named
+    // handler in a different file — which reads `packageName` and takes the
+    // customer from the session. `handler` names only the first, which is why
+    // a trace starting from the spec found one of the two.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+      packageName: {
+        type: 'string',
+        description: 'Package to narrow to, on the customer surface.',
+        required: false,
+        resolver: 'none',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session, on the customer surface.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what package visits do I have', 'my package appointments'],
     confirm: 'never',
     handler: 'AiProviderBookingService',
@@ -403,7 +674,21 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List today package appointments.',
-    variables: {},
+    // §213 (C2/T0) — scoped to the signed-in provider.
+    variables: {
+      employeeId: {
+        type: 'string',
+        description: 'Provider, by id.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what package visits are today', 'package appointments today'],
     confirm: 'never',
     handler: 'AiProviderBookingService',
@@ -416,7 +701,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List the provider upcoming bookings.',
-    variables: {},
+    // §210 (C2/T0) — window length in days.
+    variables: {
+      days: {
+        type: 'number',
+        description: 'How many days ahead to list.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is coming up', 'my next bookings'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -429,7 +722,65 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Open the detail view for a booking.',
-    variables: {},
+    // §210 (C2/T0) — the same booking picker, plus the day.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service, used to narrow between appointments.',
+        required: false,
+        resolver: 'service',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Start time, used to narrow between appointments.',
+        required: false,
+        resolver: 'none',
+      },
+      status: {
+        type: 'string',
+        description: 'Booking status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      paymentStatus: {
+        type: 'string',
+        description: 'Payment status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Reason given, carried into the action.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description:
+          'Whether the whole day is in scope rather than one booking.',
+        required: false,
+        resolver: 'none',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to look on.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['open my 3pm booking', 'show me that appointment'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -455,7 +806,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise the next client out loud for hands-free use.',
-    variables: {},
+    // §210 (C2/T0) — the day being summarized.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day to take the next client from.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['who is next', 'tell me about my next client'],
     confirm: 'never',
     handler: 'ProviderAiCommandService',
@@ -499,7 +858,47 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Confirm a booking that is awaiting confirmation.',
-    variables: {},
+    // §177 (C2/T1) — same shared filter as the visit-status commands; the handler
+    // defaults `date` to today and then keeps only PENDING matches.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking when omitted.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to search. Defaults to today.',
+        required: false,
+        resolver: 'date',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Narrow the match by client.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Narrow the match by service.',
+        required: false,
+        resolver: 'service',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Narrow the match by appointment time.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description: 'Act on every match rather than requiring one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['confirm that pending booking', 'accept the 3pm request'],
     confirm: 'always',
     compensation: {
@@ -516,7 +915,51 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark a visit as under way.',
-    variables: {},
+    // §177 (C2/T1) — identification runs through `findMatchingBookings`, the
+    // filter shared by the provider status commands. It also reads
+    // `paymentStatus` and `reason`, which are meaningful for other actions on
+    // that helper but not for this one, so they are deliberately not declared:
+    // declaring inputs the command has no use for is `e2e-bug.399`'s mistake.
+    // `status` is set by the handler, not the caller.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking when omitted.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to search. Defaults to today.',
+        required: false,
+        resolver: 'date',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Narrow the match by client.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Narrow the match by service.',
+        required: false,
+        resolver: 'service',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Narrow the match by appointment time.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description: 'Act on every match rather than requiring one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['start this visit', 'mark them as in progress'],
     confirm: 'never',
     compensation: {
@@ -534,7 +977,51 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark a visit as finished.',
-    variables: {},
+    // §177 (C2/T1) — identification runs through `findMatchingBookings`, the
+    // filter shared by the provider status commands. It also reads
+    // `paymentStatus` and `reason`, which are meaningful for other actions on
+    // that helper but not for this one, so they are deliberately not declared:
+    // declaring inputs the command has no use for is `e2e-bug.399`'s mistake.
+    // `status` is set by the handler, not the caller.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking to act on. Falls back to the session booking when omitted.',
+        required: false,
+        resolver: 'appointment',
+      },
+      date: {
+        type: 'string',
+        description: 'Day to search. Defaults to today.',
+        required: false,
+        resolver: 'date',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Narrow the match by client.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Narrow the match by service.',
+        required: false,
+        resolver: 'service',
+      },
+      timeSlot: {
+        type: 'string',
+        description: 'Narrow the match by appointment time.',
+        required: false,
+        resolver: 'none',
+      },
+      allAppointments: {
+        type: 'boolean',
+        description: 'Act on every match rather than requiring one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['mark that visit done', 'finish this appointment'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -552,7 +1039,29 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark one service in a multi-service visit as finished.',
-    variables: {},
+    // §177 (C2/T1) — the anchor booking comes from
+    // `resolveMultiServiceStepAnchorBookingId`, and the step is named either by
+    // position or by service.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Multi-service booking whose step is being completed.',
+        required: false,
+        resolver: 'appointment',
+      },
+      stepIndex: {
+        type: 'number',
+        description: 'Position of the step within the booking.',
+        required: false,
+        resolver: 'none',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Step named by its service instead of its position.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['the massage part is done', 'mark that step complete'],
     confirm: 'never',
     compensation: {
@@ -571,7 +1080,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T1',
     description:
       'Offer the customer a reschedule in response to a notification.',
-    variables: {},
+    // §177 (C2/T1) — the whole input is the booking the push referred to.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking the push notification was about.',
+        required: false,
+        resolver: 'appointment',
+      },
+    },
     examples: ['suggest they move it', 'offer a reschedule for that push'],
     confirm: 'always',
     compensation: {
@@ -662,7 +1179,15 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       "Walk through today's bookings in order, calling out the gaps between clients.",
-    variables: {},
+    // §210 (C2/T0) — the day being summarized.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day the timeline covers.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: [
       'Walk me through my day',
       'Talk me through today',
@@ -681,7 +1206,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Full payment breakdown for a booking — service price, retail add-ons, discounts, tax, total, collected and still owed.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       "What's the payment breakdown for this booking?",
       'Break down the total for this booking',
@@ -699,7 +1240,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'How much is left to pay on a booking after any deposit — the number only, without itemised lines.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'How much is left at checkout?',
       "What's the balance due on this booking?",
@@ -718,7 +1275,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       "The salon's cancel and reschedule policy, plus what this booking's deposit exposure would be if it were cancelled.",
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       "What's our cancellation policy for this client?",
       'Explain the cancel policy for this booking',
@@ -736,8 +1309,24 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description:
-      "How much of a booking a gift card covers, and what is left on the card.",
-    variables: {},
+      'How much of a booking a gift card covers, and what is left on the card.',
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       "She's paying with gift card — balance?",
       "What's left on the gift card?",
@@ -755,7 +1344,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'The order of services in a multi-service booking — what is done, what is running, what is next.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       "What's next after this blowdry?",
       "What's the order of services today?",
@@ -774,7 +1379,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Which visit of a package this booking is — visit number, package name and visits remaining.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'Which visit is this in her package?',
       'How many package visits does she have left?',
@@ -793,7 +1414,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'What is on the retail tab for a booking — product names, quantities and the retail total.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       "What's on the retail tab?",
       'Show me the retail cart for this booking',
@@ -812,7 +1449,23 @@ export const PROVIDER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'The tour group size recorded on a booking — how many people are booked on this departure.',
-    variables: {},
+    // §210 (C2/T0) — routed through `dispatchProviderClientContextIntent`,
+    // which resolves the appointment by id then by client name.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the answer is about.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description:
+          'Client, used to find the appointment when no id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'How many pax on this tour?',
       'How many people are in this tour group?',

@@ -179,6 +179,8 @@ describe('summarizeExecutionModes', () => {
       below_bar: 1,
       insufficient_evidence: 1,
       no_coverage: 1,
+      // §197: every reason is enumerated, including the ones no command hit.
+      execution_unproven: 0,
     });
   });
 
@@ -186,5 +188,42 @@ describe('summarizeExecutionModes', () => {
     const summary = summarizeExecutionModes([], baseline);
     expect(summary.autonomous).toBe(0);
     expect(summary.proposeOnly).toBe(0);
+  });
+});
+
+/**
+ * e2e-bug.437 — every `ProposeOnlyReason` has a counter, so none can report NaN.
+ *
+ * `byReason` is a `Record<ProposeOnlyReason, number>` built as an object
+ * literal, then incremented with `byReason[verdict.reason] += 1`. TypeScript
+ * requires the literal to be exhaustive, but a reason added to the union *and*
+ * the literal in one edit and later removed from the literal — or reintroduced
+ * through a cast — increments `undefined`, and `undefined + 1` is `NaN`. The
+ * bucket then reports NaN rather than a count, which is what this bug was.
+ *
+ * Asserted at runtime rather than left to the compiler, because the failure
+ * mode is silent arithmetic, not a type error, once any `as` is involved.
+ */
+describe('e2e-bug.437 — byReason is exhaustive', () => {
+  it('counts every reason as a number, never NaN', () => {
+    const summary = summarizeExecutionModes([], { byIntent: {} } as any);
+    for (const [reason, count] of Object.entries(summary.byReason)) {
+      expect(Number.isNaN(count)).toBe(false);
+      expect(typeof count).toBe('number');
+    }
+    // The reason this bug named, pinned by name.
+    expect(summary.byReason).toHaveProperty('execution_unproven');
+  });
+
+  it('a reason that actually fires increments rather than going NaN', () => {
+    const summary = summarizeExecutionModes(['some_unknown_command'], {
+      byIntent: {},
+    } as any);
+    const total = Object.values(summary.byReason).reduce(
+      (a, b) => a + (b as number),
+      0,
+    );
+    expect(Number.isNaN(total)).toBe(false);
+    expect(total).toBe(1);
   });
 });

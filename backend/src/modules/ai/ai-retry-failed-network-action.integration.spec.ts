@@ -5,20 +5,20 @@ import {
   RETRY_FAILED_NETWORK_ACTION_RESCUE_SCENARIOS,
 } from './ai-retry-failed-network-action.fixtures.js';
 import { rescueRetryFailedNetworkActionIntent } from './ai-retry-failed-network-action.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai retry failed network action integration (ai-cmd-customer-4.18.6)', () => {
   it.each(RETRY_FAILED_NETWORK_ACTION_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'retry_failed_network_action',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
     },
   );

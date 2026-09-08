@@ -32,7 +32,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain what a client submitted on their intake form.',
-    variables: {},
+    // §213 (C2/T0) — shared client-context pair.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client context is drawn from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'what did this client put on their intake',
       'show me their intake answers',
@@ -48,7 +62,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List internal staff notes recorded against a client.',
-    variables: {},
+    // §213 (C2/T0) — shared client-context pair.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client context is drawn from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what notes are on this client', 'show staff notes for Gevorg'],
     confirm: 'never',
     handler: 'AiProviderClientContextService',
@@ -61,7 +89,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Show a client visit history with this provider.',
-    variables: {},
+    // §213 (C2/T0) — shared client-context pair.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client context is drawn from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what has this client had before', 'show me their history'],
     confirm: 'never',
     handler: 'AiProviderClientContextService',
@@ -75,7 +117,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Summarise what a provider should know about a client before their visit.',
-    variables: {},
+    // §213 (C2/T0) — shared client-context pair.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client context is drawn from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['brief me on my next client', 'summarise this customer'],
     confirm: 'never',
     handler: 'AiProviderClientContextService',
@@ -89,7 +145,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'List the canned client message templates that are configured.',
-    variables: {},
+    // §214 (C2/T0) — shared client-context pair.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client is taken from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what message templates do we have', 'list my canned messages'],
     confirm: 'never',
     handler: 'AiProviderExp3Service',
@@ -103,7 +173,45 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Build a pre-filled SMS or WhatsApp link to message a client. Does not send: it returns a link for the provider to open.',
-    variables: {},
+    // §214 (C2/T0) — the client, the template and the channel.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Appointment the client is taken from.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client, used when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      templateId: {
+        type: 'string',
+        description: 'Template, by id.',
+        required: false,
+        resolver: 'none',
+      },
+      templateLabel: {
+        type: 'string',
+        description: 'Template, by label.',
+        required: false,
+        resolver: 'none',
+      },
+      messageTemplate: {
+        type: 'string',
+        description: 'Template body supplied directly.',
+        required: false,
+        resolver: 'none',
+      },
+      channel: {
+        type: 'string',
+        description: 'How to send it.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'message this client that I am running late',
       'send a reminder to my 3pm',
@@ -120,7 +228,27 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Summarise the appointments belonging to the requesting provider.',
-    variables: {},
+    // §214 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what is my day like', 'summarise my appointments'],
     confirm: 'never',
     handler: 'AiProviderEarningsService',
@@ -133,7 +261,27 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Report the revenue earned by the requesting provider.',
-    variables: {},
+    // §214 (C2/T0) — `resolveDateRange(params, prompt, tz)`.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day or anchor date for the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of the window.',
+        required: false,
+        resolver: 'date',
+      },
+      dateTo: {
+        type: 'string',
+        description: 'End of the window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['how much have I earned', 'my revenue this month'],
     confirm: 'never',
     handler: 'AiProviderEarningsService',
@@ -146,7 +294,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain how to turn on push notifications.',
-    variables: {},
+    // §214 (C2/T0) — platform pair.
+    variables: {
+      nativePlatform: {
+        type: 'string',
+        description: 'Device platform.',
+        required: false,
+        resolver: 'none',
+      },
+      platform: {
+        type: 'string',
+        description: 'Device platform (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how do I get notifications', 'explain push setup'],
     confirm: 'never',
     handler: 'AiProviderPushSetupService',
@@ -163,7 +325,33 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Report whether push notifications are registered on this device.',
-    variables: {},
+    // §214 (C2/T0) — platform pair plus the session customer.
+    variables: {
+      nativePlatform: {
+        type: 'string',
+        description: 'Device platform.',
+        required: false,
+        resolver: 'none',
+      },
+      platform: {
+        type: 'string',
+        description: 'Device platform (alternate key).',
+        required: false,
+        resolver: 'none',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer, by id.',
+        required: false,
+        resolver: 'customer',
+      },
+      sessionCustomerId: {
+        type: 'string',
+        description: 'Customer from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['are my notifications on', 'push registration status'],
     confirm: 'never',
     handler: 'AiProviderPushSetupService',
@@ -205,7 +393,27 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Explain what is recorded on a patient chart.',
-    variables: {},
+    // §214 (C2/T0) — the patient, and which section.
+    variables: {
+      customerId: {
+        type: 'string',
+        description: 'Patient, by id.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient, by name.',
+        required: false,
+        resolver: 'customer',
+      },
+      focus: {
+        type: 'string',
+        description: 'Section of the chart to focus on.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what is on this patient chart', 'explain the chart for Gevorg'],
     confirm: 'never',
     handler: 'AiClinicPatientChartService',
@@ -218,7 +426,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List internal staff notes recorded against a customer.',
-    variables: {},
+    // §214 (C2/T0) — scoped to one patient.
+    variables: {
+      customerId: {
+        type: 'string',
+        description: 'Patient, by id.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Patient, by name.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what notes are on this customer', 'list staff notes'],
     confirm: 'never',
     handler: 'AiPatientClinicalMutationsService',
@@ -231,7 +453,27 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the automated agent tasks and their status.',
-    variables: {},
+    // §214 (C2/T0) — filtered task list.
+    variables: {
+      taskId: {
+        type: 'string',
+        description: 'A single task to show.',
+        required: false,
+        resolver: 'none',
+      },
+      status: {
+        type: 'string',
+        description: 'Task status filter.',
+        required: false,
+        resolver: 'none',
+      },
+      scope: {
+        type: 'string',
+        description: 'Which tasks are in scope.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what has the agent been doing', 'list agent tasks'],
     confirm: 'never',
     handler: 'AiAgentOpsService',
@@ -257,7 +499,44 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Record an internal note against a client.',
-    variables: {},
+    // §177 (C2/T1) — `handleAddClientNoteLogic` resolves the booking via
+    // `resolveBookingIdForClientIntent` (`bookingId` or `customerName`; the
+    // `context.bookingId` fallback is pipeline-injected) and the body via
+    // `resolveClientNoteBody`, which reads `clientNote ?? reason ?? note`. All
+    // three are declared because all three are read.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking the note attaches to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Client the note is about, when no booking id is given.',
+        required: false,
+        resolver: 'customer',
+      },
+      clientNote: {
+        type: 'string',
+        description:
+          'Note body. The handler refuses with `missing: [clientNote]` when none of the three aliases is present.',
+        required: true,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Alias for `clientNote`.',
+        required: false,
+        resolver: 'none',
+      },
+      note: {
+        type: 'string',
+        description: 'Alias for `clientNote`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'note that this client prefers mornings',
       'add a note to their file',
@@ -355,7 +634,49 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Block out time in the provider own calendar.',
-    variables: {},
+    // §177 (C2/T1) — `handleBlockMyTimeLogic` delegates the whole window to
+    // `resolveBlockMyTimeWindow`, which reads six keys across three alias pairs.
+    // Note it *does* read `dateFrom`, so that alias family is live on the provider
+    // surface — relevant to `e2e-bug.462`, where `request_time_off`'s validator
+    // accepts `dateFrom` but its handler does not.
+    variables: {
+      date: {
+        type: 'string',
+        description: 'Day to block.',
+        required: false,
+        resolver: 'date',
+      },
+      dateFrom: {
+        type: 'string',
+        description: 'Start of a multi-day block.',
+        required: false,
+        resolver: 'date',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Start of the blocked window. `timeFrom` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Alias for `startTime`.',
+        required: false,
+        resolver: 'none',
+      },
+      endTime: {
+        type: 'string',
+        description: 'End of the blocked window. `timeTo` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'Alias for `endTime`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['block me out from 2 to 4', 'I am unavailable this afternoon'],
     confirm: 'if-ambiguous',
     // Converted from `manual` in §66. §60 declared this `manual` with the target
@@ -379,7 +700,23 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Extend a block the provider already placed.',
-    variables: {},
+    // §177 (C2/T1) — the only handler in this cluster that reads its params
+    // directly: `handleExtendMyBlockLogic` takes either a duration or a new end.
+    variables: {
+      extendMinutes: {
+        type: 'number',
+        description: 'Minutes to extend the current block by.',
+        required: false,
+        resolver: 'none',
+      },
+      newEndTime: {
+        type: 'string',
+        description:
+          'New end time for the block, as an alternative to a duration.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['extend my block by an hour', 'make that block longer'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -397,7 +734,24 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Tell a client their provider is ready for them.',
-    variables: {},
+    // §177 (C2/T1) — `handleNotifyClientReadyLogic` resolves the booking through
+    // `resolveBookingForExp3` (`params.bookingId`, falling back to
+    // `context.bookingId`, which is pipeline-injected and so not declared) and
+    // reads the delivery channel via `extractSendMessageChannel`.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description: 'Booking whose client should be notified.',
+        required: false,
+        resolver: 'appointment',
+      },
+      channel: {
+        type: 'string',
+        description: 'Delivery channel for the message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['let my next client know I am ready', 'tell them to come in'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -414,7 +768,68 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { provider: ['client', 'staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Request time off for approval.',
-    variables: {},
+    // §177 (C2/T1) — read from `handleRequestTimeOffLogic`. It accepts three alias
+    // pairs and reads **both** sides of each, so both are declared rather than
+    // documenting only the canonical name: `startDate`/`date`,
+    // `dailyStartTime`/`timeFrom`, `dailyEndTime`/`timeTo`, `reason`/`notes`.
+    // `endDate` defaults to `startDate`, so a single-day request needs one date.
+    variables: {
+      startDate: {
+        type: 'string',
+        description:
+          'First day off (ISO date). `date` is accepted as an alias.',
+        required: true,
+        resolver: 'date',
+      },
+      date: {
+        type: 'string',
+        description: 'Alias for `startDate`, read when `startDate` is absent.',
+        required: false,
+        resolver: 'date',
+      },
+      endDate: {
+        type: 'string',
+        description: 'Last day off. Defaults to `startDate` for a single day.',
+        required: false,
+        resolver: 'date',
+      },
+      dailyStartTime: {
+        type: 'string',
+        description: 'Start time for a partial day. `timeFrom` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      timeFrom: {
+        type: 'string',
+        description: 'Alias for `dailyStartTime`.',
+        required: false,
+        resolver: 'none',
+      },
+      dailyEndTime: {
+        type: 'string',
+        description: 'End time for a partial day. `timeTo` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      timeTo: {
+        type: 'string',
+        description: 'Alias for `dailyEndTime`.',
+        required: false,
+        resolver: 'none',
+      },
+      reason: {
+        type: 'string',
+        description: 'Why the time off is requested. `notes` is an alias.',
+        required: false,
+        resolver: 'none',
+      },
+      notes: {
+        type: 'string',
+        description: 'Alias for `reason`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['I need next friday off', 'request leave for the 20th'],
     confirm: 'always',
     compensation: {
@@ -488,6 +903,22 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T3',
     description: 'Apply a whole onboarding playbook to the business.',
     variables: {},
+    // §241: this example is WRONG and the fix is one line, but it is held by
+    // credentials, not by doubt. 'apply the clinic playbook' is
+    // `clinic.apply_playbook`'s example — a *different* T3 command — and
+    // `ai-onboarding.fixtures.ts` says so outright: "Triggers: apply the
+    // playbook, apply our vertical playbook. NOT apply_clinic_playbook /
+    // apply_tour_playbook (those are dedicated clinic/tour setup flows, not the
+    // generic onboarding wizard)". Onboarding does own a 'clinic' vertical
+    // playbook (`VerticalPlaybookId = 'salon' | 'clinic' | 'tour'`), which is why
+    // the string looked plausible sitting here.
+    //
+    // Replace with 'apply our vertical playbook' — the fixture's own trigger —
+    // and then run `npm run build:ai-embeddings`, which needs OPENAI_API_KEY:
+    // examples feed `commandMatchText`, so the edit invalidates the committed
+    // embedding cache and e2e-bug.390's staleness gate fails without a rebuild.
+    // Applied, verified, and reverted rather than left breaking the gate chain.
+    // Tracked as e2e-bug.518.
     examples: ['set us up as a barbershop', 'apply the clinic playbook'],
     confirm: 'always',
     compensation: {
@@ -560,7 +991,21 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T1',
     description:
       'Set what kind of business this is, which drives the defaults offered.',
-    variables: {},
+    // §177 (C2/T1) — `handleSetBusinessTypeLogic` reads exactly these two.
+    variables: {
+      businessType: {
+        type: 'string',
+        description: 'Business type being set during onboarding.',
+        required: true,
+        resolver: 'none',
+      },
+      notes: {
+        type: 'string',
+        description: 'Optional free-text note recorded with the choice.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['we are a barbershop', 'set our business type to clinic'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -867,7 +1312,22 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Attach a pre-visit intake form to a booking.',
-    variables: {},
+    // §177 (C2/T1) — reads both directly, with no helper in between.
+    variables: {
+      bookingId: {
+        type: 'string',
+        description:
+          'Booking the intake is attached to. The handler refuses without it.',
+        required: true,
+        resolver: 'appointment',
+      },
+      questionnaireId: {
+        type: 'string',
+        description: 'Questionnaire to assign.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'send an intake form for that booking',
       'assign the pre visit questionnaire',
@@ -932,7 +1392,41 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Create a clinical questionnaire.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateQuestionnaireLogic` requires all three of `code`,
+    // `internalName` and `title` (its `missing` list names exactly those) and
+    // passes `introTitle` / `introBody` through when present.
+    variables: {
+      code: {
+        type: 'string',
+        description: 'Short unique code for the questionnaire.',
+        required: true,
+        resolver: 'none',
+      },
+      internalName: {
+        type: 'string',
+        description: 'Internal name staff see in the questionnaire list.',
+        required: true,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'Title shown to the patient.',
+        required: true,
+        resolver: 'none',
+      },
+      introTitle: {
+        type: 'string',
+        description: 'Optional heading on the intro screen.',
+        required: false,
+        resolver: 'none',
+      },
+      introBody: {
+        type: 'string',
+        description: 'Optional body text on the intro screen.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['create an intake questionnaire', 'add a new patient form'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -950,7 +1444,32 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Publish a questionnaire so patients receive it.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own; it identifies the questionnaire
+    // through `resolveQuestionnaireOrFail` → `resolveClinicQuestionnaireFromList`,
+    // which tries `questionnaireId`, then `questionnaireCode`, then
+    // `questionnaireName`.
+    variables: {
+      questionnaireId: {
+        type: 'string',
+        description:
+          'Questionnaire id — tried first by `resolveClinicQuestionnaireFromList`.',
+        required: false,
+        resolver: 'none',
+      },
+      questionnaireCode: {
+        type: 'string',
+        description: 'Questionnaire code, used when no id is supplied.',
+        required: false,
+        resolver: 'none',
+      },
+      questionnaireName: {
+        type: 'string',
+        description:
+          'Name fallback, read when neither id nor code is present. Note the handler\u2019s own `missing` hint lists only id and code, so this route is undocumented in the clarify message.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['publish the intake form', 'make that questionnaire live'],
     confirm: 'always',
     compensation: {
@@ -968,7 +1487,61 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change a clinical questionnaire.',
-    variables: {},
+    // §177 (C2/T1) — same identifier triple as `publish_questionnaire`, plus the
+    // fields it can change. Every edit field is optional: the handler applies
+    // only the ones present.
+    variables: {
+      questionnaireId: {
+        type: 'string',
+        description:
+          'Questionnaire id — tried first by `resolveClinicQuestionnaireFromList`.',
+        required: false,
+        resolver: 'none',
+      },
+      questionnaireCode: {
+        type: 'string',
+        description: 'Questionnaire code, used when no id is supplied.',
+        required: false,
+        resolver: 'none',
+      },
+      questionnaireName: {
+        type: 'string',
+        description:
+          'Name fallback, read when neither id nor code is present. Note the handler\u2019s own `missing` hint lists only id and code, so this route is undocumented in the clarify message.',
+        required: false,
+        resolver: 'none',
+      },
+      internalName: {
+        type: 'string',
+        description: 'New internal name.',
+        required: false,
+        resolver: 'none',
+      },
+      title: {
+        type: 'string',
+        description: 'New patient-facing title.',
+        required: false,
+        resolver: 'none',
+      },
+      introTitle: {
+        type: 'string',
+        description: 'New intro heading.',
+        required: false,
+        resolver: 'none',
+      },
+      introBody: {
+        type: 'string',
+        description: 'New intro body text.',
+        required: false,
+        resolver: 'none',
+      },
+      isActive: {
+        type: 'boolean',
+        description: 'Activate or deactivate the questionnaire.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'change a question on the intake form',
       'update the questionnaire',
@@ -1098,7 +1671,41 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change the business profile details.',
-    variables: {},
+    // §177 (C2/T1) — read via **dynamic key access**: the handler loops a fixed
+    // `fields` list and reads `params[field]`, so a `params.x` grep finds nothing
+    // here. The same five names are its `missing` hint.
+    variables: {
+      name: {
+        type: 'string',
+        description: 'Business name.',
+        required: false,
+        resolver: 'none',
+      },
+      description: {
+        type: 'string',
+        description: 'Business description.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'Contact phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      email: {
+        type: 'string',
+        description: 'Contact email address.',
+        required: false,
+        resolver: 'none',
+      },
+      address: {
+        type: 'string',
+        description: 'Business address.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our business phone number', 'update our address'],
     confirm: 'always',
     compensation: {
@@ -1116,7 +1723,47 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Add a location the business operates from.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateLocationLogic` refuses with `missing: ['name']`,
+    // and reads `locationName` as an alias for it alongside the optional fields.
+    variables: {
+      name: {
+        type: 'string',
+        description:
+          'Name of the new location. `locationName` is accepted as an alias.',
+        required: true,
+        resolver: 'none',
+      },
+      locationName: {
+        type: 'string',
+        description: 'Alias for `name`.',
+        required: false,
+        resolver: 'none',
+      },
+      address: {
+        type: 'string',
+        description: 'Street address.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'Contact phone number for the location.',
+        required: false,
+        resolver: 'none',
+      },
+      timezone: {
+        type: 'string',
+        description: 'IANA timezone for the location.',
+        required: false,
+        resolver: 'none',
+      },
+      isDefault: {
+        type: 'boolean',
+        description: 'Make this the default location.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a second branch', 'create a location called Downtown'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1134,7 +1781,57 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change the details of a location.',
-    variables: {},
+    // §177 (C2/T1) — identified through `resolveLocationOrFail` →
+    // `resolveLocationFromList`, which reads `locationId` then `locationName`;
+    // the edit fields are read directly. `locationName` being the only
+    // name-based route in is the contract `e2e-bug.460` is about: the prompt
+    // "Set Downtown's phone number to 555-0100" carries exactly that, but the
+    // staff-operations rescue claims it as `employeeName` before this handler
+    // is reached.
+    variables: {
+      locationId: {
+        type: 'string',
+        description: 'Location id — tried first.',
+        required: false,
+        resolver: 'none',
+      },
+      locationName: {
+        type: 'string',
+        description: 'Location name, used when no id is supplied.',
+        required: false,
+        resolver: 'none',
+      },
+      newName: {
+        type: 'string',
+        description: 'Rename the location.',
+        required: false,
+        resolver: 'none',
+      },
+      address: {
+        type: 'string',
+        description: 'New street address.',
+        required: false,
+        resolver: 'none',
+      },
+      phone: {
+        type: 'string',
+        description: 'New contact phone number.',
+        required: false,
+        resolver: 'none',
+      },
+      timezone: {
+        type: 'string',
+        description: 'New IANA timezone.',
+        required: false,
+        resolver: 'none',
+      },
+      isDefault: {
+        type: 'boolean',
+        description: 'Make this the default location.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['rename the downtown branch', 'change the branch address'],
     confirm: 'if-ambiguous',
     compensation: {

@@ -46,6 +46,21 @@ describe('ai-recover-lost-manage-link.logic (ai-cmd-customer-4.17.3)', () => {
       find: jest.fn(async () => guestBookings),
       findOne: jest.fn(async () => guestBooking),
       save: jest.fn(async (booking: typeof guestBooking) => booking),
+      // `manager.transaction` — the manifest's `mock_missing_transaction`
+      // class, same as this file's `.integration` sibling. The manage-link
+      // path mints a token via `ensureBookingManageToken`, which opens a
+      // transaction and locks the row inside it.
+      manager: {
+        transaction: async (cb: (m: any) => Promise<unknown>) =>
+          cb({
+            createQueryBuilder: () => ({
+              setLock: () => ({
+                where: () => ({ getOne: async () => guestBooking }),
+              }),
+            }),
+            save: async (_entity: unknown, row: any) => row,
+          }),
+      },
     },
     configService: {
       get: jest.fn(() => 'http://localhost:3000'),

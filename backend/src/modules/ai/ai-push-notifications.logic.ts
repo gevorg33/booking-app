@@ -145,6 +145,89 @@ export async function handleExplainLastPushLogic(
   });
 }
 
+/**
+ * e2e-bug.463 — confirm a pending booking straight from its push notification.
+ *
+ * **This command was declared, deliberately routed to, and never implemented.**
+ * `isConfirmPendingBookingPrompt` returns `false` for any prompt mentioning
+ * push/notification/alert, with the comment *"Push/notification confirms are
+ * confirm_booking_from_push (e2e-bug.242)"* — deferring to this action, which
+ * had no dispatch-map entry and no `case` anywhere in `src`. The rescue at
+ * `ai-push-notifications.util.ts` produced it, so a provider saying "confirm
+ * that booking from the notification" was routed to nothing and got no reply.
+ *
+ * It sat inside the reachability ratchet's 291 undispatched rows, which cannot
+ * distinguish "handled by a switch statement" from "handled by nothing" — the
+ * conflation that ratchet's own comment concedes.
+ *
+ * Booking resolution mirrors `handleOpenBookingFromPushLogic` exactly: explicit
+ * `bookingId`, then the push payload, then the prompt. The confirm itself goes
+ * through `providerMobileService.updateBooking`, which is the same path the
+ * provider surface's own `confirm_pending_booking` uses, so access control and
+ * the update's side effects are not reimplemented here.
+ */
+export async function handleConfirmBookingFromPushLogic(
+  deps: PushNotificationsLogicDeps,
+  businessId: string,
+  params: Record<string, any>,
+  prompt?: string,
+  userId?: string,
+): Promise<CommandResult> {
+  const payload = resolveLastPush(params);
+  const bookingId =
+    (params.bookingId as string | undefined) ??
+    payload?.bookingId ??
+    extractBookingIdFromPushPrompt(resolveCommandPromptText(prompt, params));
+
+  if (!bookingId) {
+    return failure(
+      'confirm_booking_from_push',
+      'No booking was linked to that push. Open Today and confirm the appointment there.',
+      { clarify: true, missing: ['bookingId'] },
+    );
+  }
+  if (!userId) {
+    return failure(
+      'confirm_booking_from_push',
+      'Sign in to confirm a booking from a notification.',
+      { clarify: true },
+    );
+  }
+
+  const booking = await deps.bookingRepo.findOne({
+    where: { id: bookingId, businessId },
+    relations: { customer: true, service: true },
+  });
+  if (!booking) {
+    return failure(
+      'confirm_booking_from_push',
+      'Booking not found for that push link.',
+    );
+  }
+  if (booking.status === BookingStatus.CONFIRMED) {
+    return success(
+      'confirm_booking_from_push',
+      `${booking.customer?.name ?? 'That appointment'} is already confirmed.`,
+      { bookingId, alreadyConfirmed: true },
+    );
+  }
+
+  await deps.providerMobileService.updateBooking(
+    businessId,
+    userId,
+    bookingId,
+    {
+      status: BookingStatus.CONFIRMED,
+    },
+  );
+
+  return success(
+    'confirm_booking_from_push',
+    `Confirmed ${booking.customer?.name ?? 'the appointment'} — ${booking.service?.name ?? 'service'}.`,
+    { bookingId, status: BookingStatus.CONFIRMED },
+  );
+}
+
 export async function handleOpenBookingFromPushLogic(
   deps: PushNotificationsLogicDeps,
   businessId: string,

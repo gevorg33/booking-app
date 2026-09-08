@@ -242,7 +242,18 @@ export class CommandCompletionPipelineService {
     const entities: ResolvedEntities = {
       employee,
       employees,
-      service: services.length === 1 ? services[0] : services[0],
+      // e2e-bug.445 / §221 — deliberately NOT the `employee` shape above.
+      // `employees.length !== 1` means the name was ambiguous, so the singular
+      // is withheld and the validator asks which provider. `services.length > 1`
+      // means the opposite: the user named *several* services on purpose, for a
+      // multi-service visit. Withholding the singular there makes the
+      // completeness check `entities.service || enrichedParams.serviceId` fail
+      // — and `serviceId` is only set when exactly one service resolved, so
+      // nothing else backstops it — which would have the validator ask for a
+      // service the user already named twice over. It used to be written
+      // `length === 1 ? services[0] : services[0]`, which reads as a bug and
+      // invites exactly that "fix"; the branch is gone, the reason is here.
+      service: services[0],
       services,
       customer,
       // Only set when the name tied, so the validator can name the options

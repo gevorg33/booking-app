@@ -3,7 +3,13 @@ import { PrepaymentMode } from '../service/entities/service.entity.js';
 
 describe('Sprint 36 — booking payment tax integration', () => {
   const draftRepo = { save: jest.fn(), create: jest.fn(), findOne: jest.fn() };
-  const serviceRepo = { findOne: jest.fn() };
+  const serviceRepo = {
+  findOne: jest.fn(),
+  // e2e-bug.471 — sumServicesPrepaymentAmount reads `find` for multi-service
+  // totals. Empty is the honest default: a spec that has not declared extra
+  // services has none, so the sum is 0 and the assertion decides, not the stub.
+  find: jest.fn().mockResolvedValue([]),
+};
   const businessRepo = { findOne: jest.fn() };
   const stripeService = {
     isConfigured: false,

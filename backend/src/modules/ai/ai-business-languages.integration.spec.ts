@@ -12,9 +12,11 @@ import {
 } from './ai-business-languages.fixtures.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai business languages integration (ai-cmd-lang-1)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -24,7 +26,7 @@ describe('ai business languages integration (ai-cmd-lang-1)', () => {
       defaultLocale: 'en',
       locale: 'en',
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -120,15 +122,14 @@ describe('ai business languages integration (ai-cmd-lang-1)', () => {
       });
       expect(rescued?.action).toBe('configure_business_languages');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'configure_business_languages',
         params: { operation, locales: [...locales] },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessLanguagesLogic(

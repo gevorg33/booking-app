@@ -29,6 +29,13 @@ describe('BookingPaymentService tour pricing', () => {
     {} as any,
   );
 
+  // e2e-bug.520 — these three assertions expected prepaymentAmount to fall back
+  // to the full catalog price, which is the exact fallback api-bug.7 /
+  // e2e-bug.222 removed: with prepaymentMode NONE the online prepayment is 0 and
+  // the catalog total stays in servicePrice. The fixture below declares
+  // PrepaymentMode.NONE, so the tests contradicted their own setup. What each
+  // test is actually named for — the paxCount multiplication — is asserted by
+  // servicePrice, and that was correct all along.
   const tourService = {
     id: 'svc-tour',
     name: 'City Tour',
@@ -56,7 +63,7 @@ describe('BookingPaymentService tour pricing', () => {
     expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
       expect.objectContaining({
         servicePrice: 340,
-        prepaymentAmount: 340,
+        prepaymentAmount: 0,
       }),
     );
   });
@@ -71,7 +78,32 @@ describe('BookingPaymentService tour pricing', () => {
     expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
       expect.objectContaining({
         servicePrice: 85,
-        prepaymentAmount: 85,
+        prepaymentAmount: 0,
+      }),
+    );
+  });
+
+  // e2e-bug.520 — the assertions above had to drop to prepaymentAmount 0 to match
+  // PrepaymentMode.NONE, which would have left the pax multiplication of the
+  // *charge* unasserted: `chargeBase` runs through multiplyTourPrice too. This is
+  // the test the original three were reaching for, with a fixture that supports
+  // it — FULL mode returns the catalog price, so a 4-person tour charges 4x.
+  it('scales the prepayment by paxCount when the tour requires prepayment', async () => {
+    await service.resolveCheckoutPricing(
+      'biz-1',
+      { ...tourService, prepaymentMode: PrepaymentMode.FULL } as any,
+      {
+        serviceId: 'svc-tour',
+        startTime: new Date().toISOString(),
+        customer: { name: 'Group' },
+        paxCount: 4,
+      },
+    );
+
+    expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        servicePrice: 340,
+        prepaymentAmount: 340,
       }),
     );
   });
@@ -94,7 +126,7 @@ describe('BookingPaymentService tour pricing', () => {
     expect(checkoutPricingService.calculate).toHaveBeenCalledWith(
       expect.objectContaining({
         servicePrice: 85,
-        prepaymentAmount: 85,
+        prepaymentAmount: 0,
       }),
     );
   });

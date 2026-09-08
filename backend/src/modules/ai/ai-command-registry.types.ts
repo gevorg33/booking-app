@@ -1,5 +1,3 @@
-import type { AccessTier } from './access-control.matrix.js';
-
 /** Where the command is exposed (`public` = anonymous booking; `customer` = logged-in self-service). */
 export type CommandSurface = 'dashboard' | 'provider' | 'customer' | 'public';
 
@@ -65,8 +63,10 @@ export interface CommandRegistryEntry {
   surfaceHandlers?: Partial<Record<CommandSurface, string>>;
   /** True when intent may appear as a step in a compound prompt for its surface. */
   compoundStep: boolean;
-  /** Sprint / feature tag for traceability. */
-  sprint?: string;
+  // `sprint` removed in §162 — the only writer was `buildCommandRegistry`, and
+  // nothing read it for behaviour. Git holds the history it recorded. The
+  // `sprint: '54'` on `ClinicTestResultCapabilityRow` is a different field on a
+  // different type and is untouched.
   /** Human label for docs and eval fixtures (ai-cmd-0.4). */
   label?: string;
 }
@@ -89,7 +89,10 @@ export interface CompoundCommandRecipe {
   allowedStepIntentIds: readonly string[];
   /** Example NL patterns documented for eval (ai-cmd-0.4). */
   examplePrompts: readonly string[];
-  sprint?: string;
+  // `sprint` removed in §164, for the same reason it left
+  // `CommandRegistryEntry` in §162: write-only. All 64 recipes set it and
+  // nothing read it. The `row.sprint` hits in `ai-capability.matrix.ts` are the
+  // unrelated `ClinicTestResultCapabilityRow` field, checked rather than assumed.
 }
 
 export interface CommandRegistryView {

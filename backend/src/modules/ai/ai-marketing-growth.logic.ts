@@ -17,7 +17,11 @@ import {
   type PlanTierId,
 } from '../billing/plan-limits.js';
 import type { CommandResult } from './command-completion.types.js';
-import { extractDateRangeFromPrompt } from './ai-orchestration.helpers.js';
+import { resolveDateRange as resolveFullDateRange } from './ai-orchestration.helpers.js';
+import {
+  getUtcBoundsForDateKey,
+  resolveTimezone,
+} from '../../common/utils/timezone.util.js';
 import {
   buildConsumerAppSwitchGuidance,
   decomposeMarketingGrowthCompoundPrompt,
@@ -69,7 +73,17 @@ function success(
   return { success: true, action, summary, details };
 }
 
-function resolveDateRange(
+const DATE_RANGE_PHRASES: Record<string, string> = {
+  this_month: 'this month',
+  this_week: 'this week',
+  // e2e-bug.467 / §217 — `ai-retail-finance.util.ts` emits both of these and
+  // neither had a key here, so the enum value was dropped and the raw prompt
+  // used instead. The resolver now understands the phrases too.
+  this_quarter: 'this quarter',
+  this_year: 'this year',
+};
+
+function resolveMarketingDateRange(
   params: Record<string, any>,
   prompt?: string,
 ): { from?: Date; to?: Date } {
@@ -79,46 +93,32 @@ function resolveDateRange(
       to: params.to ? new Date(params.to as string) : undefined,
     };
   }
-  if (params.dateRange === 'this_month') {
-    const now = new Date();
-    return {
-      from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
-      to: new Date(
-        Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth() + 1,
-          0,
-          23,
-          59,
-          59,
-          999,
-        ),
-      ),
-    };
-  }
-  if (params.dateRange === 'this_week') {
-    const now = new Date();
-    const day = now.getUTCDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
-    const from = new Date(
-      Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + mondayOffset,
-      ),
-    );
-    const to = new Date(from);
-    to.setUTCDate(from.getUTCDate() + 6);
-    to.setUTCHours(23, 59, 59, 999);
-    return { from, to };
-  }
-  const range = extractDateRangeFromPrompt(
-    prompt ?? (params._prompt as string) ?? '',
+  // The structured `dateRange` enum and the free-text prompt describe the same
+  // spans, so both go through the canonical resolver rather than being parsed
+  // twice. Routing the enum as its English phrase keeps that single path.
+  const phrase = DATE_RANGE_PHRASES[params.dateRange as string];
+  const timeZone = resolveTimezone(params._timeZone as string | undefined);
+  const range = resolveFullDateRange(
+    { _timeZone: params._timeZone as string | undefined },
+    phrase ?? prompt ?? (params._prompt as string) ?? '',
   );
   if (!range) return {};
+
+  // e2e-bug.466 / §218 — the two branches used to close differently: the enum
+  // on the last millisecond of the end day, the prompt on its midnight. Since
+  // `Between` is inclusive of neither past its bound, "this month" typed as
+  // free text under-reported by a whole day against the identical request sent
+  // as `dateRange: 'this_month'`. Both now close at end of day.
+  //
+  // The bounds are also converted in the business's own timezone rather than
+  // pinned to UTC. `resolveFullDateRange` computes the day keys in `_timeZone`
+  // already, so anchoring them at `T00:00:00.000Z` re-interpreted those local
+  // days as UTC days and slid the whole window by the offset — for Asia/Yerevan
+  // (UTC+4) that dropped the first four hours of the range and added the last
+  // four of the day before.
   return {
-    from: range.start ? new Date(range.start) : undefined,
-    to: range.end ? new Date(range.end) : undefined,
+    from: getUtcBoundsForDateKey(range.start, timeZone).start,
+    to: getUtcBoundsForDateKey(range.end, timeZone).end,
   };
 }
 
@@ -421,7 +421,7 @@ export async function handleSummarizeNewRegistrationsLogic(
   params: Record<string, any>,
   prompt?: string,
 ): Promise<CommandResult> {
-  const { from, to } = resolveDateRange(
+  const { from, to } = resolveMarketingDateRange(
     params,
     prompt ?? (params._prompt as string),
   );

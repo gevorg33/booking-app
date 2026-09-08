@@ -50,7 +50,16 @@ export const LIST_MY_COLLECTION_QUEUE_PROMPTS = [
   },
 ] as const;
 
-export const MARK_SPECIMEN_COLLECTED_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type MarkSpecimenCollectedPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  specimenId?: string;
+  orderId?: string;
+};
+
+export const MARK_SPECIMEN_COLLECTED_PROMPTS: readonly MarkSpecimenCollectedPromptFixture[] = [
   {
     id: 'mark-maria-collected',
     prompt: 'Mark specimen collected for Maria',
@@ -103,7 +112,15 @@ export const MARK_SPECIMEN_COLLECTED_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_SPECIMEN_RECOLLECT_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type ExplainSpecimenRecollectPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  specimenId?: string;
+};
+
+export const EXPLAIN_SPECIMEN_RECOLLECT_PROMPTS: readonly ExplainSpecimenRecollectPromptFixture[] = [
   {
     id: 'why-recollect-required',
     prompt: 'Why recollect required?',

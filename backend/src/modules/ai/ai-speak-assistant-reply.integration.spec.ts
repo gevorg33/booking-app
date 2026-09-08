@@ -5,18 +5,18 @@ import {
   SPEAK_ASSISTANT_REPLY_RESCUE_SCENARIOS,
 } from './ai-speak-assistant-reply.fixtures.js';
 import { rescueSpeakAssistantReplyIntent } from './ai-speak-assistant-reply.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai speak assistant reply integration (ai-cmd-customer-4.19.2)', () => {
   it.each(SPEAK_ASSISTANT_REPLY_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'speak_assistant_reply',
       params: {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt,
-    });
+    }));
     expect(validation.issues).toEqual([]);
   });
 

@@ -40,7 +40,20 @@ const STYLIST_ONLY_PICK_BLOCK = new RegExp(
 );
 
 const EXPLICIT_REBOOK_CUE = new RegExp(
-  String.raw`\b(?:rebook(?:\s+my)?\s+last|book same again|repeat(?:\s+my)?\s+last|same as last|book my last)\b` +
+  // e2e-bug.450 — "Rebook the same stylist as last time".
+  //
+  // `same as last` requires the two words to be adjacent, so any noun between
+  // them ("same **stylist** as last") missed. The weak fallback did not rescue
+  // it either: that gates on `\bbook\b`, which does not match "Re**book**"
+  // (no word boundary inside the word), so the phrasing reached nothing.
+  //
+  // The noun is bounded and **contact fields are excluded**, reusing the
+  // e2e-bug.362 carve-out: without that, "use the same email as last time"
+  // would become an explicit rebook cue, which is the guest-checkout steal
+  // that `hasPriorVisitCue` exists to prevent — widening a rebook cue is how
+  // that bug happened in the first place.
+  String.raw`\b(?:rebook(?:\s+my)?\s+last|book same again|repeat(?:\s+my)?\s+last|same as last|book my last` +
+    String.raw`|same\s+(?!(?:phone|mobile|e-?mail|number|address|contact|details?|info(?:rmation)?)\b)\w{2,20}\s+as\s+last)\b` +
     String.raw`|повторн.{0,20}запис|как\s+в\s+прошлый|снова\s+как` +
     String.raw`|[\u054E\u057E]\u0565\u0580\u0561\u0574\u0561\u0572\u0580.{0,24}(?:\u057E\u0565\u0580\u057B\u056B\u0576|last)` +
     String.raw`|\u0576\u0578\u0572\u0576.{0,20}(?:\u0561\u0576\u0581\u0561\u0574|\u0061mr|\u0561\u0575\u0581)` +

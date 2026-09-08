@@ -1,3 +1,4 @@
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -11,12 +12,39 @@ import {
 } from './ai-compare-services.util.js';
 import type { PaymentsLogicDeps } from './ai-payments.logic.js';
 
+/**
+ * tech-debt B7 / e2e-bug.367 — this local copy now refuses a tie.
+ *
+ * §187 filed the four remaining re-parsers as blocked on one decision: "may
+ * these surfaces ask a clarifying question", on the grounds that every copy
+ * *guesses* while `EntityResolutionService` *asks*, making each migration a
+ * contract change for its callers.
+ *
+ * Checked, and this caller needs no contract change: `resolveServicesForCompare` collects unresolved
+ * names into `missing[]`, and the summary reports *"Could not find catalog
+ * matches for: X. Name services from the menu."* — a refusal channel that
+ * already existed.
+ *
+ * So the tie is detected with the shared `resolveEntity` and answered with
+ * `undefined`, which the existing path already handles. Acceptance is otherwise
+ * untouched — the original tiers still run for every non-tied name — so this
+ * can only refuse a name that previously resolved to an arbitrary one of
+ * several equally good matches.
+ */
 function resolveServiceByName(
   services: readonly Service[],
   name: string,
 ): Service | undefined {
   const needle = name.trim().toLowerCase();
   if (!needle) return undefined;
+  if (
+    resolveEntity(services, name, {
+      entityLabel: 'service',
+      threshold: 0,
+    }).status === 'ambiguous'
+  ) {
+    return undefined;
+  }
   return (
     services.find((entry) => entry.name.toLowerCase() === needle) ??
     services.find((entry) => entry.name.toLowerCase().includes(needle)) ??

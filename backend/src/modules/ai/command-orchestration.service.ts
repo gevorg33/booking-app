@@ -260,6 +260,33 @@ export class CommandOrchestrationService {
       lines.push(`Execution failed: ${task.error || 'Unknown error'}`);
     }
 
+    // e2e-bug.486 — name the writes that already landed.
+    //
+    // This is the live execution path, and it has no compensation and no
+    // transaction boundary: when step 3 of 4 fails, steps 1 and 2 have already
+    // written to the database and stay written. Reporting only the failures
+    // told the user "orchestration failed" while a schedule had been rewritten
+    // or a booking created — the same defect e2e-bug.448(a) fixed for the
+    // catalog compound, on the path that actually runs.
+    //
+    // Deliberately a *report*, not a rollback. Undoing these needs the §47
+    // saga model, which hangs off an executor with no production callers
+    // (e2e-bug.368); this half needs nothing but the step statuses already on
+    // the task, and "we did X and Y, then failed at Z" is what makes the state
+    // recoverable by hand in the meantime.
+    const completed = steps.filter((s: any) => s.status === 'completed');
+    if (failed.length > 0 && completed.length > 0) {
+      lines.push(
+        `Already applied before the failure — these were NOT undone:`,
+      );
+      for (const step of completed) {
+        const planStep = task.plan?.steps?.find(
+          (p: any) => p.id === step.stepId,
+        );
+        lines.push(`• ${planStep?.description || planStep?.action || step.stepId}`);
+      }
+    }
+
     return lines.join('\n');
   }
 

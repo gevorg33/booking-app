@@ -134,7 +134,6 @@ import { parseDiagnoseTourCapacityFromPrompt } from './ai-tour-capacity.util.js'
 import { parseListUpcomingTourDeparturesFromPrompt } from './ai-upcoming-tour-departures.util.js';
 import {
   isApplyTourPlaybookPrompt,
-  isExplainTourServicesPrompt,
   parseConfigureTourServiceFromPrompt,
 } from './ai-tour-service.util.js';
 import {
@@ -751,12 +750,23 @@ const ACTION_RULES: Record<string, Rule> = {
   },
 
   holiday_mode: (cmd) => {
+    // §306 (`e2e-bug.462`): `|| !!cmd.params.dateFrom` used to count as a
+    // closure date here, and nothing downstream reads it. `handleHolidayMode`
+    // -> `prepareHolidayModePlanLogic` -> `parseHolidayModeDates(params)` reads
+    // only `closeDates`, `holidayDates`, `extendDate` and `extendTime*`, then
+    // bails on `if (!closeDates.length) return null` — so a plan carrying only
+    // `dateFrom` was judged **complete**, executed, and failed in the handler
+    // with "Specify which days to close" arriving as an error instead of as a
+    // question. This is the one place the ticket's original claim reproduces.
+    //
+    // Asking is strictly safer than executing-then-failing. Whether a
+    // `dateFrom`/`dateTo` range *should* mean "close these days" is a real
+    // product question and is recorded on the ticket, not guessed at here.
     const hasClose =
       (Array.isArray(cmd.params.closeDates) &&
         cmd.params.closeDates.length > 0) ||
       (Array.isArray(cmd.params.holidayDates) &&
-        cmd.params.holidayDates.length > 0) ||
-      !!cmd.params.dateFrom;
+        cmd.params.holidayDates.length > 0);
     const hasProviders =
       cmd.params.allProviders ||
       !!cmd.params.employeeName ||
@@ -1853,8 +1863,17 @@ const ACTION_RULES: Record<string, Rule> = {
           },
         ],
 
-  explain_tour_services: (cmd) =>
-    isExplainTourServicesPrompt(cmd.prompt ?? '') ? [] : [],
+  // e2e-bug.439 — this read has no required fields, and said so in a way that
+  // looked like a bug: `isExplainTourServicesPrompt(...) ? [] : []` evaluated
+  // the predicate and threw the answer away, so it read as an unfinished
+  // validator rather than a deliberate "nothing to ask for".
+  //
+  // Kept as an explicit entry rather than deleted. `validateCommand` does
+  // `rule ? rule(cmd) : []`, so an absent entry behaves identically — but the
+  // entry records that the question was asked and answered, which is what stops
+  // someone re-adding a half-written predicate here later. If this command ever
+  // does gain a required field, this is where it goes.
+  explain_tour_services: () => [],
 
   explain_tour_booking_record: (cmd) =>
     parseExplainTourBookingRecordFromPrompt(cmd.prompt ?? '', cmd.params)

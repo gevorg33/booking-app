@@ -6,12 +6,13 @@ import {
 } from './ai-explain-abnormal-result-flag.fixtures.js';
 import { rescueExplainAbnormalResultFlagIntent } from './ai-explain-abnormal-result-flag.util.js';
 import type { ExplainAbnormalResultFlagLogicDeps } from './ai-explain-abnormal-result-flag.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-1',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 function buildDeps(
   overrides: Partial<ExplainAbnormalResultFlagLogicDeps> = {},

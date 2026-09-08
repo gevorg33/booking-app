@@ -76,15 +76,31 @@ const NATURAL_BREAK_BASELINE = 0;
 
 /**
  * Spec examples their own command's detector does not match. Ratcheted, not
- * asserted at zero, because these are pre-existing gaps: **8 of 20** documented
- * example phrasings never reach the command they document (e2e-bug.360).
+ * asserted at zero, because these are pre-existing gaps. Filed as **8 of 20** in
+ * 2026-08-06; the live count is **3 of 21** as of §240 (e2e-bug.360), and the
+ * three are named in `UNCOVERED_EXAMPLES` below rather than counted.
  *
  * This is the number that matters. Mechanical variation breaks nothing; genuine
  * phrasing variety breaks 40% of the corpus. Lower it by fixing a detector — or,
  * as the roadmap intends, by letting the planner own the domain and deleting the
  * detector entirely.
  */
-const UNCOVERED_EXAMPLE_BASELINE = 9;
+const UNCOVERED_EXAMPLES: readonly string[] = [
+  'catalog.assign_services_category_bulk: "move haircut and blow dry into Hair Care"',
+  'catalog.list_packages: "What packages do I currently offer?"',
+  'catalog.list_packages: "what packages do we sell"',
+];
+const UNCOVERED_EXAMPLE_BASELINE = UNCOVERED_EXAMPLES.length;
+// 9 -> 3 on 2026-09-01 (§240), and converted from a ceiling to an exact set.
+// The ceiling read `<= 9` while the live count had been **3** for some time: six
+// of the nine documented misses were fixed by the Phase 8 detector work and
+// nobody lowered the number, so the gate had six points of slack and could not
+// see a regression from 3 back up to 9. Same shape as §215's T0 ceiling.
+//
+// Naming the three costs nothing and catches both directions — a regression on a
+// specific phrasing, and a fix that lands without the record being updated.
+// When `catalog` joins RESCUE_ACTION_LOCKED_DOMAINS all three go at once.
+
 // 8 -> 9 on 2026-08-08 (§96), and a raised ratchet needs its reason on the
 // record.
 //
@@ -149,7 +165,7 @@ describe('AI-ROADMAP Phase 2 — paraphrase invariance', () => {
     // planner's few-shots and the eval goldens, so a gap here is a gap
     // everywhere downstream.
     const count = allUncovered.reduce((n, u) => n + u.bases.length, 0);
-    expect(count).toBeLessThanOrEqual(UNCOVERED_EXAMPLE_BASELINE);
+    expect(count).toBe(UNCOVERED_EXAMPLE_BASELINE);
   });
 
   it('names which documented phrasings the detector layer misses', () => {
@@ -161,7 +177,8 @@ describe('AI-ROADMAP Phase 2 — paraphrase invariance', () => {
       `[AI-ROADMAP paraphrase] documented examples missed by their own detector: ` +
         `${lines.length}\n    ${lines.join('\n    ')}`,
     );
-    expect(lines.length).toBeLessThanOrEqual(UNCOVERED_EXAMPLE_BASELINE);
+    // Exact set, not a count: two phrasings swapping places keeps a count at 3.
+    expect(lines.sort()).toEqual([...UNCOVERED_EXAMPLES].sort());
   });
 
   describe('strict transforms — casing, whitespace, punctuation', () => {

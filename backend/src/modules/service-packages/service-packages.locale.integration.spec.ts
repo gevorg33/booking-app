@@ -77,7 +77,8 @@ describe('Sprint 29 — package localized names integration', () => {
     serviceRepo as never,
     { createQueryBuilder: jest.fn() } as never,
     businessRepo as never,
-  );
+  
+    undefined as never);
 
   const baseItems = [{ serviceId: 'svc-1', quantity: 1 }];
 

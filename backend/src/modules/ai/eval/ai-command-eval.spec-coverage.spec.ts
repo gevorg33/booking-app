@@ -40,8 +40,20 @@ const report = buildDeterministicAccuracyReport([
   ...AI_COMMAND_EVAL_SPEC_COVERAGE_CASES,
 ]);
 
-/** Measured 2026-08-07. May only rise. */
-const ROUTABLE_FLOOR = 113;
+/**
+ * Measured 2026-08-07. **May only rise.**
+ *
+ * 113 -> 115 on 2026-08-20 (tech-debt A7). A raised ratchet needs its reason on
+ * the record, and this one is a re-measurement rather than a single fix: the
+ * actual figure had been 115 while the floor still said 113, so two examples'
+ * worth of gain from §169-§187 and from C3's `list_subscription_plans` widening
+ * was sitting unprotected. Raising it locks those in — a floor that trails
+ * reality cannot catch the regression it exists to catch.
+ *
+ * Census at the same moment: 561 examples, 115 routing, 446 failing, of which
+ * **101 stolen / 345 unclaimed**.
+ */
+const ROUTABLE_FLOOR = 115;
 
 /**
  * Of the 449 failures, how many are a *different* command claiming the phrasing

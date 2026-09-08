@@ -43,8 +43,8 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
     },
   ];
 
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 7);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 7, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const bookingService = {
     findAll: jest.fn(async () => [

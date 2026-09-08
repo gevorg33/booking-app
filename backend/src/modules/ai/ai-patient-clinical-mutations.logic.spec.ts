@@ -1,3 +1,4 @@
+import { resolvePatientClinicalCustomer } from './ai-patient-clinical-mutations.util.js';
 import {
   handleAddCustomerStaffNoteLogic,
   handleCreateEncounterAddendumLogic,
@@ -408,5 +409,55 @@ describe('ai-patient-clinical-mutations.logic', () => {
         { body: 'Prefers text reminders', bookingId: 'booking-1' },
       );
     });
+  });
+});
+
+/**
+ * e2e-bug.443 — the patient lookup no longer scans an arbitrary slice.
+ *
+ * It read `{ where: { businessId }, take: 200 }` with no `order` and no
+ * `isActive`, then matched in memory — on a path that writes to a **patient
+ * chart**. Past 200 customers a real patient was simply not in the set;
+ * deactivated customers were candidates; and which 200 you got could vary
+ * between identical calls.
+ *
+ * These assert the *query*, because that is where all three faults lived — the
+ * in-memory tie-break below it was always fine.
+ */
+describe('e2e-bug.443 — clinical patient lookup query', () => {
+  // Local mock: the `customerRepo` above is scoped to its own describe.
+  const customerRepo = { find: jest.fn(), findOne: jest.fn() };
+
+  const findArgs = async (name: string) => {
+    customerRepo.find.mockResolvedValue([]);
+    await resolvePatientClinicalCustomer(
+      { customerRepo } as any,
+      'biz-1',
+      { customerName: name },
+    );
+    return customerRepo.find.mock.calls.at(-1)?.[0] ?? {};
+  };
+
+  it('excludes deactivated customers', async () => {
+    expect((await findArgs('Maria')).where).toMatchObject({ isActive: true });
+  });
+
+  it('filters by name in the database rather than scanning', async () => {
+    // The cap must bound *matching* rows, not arbitrary ones.
+    const where = (await findArgs('Maria')).where as any;
+    expect(where.name).toBeDefined();
+    expect(String(where.name.value ?? where.name)).toContain('maria');
+  });
+
+  it('orders deterministically so repeated calls agree', async () => {
+    expect((await findArgs('Maria')).order).toBeDefined();
+  });
+
+  it('escapes LIKE metacharacters in the name', async () => {
+    // "50%_off" must match literally, not as a wildcard.
+    const where = (await findArgs('50%_off')).where as any;
+    const pattern = String(where.name.value ?? where.name);
+    expect(pattern).toContain('\\%');
+    expect(pattern).toContain('\\_');
   });
 });

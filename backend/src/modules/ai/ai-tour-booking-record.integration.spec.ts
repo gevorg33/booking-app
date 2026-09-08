@@ -5,10 +5,11 @@ import { handleExplainTourBookingRecordLogic } from './ai-tour-booking-record.lo
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const tourBooking = {
     id: 'bk-tour-1',
@@ -64,7 +65,7 @@ describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
       });
       expect(rescued?.action).toBe('explain_tour_booking_record');
 
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_tour_booking_record',
         params: {
           ...(bookingId ? { bookingId } : {}),
@@ -72,11 +73,10 @@ describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
           ...(aspect ? { aspect } : {}),
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourBookingRecordLogic(

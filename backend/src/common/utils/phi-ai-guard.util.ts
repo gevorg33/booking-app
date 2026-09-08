@@ -179,6 +179,93 @@ export function redactPhiFromValue(value: unknown, depth = 0): unknown {
   return next;
 }
 
+/**
+ * Credential patterns stripped from a prompt before it is persisted — e2e-bug.464.
+ *
+ * Separate from `PHI_PROMPT_KV_PATTERNS` because it answers a different
+ * question: PHI is data the user legitimately supplies that we must not retain,
+ * whereas a secret is something that should never have been in a prompt at all.
+ *
+ * The first pattern is deliberately the same shape as the one
+ * `parseApiKey` (`ai-openai-integration.util.ts`) uses to *extract* an OpenAI
+ * key from prompt text, so anything that scraper can find, this can redact —
+ * they cannot drift apart silently.
+ *
+ * The second is a key/value form for provider tokens that carry no distinctive
+ * prefix (Zendesk's `apiToken` is an opaque string), matching only when a
+ * credential-ish label precedes the value, so ordinary prose is untouched.
+ */
+const SECRET_PROMPT_PATTERNS: RegExp[] = [
+  /\bsk-[A-Za-z0-9_-]{8,}/g,
+  /\b(api[\s_-]?(?:token|key)|secret|password)\s*[:=]\s*["']?[^\s"',\n}]+/gi,
+];
+
+/**
+ * Strip credentials from a prompt. Applied at the trace boundary alongside the
+ * PHI redaction — see `redactCommandTracePrompt`.
+ */
+export function redactSecretsFromPrompt(prompt: string): string {
+  let next = prompt;
+  for (const pattern of SECRET_PROMPT_PATTERNS) {
+    next = next.replace(pattern, (match) => {
+      const separator = match.includes('=')
+        ? '='
+        : match.includes(':')
+          ? ':'
+          : null;
+      if (!separator) return '[REDACTED_SECRET]';
+      const [prefix] = match.split(separator);
+      return `${prefix}${separator} [REDACTED_SECRET]`;
+    });
+  }
+  return next;
+}
+
+/**
+ * Credential-bearing field names on command *details*.
+ *
+ * `redactSecretsFromPrompt` covers the trace's prompt text; this covers the
+ * structured half. `configure_openai_integration` and
+ * `configure_whatsapp_integration` both echo their parsed patch back to the
+ * client as `patch: parsed`, and that patch carries a plaintext `apiKey`
+ * (`sk-…`) / `accessToken` — the value the user was asked for, handed straight
+ * back in the response and stored with the trace.
+ */
+const SECRET_DETAIL_KEYS = new Set([
+  'apiKey',
+  'accessToken',
+  'apiToken',
+  'secret',
+  'clientSecret',
+  'password',
+  'refreshToken',
+]);
+
+/**
+ * Mask credential fields on a detail object, keeping the key.
+ *
+ * Masked rather than dropped on purpose: "the API key was changed" is real
+ * information a client may render, and removing the key entirely changes the
+ * shape for anything iterating it. Only present fields are masked, so an
+ * absent credential stays absent rather than becoming a redaction marker that
+ * implies one was sent.
+ */
+export function redactSecretDetailFields<T extends Record<string, unknown>>(
+  detail: T,
+): T {
+  let changed = false;
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(detail)) {
+    if (SECRET_DETAIL_KEYS.has(key) && value !== undefined && value !== null) {
+      next[key] = '[REDACTED_SECRET]';
+      changed = true;
+    } else {
+      next[key] = value;
+    }
+  }
+  return (changed ? next : detail) as T;
+}
+
 export function redactEmbeddedPhiFromPrompt(prompt: string): string {
   let next = prompt;
 

@@ -7,6 +7,7 @@ import {
 import { rescueLeaveVisitReviewIntent } from './ai-leave-visit-review.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_LEAVE_VISIT_REVIEW_CASES } from './eval/ai-command-eval.cases.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-leave-visit-review integration (ai-cmd-customer-4.12.1)', () => {
   const booking = {
@@ -46,15 +47,14 @@ describe('ai-leave-visit-review integration (ai-cmd-customer-4.12.1)', () => {
   it.each(LEAVE_VISIT_REVIEW_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName, rating }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'leave_visit_review',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

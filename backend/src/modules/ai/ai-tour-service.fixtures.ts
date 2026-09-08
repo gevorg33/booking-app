@@ -14,7 +14,10 @@ export const TOUR_SERVICE_CLASSIFIER_RULES = `- configure_tour_service: MUTATE �
   - "Apply tour playbook" → apply_tour_playbook
   - "Set up tour operator starter catalog and 8-18 schedule" → apply_tour_playbook`;
 
-export const APPLY_TOUR_PLAYBOOK_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ApplyTourPlaybookPromptFixture = { id: string; prompt: string };
+
+export const APPLY_TOUR_PLAYBOOK_PROMPTS: readonly ApplyTourPlaybookPromptFixture[] = [
   { id: 'apply-tour-playbook', prompt: 'Apply tour playbook' },
   {
     id: 'setup-tour-operator-starter',
@@ -62,7 +65,14 @@ export const APPLY_TOUR_PLAYBOOK_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_TOUR_SERVICES_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ExplainTourServicesPromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+};
+
+export const EXPLAIN_TOUR_SERVICES_PROMPTS: readonly ExplainTourServicesPromptFixture[] = [
   {
     id: 'list-tour-services',
     prompt: 'List tour services with group sizes and cover images',
@@ -117,7 +127,21 @@ export const EXPLAIN_TOUR_SERVICES_PROMPTS = [
   },
 ] as const;
 
-export const CONFIGURE_TOUR_SERVICE_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ConfigureTourServicePromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName: string;
+  maxGroupSize?: number;
+  enableTour?: boolean;
+  difficulty?: 'easy' | 'moderate' | 'challenging';
+  meetingPoint?: string;
+  durationDays?: number;
+  includedItems?: string;
+  coverImage?: string;
+};
+
+export const CONFIGURE_TOUR_SERVICE_PROMPTS: readonly ConfigureTourServicePromptFixture[] = [
   {
     id: 'mark-city-tour-max-12',
     prompt: 'Mark City Tour as a tour with max 12 people',

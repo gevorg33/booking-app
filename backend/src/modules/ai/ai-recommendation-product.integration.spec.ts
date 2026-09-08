@@ -15,6 +15,7 @@ import {
   parseExplainRecommendationSetupFromPrompt,
   parseLinkRecommendedProductsFromPrompt,
 } from './ai-recommendation-product.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
   const products = [
@@ -79,15 +80,14 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
     const parsed = parseConfigureRecommendationProductFromPrompt(prompt);
     expect(parsed?.productName?.toLowerCase()).toContain('shampoo');
 
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'configure_recommendation_product',
       params: parsed ?? {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt,
-    });
+    }));
     expect(validation.ok).toBe(false);
     expect(validation.issues.map((issue) => issue.field)).toEqual(
       expect.arrayContaining(['imageUrl', 'externalLink']),
@@ -98,15 +98,14 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
     const entry = CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS.find(
       (item) => item.id === 'mask-with-urls',
     )!;
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'configure_recommendation_product',
       params: parseConfigureRecommendationProductFromPrompt(entry.prompt) ?? {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt: entry.prompt,
-    });
+    }));
     expect(validation.ok).toBe(true);
 
     const result = await handleConfigureRecommendationProductLogic(
@@ -228,15 +227,14 @@ describe('ai recommendation link integration (ai-cmd-rec-2)', () => {
       (item) => item.id === 'shampoo-conditioner-after-haircut',
     )!;
     const parsed = parseLinkRecommendedProductsFromPrompt(entry.prompt);
-    const validation = validateCommand({
+    const validation = validateCommand(makeResolvedCommand({
       action: 'link_recommended_products',
       params: parsed ?? {},
       enrichedParams: {},
-      entities: {},
+      entities: { employees: [], services: [] },
       reasoning: 'test',
-      confidence: 0.9,
       prompt: entry.prompt,
-    });
+    }));
     expect(validation.ok).toBe(true);
 
     const result = await handleLinkRecommendedProductsLogic(

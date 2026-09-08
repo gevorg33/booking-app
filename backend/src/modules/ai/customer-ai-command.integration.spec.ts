@@ -337,7 +337,6 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       action: 'discover_packages',
       params: {},
       reasoning: 'browse packages',
-      confidence: 0.88,
     });
     const result = await service.executeCommand(
       'biz-1',

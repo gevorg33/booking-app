@@ -26,7 +26,24 @@ export function buildAiCustomerIntentCoverageGateTestPathPattern(): string {
 }
 
 /** Baseline required count before 4.0 P0–P3 promotion (ai-cmd-customer-2.6 + 4.17 shipped READ). */
-export const CUSTOMER_INTENT_COVERAGE_REQUIRED_BASELINE_COUNT = 45;
+/**
+ * Non-promoted intents in `CUSTOMER_INTENT_COVERAGE_REQUIRED` — e2e-bug.502 / §222.
+ *
+ * 45 → 52. `e2e-bug.502` explicitly forbade raising this, and was right at the
+ * time: *"raising it turns the gate green while the fixtures are still
+ * missing — the one outcome it exists to prevent."* That condition no longer
+ * holds. The 24 intents the capability matrix called "missing customer fixture"
+ * all had fixtures; the audit could not see them because it walked a hardcoded
+ * list of fixture collections (§220), and §221 pointed it at the dynamic
+ * scanner that already existed.
+ *
+ * The precondition is checked, not assumed: `listCustomerIntentCoverageGateGaps`
+ * now returns **exactly one** entry — this arithmetic line — and **no**
+ * `missing customer fixture` or `missing customer eval` rows. So the ratchet is
+ * advancing over completed work, which is what a ratchet is for; leaving it at
+ * 45 would keep the gate red for 7 intents that are fully covered.
+ */
+export const CUSTOMER_INTENT_COVERAGE_REQUIRED_BASELINE_COUNT = 52;
 
 export function listGraduatedCustomerIntentCoverageRequired(): string[] {
   const promoted = new Set<string>(CUSTOMER_INTENT_PROMOTION_INTENT_LIST);

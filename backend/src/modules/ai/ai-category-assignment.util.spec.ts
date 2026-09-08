@@ -25,40 +25,45 @@ import {
   CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS,
   TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS,
 } from './ai-category-assignment.fixtures.js';
+import {
+  makeService,
+  makeServiceCategory,
+} from '../service/entities/service.test-fixture.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
 
-const colorCategory = { id: 'cat-color', name: 'Color' };
-const hairCategory = { id: 'cat-hair', name: 'Hair' };
+const colorCategory = makeServiceCategory({ id: 'cat-color', name: 'Color' });
+const hairCategory = makeServiceCategory({ id: 'cat-hair', name: 'Hair' });
 
 const catalogServices = [
-  {
+  makeService({
     id: 's1',
     name: 'Balayage',
     category: colorCategory,
     categoryId: 'cat-color',
-  },
-  {
+  }),
+  makeService({
     id: 's2',
     name: 'Highlights',
     category: colorCategory,
     categoryId: 'cat-color',
-  },
-  {
+  }),
+  makeService({
     id: 's3',
     name: "Women's Cut",
     category: hairCategory,
     categoryId: 'cat-hair',
-  },
-  {
+  }),
+  makeService({
     id: 's4',
     name: 'Facial',
     category: { id: 'cat-spa', name: 'Spa' },
     categoryId: 'cat-spa',
-  },
+  }),
 ];
 
 const employees = [
-  { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
-  { id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] },
+  makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
+  makeEmployee({ id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] }),
 ];
 
 describe('ai-category-assignment.util', () => {
@@ -200,8 +205,8 @@ describe('ai-category-assignment.util', () => {
     it('fails when multiple providers match', () => {
       const result = resolveAssignEmployeeServicesInput(
         [
-          { id: 'e1', name: 'Maria A', serviceIds: [] },
-          { id: 'e2', name: 'Maria B', serviceIds: [] },
+          makeEmployee({ id: 'e1', name: 'Maria A', serviceIds: [] }),
+          makeEmployee({ id: 'e2', name: 'Maria B', serviceIds: [] }),
         ],
         catalogServices,
         {
@@ -792,7 +797,7 @@ describe('ai-category-assignment.util', () => {
 
     it('fails when provider has no assigned services at all', () => {
       const result = resolveUnassignEmployeeServicesInput(
-        [{ id: 'e9', name: 'Empty Provider', serviceIds: [] }],
+        [makeEmployee({ id: 'e9', name: 'Empty Provider', serviceIds: [] })],
         catalogServices,
         {
           employeeName: 'Empty Provider',
@@ -936,7 +941,7 @@ describe('ai-category-assignment.util', () => {
       const result = resolveTransferEmployeeServicesInput(
         [
           { id: 'e9', name: 'Bare Provider' },
-          { id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] },
+          makeEmployee({ id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] }),
         ],
         catalogServices,
         {
@@ -981,7 +986,7 @@ describe('ai-category-assignment.util', () => {
   describe('resolveScopedEmployeeServices', () => {
     it('uses unassignFromCategory branch for category scope', () => {
       const scoped = resolveScopedEmployeeServices(
-        { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
+        makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
         catalogServices,
         {
           categoryName: 'Color',
@@ -994,7 +999,7 @@ describe('ai-category-assignment.util', () => {
 
     it('uses categoryName-only branch when flags are false', () => {
       const scoped = resolveScopedEmployeeServices(
-        { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] },
+        makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
         catalogServices,
         {
           categoryName: 'Color',

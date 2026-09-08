@@ -93,6 +93,25 @@ export type CommandVariableSpec = {
   enum?: readonly string[];
   /** Shape of the object (or of each array item) for `object` / `object[]`. */
   properties?: Readonly<Record<string, CommandVariableSpec>>;
+  /**
+   * Who is allowed to fill this variable — e2e-bug.485.
+   *
+   * Defaults to the user (via the planner or a detector). `'orchestrator'`
+   * means **a compound recipe writes it, and the model must never be offered
+   * it**: flags like `tourGroupCheckout` or `resultsThenRebook` tell a step
+   * which multi-step flow it belongs to, and their only legitimate writer is
+   * the orchestrator that built the plan.
+   *
+   * Such a variable still has to be *declared* — the handler reads it, so C2
+   * (`ai-declared-inputs.rule.spec.ts`) is right to require it, and declaring
+   * only what the model may fill would reintroduce e2e-bug.410's blind spot.
+   * The two concerns are genuinely different: **declaration is about what the
+   * handler reads; `source` is about who may write it.** Before this field the
+   * schema could not tell them apart, so every declared optional was rendered
+   * into the planner prompt as something to fill from prose — and the model
+   * could infer `tourGroupCheckout` from the word "group".
+   */
+  source?: 'user' | 'orchestrator';
 };
 
 /**

@@ -177,7 +177,18 @@ export function buildN99ColdActivationFixtureRows(): N99QualifiedActivationFixtu
   return rows;
 }
 
-export const N99_QUALIFIED_INSTALL_SCENARIOS = [
+/**
+ * Declared so the array is one type, not a union of literal shapes. The
+ * `install` shape is taken from what `isIntentQualifiedInstall` accepts rather
+ * than restated, so the two cannot drift.
+ */
+export type N99QualifiedInstallScenario = {
+  id: string;
+  install: { tenantSlug?: string | null; props?: Record<string, unknown> | null };
+  expectQualified: boolean;
+};
+
+export const N99_QUALIFIED_INSTALL_SCENARIOS: readonly N99QualifiedInstallScenario[] = [
   {
     id: 'intent-qualified-prop',
     install: { tenantSlug: 'salon-a', props: { intentQualified: true } },
@@ -213,7 +224,27 @@ export const N99_QUALIFIED_INSTALL_SCENARIOS = [
   },
 ] as const;
 
-export const N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS = [
+/**
+ * Declared so the array is one type, not a union of literal shapes.
+ *
+ * `rows` and `input` are alternatives — a scenario supplies one or the other,
+ * which is why the spec filters on `entry.rows` before using it — so both are
+ * optional here rather than one being required.
+ */
+export type N99QualifiedActivationGateScenario = {
+  id: string;
+  expectMet: boolean;
+  rows?: N99QualifiedActivationFixtureRow[];
+  input?: {
+    qualifiedActivationRate: number;
+    sampleSize: number;
+    localeSpread: number;
+    insufficientLocales: string[];
+  };
+  expectRate?: number;
+};
+
+export const N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS: readonly N99QualifiedActivationGateScenario[] = [
   {
     id: 'near-99-met',
     rows: buildN99QualifiedActivationNear99FixtureRows(),
@@ -252,7 +283,16 @@ export const N99_QUALIFIED_ACTIVATION_GATE_SCENARIOS = [
   },
 ] as const;
 
-export const N99_LOCALE_COHORT_SCENARIOS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type N99LocaleCohortScenario = {
+  id: string;
+  rows: N99QualifiedActivationFixtureRow[];
+  expectMaxSpread?: number;
+  expectSpread?: number;
+  expectInsufficient: string[] | undefined;
+};
+
+export const N99_LOCALE_COHORT_SCENARIOS: readonly N99LocaleCohortScenario[] = [
   {
     id: 'balanced-en-hy-ru',
     rows: buildN99QualifiedActivationNear99FixtureRows(),

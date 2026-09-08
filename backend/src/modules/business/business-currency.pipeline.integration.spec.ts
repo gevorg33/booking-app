@@ -13,6 +13,7 @@ import {
   resolvePriceCurrency,
 } from '../../common/utils/business-currency.util.js';
 import type { Business } from './entities/business.entity.js';
+import { makeBusiness } from './entities/business.test-fixture.js';
 
 function buildPublicBookingService(): PublicBookingService {
   const config = {
@@ -50,11 +51,17 @@ function buildPublicBookingService(): PublicBookingService {
     {} as never,
     {} as never,
     {} as never,
-  );
+  
+    // e2e-bug: PublicBookingService gained four repositories;
+    // `undefined as never` keeps the runtime identical to omitting them.
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never);
 }
 
 const baseBusiness = (settings: Record<string, unknown>): Business =>
-  ({
+  makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -66,7 +73,7 @@ const baseBusiness = (settings: Record<string, unknown>): Business =>
       publicBooking: { enabled: true },
       ...settings,
     },
-  }) as Business;
+  });
 
 describe('Sprint 28 — business currency pipeline integration', () => {
   const businessRepo = {
@@ -105,7 +112,8 @@ describe('Sprint 28 — business currency pipeline integration', () => {
     businessRepo as never,
     { publish: jest.fn() } as never,
     { isConnectReady: jest.fn().mockReturnValue(true) } as never,
-  );
+  
+    undefined as never);
   const checkoutPricingService = { calculate: jest.fn() };
   const bookingPaymentService = new BookingPaymentService(
     {} as never,

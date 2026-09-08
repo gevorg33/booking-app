@@ -13,9 +13,21 @@ const business = {
   slug: 'salon',
 } as Business;
 
+// e2e-bug.491's class — this fixture expired on a calendar.
+//
+// `matchCustomerOwnedPackageVisit` keeps only bookings with
+// `new Date(row.startTime) >= now`, so a hardcoded date silently stops matching
+// once it passes: every case then failed with "No upcoming package visit found
+// to cancel." and the suite sat in the known-failures manifest as though the
+// behaviour were disputed. It is not — the fixture simply aged out.
+//
+// Relative to now, which is the only thing this test needs ("a visit that has
+// not happened yet"). No time-of-day dependence here, so no hour anchoring is
+// required — the rule is: depend on "later than now", never on the wall clock's
+// current time of day.
 const packageBooking = {
   id: 'book-pkg-1',
-  startTime: '2026-07-10T10:00:00.000Z',
+  startTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   status: BookingStatus.CONFIRMED,
   packagePurchaseId: 'purchase-1',
   packageName: 'Spa Day',
@@ -94,7 +106,11 @@ describe('ai-cancel-package-visit-self.logic (ai-cmd-customer-4.15.2)', () => {
               {
                 ...packageBooking,
                 id: 'book-pkg-2',
-                startTime: '2026-07-17T10:00:00.000Z',
+                // Same reason as `packageBooking` above — a second visit,
+                // one week later than the first, both still in the future.
+                startTime: new Date(
+                  Date.now() + 14 * 24 * 60 * 60 * 1000,
+                ).toISOString(),
               },
             ],
           }),
@@ -121,7 +137,11 @@ describe('ai-cancel-package-visit-self.logic (ai-cmd-customer-4.15.2)', () => {
               {
                 ...packageBooking,
                 id: 'book-pkg-2',
-                startTime: '2026-07-17T10:00:00.000Z',
+                // Same reason as `packageBooking` above — a second visit,
+                // one week later than the first, both still in the future.
+                startTime: new Date(
+                  Date.now() + 14 * 24 * 60 * 60 * 1000,
+                ).toISOString(),
               },
             ],
           }),

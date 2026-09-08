@@ -312,8 +312,20 @@ export function isExplicitPayOnlinePrompt(prompt: string): boolean {
   if (isExplainWhyPrepaymentPrompt(prompt)) return false;
   if (isExplainAmountDueNowPrompt(prompt)) return false;
   if (isAskPaymentOptionsPrompt(prompt)) return false;
+  // e2e-bug.478 — this guard exists to keep *questions* about paying online out
+  // of the checkout action, and it had `can i` / `could i` / `do you` but not
+  // `do i`. So "Do I pay online for this service?" was claimed as an explicit
+  // instruction to pay — a T2 checkout — on the public guest surface.
+  //
+  // `do i`, `must i` and `should i` are all listed as triggers for
+  // explain_payment_options_for_service in its own classifier rules ("do I pay
+  // online for color", "must I pay online for the selected service"), so the
+  // gap was between the documented contract and this predicate, not a new
+  // judgement call.
   if (
-    /\b(why|explain|how much|what|which|can i|could i|do you)\b/i.test(prompt)
+    /\b(why|explain|how much|what|which|can i|could i|do i|must i|should i|do you)\b/i.test(
+      prompt,
+    )
   ) {
     if (/\b(pay\s+online|card|stripe)\b/i.test(prompt)) return false;
   }

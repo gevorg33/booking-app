@@ -98,6 +98,57 @@ describe('tech-debt D5 — public book_appointment refuses an ambiguous provider
   });
 });
 
+describe('tech-debt D5-c — the same tie in the provider FALLBACK LIST', () => {
+  /**
+   * `providerFallbackNames` is "book me with Anna or Maria, otherwise anyone".
+   * It is resolved further down through `fuzzyMatchByName`, which returns the
+   * FIRST match and silently drops what it cannot resolve — so an ambiguous
+   * name booked a guest with whichever namesake sorted first, on the
+   * unauthenticated surface, while the singular `employeeName` path had
+   * already been fixed.
+   */
+  it('refuses when a name in the list is ambiguous', async () => {
+    const r = await book({ providerFallbackNames: ['Anna'] });
+    expect(r.success).toBe(false);
+    expect(r.action).toBe('book_appointment');
+    expect(r.details.candidates.map((c: any) => c.id).sort()).toEqual([
+      'e1',
+      'e2',
+    ]);
+  });
+
+  it('names the ambiguous entry, not the whole list', async () => {
+    // The question has to be about a name the guest actually typed.
+    const r = await book({ providerFallbackNames: ['Kate', 'Anna'] });
+    expect(r.success).toBe(false);
+    expect(r.summary).toContain('Anna');
+    expect(r.summary).not.toContain('Kate');
+  });
+
+  it('is localized like the singular refusal', async () => {
+    const r = await book({ providerFallbackNames: ['Anna'] }, 'hy');
+    expect(r.success).toBe(false);
+    expect(r.summary).toMatch(/\p{Script=Armenian}/u);
+  });
+
+  it('does not refuse a list with no ambiguous name', async () => {
+    // `Kate` is not in TIED, so nothing is tied; the booking proceeds past the
+    // guard rather than being refused by it.
+    const r = await book({ providerFallbackNames: ['Kate'] });
+    expect(r.summary ?? '').not.toContain('Anna');
+  });
+
+  it('an empty or absent list is not refused', async () => {
+    const r = await book({ providerFallbackNames: [] });
+    expect(r.details?.candidates ?? null).toBeNull();
+  });
+
+  it('ignores non-string entries rather than throwing', async () => {
+    const r = await book({ providerFallbackNames: [null, 42, '  '] as any });
+    expect(r.details?.candidates ?? null).toBeNull();
+  });
+});
+
 describe('tech-debt D5 — list_services refuses a tied provider', () => {
   const listServices = (params: Record<string, unknown>, locale = 'en') => {
     const svc: any = Object.create(PublicBookingAssistantService.prototype);

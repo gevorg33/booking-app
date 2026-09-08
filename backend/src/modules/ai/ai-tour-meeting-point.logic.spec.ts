@@ -8,7 +8,7 @@ import {
 } from './ai-tour-meeting-point.logic.js';
 
 describe('ai-tour-meeting-point.logic (ai-cmd-customer-4.10.6)', () => {
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
 
   const tourBooking = {
     id: 'bk-tour-1',

@@ -184,6 +184,8 @@ export interface PipelineUnderstandInput {
   lastAction?: string;
   employees?: Array<{ id: string; name: string }>;
   customers?: Array<{ id: string; name: string }>;
+  /** Business locations — e2e-bug.460, lets the staff rescue tell a place from a person. */
+  locations?: Array<{ id: string; name: string }>;
   /** Session context for structural enrich (pipe-1.7.1). */
   sessionContext?: Record<string, unknown>;
   /** Skip normalize when caller already normalized (e.g. executeCommand). */

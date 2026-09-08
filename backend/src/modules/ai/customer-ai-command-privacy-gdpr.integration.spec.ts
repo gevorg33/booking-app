@@ -7,6 +7,7 @@ import { PRIVACY_GDPR_MULTILINGUAL_SCENARIOS } from './ai-privacy-gdpr-multiling
 import { rescuePrivacyGdprCustomerIntent } from './ai-privacy-gdpr-customer.util.js';
 import { handlePrivacyExportLogic } from './ai-privacy-export.logic.js';
 import { handlePrivacyDeleteLogic } from './ai-privacy-delete.logic.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)', () => {
   const privacyDeps = () => ({
@@ -39,15 +40,14 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
     'validates and handles privacy_export $0',
     async (_id, row) => {
       expect(
-        validateCommand({
+        validateCommand(makeResolvedCommand({
           action: 'privacy_export',
           params: {},
           enrichedParams: {},
-          entities: {},
+          entities: { employees: [], services: [] },
           reasoning: 'test',
-          confidence: 0.9,
           prompt: row.prompt,
-        }).issues,
+        })).issues,
       ).toEqual([]);
 
       const result = await handlePrivacyExportLogic(
@@ -68,15 +68,14 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
     'validates and previews privacy_delete without confirm $0',
     async (_id, row) => {
       expect(
-        validateCommand({
+        validateCommand(makeResolvedCommand({
           action: 'privacy_delete',
           params: {},
           enrichedParams: {},
-          entities: {},
+          entities: { employees: [], services: [] },
           reasoning: 'test',
-          confidence: 0.9,
           prompt: row.prompt,
-        }).issues,
+        })).issues,
       ).toEqual([]);
 
       const d = privacyDeps();

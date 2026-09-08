@@ -9,6 +9,7 @@ import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js'
 import { AI_COMMAND_EVAL_LIST_MY_UPCOMING_APPOINTMENTS_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-list-my-upcoming-appointments integration (ai-cmd-customer-4.4.1)', () => {
   const deps = () => ({
@@ -41,15 +42,14 @@ describe('ai-list-my-upcoming-appointments integration (ai-cmd-customer-4.4.1)',
   it.each(LIST_MY_UPCOMING_APPOINTMENTS_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, scope }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'list_my_upcoming_appointments',
         params: { scope },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleListMyUpcomingAppointmentsLogic(

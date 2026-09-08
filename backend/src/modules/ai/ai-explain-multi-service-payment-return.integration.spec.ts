@@ -5,6 +5,7 @@ import {
   EXPLAIN_MULTI_SERVICE_PAYMENT_RETURN_RESCUE_SCENARIOS,
 } from './ai-explain-multi-service-payment-return.fixtures.js';
 import { rescueExplainMultiServicePaymentReturnIntent } from './ai-explain-multi-service-payment-return.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain multi-service payment return integration (ai-cmd-customer-4.18.5)', () => {
   const businessRepo = {
@@ -14,15 +15,14 @@ describe('ai explain multi-service payment return integration (ai-cmd-customer-4
   it.each(EXPLAIN_MULTI_SERVICE_PAYMENT_RETURN_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'explain_multi_service_payment_return',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
     },
   );

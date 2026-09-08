@@ -12,6 +12,7 @@ import { rescueCustomerWaitlistIntent } from './ai-customer-waitlist.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_CUSTOMER_WAITLIST_CASES } from './eval/ai-command-eval.cases.js';
 import { buildCustomerWaitlistRequest } from '../../common/utils/customer-waitlist.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   const request = buildCustomerWaitlistRequest({
@@ -53,15 +54,14 @@ describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   it.each(JOIN_WAITLIST_PROMPTS)(
     'validates and executes join waitlist $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'join_waitlist',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();
@@ -82,15 +82,14 @@ describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   it.each(CHECK_WAITLIST_STATUS_PROMPTS)(
     'validates and executes check waitlist status $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'check_waitlist_status',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

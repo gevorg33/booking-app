@@ -2,7 +2,7 @@ import { ClinicTaskAutoService } from './clinic-task-auto.service.js';
 
 describe('ClinicTaskAutoService (integration)', () => {
   const taskRepo = {
-    createQueryBuilder: jest.fn(),
+    createQueryBuilder: jest.fn<unknown, unknown[]>(),
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({
       id: 'task-auto-1',
@@ -12,19 +12,19 @@ describe('ClinicTaskAutoService (integration)', () => {
     })),
   };
   const resultRepo = {
-    findOne: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
     find: jest.fn(async () => []),
   };
   const specimenRepo = {
-    findOne: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
+    createQueryBuilder: jest.fn<unknown, unknown[]>(),
   };
   const orderRepo = {
-    findOne: jest.fn(),
-    createQueryBuilder: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
+    createQueryBuilder: jest.fn<unknown, unknown[]>(),
   };
   const serviceRepo = {
-    findOne: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
   };
   const businessRepo = {
     findOne: jest.fn(async () => ({

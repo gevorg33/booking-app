@@ -13,12 +13,13 @@ import {
 } from './ai-notify-when-results-ready.util.js';
 import { handleNotifyWhenResultsReadyLogic } from './ai-notify-when-results-ready.logic.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-clinic',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 describe('e2e-bug.198 customer_clinic_compound notify step', () => {
   it.each(E2E198_COMPOUND_NOTIFY_CASES.map((row) => [row.id, row] as const))(

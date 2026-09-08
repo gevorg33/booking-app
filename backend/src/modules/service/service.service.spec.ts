@@ -89,7 +89,8 @@ describe('ServiceService', () => {
     businessRepo as any,
     eventStore as any,
     stripeIntegrationService as any,
-  );
+  
+    undefined as never);
 
   beforeEach(() => {
     services.length = 0;

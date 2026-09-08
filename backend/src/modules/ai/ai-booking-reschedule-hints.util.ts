@@ -34,12 +34,35 @@ export function applyCreateBookingPromptHints(
     params.fallbackAnyProvider = true;
   }
 
+  // e2e-bug.529 — a provider fallback chain is flexibility about WHO, not WHEN.
+  //
+  // 'Book facemassage on Gevorg tomorrow at 9; if not available then Mary; if
+  // not whoever is free' states one time and three provider preferences. But
+  // `isFirstAvailableBookingPrompt` is anchor-similarity based, and the trailing
+  // 'whoever is free' pushes the whole sentence over the line — measured, that
+  // clause alone does not ('Book facemassage whoever is free' is false), so it
+  // is the combination that scores, not any one phrase.
+  //
+  // `bookingFirstAvailable` means *book the soonest slot*, which discards the
+  // 9am the customer actually asked for; the chain only ever meant to relax the
+  // provider. Cleared rather than skipped because
+  // `enrichBookingTimeHintsFromPrompt` above has already set it by the time the
+  // chain is known.
+  // Named fallbacks only. `fallbackAnyProvider` alone is not a chain — it is set
+  // by a bare 'on any provider', and 'Book first available massage tomorrow
+  // evening on any provider' is exactly the case that *does* want
+  // bookingFirstAvailable. Measured: including that flag here broke it.
+  const hasProviderFallbackChain = fallback.providerFallbackNames.length > 0;
+  if (hasProviderFallbackChain) {
+    delete params.bookingFirstAvailable;
+  }
+
   if (isAnyProviderBookingPrompt(prompt)) {
     params.allProviders = true;
     params.employeeName = null;
     delete params.employeeId;
   }
-  if (isFirstAvailableBookingPrompt(prompt)) {
+  if (!hasProviderFallbackChain && isFirstAvailableBookingPrompt(prompt)) {
     params.bookingFirstAvailable = true;
     delete params.timeSlot;
   }

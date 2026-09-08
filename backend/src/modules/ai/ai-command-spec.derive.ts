@@ -154,12 +154,18 @@ function renderVariableType(v: CommandVariableSpec, depth = 0): string {
 }
 
 export function plannerVariableHints(spec: CommandSpec): PlannerVariableHint[] {
-  return Object.entries(spec.variables).map(([name, v]) => ({
-    name,
-    type: renderVariableType(v),
-    ...(v.enum ? { enum: v.enum } : {}),
-    ...(v.resolver && v.resolver !== 'none' ? { resolver: v.resolver } : {}),
-  }));
+  return Object.entries(spec.variables)
+    // e2e-bug.485 — hints describe what the planner is *offered*, so they must
+    // follow the same rule as `optionalVariables`. Leaving orchestrator flags
+    // here would both break the "one hint per offered variable" invariant and
+    // hand the model the type of a field it is not supposed to know about.
+    .filter(([, v]) => v.source !== 'orchestrator')
+    .map(([name, v]) => ({
+      name,
+      type: renderVariableType(v),
+      ...(v.enum ? { enum: v.enum } : {}),
+      ...(v.resolver && v.resolver !== 'none' ? { resolver: v.resolver } : {}),
+    }));
 }
 
 /**
@@ -182,7 +188,12 @@ export function buildPlannerShortlist(
     description: spec.description,
     requiredVariables: requiredVariableNames(spec),
     optionalVariables: Object.entries(spec.variables)
-      .filter(([, v]) => !v.required)
+      // e2e-bug.485 — orchestrator-set flags are declared (the handler reads
+      // them) but must not be offered to the model as fields it may fill from
+      // the user's prose. This is the only place that distinction is applied;
+      // `requiredVariableNames` needs no equivalent because an orchestrator
+      // flag is never `required`.
+      .filter(([, v]) => !v.required && v.source !== 'orchestrator')
       .map(([name]) => name),
     variableHints: plannerVariableHints(spec),
     examples: spec.examples,
@@ -234,6 +245,12 @@ export type ToolDefinition = {
 export function buildToolDefinition(spec: CommandSpec): ToolDefinition {
   const properties: Record<string, unknown> = {};
   for (const [name, v] of Object.entries(spec.variables)) {
+    // e2e-bug.485 — same rule as the prompt shortlist. This builder currently
+    // has no production caller (the planner uses `buildPlannerSystemPrompt`),
+    // so filtering here changes nothing today; it is done anyway because a
+    // tool-calling path wired up later would otherwise reopen the exposure
+    // silently, which is how these gaps survive.
+    if (v.source === 'orchestrator') continue;
     properties[name] = { ...jsonSchemaType(v), description: v.description };
   }
   return {

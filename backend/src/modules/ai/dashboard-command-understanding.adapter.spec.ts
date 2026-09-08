@@ -124,6 +124,48 @@ describe('dashboard-command-understanding.adapter (pipe-1.12.1)', () => {
       expect(input.classify).toEqual(expect.any(Function));
       expect(input.narrowReclassify).toEqual(expect.any(Function));
     });
+
+    it('forwards the location roster, because e2e-bug.460 depends on it', () => {
+      // §216 — pinned after a wrong diagnosis. `e2e-bug.484` claimed nothing
+      // populated `catalog.locations`, so the staff-vs-location disambiguation
+      // was inert on this surface. It is not: `executeCommand` loads the roster
+      // and the branch-scope path preserves it through a spread. The reason the
+      // field was invisible is that the intermediate parameter types omitted it
+      // (fixed in §216), not that it was absent. This test asserts the roster
+      // reaches the pipeline, so the claim cannot be re-made from a grep.
+      const input = buildDashboardUnderstandInput({
+        businessId: 'biz-dash',
+        userId: 'user-1',
+        effectivePrompt: 'move Downtown to 9am',
+        timeZone: 'Asia/Yerevan',
+        catalog: {
+          ...catalog,
+          locations: [{ id: 'loc-1', name: 'Downtown' }],
+        },
+        confidence: { low: 0.6, high: 0.9 },
+        sessionContext: {},
+        classify: jest.fn(),
+      });
+
+      expect(input.locations).toEqual([{ id: 'loc-1', name: 'Downtown' }]);
+    });
+
+    it('degrades to an empty roster when the producer omits locations', () => {
+      // The optional half of the same contract: a surface that never loads
+      // locations must not crash or pass undefined into the rescue chain.
+      const input = buildDashboardUnderstandInput({
+        businessId: 'biz-dash',
+        userId: 'user-1',
+        effectivePrompt: 'move Downtown to 9am',
+        timeZone: 'Asia/Yerevan',
+        catalog,
+        confidence: { low: 0.6, high: 0.9 },
+        sessionContext: {},
+        classify: jest.fn(),
+      });
+
+      expect(input.locations).toEqual([]);
+    });
   });
 
   describe('DashboardCommandUnderstandingAdapter', () => {

@@ -1,3 +1,20 @@
+/**
+ * A6 slice-totals probe — **not a test**, hence `.probe.ts` (e2e-bug.473).
+ *
+ * It opens a real Postgres connection and reads `ai_command_trace` to report
+ * how much traffic each domain carries and how much of it depends on rescue.
+ * That makes it useful to run by hand against a populated database, and
+ * impossible to pass in CI.
+ *
+ * While it was named `*.spec.ts` jest collected it, it failed on every sweep,
+ * and it occupied a slot in `ai-known-failures.json` as an *accepted* failure —
+ * a permanent occupant, since no amount of fixing could ever make it green
+ * there. The manifest's rule is that entries leave only by being fixed; an
+ * entry that cannot be is exactly the dumping ground that rule exists to stop.
+ *
+ * Run it deliberately:
+ *   npx jest --testMatch "**\/*.probe.ts" src/modules/ai/zzz-a4-probe.probe.ts
+ */
 import { Client } from 'pg';
 import { COMMAND_SPECS } from './ai-command-spec.registry.js';
 it('slice totals', async () => {

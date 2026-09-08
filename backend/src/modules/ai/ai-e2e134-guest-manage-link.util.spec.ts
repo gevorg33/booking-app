@@ -46,7 +46,9 @@ describe('e2e-bug.134 guest manage-link cancel routing', () => {
         'my_appointments',
         'unknown',
       ] as const) {
-        if (fromAction === row.expectedAction) continue;
+        // No `fromAction === row.expectedAction` guard: every expected action is
+        // a `*_with_token` / `explain_manage_booking_context` value, disjoint from
+        // the four misclassifications above, so it could never have fired.
         const result = rescue.rescue({
           prompt: row.prompt,
           action: fromAction,

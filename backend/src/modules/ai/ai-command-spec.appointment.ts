@@ -119,6 +119,7 @@ export const APPOINTMENT_COMMAND_SPECS: readonly CommandSpec[] = [
           'Take the first free slot on that day instead of a stated time — for "the first available massage slot on Monday".',
         required: false,
         resolver: 'none',
+        source: 'orchestrator',
       },
       employeeName: {
         type: 'string',
@@ -185,6 +186,7 @@ export const APPOINTMENT_COMMAND_SPECS: readonly CommandSpec[] = [
           'Move to the soonest free slot instead of a stated time — for "reschedule to the earliest opening".',
         required: false,
         resolver: 'none',
+        source: 'orchestrator',
       },
       fromDate: {
         type: 'string',
@@ -232,9 +234,15 @@ export const APPOINTMENT_COMMAND_SPECS: readonly CommandSpec[] = [
     description:
       'Cancel one or more existing appointments matching a customer, provider, service or date range.',
     variables: {
+      // §310 (`e2e-bug.533`): **this scope is not applied.** Nothing in
+      // `findBookingsForCancel` reads `customerName` — the where-clause is
+      // built from employee, service and date scope only. Kept declared rather
+      // than deleted because the planner does emit it and the gap is the bug,
+      // not the declaration; the description says so until the filter exists.
       customerName: {
         type: 'string',
-        description: 'Only cancel appointments for this customer.',
+        description:
+          'Customer to restrict to. NOT CURRENTLY APPLIED — see e2e-bug.533; the bulk filter ignores it.',
         required: false,
         resolver: 'customer',
       },
@@ -293,9 +301,15 @@ export const APPOINTMENT_COMMAND_SPECS: readonly CommandSpec[] = [
         resolver: 'none',
         enum: ['confirmed', 'completed', 'no_show', 'in_progress'],
       },
+      // §310 (`e2e-bug.533`): **this scope is not applied.** Nothing in
+      // `findBookingsForBulkUpdate` reads `customerName` — the where-clause is
+      // built from employee, service and date scope only. Kept declared rather
+      // than deleted because the planner does emit it and the gap is the bug,
+      // not the declaration; the description says so until the filter exists.
       customerName: {
         type: 'string',
-        description: 'Restrict to this customer.',
+        description:
+          'Customer to restrict to. NOT CURRENTLY APPLIED — see e2e-bug.533; the bulk filter ignores it.',
         required: false,
         resolver: 'customer',
       },
@@ -421,6 +435,7 @@ export const APPOINTMENT_COMMAND_SPECS: readonly CommandSpec[] = [
           'Take the first free slot on that day — for "whenever you have space Friday afternoon".',
         required: false,
         resolver: 'none',
+        source: 'orchestrator',
       },
       employeeName: {
         type: 'string',

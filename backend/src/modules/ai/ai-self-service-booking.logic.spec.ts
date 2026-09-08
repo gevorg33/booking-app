@@ -158,6 +158,26 @@ function buildDeps(
         ...b,
         metadata: { ...b.metadata, manageToken: 'tok' },
       })),
+      // `manager.transaction` — the manifest's `mock_missing_transaction`
+      // class, third instance. `ensureBookingManageToken` opens a transaction
+      // and locks the row inside it, so without a `manager` every case died on
+      // "Cannot read properties of undefined (reading 'transaction')" before
+      // reaching the flow under test.
+      //
+      // The locked read returns the same `booking` the rest of this mock
+      // serves, so the token is genuinely minted against the row the test set
+      // up rather than a stand-in.
+      manager: {
+        transaction: async (cb: (m: any) => Promise<unknown>) =>
+          cb({
+            createQueryBuilder: () => ({
+              setLock: () => ({
+                where: () => ({ getOne: async () => booking }),
+              }),
+            }),
+            save: async (_entity: unknown, row: any) => row,
+          }),
+      },
     } as any,
     businessRepo: {
       findOne: jest.fn(async () => business),

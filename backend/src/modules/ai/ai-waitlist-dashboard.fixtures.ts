@@ -5,7 +5,7 @@ export type WaitlistDashboardPromptFixture = {
   expectedParams?: Record<string, unknown>;
 };
 
-export const LIST_WAITLIST_ENTRIES_PROMPTS = [
+export const LIST_WAITLIST_ENTRIES_PROMPTS: readonly WaitlistDashboardPromptFixture[] = [
   {
     id: 'waitlist-list-entries-en',
     prompt: 'Show waitlist entries',
@@ -63,7 +63,7 @@ export const LIST_WAITLIST_ENTRIES_PROMPTS = [
   },
 ] as const;
 
-export const OFFER_WAITLIST_SLOT_PROMPTS = [
+export const OFFER_WAITLIST_SLOT_PROMPTS: readonly WaitlistDashboardPromptFixture[] = [
   {
     id: 'waitlist-offer-friday-en',
     prompt: 'Offer Friday 2pm gap to waitlist',

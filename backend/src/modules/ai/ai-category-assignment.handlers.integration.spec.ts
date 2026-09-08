@@ -9,6 +9,11 @@ import {
   CATEGORY_UNASSIGN_FROM_PROVIDER_SCENARIOS,
   TRANSFER_SERVICES_BETWEEN_PROVIDERS_SCENARIOS,
 } from './ai-category-assignment.fixtures.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import {
+  makeService,
+  makeServiceCategory,
+} from '../service/entities/service.test-fixture.js';
 
 describe('category assignment handler flows', () => {
   const planBuilder = new OperationalPlanBuilderService();
@@ -24,31 +29,34 @@ describe('category assignment handler flows', () => {
     'Massage',
   ] as const;
   const services = categoryNames.flatMap((name, index) => {
-    const category = { id: `cat-${name.toLowerCase()}`, name };
+    const category = makeServiceCategory({
+      id: `cat-${name.toLowerCase()}`,
+      name,
+    });
     return [
-      {
+      makeService({
         id: `s-${index}-1`,
         name: `${name} Service A`,
         category,
         categoryId: category.id,
-      },
-      {
+      }),
+      makeService({
         id: `s-${index}-2`,
         name: `${name} Service B`,
         category,
         categoryId: category.id,
-      },
+      }),
     ];
   });
   const allServiceIds = services.map((s) => s.id);
 
   const employees = [
-    {
+    makeEmployee({
       id: 'e1',
       name: 'Gevorg Gasparyan',
       serviceIds: allServiceIds,
-    },
-    {
+    }),
+    makeEmployee({
       id: 'e2',
       name: 'Maria Lopez',
       serviceIds: [
@@ -61,23 +69,23 @@ describe('category assignment handler flows', () => {
         's-3-1',
         's-3-2',
       ],
-    },
-    {
+    }),
+    makeEmployee({
       id: 'e3',
       name: 'Anna Smith',
       serviceIds: ['s-1-1', 's-1-2', 's-2-1', 's-2-2', 's-4-1', 's-4-2'],
-    },
-    { id: 'e4', name: 'Mary Torgomyan', serviceIds: ['s-2-1', 's-2-2'] },
-    {
+    }),
+    makeEmployee({ id: 'e4', name: 'Mary Torgomyan', serviceIds: ['s-2-1', 's-2-2'] }),
+    makeEmployee({
       id: 'e5',
       name: 'Gevorg',
       serviceIds: ['s-4-1', 's-4-2', 's-5-1', 's-5-2', 's-6-1', 's-6-2'],
-    },
-    {
+    }),
+    makeEmployee({
       id: 'e6',
       name: 'James',
       serviceIds: ['s-2-1', 's-2-2', 's-3-1', 's-3-2'],
-    },
+    }),
   ];
 
   beforeEach(() => {

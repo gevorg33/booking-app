@@ -5,11 +5,29 @@ import {
   type ReschedulePackageLinesLogicDeps,
 } from './ai-reschedule-package-lines.logic.js';
 
+/**
+ * e2e-bug.491's class — these fixtures expired on a calendar.
+ *
+ * The matcher keeps only bookings with `startTime >= now`, so hardcoded dates
+ * silently stop matching once they pass; the suite then sat in the
+ * known-failures manifest as though the behaviour were disputed.
+ *
+ * `futureAt` keeps both properties this file needs: a date genuinely in the
+ * future *and* an exact time of day, because "preserves each visit's own time
+ * of day when shifting date" asserts the hour. A plain `Date.now() + N days`
+ * would satisfy the first and quietly break the second.
+ */
+const futureAt = (daysAhead: number, hour: number, minute = 0): string => {
+  const d = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  d.setUTCHours(hour, minute, 0, 0);
+  return d.toISOString();
+};
+
 const business = { id: 'biz-1', slug: 'salon' } as Business;
 
 const visit1 = {
   id: 'book-1',
-  startTime: '2026-07-06T10:00:00.000Z',
+  startTime: futureAt(7, 10),
   status: BookingStatus.CONFIRMED,
   packagePurchaseId: 'purchase-1',
   packageName: 'Spa Day',
@@ -18,7 +36,7 @@ const visit1 = {
 };
 const visit2 = {
   id: 'book-2',
-  startTime: '2026-07-13T11:00:00.000Z',
+  startTime: futureAt(14, 11),
   status: BookingStatus.CONFIRMED,
   packagePurchaseId: 'purchase-1',
   packageName: 'Spa Day',
@@ -27,7 +45,7 @@ const visit2 = {
 };
 const visit3 = {
   id: 'book-3',
-  startTime: '2026-07-20T09:00:00.000Z',
+  startTime: futureAt(21, 9),
   status: BookingStatus.CONFIRMED,
   packagePurchaseId: 'purchase-1',
   packageName: 'Spa Day',

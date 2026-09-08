@@ -7523,7 +7523,7 @@ Fixing the runtime is a prerequisite for fixing the redness.
 Blocks: AI-ROADMAP Phase 2 "red means red", and the manifest for
 `scripts/ai-known-failures-gate.mjs`.
 
-### e2e-bug.360 — 8 of 20 documented CommandSpec examples never reach their own command's detector — **Open**
+### e2e-bug.360 — 8 of 20 documented CommandSpec examples never reach their own command's detector — **Open — re-measured 2026-09-01 (§240): the live count is 3 of 21**
 
 **Found:** 2026-08-06, building generated paraphrase-invariance fixtures (AI-ROADMAP §27).
 
@@ -11528,7 +11528,10 @@ of the §154 kind, left separate so both stay attributable.
 
 **Related:** §157, §151, §154, `e2e-bug.358`.
 
-### e2e-bug.434 — every scheduler fires once per instance, and multi-instance is planned — **Open**
+### e2e-bug.497 — every scheduler fires once per instance, and multi-instance is planned — **Open**
+
+*(Renumbered from `e2e-bug.434` on 2026-08-21: that id covered two unrelated bugs. The detector bug keeps 434
+because it is cited from `ai-service-rank-discovery.util.ts:258`; this one was cited nowhere.)*
 
 **Found:** 2026-08-04, while scheduling the completion-floor gate (e2e-bug.366).
 
@@ -11920,12 +11923,21 @@ Not cosmetic. Grepping the named handler for `no_show_recovery`'s param reads re
 literal reading of the method would have shipped `variables: {}` for a T2 command whose filters are
 its blast radius.
 
-- [ ] decide the convention — `handler` names the entry point, the service that reads params, or
-      becomes a list
-- [ ] audit the rest of the registry against it; the dispatch maps (`*-dispatch.build.ts`) are the
-      ground truth to diff against
-- [ ] a conformance test that a spec's `handler` actually reaches the command's param reads would
-      catch the class rather than one instance at a time
+- [x] audit the rest of the registry against it — **done §224.** Diffed all 41
+      `*-dispatch.build.ts` maps against `spec.handler`: **134 checkable commands, 45 disagree**,
+      in three shapes — 42 facade (`AiCommandService` → BookingCore/ScheduleHandlers/MetaOps),
+      2 multi-surface (one spec, two implementations), **1 genuinely wrong** and now fixed.
+- [x] a conformance test — **shipped §224**, `ai-command-handler-dispatch.boundary.spec.ts`. Pins
+      the 5 legitimate divergence *pairs* by name so a new one fails; negative-controlled.
+- [ ] decide the convention — **the audit answers most of it, but the last part is still a call.**
+      `handler` demonstrably means *the entry point*, not the service that reads params: 42 of the
+      45 disagreements are one facade delegating to three services, and that is a convention, not
+      drift. What it cannot express is the **multi-surface** case — `provider.list_my_package_visits`
+      and `booking.list_services` each have two real implementations, one per surface, and a single
+      string names one of them. That is what "or becomes a list" was for, and it is a schema change,
+      so it is left open rather than guessed at. Note the cost is not hypothetical: §213 traced
+      `list_my_package_visits` from its `handler`, found the provider implementation, and missed the
+      customer one entirely (fixed §224).
 
 ### e2e-bug.379 (C1) — §149's nine had registry rows but no specs — **Partial 2026-08-11**
 
@@ -12038,7 +12050,7 @@ Ratchet lowered to 112, all three slices named individually. Gates 27 / 4,170, 0
 - [ ] `optimize_schedule` and `create_services` route through `runOrchestrationIntent` rather than a
       handler with a param contract — "what does it read" has no answer at the spec layer until the
       orchestration path is traced. Not closeable in this shape.
-- [ ] remaining 112: 97 T2 + 15 T3
+- [x] ~~remaining 112: 97 T2 + 15 T3~~ *(slice-time count; C2 T2/T3 reached 0 — see §215)*
 
 ### e2e-bug.418 (C2) — fourth slice, and the metric was counting the wrong thing — **2026-08-11**
 
@@ -12066,7 +12078,7 @@ pinned so it cannot become somewhere to park unfinished work.
 
 Gates 27 / 4,172, 0 failures.
 
-- [ ] remaining 107: 97 T2 + 10 T3 — and some of those are likely no-input too, so the real backlog
+- [x] ~~remaining 107: 97 T2 + 10 T3 — and some of those are likely no-input too, so the real backlog~~ *(slice-time count; C2 T2/T3 reached 0 — see §215)*
       is smaller again
 
 ### e2e-bug.418 (C2) — fifth slice: the T3 bulk tier closes — **2026-08-11**
@@ -12093,7 +12105,7 @@ reason stays attached to the number.
 Gates 27 / 4,173, 0 failures. 28 commands declared across five slices, still **no required variable**
 beyond the two payments ones.
 
-- [ ] remaining 99: 97 T2 + 2 T3 (both orchestration-blocked). Next natural slices by handler:
+- [x] ~~remaining 99: 97 T2 + 2 T3 (both orchestration-blocked). Next natural slices by handler:~~ *(slice-time count; C2 T2/T3 reached 0 — see §215)*
       `AiRetailFinanceService` (11), `AiSelfServiceBookingService` (9), `AiOperationsService` (9)
 
 ### e2e-bug.418 (C2) — sixth slice: `AiRetailFinanceService` — **2026-08-11**
@@ -12443,11 +12455,17 @@ The redaction intent already exists: `describeOpenaiIntegrationPatch` renders th
 `accessToken` among twelve explicit keys. Found in C2's nineteenth slice; recorded here rather than
 filed separately because the fix is the same one.
 
-- [ ] stop returning the credential: drop `apiKey` / `accessToken` from the `patch` detail (or redact
-      it) on both branches of **both** handlers
-- [ ] consider adding `patch` to `INTERNAL_COMMAND_DETAIL_KEYS`, after checking which other commands
-      return a `patch` detail clients rely on
-- [ ] check whether any existing traces already contain a real key
+- [x] stop returning the credential — **done §222.** `redactSecretDetailFields` masks the value and
+      keeps the key, applied at all **four** sites (success *and* failure branch of both handlers).
+      Masked rather than dropped: "the key was changed" is real information a client may render.
+- [x] consider adding `patch` to `INTERNAL_COMMAND_DETAIL_KEYS` — **checked, not needed.** No caller
+      in `backend/src` or `frontend/src` reads `patch.apiKey`/`patch.accessToken`; hiding the whole
+      `patch` would remove the non-credential half that tells a client what changed, for no gain
+      once the credential itself is masked.
+- [x] check whether any existing traces already contain a real key — **yes, and this was the bigger
+      leak.** `redactCommandTraceParams` ran `redactPhiFromValue` only, which knows about patients
+      and nothing about secrets, so `params.apiKey` was persisted verbatim — the same value that
+      §170 had already scrubbed out of `promptRaw`, one column over in the same row. Fixed §222.
 
 ### e2e-bug.418 (C2) — fourteenth slice: `AiIntegrationsService` — **2026-08-11**
 
@@ -12500,8 +12518,19 @@ Affects all five commands in `AiPatientClinicalMutationsService` plus `dismiss_p
 `list_customer_staff_notes`. Supplying `customerId` bypasses the search entirely, which is why C2's
 fifteenth slice declares it on every one of them — that is the workaround, not the fix.
 
-- [ ] drop the cap (or paginate the match server-side), add `isActive: true`, and add an `order`
-- [ ] check the other `take:` caps in AI resolution paths for the same shape
+- [x] drop the cap (or paginate the match server-side), add `isActive: true`, and add an `order` —
+      **already done for `resolvePatientForClinicalMutation`**; the fix is documented in place at
+      `ai-patient-clinical-mutations.util.ts:47`.
+- [x] check the other `take:` caps in AI resolution paths for the same shape — **done §223, and two
+      of them had it.** `resolveCustomerForPatientChart` carried the same fault on *both* branches:
+      an arbitrary 200 rows matched in memory, by id prefix and by name. Fixed the same way — filter
+      in SQL, deterministic `order`, so the cap bounds *matching* rows. The name branch also gained
+      exact-beats-substring, which the in-memory version lacked: it returned `matches[0]`, so "Ann"
+      could beat an exact "Anna" on storage order alone. The third capped site,
+      `ai-suggestions-llm.service.ts:98`, is **not** this shape — it samples bookings inside a date
+      window for LLM context rather than resolving a named entity, so a missed row degrades a
+      suggestion instead of failing to find a patient. It still has no `order`, which makes identical
+      calls non-reproducible; noted, not changed.
 
 ### e2e-bug.418 (C2) — fifteenth slice: `AiPatientClinicalMutationsService` — **2026-08-11**
 
@@ -12727,9 +12756,12 @@ Gates 27 / 4,208, 0 failures; `tsc` adds no error in either touched file.
       "specify which service to book" still wins when both are unresolved.
       Negative-controlled: reverting only the service file fails exactly the 2 ambiguity assertions
       and passes the other 4 invariance guards. Gates 28, 0 failures; `tsc` adds no error.
-- [ ] `buildCreateBookingPlanOnly` (same resolution, plan-only twin) **deliberately skipped** — it
-      returns `null` on failure with no field to carry a clarification, so migrating it would turn an
-      ambiguous customer into a silently missing plan. Needs a return-shape change first.
+- [x] ~~`buildCreateBookingPlanOnly` (same resolution, plan-only twin) **deliberately skipped**~~ —
+      **guarded §235.** The skip was right about the helper and wrong about the fix: the helper
+      returns `null` and cannot refuse, but its only caller,
+      `buildPlanForResolvedIntent`, can — and `null` there is the correct refusal, since no
+      plan beats a plan built over the wrong namesake. Same for `prepareTemplateCascadePlan`;
+      `prepareApplySchedulePlan`'s caller returns a `CommandResult` and carries the reason.
 - [x] **Slice 3 (2026-08-13) — provider resolution in the same handler.** Instead of copying the
       customer helper, it was generalised to `resolveNamedVerdict<T extends {id, name}>(items, name,
       'customer' | 'provider')`, and the duplicated early-return became `ambiguityRefusal`. Both
@@ -13000,8 +13032,13 @@ named several different services*, not *one name matched two* — and returning 
 "book a massage and a haircut" fail the create_booking completeness check and ask which service was
 meant. Verified by driving `resolve()` directly with a two-service catalogue.
 
-- [ ] decide what the singular `service` should be on a multi-service prompt — `services[0]` is at
-      least defensible, `undefined` is not, and the ternary should say which on purpose
+- [x] decide what the singular `service` should be on a multi-service prompt — **decided §221:
+      `services[0]`, kept deliberately.** The dead ternary is collapsed to plain `services[0]`
+      with the asymmetry documented in place, and the reasoning above is now a test rather than
+      a note: `command-completion.pipeline.multi-service.spec.ts` pins that the singular stays
+      set for several services, and that `serviceId` stays unset — which is *why* it must.
+      Worth recording that the obvious fix passes 537 tests and the full corpus: nothing
+      covered the path, so "backed out" was resting on one person's memory until now.
 - [ ] the genuine tie case (one name, two matching services) never reaches this line; it is D5, and
       the fix there is adopting `resolveEntity` rather than editing this expression
 
@@ -13058,9 +13095,11 @@ actually matters. One of them I first wrote from a guess — "`agent.undo_latest
 exempt T3" — and the test told me it is seven of them; corrected to exclude the whole set.
 
 - [x] C2's own last checkbox — the conformance rule — shipped
-- [ ] the other **511** T0/T1 specs remain undeclared; out of C2's stated scope but the same work.
-      Widening the rule to them is deliberately not attempted: it would fail on 163 T1 commands and
-      be switched off, exactly as the T2/T3 rule would have been in January.
+- [x] ~~the other **511** T0/T1 specs remain undeclared~~ — **stale as of §214/§215, corrected
+      2026-08-19.** This was written when only T2/T3 had a rule, and its own reasoning ("it would
+      fail on 163 T1 commands") dates it. T1 went 163 → 0 in §178 and T0 went 367 → 0 across
+      §190–§214; both now carry the same named per-command rule as T2/T3. C2 is closed on all three
+      tiers: **369 T0 commands, 271 declared, 98 exempt (26.6%)**.
 
 
 ---
@@ -13144,3 +13183,5255 @@ rediscovering it.
 is precisely how the `explain_guest_checkout_fields` steal happened, and the lesson from that fix is
 that the corpus cannot distinguish a narrow fix from an over-broad one — paraphrase probes are
 needed alongside it.
+
+### e2e-bug.379 — update 2026-08-14 (AI-ROADMAP §159): apiModule derived, 705 → 0
+
+Step 1's largest number was `apiModule`: **705 values the specs cannot supply**. Measured against the
+live registry it is not data — it is 68 handler mappings and **7 exceptions**:
+
+| | |
+|---|---|
+| registry entries | 705 |
+| distinct handlers | 68 |
+| handlers mapping to exactly one module | 64 |
+| commands disagreeing with their handler's majority | **7** |
+
+The seven: `check_availability`, `mark_paid`, `explain_visibility_block`, `explain_ai_settings`,
+`explain_app_feature`, `explain_current_screen`, `guide_user_flow`.
+
+**Surface cannot replace them** — `explain_app_feature` and `check_availability` are both on all four
+surfaces and land in different modules. Checked first; a rule that happened to fit would have been
+more attractive and less honest.
+
+**Shipped:** `ai-command-api-module.derive.ts` (generated from the registry, not hand-typed) plus three
+gates — reproduces all 705 rows, covers every handler, and caps the exception list at 10 so that if
+exceptions grow, the test says `apiModule` really is data and belongs on the spec.
+
+**Shortfall 705 → 0.**
+
+**What is left, measured:** `compoundStep` **609** (not derivable — agrees with `mutating` on only
+380/705) and `surfaceHandlers` **16** are genuine per-command data. **`sprint` 596 is a decision, not a
+port**: pure traceability that git already records, and porting it would look like progress without
+being any.
+
+**Also:** the derivable spec was in no gate chain — the fast chain read 4,210 before *and* after three
+tests were added. Added to `test:ai-inventory`; now **4,218**. Fourth time this check has paid
+(§100, §143, §144).
+
+**No behaviour changed.** Nothing consumes `deriveApiModule` yet and the registry is still
+hand-maintained. This makes generating it cheap; it is not the generation.
+
+**Related:** §159, §125, §149.
+
+### e2e-bug.379 — update 2026-08-14 (AI-ROADMAP §160): three of four fields derivable, no spec edits
+
+Continuing §159's method — ask whether the field is data before porting it.
+
+**`compoundStep` is a property of the handler, not the command.** Four semantic rules tried first:
+
+| rule | mismatches |
+|---|---:|
+| `mutating` | 325/705 |
+| `executionMode !== read_only` | 326/705 |
+| spec `risk !== 'T0'` | 325/705 |
+| always `true` | 96/705 |
+| per-domain majority | 42/705 |
+| **per-handler majority** | **20/705** |
+
+"A compound step is a mutation" is the intuitive reading and is wrong on **46%** of the registry. So
+609 becomes 68 defaults + 20 named exceptions. A test now pins that the intuitive rule *stays* wrong —
+if it ever becomes true, deriving per handler is no longer justified.
+
+**`surfaceHandlers` is tabulated, not ruled.** 16 entries, 13 identical. A rule plus three exceptions
+was possible and rejected: at this size the table is the clearer statement, and a rule would hide that
+`mark_paid`, `list_my_package_visits` and `set_retail_sales_lines` each route somewhere genuinely
+different.
+
+**Where the port stands:**
+
+```
+[C1] registry entries: 705. Fields no spec can supply yet —
+     apiModule: 0, compoundStep: 0, sprint: 596, surfaceHandlers: 0.
+```
+
+§125's four fields looked like **1,330 values** of data entry. Measured, they were **179 facts** and
+**zero spec edits** — all generated from the registry, all gated to reproduce the 705 rows exactly.
+
+**`sprint` (596) is the only field left**, and remains a decision rather than a port: pure traceability
+git already records. Raised §159, unanswered, deliberately not done meanwhile. Generating the registry
+is blocked only on it.
+
+**No behaviour changed** — nothing consumes these yet and the registry is still hand-maintained.
+
+**Related:** §160, §159, §125.
+
+### e2e-bug.379 — update 2026-08-14 (AI-ROADMAP §161): the registry is generated
+
+**`sprint` dropped by decision.** Checked before dropping: the only readers of a `sprint` field are two
+lines in `ai-capability.matrix.ts`, reading `ClinicTestResultCapabilityRow.sprint` — a different field
+on a different type. Nothing read `CommandRegistryEntry.sprint` for behaviour.
+
+**The last three fields needed nothing:**
+
+| field | rule | mismatches |
+|---|---|---:|
+| `label` | `id.replace(/_/g, ' ')` | **0/705** |
+| `mutating` | `spec.risk !== 'T0'` | **0/705** |
+| `executionMode` | `mutating ? simple_mutate : read_only` | 13 exceptions |
+
+All 13 exceptions are `orchestration`. §125 named `coordinate_waitlist_offer` as *the* counterexample;
+it is one of thirteen, and the only non-mutating one — which is why it stood out.
+
+Mapping is exactly 1:1 — **705 specs, 705 entries**, every registry id is its spec's `aliases[0]`, zero
+orphans either way.
+
+**Order of work:** generator written → gated → swapped. The gate compares generated against
+hand-maintained **field by field across all 705 rows**, so the swap was inert by construction.
+
+**Two details:**
+
+- *Surface order differs and does not matter.* Before relaxing the comparison to a set I checked every
+  production reader of `registry.surfaces[0]`: one, in `ai-capability.matrix.ts`, and it reads the
+  element only after asserting `length === 1`. Recorded at the assertion.
+- *The gate had to be re-pointed.* Once `COMMAND_REGISTRY` became generated, the spec compared the
+  generator with itself and went green for the wrong reason. It now builds the hand-maintained
+  registry explicitly from the seed list.
+
+**Left deliberately:** the seed list and `buildCommandRegistry` stay for one step so the swap and the
+deletion are separately revertible. Deleting them is next and is now a pure deletion with a gate
+watching. The other four lists (dispatch map, classifier schema, coverage list, promotion list) are
+untouched; seven declaration sites becomes six.
+
+**Related:** §161, §160, §159, §125, §66.
+
+### e2e-bug.379 — update 2026-08-14 (AI-ROADMAP §162): builder deleted, seeds cannot follow yet
+
+**Deleted:** `buildCommandRegistry` (43 lines) and the four private helpers that existed only to fill
+its fields — `SURFACE_HANDLER_OVERRIDES`, `tiersForSurface`, `resolveExecutionMode`,
+`isMutatingIntent` — plus the cascade they orphaned (`ALL_TIERS`, `collectAllIntentIds`, four unused
+imports). **104 lines** out of `ai-command-registry.build.ts`. `sprint` removed from
+`CommandRegistryEntry`.
+
+Two of those helpers share a name with **exported** functions in `ai-propose-only.util.ts` and
+`ai-capability.matrix.ts` (20 and 19 external references). They are different symbols — the ones here
+were file-local. Checked before deleting, because grep alone reported them as in use.
+
+**Could not be deleted: `INTENT_BINDING_SEEDS` (1,240 lines).** It also feeds `buildBindingMaps()` →
+`GLOBAL_SURFACE_BY_INTENT` → `DASHBOARD_INTENTS`, `PROVIDER_INTENTS`, `CUSTOMER_INTENTS`,
+`PUBLIC_INTENTS`, read in **78 places**.
+
+So "the seed list" is two lists wearing one name: the registry rows (now generated) and the surface
+intent lists (not yet). The ticket's plan reads as though the lists are independent; they are not. The
+surface lists **are** derivable — every spec declares `surfaces` — and are the next, smaller job.
+
+**The gates changed, not just passed.** The §161 comparison died with the thing it compared to: with
+the builder gone it would assert the generator reproduces itself. Leaving it would be worse than
+deleting it — a vacuous assertion reads as coverage. Rewritten around what can still fail: handler
+coverage in both derive tables, exception lists still small, no exception naming a deleted command,
+stable regeneration, `sprint` absent, and §160's pin that `compoundStep` is not `mutating`. Eight
+builder tests went too; the barrel test now checks the generated registry.
+
+**Seven declaration sites → six.** Remaining: surface intent lists (next), dispatch map, classifier
+schema, coverage list, promotion list.
+
+**Verified:** derivable 11/11, build spec 4/4, fast chain 4,221/0, sweep exit 0, tsc and lint clean.
+
+**Related:** §162, §161, §160, §159.
+
+### e2e-bug.379 — update 2026-08-14 (AI-ROADMAP §163): the seed lists are deleted
+
+`INTENT_BINDING_SEEDS` and `LEGACY_CORE_BINDINGS` are gone. **2,032 deletions against 56
+insertions**; `ai-command-registry.build.ts` goes **3,233 → 1,257 lines**.
+
+§162 had to stop short because "the seed list" was two lists wearing one name — the registry rows,
+which §161 generated, and the four surface intent lists, which it did not. Deriving the second
+needed **no exception table at all**, which `apiModule` (7) and `compoundStep` (20) both did:
+
+| derivation | source | committed | derived | diff |
+|---|---|---|---|---|
+| `DASHBOARD_INTENTS` | `spec.surfaces` | 388 | 388 | **0** |
+| `PROVIDER_INTENTS` | `spec.surfaces` | 153 | 153 | **0** |
+| `CUSTOMER_INTENTS` | `spec.surfaces` | 221 | 221 | **0** |
+| `PUBLIC_INTENTS` | `spec.surfaces` | 137 | 137 | **0** |
+| `DASHBOARD_MUTATING_INTENTS` | `spec.risk !== 'T0'` | 236 | 236 | **0** |
+| `PROVIDER_MUTATING_INTENTS` | `spec.risk !== 'T0'` | 52 | 52 | **0** |
+| `CUSTOMER_MUTATING_INTENTS` | `spec.risk !== 'T0'` | 68 | 68 | **0** |
+| `resolveIntentSurfaces` | `spec.surfaces` | — | — | **0 / 705** |
+
+The swap is byte-identical rather than merely equivalent, and that rested on two facts that were
+checked instead of assumed: the committed lists were already sorted, and no consumer indexes them
+positionally.
+
+**The cascade was most of the work.** Removing the seeds orphaned **197 intent-name arrays** — 100
+local declarations and 97 imports. The delete loop reported "97 removed" for eleven consecutive
+rounds while removing nothing, because its regex was written for declarations and these were import
+specifiers. A stall that prints progress is the kind that gets believed.
+
+**What survived its list.** `LEGACY_CORE_BINDINGS` carried e2e-bug.386: ten commands bound to
+`public` alone, on a surface that has **never received a request** (customer 3,703 / dashboard 1,161
+/ provider 498 / public zero), hidden from 794 executed traces. The specs' `surfaces` now carry that
+fix — which is why the derived customer list is 221 and not 211. The finding is kept as a comment.
+
+**Verification.** Derivable gates 17/17; fast chain 19 gates, 0 failures; sweep 84 suites / 227
+tests with the manifest matching exactly. One pre-existing `nest build` error in an untouched file,
+filed as `e2e-bug.451`.
+
+**Six declaration sites → five.** `buildCompoundCommandRecipes` (1,077 lines) and
+`ORCHESTRATION_INTENT_IDS` are what is left.
+
+**Related:** §161, §162, `e2e-bug.386`, `e2e-bug.451`.
+
+### e2e-bug.451 — `nest build` is red, in a file nothing recent touched — **Open**
+
+`ai-propose-only.util.ts:237` fails to compile:
+
+```
+error TS2741: Property 'execution_unproven' is missing in type
+'{ no_coverage: number; insufficient_evidence: number; below_bar: number; cleared: number; }'
+but required in type 'Record<ProposeOnlyReason, number>'.
+```
+
+A member was added to `ProposeOnlyReason` without updating the one exhaustive `Record` keyed by it —
+exactly the error that type is shaped to catch, caught, and then not acted on.
+
+Found while verifying §163. The file is untouched by that change and `git status` confirms it, but
+confirming it needed a git check rather than a glance, and that is the actual cost: **a build that
+is already red cannot tell the next person whether they broke it.** The test suites have the
+known-failures manifest for precisely this — "red means red" — and the build has no equivalent.
+
+The fix is likely one line. The question worth settling alongside it is whether `nest build` should
+join `test:ai-roadmap-gates`, since nothing currently stops a type error from living on `main`.
+
+**Related:** §163, `e2e-bug.379`.
+
+### e2e-bug.379 — closed 2026-08-14 (AI-ROADMAP §164): the parallel lists are gone
+
+Four sections closed this. §161 generated `COMMAND_REGISTRY` from `CommandSpec`, §162 deleted
+`buildCommandRegistry`, §163 deleted the seed lists, and §164 finished the remaining two sites.
+
+**`ORCHESTRATION_INTENT_IDS` was one fact written twice** — a 13-id `Set` in
+`ai-command-registry.build.ts` and a 13-id map to `orchestration` in
+`ai-command-registry.generate.ts`. Same ids, same order, in two files, with nothing keeping them in
+step. The generator's table survives because the registry is built from it; the set is now a view.
+
+**The compound recipes are not the debt, and that is the result rather than a shortfall.** They were
+the last item on C1's list at 1,077 lines, on the assumption they were more of the same. Measured
+across all 64 recipes / 1,105 step ids:
+
+| question | answer |
+|---|---|
+| recipes whose steps = all specs on their surface | **0 / 64** |
+| recipes whose steps = all specs in their domains on their surface | **5 / 64** |
+| step ids naming a command no spec declares | **0** |
+| recipes with ≤ 5 steps | **50 / 64** |
+
+`notInSpecs = 0` is what settles it: the recipes **reference** commands, they do not **declare**
+them, so they are not a parallel declaration site. Fifty of sixty-four are two-to-five-step
+sequences carrying `decomposeUtil`, `maxSteps` and `examplePrompts` — facts about a composition, not
+about a command, and editorial ones at that: a judgement that these particular commands compose into
+a flow a user would ask for. There is no spec field to derive that from.
+
+**§163 had already done the derivable part without touching them.** The three large recipes take
+their steps from the now-generated surface lists minus `unknown`, so **743 of 1,105 step ids —
+67.2% — are generated**. The other 362 across 61 recipes are the editorial ones.
+
+**`sprint` also left `CompoundCommandRecipe`.** All 64 set it, nothing read it — the same write-only
+field §162 removed from `CommandRegistryEntry`. The `row.sprint` hits in `ai-capability.matrix.ts`
+are `ClinicTestResultCapabilityRow`, a different type; checked rather than assumed, because that
+name collision is what made the field look load-bearing the first time.
+
+**Verification.** Fast chain 19 gates / 0 failures; derivable gates 18/18 — the new one checks the
+orchestration set against the *built registry*, not against the map it now derives from, which would
+have asserted `x === x`. Sweep 84 suites / 227 tests, manifest matching exactly. Lint clean, after
+removing an `AccessTier` import orphaned since §162. One local failure in
+`ai-command-handler-coverage` was confirmed present in the manifest at HEAD before continuing.
+
+**Seven declaration sites → four**, none of them duplicates: the specs, the compound recipes, and
+the generator's two small exception tables (`apiModule` 7, `compoundStep` 20).
+`ai-command-registry.build.ts` is **3,233 → 1,194 lines**.
+
+**Related:** §161, §162, §163, `e2e-bug.451`.
+
+### e2e-bug.452 — a test rewrites two tracked files on every run — **Open**
+
+`backend/src/modules/ai/guide/sync-mobile-guide-flows.spec.ts:54` runs the generator
+unconditionally:
+
+```
+execSync(`node ${SCRIPT}`, { cwd: ROOT, stdio: 'pipe' });
+```
+
+The `process.env.SYNC_MOBILE_GUIDE_FLOWS === '1'` gate twelve lines above it guards only the
+bootstrap path — the case where the bundles do not exist yet. The regeneration below it is not
+guarded at all, so every full sweep rewrites `syncedAt` in two tracked files:
+
+- `consumer-app/src/assets/guide-flows-manifest.json`
+- `provider-app/src/assets/guide-flows-manifest.json`
+
+The test passes throughout, because `readManifestStableFields` destructures `syncedAt` away before
+comparing. It is asserting the right invariant and littering while it does it.
+
+Nothing of substance changes — `corpusRevision` stayed `0fccb7f080f6d1de` across the churn, so the
+generated content is identical and only the timestamp moves. The cost is downstream: `git status`
+after a sweep shows two app files as modified for no reason, and a habit of reverting those without
+reading them is exactly how a real change in them gets waved through. It also means a sweep is not
+idempotent against the repo, which is a property worth having when the sweep is the thing deciding
+whether the tree is green.
+
+Found in passing while verifying §164. Fix is either to generate into a temp directory and diff
+against the committed files, or to hold `syncedAt` constant unless the run is a bootstrap.
+
+**Related:** §164, `e2e-bug.451`.
+
+### D1 progress — AI-ROADMAP §165 and §166: corpus 25 → 21
+
+**§165 — two fixtures asserting the same false thing.** `public_compound_no_deterministic`
+and `public-compound-list-and-check` carry the identical prompt on the identical surface
+(`'List providers and check availability'` / `public`) and both claim it does not
+deterministically decompose. It does. The fixtures date from 2026-06-05 and 2026-06-11; the
+`list_providers_check_availability` shape that decomposes it was added 2026-07-20 — and the
+prompt appears in six other places, all asserting it *is* a public assistant compound,
+including the recipe's own `examplePrompts`. The two fixtures were the outliers.
+
+Repointed rather than flipped, because their real purpose — proving the deterministic path
+declines when it should — is worth keeping. Both now use `'List providers and cancel my
+haircut'`, which fires the same `LIST_PROVIDERS_CUE` and misses the second cue, guarding the
+exact boundary that went stale. Corpus 25 → 23; sweep 84 → 81 suites, 227 → 223 tests.
+
+**§166 — the explain guard only spoke English.** Two `explain_package_currency` prompts in
+Russian and Armenian were losing to `buy_gift_card_for_someone`. `isExplainPackageCurrencyPrompt`
+returns true for all ten fixtures including both failures, so the detector was never the
+problem; the producer is `resolveBudgetMisrouteAction`, which declines on
+`isBudgetAdministrativeOrExplainContext`. All 6 English prompts reach that guard and all 4
+ru/hy miss it — every clause in it is English-only. The two ru/hy package prompts passed
+anyway, but only because no gift-card rule happened to match them.
+
+Added the ru/hy explain cues, deliberately without `\b`: JavaScript's word boundary is
+ASCII-only, so `\bпочему\b` cannot match. Written with it, the rule would read correct and
+test false. Corpus 23 → 21, accuracy 99.75%. Inventory ratchet caught the new detector and was
+rebuilt.
+
+**Two issues found in passing:** `e2e-bug.453` (the swappable-argument signature) and
+`e2e-bug.454` (six pre-existing lint errors).
+
+**Related:** §155 (patch the producer, not the predicate), §149 (gates before baseline).
+
+### e2e-bug.455 — a bug that survived its own fix (AI-ROADMAP §167) — **Open**
+
+You flagged `configure_stripe_connect` as the loose thread: 1 failure despite being checked off
+"3 → 1 → 0". The case is `'Set up online payments with Stripe'` on dashboard, expecting
+`configure_stripe_connect` and getting **`none`**.
+
+Everything worked in isolation — `isConfigureStripeConnectPrompt`, `rescueConfigureStripeConnectIntent`
+and `rescueMarketingGrowthIntent(prompt, 'unknown')` all return the right answer for all twelve
+fixtures — while the full pipeline returned `null`. The obvious suspect,
+`isConfigureServiceOnlinePaymentPrompt`, returns false here, and the one prompt it *does* match
+passes anyway. Static reading had run out, so I instrumented: wrapping every method on
+`AiIntentRescueService.prototype` showed `runRescueUnknownPhase` returning
+`explain_provider_availability`, illegal on dashboard, dropped downstream, prompt resolves to nothing.
+
+`rescueExplainProviderAvailabilityIntent` has **two call sites**. The one in `runRescueUnknownPhase`
+is gated by `rescueAllowedOnSurface` and carries the comment *"e2e-bug.435 — customer/public only; on
+dashboard it was claiming 'Set up online payments with Stripe'."* The one in
+`tryRescueBusinessLanguages` was ungated. e2e-bug.435 diagnosed this exact prompt, wrote the fix, and
+applied it to one of the two places that needed it.
+
+The reason it stayed hidden is worth recording. A surface-illegal rescue is not merely wrong — it is
+discarded by `acceptRescueForSurface`, and in being discarded it **blocks the correct rescue behind
+it**. So the prompt resolves to `null`, the symptom reads as a missing detector rather than a
+misroute, and it no longer resembles the ticket that describes it. That is what "3 → 1 → 0" was
+counting when it stopped at 1.
+
+`rescueAllowedOnSurface`'s doc comment already named this: registry-consultation is *"the cheap half
+of the fix; the structural half is in the ticket."* The cheap half now covers both halves of the
+duplicate; `e2e-bug.455` tracks the structural half — the gate is opt-in on a copy-pasted chain, so
+any new call site can omit it silently.
+
+**Audit done 2026-08-21, and the concern is confirmed with numbers.** `ai-intent-rescue.service.ts`
+holds **163 `tryRescueX` helpers** reached from **356 call sites**, against **10** uses of the
+pre-gate (`rescueAllowedOnSurface`) and **7** of the post-gate (`gateRescueBySurface`). The
+post-gate's six real uses sit at **five points inside** `runRescueClassifiedPhase` /
+`runRescueUnknownPhase`, plus one helper — methods that each contain hundreds of `if (x) return x`
+sites. Coverage is therefore roughly **5% of return sites**.
+
+**Still no measured instance.** The 8,464-case corpus shows zero occurrences of the failure mode
+(see `e2e-bug.435`), so this remains hardening rather than a live defect, and the size of the fix is
+the reason to want an instance before starting.
+
+**The obvious fix does not work, which is worth stating.** Gating at each `return x` fails: returning
+the gate's `null` exits the phase and blocks the chain — the original bug. Each site would need
+`const g = gate(x); if (g) return g;`, i.e. **356 edits**, every one of which can be forgotten again.
+The shape that fixes it centrally is a **lazy generator per phase**: yield candidates instead of
+returning them, and let one consumer take the first surface-legal one. That keeps the chain's
+laziness (each `tryRescueX` still only runs if earlier ones missed) while moving the gate to a single
+place — which is what "structural" has to mean here, since the defect is that the gate is optional.
+
+Corpus 21 → 20, accuracy 99.76%. `surface` threaded in from the single caller, which already had it.
+
+**Related:** `e2e-bug.435`, §167, `e2e-bug.454`.
+
+### AI-ROADMAP §168 — the surface leak, measured — corpus 20 → 18
+
+Two more "expected X, got **none**" failures turned out to be §167's mechanism, so instead of
+patching a third by hand I measured the class.
+
+| prompt | surface | illegal intent produced | correct rescue it blocked |
+|---|---|---|---|
+| `Ինչու է հարկավոր էլ. փոստ այս էջում` | public | `explain_business_tax` (dashboard-only) | `explain_guest_checkout_fields` |
+| `Քանի գումար է իմ բաժինը վճարված ամրագրումներից այսօր` | provider | `explain_clinic_services` | `summarize_my_revenue` |
+
+Same shape every time: a rescue proposes a surface-illegal action, the phase commits and returns,
+`acceptRescueForSurface` discards it downstream, and the correct rescue further down the chain never
+runs. The symptom is always "no rescue", never "wrong rescue" — which is why none of these resembled
+the tickets describing them.
+
+Added `gateRescueBySurface`, applied at four call sites. Gating where the **phase consumes** a
+helper's result beats gating the inner producer: it covers every intent that helper can return.
+`tryRescueCatalog` required exactly that — gating its inner clinic-services call was not enough.
+
+**The measurement.** Driving all 5,927 rescue-expecting eval cases through the service directly:
+**91 resolve to `null` after producing a surface-illegal intent, across 21 producers.** These are
+latent service defects, not 91 failing tests — the eval reaches the rescue through several
+specialised entry points, so most never take the generic path. Reporting them as failures would be
+wrong.
+
+**The universal fix is provably safe.** `acceptRescueForSurface` is applied to all three phase
+results in `ai-intent-rescue-pipeline.util.ts`, so anything the gate drops would be dropped
+downstream regardless: it can only turn a `null` into a legal rescue, never the reverse. `e2e-bug.455`
+is therefore no longer an audit — it is 21 sites with a proof that fixing them cannot regress.
+
+**One item is not an engineering question.** `e2e137-professional-profile` expects a command the spec
+puts on `["customer","public"]` to work on dashboard, and no dashboard command covers "view a staff
+member's profile". Filed as `e2e-bug.456` for a product decision, with 401/366/405.
+
+**Related:** §167, `e2e-bug.435`, `e2e-bug.455`, `e2e-bug.456`.
+
+### AI-ROADMAP §169 — mixed-language compounds — corpus 18 → 16
+
+`budget-discover-book-...-en-ru` and `rank-discover-book-...-en-ru` both reported
+`compoundMinSteps: expected >= 2, got 0` — no decomposition at all, not one step short.
+
+Both prompts keep the English scaffolding and translate a single object:
+
+```
+EN  ... check who's free tomorrow evening, book the nearest slot
+RU  ... check кто свободен tomorrow evening, book the nearest slot
+```
+
+`hasCheckStepCue` requires `check` AND one of `providers?|availability|who|free|available`. The verb
+matched, the object did not, the middle step went unrecognised — and because the recipe needs all
+three steps, the whole compound collapsed to nothing rather than degrading to two. The helper exists
+twice, once per compound util, with identical bodies; both are patched.
+
+**Found in passing (`e2e-bug.457`):** only the `-en-ru` variants ever failed, never `-en-hy`. That
+turned out not to be luck — **all 22 `hy` rows across both fixture files are the English prompt
+verbatim**, labelled `locale: 'hy'`, with zero Armenian characters between them. They pass because
+they are English. So there was never an Armenian case that could fail, which is why the ru/hy
+asymmetry §166 found could sit here undetected.
+
+**Related:** §166 (English-only guards), §162 (a vacuous assertion reads as coverage).
+
+### AI-ROADMAP §170 — two correct rules, both unreachable — corpus 16 → 13
+
+**`facials`.** `discover-book-pay-facial-50-card-en` wanted `serviceCategory: "facial"` and got
+`"facials"`. The map (`DISCOVER_BOOK_CATEGORY_SINGULAR`), the regex and the normalizer were all
+already correct. The first line of `extractDiscoverBookAndPayServiceCategory` is
+`if (params.serviceCategory || params.serviceName) return params;` — an upstream extractor populates
+the field first, so the function returned before reaching the normalizer and the plural propagated to
+all four compound steps. The guard means "do not re-extract", not "do not normalize"; an
+already-present value is now normalized on the way out.
+
+**`book_package` / `book_with_cash`.** Both were collapsing to `book_appointment`.
+`tryRescueCheckProvidersCollapseIntents` fires as soon as `isConcreteTimedBookAppointmentPrompt`
+matches, long before `tryRescueSelfServiceBooking`. The passing sibling `'Buy the spa day package'`
+differs only in naming no time. Fixed with the same guard shape the function already documents for
+`e2e-bug.134` ("must still reach ... later in the chain, not get stolen here into book_appointment"),
+after checking both predicates are false for plain timed bookings so ordinary `book_appointment` is
+untouched.
+
+**A slip worth recording:** the guard first shipped referencing two functions I had not imported —
+the edit meant to extend the import block did not match its actual multi-line text, so my assertion
+on the body passed while the import did nothing. The gate failed with `ReferenceError` and printed no
+corpus numbers, and it took three runs to read because I kept grepping for `Failed:` on output that
+never got that far. Assert on both halves of a two-part edit; when a gate prints nothing, read the
+tail first.
+
+**Related:** §165-§169. Five of the seven defects this stretch were a correct rule behind something
+that stopped it running — a stale fixture, an English-only guard, two ungated call sites, an early
+return, and a precedence collapse. Only §169 was a genuinely missing rule.
+
+### AI-ROADMAP §171 — three failures sharing an id prefix and nothing else — corpus 13 → 10
+
+The three actionable `e2e137` cases looked like one cluster. They were three unrelated defects filed
+under one ticket.
+
+**1. A reviews question containing the word "customer."** `'Show me my customer reviews and ratings'`
+returned `list_customers` because `tryRescueDashboardCustomerRead` runs before
+`rescueRetailFinanceIntent`. Guarded with `isSummarizeReviewsPrompt`, verified false for
+`'Show me my customers'`, `'List all customers'` and `'How many customers do I have?'` first.
+
+**2. Two retention producers — and the answer to §155's loose end.** `'What is my customer retention
+rate?'` gave the right action with the wrong reason. There are two producers: the older
+(`ai-intent-rescue.service.ts:5252`, `customer_retention`, `customerMetric: 'at_risk'`) and one added
+2026-08-02 via the metric resolvers (`customer_retention_rate`, `customerMetric: 'retention'`) that
+runs earlier and shadows it. For a *rate* question `'retention'` is right and `'at_risk'` is wrong, so
+the 2026-07-20 fixture was stale. **This closes §155**, which patched `isCustomerRetentionPrompt`,
+measured no change, and could not say why: that predicate no longer decides this prompt.
+
+**3. A contradiction shipped in one commit.** `'How many customers do I have?'` exists twice at the
+same surface — `e2e137-list-customers-how-many` (`list_customers`) and `e2e153-how-many-customers`
+(`summarize_customers`/`unscoped_customer_count`), both from 2026-07-20. e2e-bug.153 wins on its own
+evidence: `resolveUnscopedCustomerCount` lists `list_customers` in its `steerable` set, so overriding
+it is the stated intent. Aligned, not deleted.
+
+**Corpus duplication, measured (`e2e-bug.459`):** 635 duplicate `prompt + surface` groups across 8,509
+cases; 11 disagree on `rescueReason`; **0 disagree on the action** after the fix above — it was the
+only one. A first cut of this measurement said "126 conflicting", which counted pairs where one side
+asserted no rescue at all. That would have been a confident wrong number, so the three-tier count is
+recorded instead.
+
+**Also filed:** `e2e-bug.458` — `ai-e2e137-routing.util.spec.ts` asserts against its own private `??`
+cascade of the rescue predicates instead of calling the service, so it stayed green through the
+2026-08-02 producer change. Third instance this stretch of §162's rule, after `e2e-bug.457`.
+
+**Related:** §155, §162, §165, `e2e-bug.457`, `e2e-bug.458`, `e2e-bug.459`.
+
+### AI-ROADMAP §172 — e2e-bug.458 closed, and a verify-order lesson
+
+**The lesson first.** After §171 the manifest went 74 suites / 210 tests → **75 / 212** — up, when it
+is only supposed to shrink. I missed it because I ran `test:ai-known-failures:update` and then
+`test:ai-known-failures`. Updating first rewrites the manifest to whatever is failing now, so the
+verify afterwards can only agree with it. **Sweep first, then update** — the other order disables the
+gate that exists to catch exactly this.
+
+**What broke.** Both new entries were in `ai-e2e137-routing.util.spec.ts`, the mirror spec filed as
+`e2e-bug.458`. §171 corrected two fixtures to match the real service; the spec's private `??` cascade
+still had the old branches, so it went red. A test that fails *because production code was corrected*
+is the signature of a mirror — and it had already shown this passively, staying green for six weeks
+after the service gained the `customer_retention_rate` producer on 2026-08-02.
+
+**Fixed, not absorbed.** The manifest's own comment says entries may only be removed and that adding
+one "is a deliberate act that needs a reason and a ticket". The spec now drives
+`AiIntentRescueService` directly; the five imports that fed the cascade are gone. 12 of 13 pass. The
+one that does not is `professional-profile` — a real divergence the mirror was hiding, already
+tracked as the product decision `e2e-bug.456`. Net: 2 entries removed, 1 deliberate entry added.
+
+Corpus unchanged at **10 failures / 99.88%** — this section changed no routing behaviour, only what
+the test actually exercises.
+
+**Related:** §149 (gates before baseline), §162, §171, `e2e-bug.456`, `e2e-bug.457`.
+
+### AI-ROADMAP §173 — four checkout explainers, four different thieves — corpus 10 → 6
+
+| prompt | surface | wanted | stolen by |
+|---|---|---|---|
+| `Checkout won't let me finish — keeps showing a validation error` | customer | `fix_checkout_validation_error` | `diagnose_tour_capacity` |
+| `Սխալ էլ. փոստ է ցույց տալիս գրանցման ձևում` | customer | `fix_checkout_validation_error` | `give_ai_feedback` |
+| `What are the email and SMS reminder toggles on checkout?` | customer | `explain_guest_checkout_fields` | `explain_my_notifications` |
+| `Can I complete guest checkout without signing in?` | public | `explain_why_sign_in` | `pay_online` |
+
+Every wanted intent is legal on its surface, so this is not §168's surface-leak class — there is
+nothing for that gate to drop. It is pure precedence: the correct rescue exists, is correct, and runs
+too late. `fix_checkout_validation_error` sits at line 2128 of the unknown phase, behind the feedback
+rescue at 1775 and the tour rescue at 2097. In all four cases the detector **and** the parameter
+parser were already right — the parsers return exactly the `aspect` values the eval wanted. Nothing
+had to be built.
+
+Each thief now declines when the prompt belongs to the specific explainer. Predicates were measured
+against negative controls first, because a guard that is too wide just trades one steal for another.
+The `pay_online` controls mattered most — that guard sits in front of a payment intent, and "Can I
+pay at checkout?" is the phrasing that would have been collateral damage. It is false, as are "Pay
+online for my booking" and "I want to pay now with card".
+
+Corpus 10 → 6, accuracy 99.93%, down from 25 when D1 began. Remaining: `tenant-app-install-growth-qr`,
+`business-tax-hy-set-gst-5`, `e2e146-locations-update-downtown-phone`, `tour-consumer-en-day-slots-...`,
+`ai-cmd-push-reminder-prefs`, and `e2e137-professional-profile` (parked on `e2e-bug.456`).
+
+**Related:** §168 (the surface-leak class this is *not*), §170, §171.
+
+### AI-ROADMAP §174 — corpus 6 → 2, and the last one is not a guard
+
+**Three more precedence steals**, fixed with controlled guards: `Show the Growth QR for customer app
+downloads` (was `list_customers`), `How many spots are left on 15/08/2026 for the 3-Day Mountain
+Trek?` (was `summarize_bookings`), `Appointment reminder preferences` (was
+`manage_notification_preferences`). Two thieves are now repeat offenders —
+`tryRescueDashboardCustomerRead` twice on the bare word "customer", `tryRescueConsumerAdoption` twice
+on notification-adjacent wording. Worth watching as a pair. The control that mattered:
+`isAppointmentReminderPreferencesPrompt` is false for "Manage my notification preferences".
+
+**The `\b` trap, third time.** `business-tax-hy-set-gst-5` had the right action and two missing
+params. The rate pattern ended `(?:%|percent|per\s*cent)\b`, and `\b` after `%` can never match at
+end of string — both sides are non-word. So a trailing "5%" was invisible. Moved the boundary inside
+to guard only the word spellings. One character of placement cost two fields, because
+`parseBusinessTaxFromPrompt` infers `enabled: true` from the presence of a rate. After §166
+(Cyrillic/Armenian) and §169 (mixed-language cues), this one is pure ASCII — same construct, three
+disguises.
+
+**The last actionable failure is `e2e-bug.460`, filed rather than fixed.** `Set Downtown's phone
+number to 555-0100` should be `update_location` but resolves to `update_employee`. The obvious guard
+is `isUpdateLocationPrompt` — and measuring it first showed it is **also true** for "Set Maria's phone
+number to 555-0100" and "Update Gevorg's phone to 555-0199", genuine employee prompts. The phrasing is
+identical whether the name is a person or a place. The principled fix is data-backed (`IntentRescueInput`
+carries `employees`), but it is not established that `input.employees` is complete in production, and
+if it is ever partial the rule would silently stop claiming real employee updates. That question has
+to be answered before the change; trading a corpus failure for a production one is not a good trade.
+
+Corpus **2 failures / 99.98%**, from 25 when D1 began. Both remaining are parked on decisions:
+`e2e-bug.460` and `e2e-bug.456`.
+
+### AI-ROADMAP §175 — D3's last item: two of five pieces, and the blocker is an executor
+
+`"Turn on online payment for everything"` needed **five** things, not the two D3 anticipated.
+
+**Shipped.** (1) The sentence never split off — `COMPOUND_SPLIT`'s sentence branch had no `turn`. Added
+it **to that branch only, not `CATALOG_STEP_VERBS`**: in the shared list it would also arm the `;` and
+`" and "` branches and `"Add service Blow Dry and turn the lights off"` would split, reopening
+e2e-bug.347. Measured both ways first. (2) It would not have classified anyway —
+`hasServiceOnlinePaymentScope` demanded the literal `services`/`public booking`/`booking page`, so
+`"for everything"`, the broadest scope there is, failed. Widened; safe because it is one of three
+required conjuncts, so `"Delete everything"` and `"Turn on notifications for everything"` stay false.
+10 tests, negative-controlled (reverting fails 2).
+
+**Not shipped, and deliberately so.** Still two steps. Remaining: a `classifyCatalogSegment` branch;
+the intent added to `dashboard_catalog_compound.allowedStepIntentIds` — at the recipe, **not** by
+widening `CATALOG_INTENTS`, which also feeds `DASHBOARD_CATALOG_DISPATCH_INTENTS`; and **a new case in
+`handleCatalogCompoundLogic`'s `switch (step.action)`**, which handles catalog actions only. Without
+that last one the step decomposes and nothing executes it — capability built, never connected. It
+means making `ai-catalog.logic.ts` depend on the service-online-payment service, and making one of the
+five cleanly domain-derived recipes (§164) bespoke. Defensible, but an architecture call rather than a
+parser fix, so I stopped and recorded it.
+
+**§D3's own warning, one level deeper.** It predicted that doing its items in order would ship a
+change, measure flat, and invite "unfixable". Same shape here: both changes are correct and the corpus
+moved **+0%** (2 failures, 99.98%). Keeping them is still right — the scope fix corrects
+`isConfigureServiceOnlinePaymentPrompt` wherever it is asked, not just inside this compound.
+
+### AI-ROADMAP §176 — D5-a surveyed; the blocker sits one frame above the ticket
+
+With D3 blocked on an executor (§175), D2 on D5-b and F1 on `e2e-bug.449`, D5-a was the next unblocked
+item. I surveyed before touching it, and the survey re-scoped it.
+
+**Confirmed.** The premise holds — `resolveEmployee` still returns `fuzzyMatchByName` (first-on-ties),
+so e2e-bug.362 is intact at these sites. Both primitives already exist from the ten D5 slices:
+`resolveNamedVerdict` produces the verdict, `ambiguityRefusal` produces the response. And it is small:
+**20 references in exactly two files**.
+
+**What the ticket missed.** D5-a is filed as five functions whose return shapes cannot carry a
+clarification. True — but **their callers cannot either**. `buildCreateBookingPlanOnly` is the smallest
+site and the highest value (`create_booking` is mutating, so a tie-guess books the wrong customer), and
+its one caller returns `Promise<AgentPlan | null>`. A refusal is not a plan. Same upstream:
+`applyEmployeeScopeToWhere`'s callers return bare `Booking[]` and `return []`; theirs answer
+`if (!bookings.length) return null`. **An ambiguous name produces no response at all today** — not a
+wrong answer, silence.
+
+So widening the five return types moves the problem up one frame. D5-a needs a contract decision about
+how a refusal travels through plan construction — the same shape as D5-b and as §175's missing
+executor. I did not start it: a half-migrated refusal path across two services is precisely the
+"built, never connected" defect this roadmap keeps finding.
+
+**Nothing shipped.** Corpus unchanged at 2 / 99.98%.
+
+### AI-ROADMAP §177–§178 — C2's T1 half: 163 → 0, and the ceiling becomes a rule
+
+`e2e-bug.418` in its T1 form: **163 of 190 T1 specs declared no variables**. T1 is the mutating tier
+below money and bulk — where "book the wrong customer" lives rather than "refund the wrong card".
+Thirty-two slices, 163 commands, and the deterministic corpus never moved once: 2 failures / 99.98%
+from the first slice to the last, which is what a change that only adds declarations should look like.
+
+**Method.** The T2/T3 half's rule was "read the handler, not a regex". T1 produced a harder version,
+because the failure runs the other way: a handler-body grep **under-reports**, and under-reporting
+means "takes nothing", which removes a command from the backlog. Roughly a third of T1 handlers read
+no `params` in their own body — `deactivate_resource` reads via a resolver (depth 1),
+`configure_hipaa_session_timeout` via a parser's parser (2), `configure_loyalty_settings` three hops
+down, `staff_service_matrix` four. `update_business_profile` defeats depth rules entirely by looping
+`params[field]`. Final criterion: **follow the call chain until it terminates, and read the call site
+as well as the callee** — the second half because one parser calls `parseToggle(segment, {})` with an
+empty object, so a helper that plainly reads `params.enabled` reads nothing there.
+
+**Four exemption categories**, because `variables: {}` means four different things: no params
+argument / client- or session-injected only / prompt-parsed (the planner cannot drive these at all) /
+and the T2-T3 list left untouched because it is pinned by its own test.
+
+**Nine of my own 25 exemptions were wrong**, found across three self-audits (five, then two, then
+two). Every one hid a command. The audits were not the process working — each happened only because
+the *next* slice surfaced evidence the previous criterion was too shallow.
+
+**Seven defects found by declaring, not by declaring them:** `e2e-bug.461` (three duplicate-command
+pairs), `462` (validator accepts an alias the handler never reads), `463` (`confirm_booking_from_push`
+had no executor while a rescue routed to it — now fixed, with the reachability ratchet split into
+migration debt and defects), `464` (a live OpenAI key solicited in chat, scraped by regex, sent to the
+LLM and stored unredacted — half fixed). Two inherited ticket rationales also failed on inspection:
+`ORCHESTRATION_NO_CONTRACT`'s both members failed its own stated test and it is now empty.
+
+**The ceiling is now a rule** — per-command, matching T2/T3, so a new undeclared T1 command fails by
+name rather than shrinking a number.
+
+**Related:** §162 (a vacuous assertion reads as coverage), §166 (English-only guards), `e2e-bug.399`
+(declaring inputs no handler reads is the opposite mistake).
+
+### e2e-bug.452 — closed 2026-08-17 (AI-ROADMAP §179): a test that littered
+
+`sync-mobile-guide-flows.spec.ts` left two tracked app manifests modified on every run. It runs the
+real generator — correctly, since that is what proves the committed mobile bundles still match the
+backend corpus — and the generator stamps `syncedAt: new Date().toISOString()`. The assertions never
+noticed because `readManifestStableFields` strips `syncedAt` before comparing, so the test was
+checking the right invariant and dirtying the tree while it did. Every sweep this session ended with
+`git status` showing two files nobody had touched.
+
+Fixed by capturing all four files and restoring any that changed, in a `finally` — a failing run is
+precisely when someone is about to read the tree. Restores to what was found rather than to `HEAD`,
+so the test never decides what the tree *should* hold, only that it leaves it alone.
+
+Verified both directions: from a clean tree, 2/2 pass and 0 files modified; with a deliberately
+drifted manifest, the suite still fails and the drift is still there afterwards. The generator script
+is untouched — it has no dry-run mode and adding one exceeds what the defect warrants.
+
+### e2e-bug.457 — closed 2026-08-17 (AI-ROADMAP §181): the fake Armenian coverage was load-bearing
+
+All 22 `hy` rows in the two discover-and-book multilingual fixture files were the English prompt
+verbatim — they passed *because* they were English. Now 22 of 22 contain Armenian.
+
+**The absence was holding a bug in place.** §169 fixed `hasCheckStepCue` for mixed-language prompts
+and shipped only the Russian half; no Armenian equivalent existed and nothing caught it, because no
+Armenian case could fail. Measured by substituting one token into the English prompt: a date token
+(`վաղը`) decomposed fine, the availability token (`ով է ազատ`) returned NULL. Both copies of the
+helper now carry Armenian cues.
+
+**Translating them surfaced four real failures**, corpus 2 → 6 — the point of the ticket, not a
+regression, and a deliberate baseline raise of the kind the gate sanctions. All four share a cause
+that is *not* the helper just fixed: they carry no `check` verb, so they route through
+`isCheckProvidersForServicePrompt`, which is English-only. Filed as `e2e-bug.465` rather than fixed
+here — that predicate has eight-plus branches and negative guards delegating to sibling predicates,
+and widening it inside the change that revealed the gap is the pattern §173/§174 kept undoing.
+
+Translations use only tokens already present in this corpus. Inventing Armenian for a fixture would
+risk asserting the wrong thing in a language I cannot review — a different failure, no better.
+
+### AI-ROADMAP §184 — B7 (e2e-bug.367), 1 of 14: the duplicate had the weaker fix
+
+`extractTimeSlotFromPrompt` exists twice. Both copies carry their own `e2e-bug.364` fix and their own
+comment explaining it — and they are not the same fix. The canonical one ends its meridiem pattern
+with `(?!\w)`; the clinic copy uses `\b(am|pm)\b`, and a word boundary cannot follow the period in
+`p.m.`. Measured side by side they agree on `3:30 pm`, `3:30pm` and `11:15 am`, and disagree on every
+dotted form: **`6:45 p.m.` scheduled a lab collection at 06:45** — twelve hours early, on a clinical
+appointment.
+
+The canonical copy's own comment states the reason (`\b` cannot follow a period) because it hit the
+same bug and fixed it fully. The clinic copy hit it, fixed the space-separated case, and stopped.
+That is the argument for B7: duplication splits the *evidence*, so the second author never sees the
+case the first one found. Patching the regex resets the clock; deleting the copy prevents the next
+divergence.
+
+Migrated as a wrapper rather than deleted — the clinic copy has three genuinely local fallbacks
+(`morning`/`afternoon`/`evening`) the canonical extractor lacks, now applied only after it declines.
+Verified through `buildStartTimeIso`; 267 clinic-lab tests pass, the one failure is a known
+rescue-routing entry. Also removed an unused `Repository` import that predates the change.
+
+**13 re-parsers remain**; `resolveTomorrowDateKey` (e2e-bug.363, a day late every local evening) is next.
+
+### §185 — B7 slice 2: both `resolveTomorrowDateKey` copies removed
+
+The ledger called this pair a known bug (`e2e-bug.363`, "a day late every local evening").
+Both copies were byte-identical **and both already correct** — verified with a discriminating
+instant rather than by reading: at 01:00 Asia/Yerevan (21:00Z the prior day), Yerevan-tomorrow
+is Sept 3 and UTC-tomorrow is Sept 2; both returned Sept 3. The note was stale.
+
+Removed anyway, because §184 is what happens next: two correct copies are one fix away from
+one correct and one wrong, and the author of that fix sees only the file they opened.
+
+Neither original file could host it — `ai-payments.util.ts` and
+`ai-compound-booking-context.util.ts` already import each other. It went to
+`ai-datetime-resolution.util.ts`, a leaf with zero imports that already owns the
+`localCalendarDate` / `addCalendarDays` primitives it composes; payments re-exports it so
+importers are unaffected. The file's docblock, which described the old buggy implementation as
+"the current implementation, duplicated verbatim" in two named files, is corrected to past
+tense and kept — the bug it describes is why the file's design rules exist.
+
+Ratchet 5/5 after three rounds: it flagged the migrated ledger entries as stale, then flagged
+the hoisted function as an unmanifested re-parser — correctly, since it *is* the implementation
+now, so it joined `CANONICAL`. Corpus 2 failures / 99.98% (+0%), affected suites 99/99.
+
+### §186 — B7 slice 3: both `resolveDateRange` copies removed
+
+Neither was a plain duplicate. Both dropped a timezone **already present in their params**:
+`ai-retail-finance.logic.ts` imports the canonical resolver on line 21, passes `_timeZone`
+through it in one handler, and shadowed it in four others with a local that hands
+`extractDateRangeFromPrompt` its `'UTC'` default. `ai-marketing-growth.logic.ts` hand-rolled
+`Date.UTC(...)` month/week arithmetic, which cannot be timezone-correct at all.
+
+Measured with time frozen at 2026-08-31T21:00Z (01:00 Yerevan): `"this month"` is
+**2026-08-01 → 08-31** under UTC and **2026-09-01 → 09-30** under Asia/Yerevan. A different
+month in a P&L summary, for every non-UTC business during its local small hours.
+
+The structured `dateRange` enum turned out not to need its own branch — its producer derives
+it from the same prompt text via `/\bthis\s+month\b/i` — so it is routed to the canonical
+resolver as its English phrase. Both files keep a renamed thin adapter for their return shape.
+Corpus 8462/8464 (99.98%, +0%), gate chain clean, ratchet 5/5.
+
+Filed `e2e-bug.466` (the two range-closing conventions, deliberately preserved) and
+`e2e-bug.467` (`params.dateRange` carries a string enum from one set of producers and an object
+from another).
+
+**B7's own table was stale and is corrected:** it claimed 14 copies; grepping the definitions
+finds **4** (`resolveServiceByName` ×2, `resolveServiceIdByName`, the canonical
+`extractTimeSlotFromPrompt`). Five `resolveServiceByName` copies and the `resolveServicesByName`
+entry were collapsed by earlier work that never updated the row. The executable
+`KNOWN_REPARSERS` ledger was right throughout — the prose table is what rotted.
+
+**4 re-parsers remain**, all service-name lookups. Two of them guess via a reverse-substring
+rule, so moving them to `serviceOrClarify` is a behaviour change needing a decision first.
+
+### §187 — e2e-bug.364 had four homes, not two
+
+Comparing `extractTimeSlotFromPrompt` against `resolveTimeOfDay` to answer B7's last
+non-service ledger entry exposed the rest of the bug §184 only half-found.
+
+**"Reschedule my appointment to 6:45 p.m." moved the booking to 06:45.** Three of the four
+meridiem patterns in `ai-structural-extractors.ts` end their alternation with `\b`, which can
+never follow the period in `p.m.` — the canonical extractor's own comment says exactly this,
+30 lines above one of the copies that gets it wrong. The whole meridiem branch was dead and
+the prompt fell through to a 24-hour reading.
+
+**Why it survived every test:** the existing AM/PM suite uses `9 AM`, `2:30 pm` and `3pm` —
+forms that work under all four spellings — and `a.m.` *cannot* fail, because below noon the
+12- and 24-hour readings coincide. Only p.m. could ever reveal it.
+
+Fixed by giving the pattern one home (`MERIDIEM_GROUP_SOURCE`, dots individually optional,
+`(?!\w)` never `\b`), spliced into all four sites and into `resolveTimeOfDay` itself so there
+is no fifth spelling. 28 regression cases cover all four entry points across every spelling,
+including the a.m. rows that cannot fail — so the coincidence can't justify a future
+"simplification". Filed `e2e-bug.468` (fixed) and `e2e-bug.469` (the extractor also returns
+`24:00`, `99:99` and `42:00`; `normalizeTime24` never range-checks).
+
+**B7 is now one decision, not four tasks.** All four remaining re-parsers guess where
+`EntityResolutionService` would ask — reverse-substring service matching, silent no-match on
+exact id lookup, bare-hour times. Migrating any of them is a contract change for its callers.
+**Deciding whether these surfaces may ask a clarifying question unblocks all four at once.**
+
+### §188 — e2e-bug.460: question answered, proposed fix disproved
+
+Attacked the first of the two remaining corpus failures. **The blocking question is settled:**
+`input.employees` is complete in production — every loader is
+`employeeRepo.find({ where: { businessId, isActive: true } })` with no `take`/`skip`. Threading
+it is easy too; 3 of the 4 call sites already have it in scope.
+
+**But the rule the ticket proposes scores −1.03%: 2 → 89 failures.** "Not a known employee →
+not an employee command" breaks `create_employee` (3/33), `invite_staff_member` (17/33) and
+`deactivate_employee` (8/33) — you name a new hire when you create or invite them, so absence
+from the roster is the *normal* case for half the staff verbs. Not an eval artefact.
+
+**Scoped to `update_employee` it still fails, but for an unrelated reason:** 18 failures, 16
+inside `update_employee`, because the eval hands one fixed 3-person roster to all 8,464 cases
+and 17 of those cases name people outside it. So the scoped rule is *untestable*, not
+disproved — filed `e2e-bug.470` for a per-case roster. Distinguishing "wrong" from
+"unmeasurable" was the point; the failure counts alone look the same.
+
+**Better design identified:** match positively on locations ("is Downtown a known location?")
+rather than inferring a location from the absence of a person. Needs a `locations` field on
+`IntentRescueInput`, which today carries only `employees` and `customers`.
+
+Nothing shipped — the tree is back to 8462/8464 (+0%), verified after revert. Also corrected
+D1's headline, stale since 2026-08-13 at "27 failures / 99.68%"; it is 2 / 99.98%, and D1's
+systematic phase is over.
+
+### §189 — e2e-bug.460 fixed: 99.99%
+
+Implemented the alternative §188 identified, and the corpus took it: **8,462 → 8,463 / 8,464,
+99.98% → 99.99%**, `update_location` 2/2. Baseline raised after the sweep, not before.
+
+**The fix is the same rule with its polarity inverted.** §188's version asked "is this *not* a
+known employee?" and scored −1.03%, because you name a new hire when you create or invite them.
+This asks "is this a known *location*?" and declines only on a positive match — so
+`create_employee`/`invite_staff_member` cannot be touched, and the guard only ever gives up a
+claim rather than asserting another domain's intent.
+
+Verified the premise rather than trusting it: `isUpdateLocationPrompt` is true for all three of
+"Set Downtown's/Maria's/Gevorg's phone…" and parses two people as `locationName`. Wording
+genuinely cannot decide this. Also verified the downstream location rescue was already correct
+**before** threading anything — it returns `update_location` + `locationName: "Downtown"`.
+
+Scored the rule against the corpus before doing any production wiring, same discipline that
+caught §188 at 89 failures. Recorded the degradation path too: with the rule live but no
+locations supplied, the corpus stayed at exactly 2 — a surface that omits them behaves as today.
+
+Threading: `BusinessCatalog` → dashboard adapter → `PipelineUnderstandInput` →
+`IntentRescueInput` → `tryRescueStaffOperations`. Locations join the existing `Promise.all`, so
+no extra round trip. **Left deliberately:** the field is optional, and the **provider adapter
+does not supply locations yet** — dashboard only for now.
+
+**D1 now has no engineering work left** — the single remaining corpus failure is
+`e2e-bug.456`, a product decision. `e2e-bug.470` still stands for any future employee-roster
+rule, but no longer blocks anything.
+
+### §190 — correcting §188: I measured loaders and concluded about inputs
+
+Closing §189's one stated gap (the provider adapter not supplying locations) showed the gap
+isn't one — `locations.update` declares `surfaces: ['dashboard']`, so `update_location` is
+unreachable from the provider app and threading it there attaches to nothing. Closed as **not
+needed**.
+
+**But it exposed a real error in §188.** That slice concluded `input.employees` is complete in
+production because every `employeeRepo.find` is unbounded. True of the loaders, false of the
+surfaces:
+
+| surface | reaches `input.employees` |
+|---|---|
+| dashboard / public | full active roster |
+| **provider** | **one element**, built from the signed-in provider |
+| **customer** | **nothing** |
+
+The provider app scopes at the *construction* site (`provider-ai-command.service.ts:747`), not
+in the query — invisible to a grep for the loader. Same shape as the handler-body greps that
+under-report: the search space excluded the case that would have falsified the claim.
+
+**This vindicates §189's polarity choice for a reason nobody had measured.** An employee-roster
+rule would see a one-person roster on provider, so every colleague would look like a stranger
+and "not a known employee → hand it off" would misroute nearly every staff prompt in the
+provider app. The corpus never exercises that path. A rule that declines only on *positive*
+evidence is immune — an empty or scoped list simply produces no match.
+
+`e2e-bug.470` enlarged accordingly: the eval fixture is now the smaller half of that problem.
+
+No code changed. Corpus 8463/8464 (99.99%), gates clean.
+
+### §191 — CI has been red on every push, and 89 failures were never gated
+
+Went to fix `e2e-bug.449` ("the accuracy gate never runs in CI") and measured the premise first.
+
+**CI's backend job fails on every push.** `npm test` is plain `jest` with no ignore patterns, so
+it runs the 203 failures the known-failures manifest exists to tolerate. Run exactly as `ci.yml`
+does: **94 failed suites, 285 failed tests**, 870 s, no `continue-on-error`. A permanently red
+check reports nothing, which is how the rest of this went unseen.
+
+**89 failing tests in 21 suites are covered by no gate at all.** The manifest's `TEST_PATTERN`
+is `modules/(ai|provider-mobile)/`; everything else is invisible. They run in **62 seconds** —
+the AI sweep takes fourteen times longer — so cost was never the reason. Filed `e2e-bug.471`.
+
+**Including a broken PHI read path** (`e2e-bug.472`): assigned staff get `"phi:v1:…"` where the
+note should be, and staff viewing another provider's booking get ciphertext where `null` is
+expected. Not a plaintext leak — encrypted at rest, stays encrypted — but the decrypt/mask step
+is not running, and ciphertext to an unauthorised reader still discloses that notes exist.
+
+**"Add the gates to CI" is the wrong fix**, because `npm test` in the same workflow cannot pass.
+Sequence: (1) run the currently-green gates as their own additive job; (2) extend the manifest
+to the whole backend; (3) only then make `npm test` meaningful. Step 1 is a `ci.yml` change
+affecting everyone's PR checks, so it is written up for a decision rather than committed.
+
+Also filed `e2e-bug.473` (committed test debris, including a tracked 0-byte `zzz-e2.`) — and
+removed `zz-scratch-loc.spec.ts`, which was mine and survived §189's cleanup.
+
+### §192 — the PHI "defect" was a skipped branch, not a broken one
+
+Went to fix `e2e-bug.472` as step 1 of §191's CI sequence and found **there is no PHI defect**.
+
+`findOne` calls `decryptBookingForStaff` only when `resolveStaffPhiContext` returns a context,
+and that returns `null` unless the caller's id passes a **strict UUID test** — a guard added
+with `e2e-bug.97` to stop guest `customer:<uuid>` actors querying BusinessMember. The specs
+passed `'staff-1'`, so the entire PHI branch was skipped and the stored value passed through as
+ciphertext. `User.id` is a generated uuid, so production staff ids always clear the guard.
+
+**Fix: four fixture strings** (`'staff-1'` → a valid UUID). Both suites now 9/9. The two
+deliberate `'staff-not-a-uuid'` cases are untouched.
+
+**Where I went wrong, since it is repeatable:** I had "assertion expects null" and "output is
+ciphertext" and concluded the masking step was broken. Ciphertext in the output is not a
+misbehaving branch — it is the *absence* of one, the raw stored value. A broken decrypt and a
+skipped decrypt look identical in the output and need completely different fixes; the
+distinguishing question is one call up the stack. I filed it "serious" without asking it, and
+the PHI label pulled me toward the alarming reading rather than the cheap check. The spec even
+contradicted itself three screens away — it already tested the non-UUID rejection path.
+
+Corrected in `e2e-bug.472` (closed) and annotated in §191 rather than quietly dropped.
+`e2e-bug.471` is now ~20 suites / ~86 tests — and since two of them were a stale fixture, the
+rest deserve the same individual reading before anything is written into a manifest as "known".
+
+### §193 — triaged the ungated failures; 31 were the same bug as §192
+
+Read every failure's actual error instead of absorbing them into a manifest. The 86 ungated
+failures are three groups, not 20 problems:
+
+- **~51 stale harness** — `this.serviceRepo.find is not a function`, `this.slotRepo.count`,
+  `reading 'transaction'`, `platformRuntimeConfig is not a function`. Production gained a call
+  the spec's hand-rolled mock never implemented. One bug repeated.
+- **31 non-UUID fixtures — fixed.** `assertUuid` (`e2e-bug.117`) rejects `'book-1'`/`'pkg-1'`
+  before the check each test asserts. Identical to `e2e-bug.472`, the one I had filed as a
+  serious PHI defect — it was instance one of this cluster.
+- **~7 genuine assertions** worth individual reading, including `clinic-task-auto.util`, which
+  expects a fixed `2026-06-23` and receives *now* (bound to real time).
+
+`public-customer-booking.integration.spec.ts` **30 failures → 35/35**;
+`public-booking-packages.locale` **1 → 3/3**. Ungated total **89 → 55**, suites **21 → 18**.
+
+Three leftovers each needed their own pass, and each was invisible to the previous fix: a
+composite `'customer:cust-1'`, a template literal `` `book-${bookings.size + 1}` `` (no quoted
+literal to match), and ids outside the prefix set (`'missing'`, `'solo-auth'`). The final two
+failures were the informative ones — with valid UUIDs, `assertUuid` stopped firing *before* the
+NotFound and "Authentication required" checks those tests exist to assert, so the guard had been
+shadowing the behaviour entirely.
+
+Also: ran jest from the repo root again and briefly believed I had corrupted the file — the root
+has no TS transform. The tell was the same `SyntaxError` reported for a worktree copy I never
+touched.
+
+### §194 — repo defaults that mean "no rows"; 55 → 41
+
+`public-booking-test.harness.ts` defaulted unsupplied deps to `EMPTY = {} as any`, so the first
+call on a repo threw `is not a function`. Added `createEmptyRepoMock()` for the four bare repo
+slots (`find → []`, `findOne → null`, `count → 0`, chainable empty builder) and spread it under
+the tour harness's partial mocks so declared behaviour still wins.
+
+**Repositories only, on purpose.** Service slots keep the bare `{}` — a spec that starts
+depending on a new service should still fail loudly, whereas "no rows" is a meaningful answer for
+a table the spec never seeded.
+
+**Stopped at `bookingRepo.manager.transaction`** (`ensureBookingManageToken`). A generic manager
+returns `null` from `getOne()`, so the util throws `'Booking not found'` regardless; making it
+pass would mean fabricating a booking, and the test would then assert nothing about token
+minting. That is a spec needing wiring to its seeded data, not a stale mock — per-harness
+judgement, not a shared default.
+
+Ungated: **89 → 41 failures, 21 → 16 suites** across §193-§194. Passing counts rose by exactly
+the amounts fixed (+31, +11, +3), so nothing regressed. No production code touched.
+
+### §195 — the gate chain had been reporting a false green
+
+Running the chain after §194 turned it red on `ai-declared-inputs.rule`: T0 ceiling expected
+252, received 245. Nothing in §192-§194 touches command specs, so the question was "why now".
+
+**A T0 slice was already sitting in the tree.** `ai-command-spec.remaining.ts` was written at
+22:50 and the rule spec at 22:47 — earlier in this session, before compaction, which landed
+mid-slice and never lowered the ceiling. Verified it was real progress, not specs disappearing:
+T0 total is 369 (consistent with the ledger's start of 367 undeclared), the exemption test
+passes so `T0_EXEMPT` did not grow, and grouping declared T0 specs by handler minus the eight
+already in the ledger leaves **`AiSelfServiceBookingService` with exactly 7** — matching 252 →
+245 exactly. Ceiling lowered to 245, table row added, 54/54, chain clean.
+
+**The more important finding: I had trusted a false green.** In §191 a captured chain run
+reported this suite at 54 passed, and when a later run disagreed I called it transient and moved
+on after two clean re-runs. It fails deterministically (3/3), and `remaining.ts` had been
+modified *before* the run that reported it green. A full `npm test` in the same session also
+reported `ENOENT … zz-t0.spec.ts` for a deleted file — only stale cache does that.
+
+So `e2e-bug.474` is corrected: **a stale jest cache can produce a false green**, which is worse
+than the false red it was filed for. My "two clean re-runs" proved nothing, because all three
+shared the cache. Rule now recorded: after editing registry inputs, clear the cache or run the
+suite directly before believing the chain. The `ai-gates` CI job runs on a fresh checkout with
+no cache, so it would have caught this — an argument for that job I did not have when adding it.
+
+### §196 — last of the mechanical class; 41 → 36
+
+`booking-payment` had 9 failures, all `serviceRepo.find is not a function` — §194's shape but
+with no shared harness, so it lived in four specs each declaring
+`const serviceRepo = { findOne: jest.fn() };`. Added `find: mockResolvedValue([])` to all four:
+**9 → 3**. Two of the four were already green; patching them is inert but keeps the copies
+identical, which is what stops this drifting again.
+
+**The remaining 3 are the first real question in the whole set.** `booking-payment.tour.spec.ts`
+expects `prepaymentAmount: 340` while its own fixture says `prepaymentMode: NONE`. Production
+returns 0 — *not* from my stub: `sumServicesPrepaymentAmount` short-circuits on
+`!serviceIds.length` before reaching the repo, so the tour service never enters `serviceIds`.
+`servicePrice` is correct, so only the prepayment half disagrees. Either tours must prepay in
+full regardless of mode (production bug) or `NONE` means zero (stale test) — opposite fixes, and
+one changes what customers are charged. Filed `e2e-bug.475`; not guessed.
+
+Ungated: **89 → 36 failures, 21 → 15 suites** across §193/§194/§196. Passing rose by exactly the
+amount fixed each time (+31, +11, +3, +5). **53 of the 89 were stale fixtures — no production
+code touched.**
+
+### §197 — the backend did not build; three errors, one of them a live NaN
+
+`npm --prefix backend run start:dev` is `nest build && nest start --watch`, and the build half
+failed, so the dev server never came up — it reported a port and vanished. Three errors under
+`tsconfig.build.json`:
+
+1. **`ai-propose-only.util.ts:237` — a real defect, not a typing complaint.** `ProposeOnlyReason`
+   gained `execution_unproven` with `e2e-bug.427`, and `resolveExecutionMode` returns it
+   (line 157), but `summarizeExecutionModes`'s `byReason` record was never given the key. The
+   loop does `byReason[verdict.reason] += 1`, so the moment a compound is summarised the counter
+   goes `undefined + 1` → **`NaN`**, and the portfolio view that exists to track the bar being
+   raised reports `NaN` for that reason forever after. Fixed by adding `execution_unproven: 0`.
+2. **`dashboard-command-understanding.adapter.ts:68`** destructured `locations` off a
+   `ClassifierCatalog` that has no such field — the §189 `e2e-bug.460` work added the read and
+   not the type. Added `locations?: Array<{ id: string; name: string }>`, optional so no producer
+   breaks. **This turned out to be the visible end of `e2e-bug.476`** (below): nothing anywhere
+   *writes* the field.
+3. **`public-booking-test.harness.ts:138-141`** passed `createEmptyRepoMock()` into four
+   `Repository<T>` slots. `deps.employeeRepo` is declared `?: unknown`, so `deps.x ?? mock()`
+   narrows to `{}`; the cast has to wrap the whole expression, matching line 142's existing
+   `(deps.bookingRepo ?? …) as any`. Four sites, one per argument — tsc reports only the first
+   mismatched argument of a call, so this surfaced one at a time across four rebuilds.
+
+Both servers now run: backend on 3001 (`Nest application successfully started`, no error-level
+log lines), frontend on 3000 (HTTP 200).
+
+**Why I did not catch this earlier, and it is the part worth keeping.** I ran `tsc --noEmit`
+repeatedly through the C2 slices and read it as clean every time — because I piped it through
+`grep ai-command-spec` to find *my* errors. That filter cannot distinguish "no errors" from "no
+errors in the files I touched". The default config also reports **1,434** errors, essentially all
+in `.spec.ts` files the build excludes, so the honest signal was never the raw count from
+`tsconfig.json` — it was `tsc -p tsconfig.build.json`, which is the config that actually gates
+startup and which I never once ran. A typecheck whose output you filter is not a typecheck.
+
+Filed `e2e-bug.484`: the `locations` field the build error pointed at is read by the dashboard
+adapter and **written by nothing**, so `e2e-bug.460` is inert on the dashboard surface. The §189
+verification passed a roster to `tryRescueStaffOperations` by hand — it supplied the input that
+production does not, which is why the gap survived a probe that looked green.
+
+### §198 — the double-booking guarantee has no floor under it
+
+Traced the concurrent-same-slot path end to end after a design question. **The protection is real and
+correctly built** — `api-bug.4` is not regressed. `BookingService.create` wraps everything in one
+`dataSource.transaction`, claims the window's micro-slots under `SELECT … FOR UPDATE`
+(`claimSlotsInWindowForUpdate`, `booking.service.ts:2305`), then takes a second `FOR UPDATE` over
+overlapping non-cancelled `Booking` rows before inserting. Losers get 409. Two details in that code
+are load-bearing and easy to remove by accident: the claim orders by `(startTime, id)` so concurrent
+transactions acquire row locks in the same sequence — that is deadlock avoidance, not tidiness — and
+the `windowSlots.length > 0 && claimable.length === 0` branch throws rather than falling through,
+because a loser could otherwise insert against the same `slot_id` even when the overlap query returns
+empty (`e2e-bug.119`). The public surface does inherit all of this:
+`public-booking.service.ts:3798` delegates to `BookingService.create`.
+
+What is missing is the floor. **No constraint, unique index or trigger on `bookings` backstops any of
+it** — 58 migration files checked, and the table has only ordinary indexes, while neighbouring tables
+(`patient-encounters`, `clinic-after-visit-summaries`, `sprint5-resources-subscriptions`) do carry
+`UNIQUE`. So correctness rests on every writer going through one method, and there are already five
+booking-creation entry points in the tree. Filed `e2e-bug.483`.
+
+The reason it is filed rather than fixed: the textbook `EXCLUDE USING gist` over
+`(employee_id, tstzrange(start_time, end_time))` **would reject valid bookings here.**
+`maxAppointmentCount` is a configurable column defaulting to 1, so group classes legally overlap on
+one provider, and multi-service visits deliberately overlap — the conflict query already excludes
+rows sharing a `multiServiceGroupId`. The capacity that decides legality lives on the *slot* row, so
+it cannot be expressed in a constraint over `bookings` at all. That leaves a narrowed partial
+constraint (catches the common case, exempts the hard rows) or a trigger joining to the slot
+(complete, but moves booking policy into PL/pgSQL). Choosing between them is a product call, and
+guessing would start rejecting real bookings.
+
+**Also worth noting for correctness reviews generally:** `lockedSlotsCount` (`booking.service.ts:386`,
+`:401`, `:517`) reads like a guard and is not one — it is telemetry only, never gating the insert. The
+case it looks like it protects (an empty slot window locking nothing, since `FOR UPDATE` cannot lock
+rows that do not exist) is actually covered upstream by `validateBookingWindow`, which throws
+`No bookable schedule window exists…` when the window has no slots at all.
+
+### §197 — the UUID guard a third time; 36 → 24
+
+Cleared four more suites from `e2e-bug.471`.
+
+**`openai-gateway` 6 → 0, and the second half was the UUID pattern again.** Adding the missing
+`platformRuntimeConfig` mock (returning `null`) fixed three; the rest returned `null` from
+`embedText` because `if (!isUuid(businessId)) return this.getPlatformClient()` sent every call
+down the platform branch — the spec used `'biz-embed-1'`. With real UUIDs, 9/9.
+
+That is the third surface this session: `isStaffMemberUserId` (§192, misread as a PHI defect),
+`assertUuid` (§193, 31 tests), `isUuid` (§197). Always a guard added later plus older fixtures
+with readable synthetic ids — **and the failure never names the behaviour under test.**
+
+**A bare `jest.fn()` is worse than a missing method.** The tour harness had
+`slotRepo: { find: jest.fn() }`, which returns `undefined`, so
+`(await repo.find(...)).filter(...)` threw on a value from nowhere. A *missing* method at least
+throws `is not a function` and names itself. Replaced with `createEmptyRepoMock()`.
+
+**`manager.transaction` wired, not faked.** §194 stopped here because a generic manager makes
+`ensureBookingManageToken` throw `Booking not found`. The tour harness already keeps a real
+`storedBookings` array, so the transaction now reads and writes *that* store — the token is
+minted against the spec's own seeded booking.
+
+Ungated: **89 → 24 failures, 21 → 12 suites. 65 of the 89 were stale fixtures; no production
+code touched.** Three tour tests now fail on a genuine assertion (empty `slotRepo`, needs seeded
+slot data) and stay red rather than being faked green.
+
+### §199 — C2/T0 slice 12: `AiSelfServiceBookingService` finished, 232 → 223
+
+The last 9 of the service's 29. **8 declared, 1 exempt**, which inverts the tier's usual ratio —
+T0 is mostly explainers that genuinely take nothing, but this service is the customer's own
+booking surface, so nearly everything it does is about a specific booking, cart or account.
+
+Declared: `list_my_upcoming_appointments` (`scope`), `preview_multi_service_cart` (cart by id,
+by name, single name), `recover_lost_manage_link` (`email`, `phone`, `delivery`),
+`share_my_booking` (`bookingId`, `sessionBookingId`, `slug`), `show_cart_total_duration`
+(`cartServiceIds`), `sign_in_after_booking` (six — the guest-merge contact pair plus the booking),
+`sign_in_to_manage_booking` (`aspect`), `suggest_package_block` (`packageId`, `packageName`).
+Exempt: `list_my_appointments`, whose only calls are `resolveBusinessSlug` — `(deps, businessId)`,
+no params — and `resolveSessionCustomerId`, the same session-only shape already exempted for
+`check_waitlist_status`.
+
+**Two traps this slice, both the ones that have bitten before.** `resolveBusinessSlug` has **20**
+same-named copies in the module and `resolveSessionCustomerId` has **55**; a first-match grep
+resolves to a copy in a different file that reads different fields. Both handler files define
+their own locals, so the reads had to be taken from those, not from the first hit. And every
+prompt parser here takes `(prompt, params = {})` — the `parseToggle(segment, {})` counter-example
+means the signature proves nothing, so each call site was checked to confirm real params are
+passed. All four do, and `command-completion.validator.ts` calls the same parsers with
+`cmd.params`, which independently confirms these fields are user-supplyable rather than internal.
+
+Also removed a stale row from the progress table: `| AiSelfServiceBookingService — 7 declared |
+245 |` sat *below* the 232 row, out of order, debris from the slice-10 no-op. The sequence is
+252 → 242 → 232 → 223.
+
+Verified: rule spec 54/54, gate chain 4,149 passing / 0 failing, corpus **8463/8464 (99.99%),
+delta +0%**, and `tsc -p tsconfig.build.json` clean — the build config, per §197, not a filtered run.
+
+### §200 — C2/T0 slice 13: `AiConsumerAdoptionService`, 223 → 210
+
+All 13. **9 declared, 4 exempt.** The declarations are unusually wide for T0 — 32 variables across
+9 commands — because the consumer app ships device and widget state in `params` rather than asking
+for it: `explain_home_screen_widget` alone reads eleven (widget authed/next-appointment/quick-rebook
+state, twice over under `widget*` aliases), and `explain_push_permission` reads five, two of which
+are alternate spellings of the same thing (`nativePlatform`/`platform`,
+`permissionState`/`pushPermissionState`).
+
+Exempt: `explain_my_notifications`, `explain_rewards_wallet`, `refer_a_friend`, `share_salon_link` —
+each resolves the customer from the session and the business from `businessId`, then calls a deps
+method. Same shape as the `check_waitlist_status` precedent.
+
+**`explain_analytics_consent` was one hop from being exempted wrongly, and that is the finding.**
+The handler body reads only `_prompt`, and `resolveConsumerAnalyticsConsentExplainContext` — the
+obvious place to stop — contains no `params.` reference at all. It delegates to
+`resolveAnalyticsConsentState(params)`, which reads **four** fields. A trace that stopped at the
+context resolver would have recorded "reads nothing" with two functions' worth of evidence agreeing.
+This is the delegation-depth class again, and the criterion holds: follow the chain until it
+terminates, not until it looks settled.
+
+**A file-level scan is not a shortcut here.** Attempted as a cheaper superset, it fails on this
+service: `explain_my_notifications`, `explain_rewards_wallet`, `refer_a_friend` and
+`share_salon_link` all live in `ai-consumer-adoption.logic.ts`, so a file-wide grep attributes
+`bookingId` and `channel` — belonging to other handlers in the same file — to all four. Per-handler
+body traces remain the only sound unit. (Also worth noting for future scans: BSD `sed` on this
+machine does not support `\s`, which silently left leading whitespace in a field and made an `awk`
+match fail closed — the failure mode was empty output, not an error.)
+
+Verified: rule spec 54/54, gate chain 4,149 passing / 0 failing, corpus **8463/8464 (99.99%),
+delta +0%**, `tsc -p tsconfig.build.json` clean.
+
+T0 progress: 367 → 210. Remaining is concentrated in two service objects —
+`ProviderAiCommandService` (28) and `AiCommandService` (27) — plus a tail of 8–10 per service.
+
+### §198 — "who offers X?" reached the wrong command; routing fixed
+
+Reported: *"who offers Deep tissue massage usally?"* → *"no providers available … on 19 August
+2026"*. The prompt has **no day** in it, so it should never have been answered as a dated
+availability query.
+
+`isLookupServiceAssignmentPrompt` — the predicate for the command whose entire job is "who is
+assigned to this service" — matched **1 of 8** natural capability phrasings, including the
+command spec's own `examples` entry `'who does facials'` and its documented classifier trigger
+`"who is doing {service}"`. Its vocabulary knows availability words and provider nouns but **no
+capability verb**; `offers` appears in no predicate anywhere in the AI module. Its own
+`which providers are assigned` clause is **dead code**, because `isCheckProvidersForServicePrompt`
+claims anything containing "which…providers" on the bare noun `providers` and runs first.
+
+Fixed with a tight `isPureCapabilityQuestion` — capability verb directly after who/which, and
+**no availability word and no day** — checked before the availability predicate. Corpus
+**8463/8464, +0%**; 11 phrasings pinned including negatives.
+
+**One verb had to be given back:** the first measured attempt scored **-0.03%** because
+`specialises in` is `explain_provider_specialty`'s trigger. Removed, with the reason written next
+to the regex. The unit tests could not see that loss — only the corpus did.
+
+**Not delivered:** the user also expected "…but has no schedule tomorrow, create one". The answer
+now names Gevorg but is a pure catalog answer — it does not check for an applied SERVICE_BLOCK
+or offer `create_schedule`. That is a new capability, filed as `e2e-bug.476` part 2 rather than
+half-built.
+
+**Also:** the first sweep after the change reported 2 failures "NOT in the manifest — this change
+broke them"; re-run on the identical tree it matched exactly. `e2e-bug.474` now has false reds
+*and* false greens confirmed on unchanged trees.
+
+### §201 — C2/T0 slice 14: `AiGiftFulfillmentService`, 210 → 200
+
+All 10. **7 declared, 3 exempt.** The exemptions include the tier's cleanest shape:
+`delivery_queue` and `gift_card_creation_queue` are dispatched `(deps, businessId)` with no
+`params` argument at all, so there is nothing to verify beyond the signature.
+`order_status_notifications` takes params but reads only the session customer.
+`resolveGiftCardId` is shared by two commands and reads `giftCardId`, then the prompt, then falls
+back to the head of the creation queue via `useFirstInQueue` — both declared on both commands.
+
+**The slice cost an hour to a false red, and the lesson is `e2e-bug.474`'s, sharpened.** After the
+edit the corpus reported **8461/8464 (−0.03%)** with `route:compound` failures, and the gate chain
+reported two failures. I treated the corpus number as real and bisected: reverting
+`shipping_method_quote` restored 8463, applying it dropped to 8461 — reproducible, in the right
+direction, twice. **All of it was stale jest cache.** A clean run with the full change in place
+returns **8463/8464, delta +0%**, the same single known failure. There was no culprit; the bisect
+was measuring cache state, and it produced a confident, self-consistent, entirely wrong answer.
+
+Two things make this worth writing down. First, **a bisect inherits the cache bug** — each arm
+looked like independent confirmation, so reproducibility across arms proved nothing. Second, the
+mechanism check contradicted the measurement and was right: `spec.variables` has **no runtime
+consumer** (not the planner, not the pipeline, not the completion validator; `resolver` has none
+either), so a variable-only edit *cannot* move routing. When a measurement and a mechanism disagree,
+the mechanism is the cheaper thing to trust first — I had that evidence before the bisect and
+bisected anyway.
+
+The one real failure was `ai-command-inventory.boundary.spec` — the inventory is line-number
+sensitive and the declarations shifted lines. Fixed by `npm run build:ai-inventory`, which is the
+documented response and should have been my first read of that failure rather than a corpus hunt.
+
+Verified after `npx jest --clearCache`: rule spec 54/54, gate chain 4,149 passing / 0 failing,
+corpus **8463/8464 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 200. Remaining: `ProviderAiCommandService` (28), `AiCommandService` (27), and a tail of
+7–9 per service.
+
+### §202 — C2/T0 slice 15: `AiTourServiceService`, 200 → 191
+
+All 9 declared, **none exempt** — the first service in the T0 campaign with a zero floor. Tours are
+the opposite of the tier's dominant shape: every command is scoped to a departure, a date, a party
+size or a guide, so there is no "explain how it works" case that takes nothing. 48 variables across
+9 commands.
+
+The service is unusual structurally too: each command has its own `ai-tour-*.logic.ts` and
+`.util.ts` pair, and every parser follows one convention — `(prompt, params)`, reading named params
+first and falling back to the prompt. That made the trace uniform once the naming was found. It is
+not the `handle<Command>Logic` pattern the other services use: the handlers infix the domain
+(`handleExplainTourDaySlotsLogic` for `tour.explain_day_slots`), so a mechanical name-derived lookup
+misses all nine and reports NOT FOUND rather than reporting nothing — a failure mode that at least
+announces itself, unlike the empty-output one in §200.
+
+Two reads that a shallower pass would have dropped: `explain_meeting_point` falls back
+`params._timeZone ?? params.timeZone`, so `timeZone` is a real caller-supplied field and not only
+the pipeline-injected one; and `diagnose_capacity` has a second parser
+(`parseProactiveTourCapacityFromPrompt`) that reads `tourGroupCheckout` on top of the primary
+parser's seven. The helpers that looked like they might read params — `extractTourMetadata`,
+`resolveTourCatalogServiceByName`, `resolveTourBookingDateRange` — all terminate on service
+metadata or an already-extracted name, so the chain closes.
+
+Ran `npm run build:ai-inventory` as part of the slice rather than after a failure this time (§201).
+
+Verified after `npx jest --clearCache`: rule spec 54/54, gate chain 4,149 passing / 0 failing,
+corpus **8463/8464 (99.99%)** with the same single known failure, `tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 191.
+
+### §199 — finished e2e-bug.476: the answer now says nobody is scheduled
+
+§198 fixed the routing so "who offers Deep tissue massage?" names Gevorg. The reporter also
+wanted the schedule gap and a recommendation, and they were right — a capability answer that
+stops at the name leaves the owner to book the provider and *then* find the schedule empty.
+
+The signal already existed: `getProviderAvailabilityForService` returns `hasSchedule` /
+`hasServiceBlock`, and this handler's dated branch already uses them. The un-dated branch simply
+never asked.
+
+**One query, not one per provider.** Reusing that helper would cost ~3 queries per provider to
+decorate a read-only answer, and computes open slots an un-dated answer never shows. The hint
+uses a single batched `periodRepo.find({ employeeId: In(ids) })`, pinned by a test asserting
+`find` is called exactly once for three providers.
+
+**Non-fatal by construction.** The catalog answer is complete without the addendum, so a failed
+schedule read degrades to silence — pinned with a rejecting repo. Not a test accommodation: this
+session has spent five slices on production code that grew a call its callers could not satisfy,
+and an informational extra that can break the primary answer is that same mistake.
+
+Now answers `• Gevorg` plus `No Deep tissue massage time is scheduled for 19 August 2026 — add
+one with "create a schedule for Gevorg".`, with `details.unscheduledProviders` /
+`unscheduledOn` carrying it structurally so a surface can offer a button.
+
+The day is tomorrow — a named assumption, since the question carries no date.
+
+Corpus 8463/8464 (+0%), gates clean, sweep 71/203 exact, 4 new cases green.
+
+### §203 — C2/T0 slice 16: `AiBusinessDateFormatService`, 191 → 182
+
+**3 declared, 6 exempt** — the mirror image of §202 and a clean illustration of what the T0 floor
+actually is. Six of the nine are dispatched with **no `params` argument at all**: `audit_date_surfaces`,
+`explain_booking_date_format`, `explain_date_format`, `explain_date_input_format`,
+`explain_notification_date_format`, `explain_provider_date_display`. Each answers from
+`readBusinessDateFormatSettings(business.settings)` — a pure function of the business's own
+configuration, which is exactly the shape `VERIFIED_NO_INPUT` exists for. Declaring anything on them
+would be inventing inputs (`e2e-bug.399`).
+
+The three `preview_*` commands take precisely the thing being previewed and nothing more:
+`preview_date_format` → `dateFormat`/`timeFormat`, `preview_date_input_parse` → `dateStrings`,
+`preview_notification_datetime` → `messageKind`. One variable each for two of them; the split between
+"explain the setting" (no input) and "preview a candidate value" (the candidate) is the cleanest
+declared/exempt boundary the campaign has produced.
+
+**Alias/id divergence bit again and had to be resolved before trusting the trace.** The dispatch map
+keys on aliases, not spec ids: `business.audit_date_surfaces` dispatches as
+`audit_dashboard_date_surfaces`, and `business.explain_date_format` as
+`explain_business_date_format` — so `business.preview_date_format` is served by
+`handlePreviewBusinessDateFormatLogic`, not by any `handlePreviewDateFormatLogic`. Confirmed each
+mapping against the spec's own `aliases` before reading a body, rather than matching on name shape.
+
+Verified after `npx jest --clearCache`, with `build:ai-inventory` run as part of the slice: rule spec
+54/54, gate chain 4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** with the same single known
+failure, `tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 182. Exempt total now 60.
+
+### §200 — shared the manager wiring; 20 → 11
+
+Last mechanical class in `e2e-bug.471`: `manager.transaction` in clinic (6), stripe-tax (2),
+notifications (3). §197 had solved it once by hand for the tour harness.
+
+`createTourBookingRepo` and `createClinicBookingRepo` were near-identical copies — the same
+duplication B7 exists to prevent, in the test doubles. Extracted one
+`createBookingManagerMock({ find, save })`, taking callbacks because the four callers store
+bookings differently (array, array, Map, and nothing — the notifications specs delegate back to
+their own per-test `findOne`). The manager always reads the spec's own data, which is what makes
+it honest rather than a fabricated row.
+
+**The helper broke a suite that never imported it.** Putting it in
+`public-booking-test.harness.ts` dragged `PublicBookingService`'s module graph into notifications
+workers, and `notifications-date-format.integration.spec.ts` — untouched — began failing while
+still passing in isolation (16/16 alone; 1 failed when run with currency). Moved to
+`src/common/utils/booking-manager.mock.ts`, which imports nothing; the harness re-exports it.
+**A shared test utility must not carry a service graph** — the cost lands on unrelated suites in
+the hardest form to attribute.
+
+Ungated: **89 → 11 failures, 21 → 9 suites. 78 of the 89 were stale fixtures; no production code
+changed.** What remains is genuine: seeded-slot assertions, two count assertions,
+`clinic-task-auto` (real-time bound), `e2e-bug.475`, and two assistant suites that fail to load.
+
+### §204 — C2/T0 slice 17: `AiRetailFinanceService`, 182 → 173
+
+**8 declared, 1 exempt.** The declared set is mostly narrow — `locationId` on the three scoped
+reports, `periodDays` on the funnel, `employeeId` on the reviews summary — with one wide command,
+`suggest_retail_upsell`, whose three resolvers (`resolveBooking`, `resolveProviderBooking`,
+`resolveService`) contribute seven fields between them.
+
+**The exemption is the interesting one, and it turns on a call site rather than a callee.**
+`list_refunds` looked like it took a date range: it calls `resolveFullDateRange`, which is an
+aliased import of the canonical `resolveDateRange` from `ai-orchestration.helpers.ts`, and that
+function reads `date`, `dateFrom` and `dateTo`. Declaring those three would have been the obvious
+move. But **both** call sites in the file — the one in `handleListRefundsLogic` and the one inside
+`resolveFinanceDateRange` — pass a *synthetic object*, `{ _timeZone: params._timeZone }`, not
+`params`. So the resolver's three reads touch nothing that a caller can supply, and the window comes
+entirely from the prompt. This is the `parseToggle(segment, {})` counter-example again, and it is the
+one case where reading the callee carefully gives exactly the wrong answer: the callee's reads are
+real, they just have no source. `resolveFinanceDateRange` is the contrast that makes it legible — it
+reads `params.from`/`params.to` *itself*, before delegating, so `commission_report` and
+`summarize_pl` genuinely do take a range while `list_refunds` does not.
+
+Also fixed two `’` sequences left in `//` comments by earlier slices of mine (one in
+`ai-command-spec.commerce.ts`, one in `ai-command-spec.remaining.ts`). Inside a comment that is
+literal text, not an escape, so it rendered as `’` rather than an apostrophe. The 17 remaining
+occurrences are inside string literals, where the escape is valid and renders correctly; left alone.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` run in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 173.
+
+### §205 — C2/T0 slice 18: `AiPushNotificationsService`, 173 → 164, and a tooling bug in my own trace
+
+**7 declared, 2 exempt.** `list_notifications` and `new_booking_actions` take no `params` argument
+at all. The declared set has a recurring shape worth noting: this service accepts **both spellings of
+the same field** — `online`/`isOnline`, `offlineQueueCount`/`queuedCount`, and (from §200)
+`nativePlatform`/`platform`, `permissionState`/`pushPermissionState`. Declaring only one of each
+would leave a real caller field undeclared, so both are declared with the alternate marked in its
+description.
+
+**The slice's real finding is that my extraction method had been silently truncating function
+bodies.** Every trace so far used `awk '/function NAME\(/,/^}/'`, which stops at the first line
+beginning with `}`. `resolveOfflineState` is declared:
+
+```
+function resolveOfflineState(params: Record<string, any>): {
+  online: boolean;
+  queuedCount: number;
+} {
+```
+
+so awk stopped at the `}` closing the **return type**, three lines in, and reported the body as
+reading nothing. It actually reads four params. Two commands — `explain_offline_mode` and
+`offline_queue_status` — would have been exempted as no-input when both take input. The failure is
+silent and in the dangerous direction: it under-reports reads, which is the direction that hides
+commands, exactly like the delegation-depth class (§200) and the call-site class (§204).
+
+**Audited every helper relied on in §199–§204 with a brace-accurate extractor
+(`scratchpad/fnbody.py`, which balances the return-type braces before locating the body).** All 30
+match what was recorded — the tour parsers, the adoption context resolvers, the finance range
+resolvers, `resolveGiftCardId`, `resolveAnalyticsConsentState`, all of them. **No earlier slice was
+under-read.** The shape only bites when a function annotates an inline multi-line object return type,
+which is rare in this module; `resolveOfflineState` is the only instance among the helpers traced so
+far. Later slices should use the brace-accurate extractor rather than the awk range.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 164.
+
+### §206 — C2/T0 slice 19: `AiProviderExp2Service`, 164 → 155, and the prefix allowlist was hiding reads
+
+**6 declared, 3 exempt.** The exemptions are structural: `explain_request_review_flow` takes **no
+arguments at all** — `handleExplainRequestReviewFlowLogic()` — and `list_team_unpaid_today` and
+`team_floor_status` are `(deps, businessId, userId)`, answering from the signed-in provider's own
+team. `resolveBookingForProviderAction` is the service's shared entry point and contributes
+`bookingId`/`customerName` to three commands.
+
+**Second tooling defect found in as many slices, and this one nearly cost two commands.** Since §199
+the call-chase step has grepped bodies for `\b(parse|resolve|extract|read|enrich|build)[A-Z]` — an
+allowlist of verb prefixes. `explain_reviews_inbox` and `my_stats` both read nothing directly and
+call nothing matching that list, so both looked like clean no-input exemptions. They actually pass
+`params` to `inferReviewsInboxPeriodFromPrompt`, `inferReviewsInboxRatingFilterFromPrompt`,
+`inferMyStatsPeriodFromPrompt` and `inferMyStatsScopeFromPrompt` — **`infer` was not in the
+allowlist** — which read `period`, `rating` and `scope`. Four variables across two commands, and the
+evidence for exempting them would have been "reads nothing, calls nothing", which reads like a strong
+result rather than a gap.
+
+Replaced the allowlist with the question that actually matters: **which identifiers receive `params`
+as an argument, whatever they are called** — `\b([a-z]\w+)\s*\([^)]*\bparams\b`. That is
+prefix-independent and cannot be defeated by a new verb. Re-ran it over all nine handlers; it
+reproduces every read found by hand and adds nothing spurious.
+
+Also worth noting for future slices: two handlers here are `export function`, not `export async
+function`, so a grep anchored on `async` misses them entirely (`handleExplainRequestReviewFlowLogic`
+and `handleOpenDashboardDeepLinkLogic`), and two helpers have multi-line `Promise<…>` return types
+that the §205 extractor still mis-sizes — both were read directly instead.
+
+**The pattern across §200, §204, §205 and now §206 is consistent: every tooling defect found so far
+under-reports reads.** None has ever over-reported. A shortcut that fails in this domain fails toward
+"takes nothing", which is the answer that silently removes a command from the backlog.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 155.
+
+### §201 — an import cycle was hiding ten suites; 106 tests never ran
+
+The last two `e2e-bug.471` entries were suites failing with **zero tests** —
+`public-booking-assistant.pipeline` and `.budget` died at module load. Zero-test failures are the
+easiest thing to skip in a triage; these were hiding 106 tests.
+
+Both died in `ai-service-discovery-multilingual.fixtures.ts:47` on `catalog.find(...)` with
+`catalog` undefined — that module builds its scenario arrays **at import time** from three other
+fixture modules. A script walking the import graph found all three paths converging on one edge:
+`… → intent-anchor.seed.util → ai-prompt-i18n → ai-service-discovery-multilingual.fixtures`.
+
+**Root cause is a layering violation:** `ai-prompt-i18n.ts` is production (imported by
+`ai-booking-core.service.ts`, `ai-prompt-normalization.service.ts`, `customer-ai-command.util.ts`)
+and imports dozens of `*.fixtures.ts` modules for classifier-rule text.
+
+**Fixed narrowly:** it needed one self-contained string, moved to
+`ai-service-discovery-multilingual.rules.ts` (zero imports), fixtures re-export it. The broader
+violation stands and is recorded — the cycle can re-close through any other fixture module.
+
+**It was masking ten suites, not two.** Sweep came back **61 suites / 194 tests** with **12
+manifest entries now passing**, ten of them whole suites — budget-service-discovery ×5,
+customer-intent-coverage ×2, customer-public-parity ×2, discover-exit, chips-fixtures. All were
+recorded as accepted failures; none were failing tests, they were suites that could not start.
+Manifest updated to 61/194 after the sweep.
+
+**Newly visible:** `"Do I pay online for this service?"` → `pay_online` (T2 checkout) instead of
+`explain_payment_options_for_service`, on the guest surface — filed `e2e-bug.478`. The assertion
+existed all along and had never executed, so there is no way to date it.
+
+Also noted: the two coverage suites pass in the full sweep and fail in a partial run — their
+count assertion depends on how many modules registered intents. Order-dependent, pre-existing.
+
+### §202 — mechanical class exhausted; 16 → 11, and a correction to §200
+
+`notifications-date-format` and `appointment-reminder-notifications` both lacked
+`bookingRepo.manager`; wired them like their siblings → **26/26**. Ungated now **11 failures / 7
+suites**, and all 11 are genuine questions.
+
+**Correcting §200.** I reported there that moving `createBookingManagerMock` into the
+public-booking harness broke `notifications-date-format` by dragging `PublicBookingService`'s
+module graph into the worker. That attribution was wrong. The suite's real defect was its own
+**missing `manager`** — a latent throw that surfaces or hides with execution context. It passed
+alone before, failed alone after, and passes alone now; a suite flipping in *both* directions is
+not describing an import-graph problem. I had one observation and reached for a mechanism that
+fit it.
+
+What stands: moving the helper to a dependency-free module was right on its own merits — a shared
+test utility should not carry a service graph. What doesn't: crediting that move with the repair.
+Wiring `manager` was the repair. I cannot explain the isolated-run flip and am recording that
+rather than substituting a second invented mechanism.
+
+**e2e-bug.471 final: 89 → 11 failures, 21 → 7 suites. 78 were stale fixtures; no production code
+changed.** Remaining: tour seeded slots (3), two count assertions, `clinic-task-auto` (real-time
+bound), `e2e-bug.475`, `e2e-bug.478`.
+
+### §207 — C2/T0 slice 20: a tracer that survives its own audit, `timeSlot` recovered, 155 → 147
+
+Two large services remain (`ProviderAiCommandService` 28, `AiCommandService` 27), so this slice
+first replaced the ad-hoc grep chain with one tool, `scratchpad/trace.py`, then used it.
+
+**Building it immediately repaid the cost: it found a variable §206 had missed.**
+`resolveBookingForProviderAction` reads `params.timeSlot` at line 130 — a disambiguator for when a
+client name matches several appointments — and my §206 read of that helper stopped at line 95. So
+`list_reassign_options` and `suggest_cancel_note` were both short one field. **Added `timeSlot` to
+both.** That is the same under-reporting direction as every other defect in this campaign, and this
+time the cause was a manual read, not a script.
+
+The tracer encodes the four failure classes found so far, and **four of them were only discovered by
+auditing the tracer against slices already done**:
+
+| defect | found in | fix |
+|---|---|---|
+| body truncated at a multi-line return type | §205 | balance the type braces before taking the body |
+| verb-prefix allowlist (missed `infer*`) | §206 | match *any* identifier receiving `params` |
+| callee's earlier arg contains nested parens | §207 audit | balanced-paren arg split, not `[^()]*` |
+| `{ ...params }` spread treated as synthetic | §207 audit | spread forwards everything; a named-field literal does not |
+
+The last one matters most, because it is the distinction between §199's
+`resolveServices(deps, id, { ...params, _prompt })` — which **does** forward every field — and
+§204's `resolveFullDateRange({ _timeZone: … })`, which forwards one and leaves the callee's other
+reads sourceless. The tool now separates them and reports the second as `synthetic-arg callees`.
+
+**Two limits it cannot resolve, so it announces them instead of guessing.** Name collisions —
+`resolveSessionCustomerId` has 55 definitions — get a `!! NAME COLLISION` line telling me to read the
+local copy by hand (done here; it matched). Bindings aliased out of `params`
+(`const enriched = enrich(params)`, then `parse(prompt, enriched)`) are still invisible, which is why
+`sign_in_to_manage_booking`'s `aspect` was found by hand in §199 and is not found by the tool. **The
+tracer is a first pass that widens the net, not a replacement for reading.**
+
+**The slice itself: 4 declared, 4 exempt.** `contact_support` and `open_ticket_for_order` share six
+ticket fields, the latter adding `bookingId`/`giftCardId`. Three exemptions are `(deps, businessId)`;
+the fourth, `explain_support_inbox`, takes `_params` — underscore-prefixed, so the signature itself
+records that the argument is deliberately unread, the most self-evident exemption shape yet.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 147.
+
+### §203 — fixed a test that expired; 11 → 10
+
+`clinic-task-auto.util.spec.ts` compared `draft.dueAt` to
+`resolveResultReviewDueAt(completedAt, completedAt)` — clock pinned on the expectation side only,
+while the builder fell through to `new Date()`. Since that resolver deliberately clamps an
+already-past due date up to `now`, the assertion held only while real time was within
+`CLINIC_RESULT_REVIEW_DUE_HOURS` of 2026-06-23. It passed that June and expired.
+
+**Production is correct** (a result completed months ago must not get a due date in the past) and
+the builder already accepted and threaded `now?: Date` — the test never passed it. Fixed with
+`now: completedAt`. Filed `e2e-bug.479`.
+
+**The sibling check was the more useful part:** four other builder calls in the file also omit
+`now`, but none is time-dependent — `resolveSpecimenCollectionDueAt` returns
+`bookingStartTime ?? specimenCreatedAt` and `resolveLabBookingRequestCallbackDueAt` is a pure
+function of `pushedAt`. Exactly one of three due-date rules reads the clock, and exactly one test
+failed. Pinning the other four would have been harmless and would have hidden that.
+
+### §208 — C2/T0 slice 21: `AiBusinessTaxService`, 147 → 139
+
+**All 8 declared, none exempt** — the second zero-floor service after `AiTourServiceService` (§202),
+and for the same underlying reason: tax answers are always *about* something. Even the pure
+explainers take a `samplePrice`, because the explanation is a worked example rather than a statement
+of policy, which is exactly what separates them from `AiBusinessDateFormatService`'s six no-input
+explainers (§203). Same domain prefix (`business.*`), opposite floors — the tier's shape is set by
+what the answer depends on, not by the command's name or its domain.
+
+Two pairs of duplicate keys again: `price`/`samplePrice` and `serviceName`/`serviceQuery` on
+`quote_staff_booking_tax`. That is the fourth service in a row accepting more than one spelling of
+the same input (§200 push/platform, §205 online/offline, §207 ticket fields), so it is a house
+pattern rather than an accident, and declaring only the canonical spelling would consistently
+under-declare.
+
+The tracer flagged `resolveBookingForTaxQuery` as receiving a **non-`params` argument** — it takes
+`parsed`, the aliased output of the prompt parser, which is the tool's known blind spot from §207.
+Read it by hand: it only dereferences `parsed.bookingId` and `parsed.customerName`, both of which the
+parser had already sourced from `params`, so no field was missed. The blind spot cost a manual read
+but the warning is what prompted it, which is the intended behaviour — announce, don't guess.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 139. Remaining: `ProviderAiCommandService` (28), `AiCommandService` (27),
+`AiConsumerClinicTestResultsService` (7), and a tail of ~5 services below that.
+
+### §209 — C2/T0 slice 22: `AiConsumerClinicTestResultsService`, 139 → 132
+
+**All 7 declared, none exempt** — third zero-floor service. Every command is a patient asking about
+their own results, so all seven carry the `customerId`/`sessionCustomerId` pair, and six narrow
+further by `testName`, `documentId`, `resultId`, `category` or `channel`.
+
+One variable is worth flagging beyond its own command: `explain_result_status` reads
+`params.resultsThenRebook`, which the util treats as `const fromCompound = params.resultsThenRebook
+=== true`. That is **a compound orchestrator handing state to a step through `params`** — the field
+is not something a user says, it is set by the results-then-rebook flow to tell this command it is
+the first half of a two-step. Declaring it is right (it is a caller-supplied input the handler reads)
+but it is a different *kind* of input from the rest of the tier, and if compound state is passed this
+way elsewhere it will not look like a user-facing variable to anyone reading the spec. Worth watching
+for in `AiCommandService`, which owns the compound entry points and is one of the two services left.
+
+Handler discovery needed three passes rather than one: two of the seven are not in the service's own
+logic file at all but dispatched inline from `customer-ai-command.logic.ts` through service methods
+(`deps.consumerClinicTestResults.handleExplainAbnormalResultFlag`), which then delegate to
+`*Logic` functions in per-command files. The `.logic.ts`-per-service assumption that held for tours
+(§202) and date formats (§203) does not hold here.
+
+Collision warning fired again for `resolveSessionCustomerId` (55 definitions); the copy this service
+imports lives in `ai-consumer-clinic-test-results.util.ts` and reads the same
+`sessionCustomerId ?? customerId` pair as every other copy checked so far — nine slices in, that
+helper has been identical every time, which is itself a mild duplication smell but not this
+campaign's business.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 132. Two large services (28 + 27) plus a long tail of 1–5 per service.
+
+### §204 — fixed e2e-bug.478: the guard was missing one word
+
+"Do I pay online for this service?" resolved to `pay_online` (T2 checkout) on the public guest
+surface. The cause was not a missing distinction — `isExplicitPayOnlinePrompt` already has a
+guard whose whole job is keeping questions out of the checkout action:
+`/\b(why|explain|how much|what|which|can i|could i|do you)\b/`. It had `can i`, `could i` and
+`do you`, but **not `do i`**, so the first-person form of the exact question it was written for
+walked through.
+
+Added `do i`, `must i`, `should i` — all three are listed as triggers for
+`explain_payment_options_for_service` in **its own classifier rules**, so the gap was between the
+documented contract and the predicate, not a new judgement call. Third instance this session of
+that shape (§198 spec examples, §201 classifier rule, §204 here).
+
+Verified both directions — instructions still claim checkout (`pay online`, `pay online now`,
+`pay with my card`, `continue to checkout`), which matters more than the positives: widening a
+guard that suppresses a T2 action risks suppressing real checkouts.
+
+Corpus 8463/8464 (+0%), gates clean, AI sweep 61/194 exact, assistant 106/106, payment 121/121.
+
+**Ungated: 89 → 9 failures, 21 → 5 suites.** All 9 remaining are genuine — tour seeded slots (3),
+two count assertions, `e2e-bug.475` (3), and one more tour assertion.
+
+### §210 — C2/T0 slice 23: `ProviderAiCommandService`, 132 → 104
+
+The larger of the two services held back. **16 declared, 12 exempt** — and it went faster than the
+nine-command services, because a 28-command god object is not 28 independent traces. Three shapes
+cover all of it:
+
+1. **Twelve dispatch without `params` at all.** Six are `this.handleX()` with no arguments; three are
+   `(businessId, userId[, access])`; three take `(prompt, locale)` where the locale comes from
+   session **context**, not params. Reading the `case` line settles each one — no body needed.
+2. **Nine share one path.** Eight `explain_*` commands fall through a shared `case` group into
+   `providerClientContext.handleIntent` → `dispatchProviderClientContextIntent`, and
+   `explain_appointment_tax` reaches the same resolver separately. All nine read exactly
+   `bookingId` + `customerName`: resolve the appointment by id, else by client name.
+3. **Two share the booking picker.** `coordinate_waitlist_offer` and `open_booking_detail` both read
+   the full nine-field set (`serviceName`, `timeSlot`, `status`, `paymentStatus`, `reason`,
+   `allAppointments`, plus the pair), with the waitlist command adding `waitlistCustomerName` and
+   `employeeName`.
+
+The remaining five are one field each (`date`, `month`, `days`).
+
+**Method note:** the service lives in `modules/provider-mobile/`, not `modules/ai/`, so every
+directory-scoped grep from the previous 22 slices returned nothing — the first search looked like the
+service did not exist. Its 193 `case` labels dispatch to **class methods**, not exported functions,
+which the tracer did not originally match.
+
+**Extending the tracer to methods cost more than it saved and I should have stopped sooner.** Three
+successive patches each broke something else — an over-loose method pattern matched indented *call*
+sites and picked the wrong file; a regex substitution then corrupted the script into a syntax error.
+Rewriting it once, cleanly, from the known requirements took less time than the patches had. The
+working version now prefers a real `function` definition, falls back to a method definition only when
+the line is followed by `(...)` and `{` or `:`, and reports collisions and unresolved names rather
+than guessing. Its regression check against five known-hard cases from §204-§206 passes.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 104. One large service left (`AiCommandService`, 27) plus a tail of 1–5 across ~38 services.
+
+### §205 — the known-failures gate now covers the whole backend
+
+Step 2 of §191's CI sequence, unblocked by the triage. Pattern widened from
+`modules/(ai|provider-mobile)/` to `src/`.
+
+**Precedent and precondition:** `e2e-bug.421` had already widened this once (`modules/ai/` →
+`+provider-mobile`) with the same reasoning, and with the same precondition stated in its own
+comment — it fixed all 11 of that directory's failures first, so the widening imported none. Same
+shape here: 80 of 89 fixed in §193-§204, so this imports **9** accepted failures rather than 89.
+Widening first would have written 80 stale fixtures into the manifest as expected behaviour.
+
+| | before | after |
+|---|---|---|
+| suites swept | 1,460 | **1,928** |
+| tests swept | ~34,800 | **39,901** |
+| manifest | 61 / 194 | **66 / 203** |
+| wall clock | ~13 min | **11.5 min** |
+
+`✓ Failure set matches the manifest exactly.` The nine new entries have their own documented
+reason keys naming their tickets (`tour_slot_seeding`, `prepayment_mode_contradiction`,
+`sample_slot_count_assertion`); the two cleared classes are marked CLEARED rather than deleted.
+
+**Consequence:** `ai-gates` now gates the whole backend, so `backend-tests` is no longer the job
+protecting it — it runs the same suites via plain `jest` and reports nothing while 203 known
+failures remain. Step 3 is now a decision (point it at the gate, or retire it) rather than a task,
+and it changes everyone's PR checks, so it is written up not made. **Decided 2026-08-25: retired —
+see §226.**
+
+### §211 — C2/T0 slice 24: `AiCommandService`, 104 → 77 — both god objects done
+
+**20 declared, 7 exempt.** The exemptions are four `(businessId)` meta-ops reads,
+`explain_ai_capabilities` (adds only `membershipRole`, from dispatch context), `list_templates` and
+`list_employees` (handed the **catalog**, not params), and `operations.unknown` — the no-match
+fallback, whose entire contract is to return a clarification without acting. That last one is the
+campaign's most self-evident exemption: a command that exists precisely because nothing matched
+cannot have inputs.
+
+Dispatch is spread across five files and three mechanisms — a `switch` in `ai-command.service.ts`,
+`Map`-based dispatch builders (`ai-meta-ops-dispatch.build.ts`,
+`ai-schedule-handlers-dispatch.build.ts`), and handlers living in `ai-booking-core.service.ts`,
+`ai-meta-ops.service.ts`, `ai-schedule-handlers.service.ts` and `ai-customer-crm.service.ts`. Seven
+of the 27 have no `case` label anywhere. Mapping each command to its handler by the `action: '<x>'`
+string it returns, then reading the dispatch call, was the only approach that covered all three.
+
+**The tracer failed badly here and I nearly shipped its answer.** It reported `—` for fourteen
+handlers that receive `params`. Spot-checking four of them showed `params.date`, `params.limit`,
+`params.customerName` read directly in the first lines of each body — the tool was simply wrong, not
+subtly incomplete. I did not chase why; I replaced it for this slice with direct per-file method-body
+extraction, which is unambiguous because the file and the method name are both known and no
+name-resolution is involved. That recovered the real sets: `list_customers` alone reads **twelve**
+filter fields through `handleListCustomersLogic`, and `handleListBookings` reads eight.
+
+**What saved it was not the tool but the prior.** Every tooling defect in this campaign has
+under-reported reads (§200, §204, §205, §206, §207), so "fourteen handlers that take `params` read
+nothing" was implausible on its face. The check cost four `sed` calls. A tool whose failures are
+biased in a known direction is still useful — but only if its output is read against that bias rather
+than at face value.
+
+**One judgment call worth flagging.** `summarize_day` forwards `{ ...params, date: isoDay }` to both
+`handleListBookings` and `handleCheckAvailability`, so every field those two read is reachable
+through it. Declared them, following §199's spread rule — but the result claims a wide interface for
+"summarize my day", and fields like `upcomingOnly` are reachable rather than meaningful there. The
+alternative (declare only `date`) would under-declare fields that genuinely change behaviour. Left
+wide, with the comment recording *why* they are listed, since a reader who sees `upcomingOnly` on a
+day summary should be able to find out it arrived by composition.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 77. **Both large services are done**; what remains is a tail of 1–5 commands across ~38
+services.
+
+### §212 — C2/T0 slice 25: four small services batched, 77 → 60
+
+`AiBookingDepthService`, `AiProviderOpenShiftsService`, `AiProviderSpecialtyService` and
+`AiRecommendationProductService` — **17 declared, 0 exempt**. Batching works for the tail: the four
+share no code, but the per-slice overhead (dump, ceiling, inventory, gate chain, corpus) is fixed, so
+running them together costs one verification pass instead of four.
+
+The three `AiBookingDepthService` list commands each pass `params` straight into
+`resolveDateRange(params, prompt, tz)` and read nothing else — the mirror image of §204's
+`list_refunds`, which called the *same* helper with a synthetic `{ _timeZone }` object and therefore
+reads nothing. Same function, same domain, opposite answers, and again only the call site
+distinguishes them.
+
+**I nearly mis-read the tool by filtering its output — the same mistake as §197.** The tracer
+reported `—` for five handlers. Three of them (`list_cash_pending`, `list_multi_service`,
+`list_package`) demonstrably read a date range. The tool was **not** wrong: it had emitted
+`!! NAME COLLISION - read the local copy: resolveDateRange(x2)` on all three, and
+`handleExplainAnyProviderOption(x2)` / `handleExplainProfessionalProfile(x2)` on the other two. I had
+piped it through `grep -E "^###|reads:"` to make a compact table, and that filter discarded precisely
+the "I cannot resolve this" line the tool exists to emit. §197's lesson was "a typecheck whose output
+you filter is not a typecheck"; this is the same sentence with a different noun. **The warnings are
+the part you must not filter** — the `reads:` line is the cheap half.
+
+Handler discovery needed a third convention: these services publish results through
+`success('<alias>', …)` rather than `action: '<alias>'`, so the §211 mapping script found nothing for
+16 of 17. Three conventions now, none of them dominant.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 60.
+
+### §206 — e2e-bug.446: migrated the 3 unfixed `fuzzyMatchByName` copies
+
+e2e-bug.362's word-boundary fix had reached the shared matcher and none of the three private
+copies — including the **unauthenticated guest surface**. All three still ran
+`lower.includes(item.name.toLowerCase())`.
+
+Measured what that cost: `is the salon open` → **Al**, and — worse — `book Alice for a haircut`
+→ **Al**, a confident match on the wrong colleague. Meanwhile `book with Gevorg` resolved in the
+canonical and *not* in the copies, so they were losing correct matches too.
+
+All three already imported `ai-orchestration.helpers`, so no new edge and no cycle risk. Each
+private method now delegates, keeping its name so call sites are untouched. Corpus 8463/8464
+(+0%), 159/159 on the three services, sweep 66/203 exact, gates clean.
+
+**D5-d's blocker was real but narrower and pointed the wrong way.** It said the fixed version
+"drops inflected hy/ru names". Russian is unaffected — «запишите меня к Марии» fails in *both*.
+Armenian is, because it attaches case suffixes directly (`Աննայի` = `Աննա` + `յի`), and the old
+`includes` tier matched that **by accident**. It is also not a regression from this slice: the
+canonical was already live elsewhere, so this made three surfaces consistent rather than
+introducing a gap. Filed `e2e-bug.480` — and the fix must be scoped to non-Latin scripts, since
+allowing a Latin suffix re-opens e2e-bug.362 immediately ("Al" + "ice").
+
+Fifth duplication this session where a fix reached some copies and not others (§184, §185, §187,
+§200, §206).
+
+### §213 — C2/T0 slice 26: eight small services batched, 60 → 33
+
+`AiBusinessHoursLocationService`, `AiClinicLabBookingService`, `AiClinicTestResultService`,
+`AiGuestCheckoutFieldsService`, `AiProductGuideEmptyStateService`, `AiProviderBookingService`,
+`AiProviderClientContextService`, `AiProviderClinicTasksAndResultsService` — **22 declared,
+5 exempt**, 27 commands in one verification pass. Doubling the batch size over §212 cost nothing:
+the slice is bounded by handler discovery, and the gates run once either way.
+
+Four `AiProviderClientContextService` commands (`explain_client_intake`, `list_client_staff_notes`,
+`show_client_history`, `summarize_client`) read the identical `bookingId`/`customerName` pair — the
+same pair the eight §210 fall-through commands read through `dispatchProviderClientContextIntent`.
+Twelve commands, one client-resolution contract.
+
+The five exemptions are two shapes: the three empty-state guides take `(deps, ctx)` where `ctx` is a
+**guide context object, not params**, and the two provider clinic lists are `(deps, businessId,
+userId)`, answering from the signed-in provider's own queue.
+
+**Reading the tracer's warnings rather than filtering them (the §212 correction) paid off twice.**
+It flagged `resolveDateRange(x2)` on `list_my_package_visits` and `list_my_multi_service_groups`; the
+copy those two actually import is called `resolveDateRange(params, prompt, tz)`, so both read
+`date`/`dateFrom`/`dateTo` — three fields per command that the unwarned reading would have dropped.
+It also flagged `resolveSessionEmployeeId(x3)`; the two copies in play turned out to agree
+(`sessionEmployeeId ?? employeeId`), so that one cost only a check. **Warnings are cheap to check and
+expensive to skip** — the two outcomes here, one real miss and one false alarm, are what that ratio
+looks like in practice.
+
+Handler discovery stayed the slow part: `notify_patient_book_lab` is served by
+`handlePushLabBookingToPatientLogic` (name shares nothing with the alias), and
+`fix_checkout_validation_error` dispatches inline from `customer-ai-command.logic.ts` rather than its
+own service. Going service-file-first, then per-alias for the stragglers, was faster than either
+alone.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean.
+
+T0: 367 → 33.
+
+### §207-§208 — Armenian inflection fixed; a claim about Russian corrected
+
+**§207** closed `e2e-bug.480`: Armenian names stopped resolving once they took a case ending
+(`Աննայի` = `Աննա` + `յի`). The obvious fix — allow a short suffix — was measured first and
+rejected: it matches `Անի` inside `անիծիր` ("curse") and `Արա` inside `արագ` ("quick"), which is
+e2e-bug.362 reproduced in another script. Fixed with a **closed set of real case endings** that
+must themselves end the word, applied only when the name contains Armenian characters, so Latin
+matching is untouched. Corpus 8463/8464 (+0%), 11 cases pinned.
+
+**§208** — the sweep then failed three tests in `fuzzy-match-copies.boundary.spec.ts`, a
+purpose-built evidence file I had not read. It pins both directions of this exact swap, including
+`export MISSES hy dative … where the unfixed copy resolves it`. §207 made that false, which is
+the gate working: a spec pinning a limitation must fail when the limitation is lifted. Updated to
+a `RESOLVED_IN_207` block that asserts the export now resolves them.
+
+**It also disproved §207's own docblock.** I wrote that Russian was unreachable because «Мария» →
+«Марии» is a stem change. That spec pins «запиши Ивана» and «к Ивану» — masculine forms with a
+clean one-letter suffix, exactly the shape the Armenian rule handles. True for the case I tested,
+false for the one I did not. Corrected in the docblock; filed `e2e-bug.481`. Not added in passing
+because Russian endings are single letters and collide far more readily than the Armenian set.
+
+### §209 — declined to ship e2e-bug.481: the corpus cannot score it
+
+Measured before writing the Russian masculine-suffix rule, and stopped.
+
+**Collision risk:** Russian endings are single letters, so an allowlist barely discriminates —
+`Мир` would match «мира» ("of peace"), `Дом` would match «дома». Armenian was tractable precisely
+because its endings are multi-character and a closed set could exclude `ծիր`/`գ`.
+
+**And the corpus cannot measure it:** every Russian inflected name in the fixtures is feminine
+with a **stem change** — `Марии` ×52, `Анны` ×8, `Анне` ×6, `Анну`, `Марию` — which replaces the
+final vowel rather than appending, so no suffix rule reaches any of them. There is **not one**
+masculine inflected form in 8,464 cases. The rule would have scored +0% because nothing exercises
+it, which is a meaningless green — the "untestable, not disproved" state from §188.
+
+Re-scoped the ticket: the blocker is fixtures, not implementation. Third time this session a
+fixture set turned out to be the real constraint (cf. `e2e-bug.470`).
+
+Incidental cross-check: those `Марии` prompts are `tx(hy, ru)` compound-decomposition pairs that
+never reach `fuzzyMatchByName`; their Armenian twins (`Մարիայի`, `Աննայի`, `Ջոնի`) carry exactly
+the genitive endings §207 added — so that set came from real usage, not invention.
+
+### §214 — C2/T0 slice 27: the tier is clear, 33 → **0**
+
+The last 26 services, 33 commands: **27 declared, 6 exempt**. Handler discovery was finally
+mechanical — every one followed `handle<CamelAlias>Logic` — so the slice cost was reading, not
+searching.
+
+**T0 is complete: 367 → 0 over 15 slices (§190, §199–§214).** Independent count from the registry:
+**369 T0 commands, 98 with no declared variables, and all 98 are on an exemption list** — the ceiling
+test at 0 says the same thing from the other direction. The floor is **26.6%**, well above T1's 15%,
+which is what §190 predicted when it said "expect a high floor" and refused to treat zero as the
+target. Driving those 98 to a declaration would have meant inventing inputs — `e2e-bug.399` again.
+
+The six final exemptions are the tier's familiar shapes: four `(deps, businessId)` explainers, one
+`(deps, businessId, employeeId)`, and `explain_booking_languages`, which takes a `visitorLocale`
+argument the dashboard fills from **`session.locale`** — a caller-supplied-looking parameter whose
+source is the session, so declaring it would have been wrong. That one needed the call site to
+settle, which is the §204 lesson holding right to the last slice.
+
+Two of the last 27 are worth noting for what they say about the tier. `resume_booking_draft` reads
+**ten** fields and `resume_pending_payment` six — both are "carry the whole draft in `params`"
+commands, the opposite of an explainer, and between them they account for a third of this slice's
+declarations. And `complete_intake_and_book` reads `completeIntakeAndBook`, a **compound
+orchestration flag** of exactly the kind flagged in §209 (`resultsThenRebook`): a boolean set by a
+multi-step flow, not by a user. Two instances now, in different domains — worth a rule of its own
+someday, since a reader of either spec cannot tell that field apart from a user-facing one.
+
+Verified after `npx jest --clearCache`, `build:ai-inventory` in-slice: rule spec 54/54, gate chain
+4,149 passing / 0 failing, corpus **8463/8464 (99.99%)** same single known failure,
+`tsc -p tsconfig.build.json` clean. Corpus accuracy has not moved by a single case across all 15
+slices — 271 commands gained declarations and nothing regressed, which is the expected result given
+that `spec.variables` has no runtime consumer (§201), and is the evidence that the campaign was
+documentation of existing behaviour rather than a change to it.
+
+**Next: convert the T0 ceiling into a per-command rule**, as T1's was in §190 once its backlog
+cleared. A ceiling of 0 still permits a new T0 command to ship undeclared if someone also adds it to
+an exemption list; the rule should make the exemption the deliberate, reviewed act.
+
+### §215 — the T0 ceiling becomes a rule; C2 is closed on all three tiers
+
+`T0_UNDECLARED_CEILING` is retired and replaced by the same named rule T1 got in §178:
+
+```
+it('every T0 spec declares at least one variable, or is a named exemption', () => {
+  expect(T0_UNDECLARED.map((s) => s.id)).toEqual([]);
+});
+```
+
+Named rather than counted, for the reason T1's rule already records: **a count can be satisfied by
+declaring something else; a name cannot.** A new T0 command now fails until it either declares its
+inputs or is added to `T0_VERIFIED_NO_INPUT` — and that list is pinned by value, so exempting is a
+reviewed edit to two places rather than a way to keep a number at zero.
+
+**Verified the rule can fail, which is the only part of this worth checking.** A ceiling at 0 and a
+rule that always passes are indistinguishable from the outside. Temporarily removed
+`operations.unknown` from the exemption *list* while leaving the value pin intact: the suite went
+**2 failed / 52 passed**, and the two failures were the named rule and the pin — the rule fired on
+its own evidence, not as a knock-on of the pin. Restored, 54/54.
+
+Two guards added while converting:
+- **`T0_SPECS.length > 350`** (was 300, actual 369). A renamed or split tier must not let the file
+  pass by measuring an empty set, and the tighter floor makes deleting the tier loud.
+- **`T0_VERIFIED_NO_INPUT.length <= 105`** (actual 98). The exemption list is the one direction this
+  rule can be defeated *legitimately* — exempt instead of read — so it now has a ceiling of its own.
+  This is the ratchet pattern applied to the escape hatch rather than to the backlog.
+
+**C2 is now closed on all three tiers**: T2/T3 (134 → 0, §177), T1 (163 → 0, §178), T0
+(367 → 0, §190–§214). Final T0 shape: **369 commands, 271 declared, 98 exempt (26.6%)**.
+
+Verified: rule spec 54/54 (and 52/54 when deliberately broken), gate chain 4,149 passing / 0 failing,
+corpus **8463/8464 (99.99%)**, `tsc -p tsconfig.build.json` clean. The corpus cannot move on a
+test-only change; run anyway to keep the record uniform across all 16 slices.
+
+### §210 — per-case eval roster (e2e-bug.470): mechanism in, data not
+
+`AiCommandEvalCase.employees?` added; the runner resolves `evalCase.employees ?? SAMPLE_EMPLOYEES`
+at both roster consumers (`routeDeterministic`, `rescue`). Corpus 8463/8464 (+0%) — defaults
+preserve behaviour exactly. Gates clean.
+
+**It is inert today and I could not make it otherwise.** Tried three prompts designed to depend on
+the roster (`book me with Sofia…`, `move Sofia's 3pm…`, a two-name availability compound); all
+produced identical results with and without a roster naming those people. **No rescue rule reads
+`employees` to decide anything** — which is exactly why §188's roster rule had to be written from
+scratch and could not be scored. The measurement half is now fixed; the rule half is unwritten.
+
+**Deliberately not done:** giving the 17 `update_employee` cases their own rosters. That is
+fixture data no code currently reads, and unexercised fixtures look like coverage — the lesson
+from §192 and §209. It belongs with the rule that needs it.
+
+Weaker claim than recent slices: this ships a capability, not a behaviour.
+
+### §211 — e2e-bug.469 fixed, and my own diagnosis corrected
+
+I filed 469 in §187 saying `normalizeTime24` "never range-checks". Reading it before fixing it,
+both halves were wrong.
+
+**It does range-check** — and when the check fails its documented fallback is `return trimmed`,
+the input unchanged. That is a fine contract for a *formatter* and the wrong one for an
+*extractor*. **And `42:00` never came from it**: `parseAmPmClockTime` applies `h + 12` to whatever
+the regex captured, and `"at 003:30 pm"` reached it as hour **30**. The value I cited as evidence
+came from a different function.
+
+Fixed where the problem lives, leaving all **109** `normalizeTime24` callers alone:
+`parseAmPmClockTime` (**4** callers, one file, all inside `string | null` functions) now returns
+`string | null` and rejects hours outside 0-12; its call sites fall through instead of returning;
+the bare-24h branches validate via `asValidTime`.
+
+| prompt | before | after |
+|---|---|---|
+| `at 003:30 pm` | `42:00` | `null` |
+| `at 24:00` | `24:00` | `null` |
+| `at 99:99` | `99:99` | `null` |
+| **`at 14:00 pm`** | **`26:00`** | **`14:00`** |
+
+That last row is the payoff I did not anticipate: refusing to answer let a better answer through.
+Corpus 8463/8464 (+0%), gates clean, 8 cases pinned.
+
+### §216 — `e2e-bug.484` was my own false finding; the roster was there all along
+
+**Closed `e2e-bug.484` (filed as 476 in §197) as a wrong diagnosis.** The ticket claimed
+`catalog.locations` was read by the dashboard adapter and written by nothing, leaving
+`e2e-bug.460`'s staff-vs-location disambiguation inert. It is written:
+`executeCommand` loads it (`ai-command.service.ts:587`, deliberately joined to the existing
+parallel batch), `BusinessCatalog` has declared `locations?` all along with a comment naming
+`e2e-bug.460`, and the branch-scope path preserves it because `applyBranchScopeToCatalogLogic`
+returns `{ ...catalog, employees }`. The adapter reads that same object.
+
+**How I got it wrong:** I grepped `catalog: {` and found five hits in `ai-command.service.ts`, all
+five being *parameter type declarations*, and read them as producers. I never grepped
+`const catalog = {` — the only line that answers "who writes this". A type declaration cannot
+populate a field, and I treated five of them as proof that nothing did. The §197 note even lists the
+five line numbers, which should have been the tell: producers do not come in a tidy set of five
+identical shapes.
+
+**What was actually there is a type gap, and it is now fixed.** Those five parameter types omitted
+`locations`, so the field survived only by structural pass-through and was invisible to the compiler
+— which is exactly why the adapter's read failed to typecheck and broke the build in §197. All five
+now use the shared `BusinessCatalog`, so a hop that rebuilds the catalog and drops the roster fails
+the compiler instead of degrading silently. Two regression tests in
+`dashboard-command-understanding.adapter.spec.ts` pin both halves: the roster forwards when present,
+and degrades to `[]` when a producer omits it. **The second test matters more than the first** — it
+pins the optional-by-design behaviour that made the field look absent to a grep.
+
+### Concurrent session — duplicate ticket and section numbers
+
+While closing the above I found **another session has been writing to `TODO.md` and `TODO.BUGS.MD`
+at the same time as this one.** Facts:
+
+- **Ticket ids collided.** They filed `e2e-bug.476`–`481` on 2026-08-18; I filed 476 and 477 on
+  2026-08-18/19 for unrelated work. **Theirs are referenced from six source files, mine from none**,
+  so mine moved: **476 → 482** (this correction) and **477 → 483** (the double-booking constraint
+  hardening). Ids are unique again apart from `e2e-bug.259` and `e2e-bug.434`, which were already
+  duplicated before either session started. **Both resolved 2026-08-21**, using the same rule this bullet
+  established: `259` was the *same* bug listed twice, so the duplicate row was dropped; `434` covered two
+  unrelated bugs, so the one cited from source (the specialty/ranking detector) kept the id and the
+  scheduler bug moved to **497**.
+- **Section numbers collided and are not resolved.** Two interleaved series share §197–§209:
+  mine are the C2/T0 slices, theirs are routing/gate/i18n fixes (`§198 "who offers X?"`,
+  `§201 import cycle`, `§205 known-failures gate`, `§207-§208 Armenian inflection`). Thirteen
+  numbers are used twice.
+
+I have **not** renumbered any sections. Mine are cited by ~270 spec comments and theirs by their own
+code, so this is a call about which series moves, and it is not mine to make unilaterally on someone
+else's work. Mine are at least distinguishable: every C2 comment is tagged `§NNN (C2/T0)`.
+
+### §211 addendum — a red sweep that was the calendar, not the change
+
+The post-§211 sweep reported 4 failures "NOT in the manifest — this change broke them"
+(`e2e273` ×3, `e2e254` ×1). It had not.
+
+`public-booking.service.ts` calls none of the three functions §211 touched, and the specs do not
+reference them either. What did change is the date: this session started on **2026-08-17** and it
+is now **2026-08-19**. Those tests call `materializeAssignedProvidersUpcomingHours` with an
+**absolute** range `'2026-07-31'`→`'2026-08-20'` against a weekly pattern seeded 2026-07-29.
+Materialization fills future days only, and Jul 29 + 21 = **Aug 19** — future yesterday, "today"
+now, so nothing materializes.
+
+Filed `e2e-bug.484`. Same class as `e2e-bug.479` (§203). The manifest should not be re-baselined
+until they are pinned, or it flaps daily — and a sweep that says "this change broke them" when the
+calendar did is precisely the false signal `e2e-bug.474` tracks.
+
+### §217 — `e2e-bug.467`: the shape clash is inert; the unreachable periods were the real bug
+
+Took `e2e-bug.467` ("`params.dateRange` carries two incompatible shapes under one name") and the
+first thing measurement did was correct its premise.
+
+**The two shapes never meet.** They are separate namespaces sharing a key name, and each is
+internally coherent:
+
+| shape | written by | read by | typed? |
+|---|---|---|---|
+| `{ start, end }` | `operational-plan-builder.service.ts:988/998` | `resolveDirectScheduleDateKeys` | yes — `buildNoShowRecoveryPlanSteps` declares `dateRange?: { start: string; end: string }` |
+| `'this_month' \| …` | 8 parser sites | `resolveMarketingDateRange` only, via `DATE_RANGE_PHRASES` | declared on `marketing.summarize_new_registrations` |
+
+No command reaches both, and each consumer degrades safely on the other's value — a string has no
+`.start`, and an object indexes the phrase map as `[object Object]`. So the ticket's "dead code for
+the other producer" is accurate and **inert**. The shape decision is a latent-trap cleanup, not a
+defect, and it stays open at low priority rather than being guessed at.
+
+**The live defect was next to it and worse.** `ai-retail-finance.util.ts` emits
+`dateRange: 'this_quarter'` and `'this_year'`, and *nothing* could turn either into a range: no key
+in the phrase map, and — measured — **no quarter branch in the canonical `resolveDateRange` at
+all**. `'this quarter'`, `'last quarter'` and `'this year'` each returned `null`, so "summarize P&L
+this quarter" fell through to the caller's default window and answered about the wrong period
+without saying so. Fixed: quarter and year branches (this/current/last/previous/next), computed from
+the month because dayjs' `quarterOfYear` plugin is not loaded in that file and adding one for three
+lines of arithmetic is the larger change, plus the two missing phrase keys.
+
+**I nearly shipped a test that expires.** The first version passed `{ date: '2026-08-15' }` and
+called itself anchored. It is not: `resolveDateRange` anchors on `getTodayDateKey(tz)` — the real
+clock — and ignores `params.date`. The quarter assertions passed only because August and today are
+in the same quarter, and they would have started failing on 1 October. This is precisely the
+`clinic-task-auto.util` failure mode catalogued under `e2e-bug.471` — a test that expires rather
+than one that detects. The month/week guard caught it, by disagreeing for a reason I had to explain.
+Rewritten with `jest.useFakeTimers().setSystemTime(...)`, so the arithmetic is genuinely pinned.
+
+`'first_week'` (`ai-provider-onboarding-compound.util.ts`) is still unreachable and left that way on
+purpose: "first week" of what is an onboarding question, not a calendar one.
+
+Verified after `npx jest --clearCache`: helpers spec 109/109, gate chain 4,149 passing / 0 failing,
+corpus **8463/8464 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean. `build:ai-inventory`
+regenerated — the diff is 168 line-number moves with no symbol or `detectorCount` change, i.e. pure
+drift from inserting into a file that hosts detectors.
+
+### §212 — e2e-bug.482 fixed; manifest left alone because the tree is moving
+
+Anchored `e2e254` / `e2e273` to today: pattern seeded at `today − 21`, window `today + 1 …
+today + 21`. A weekly pattern from `today − 21` recurs at `+7`, `+14`, `+21` — always inside the
+window, on any day — so it cannot expire again. The single-day query uses `dayOffset(7)`, which
+shares the pattern's weekday because 28 divides by 7. **30/30**, including
+`day-slots-get-no-persist`, which was a known-failure manifest entry and now passes.
+
+**Did not re-baseline the manifest.** `ai-marketing-growth.logic.ts` changed on disk at 12:59:31
+— seconds before I looked — with comments citing **§217/§218** and fixes for `e2e-bug.466/467`,
+section numbers that do not exist here. Another session is editing this tree concurrently. A
+manifest re-baseline sweeps the whole tree and would record their in-flight work as this
+session's accepted baseline, and any sweep verdict right now is measuring a moving target.
+
+Left for whoever merges: re-baseline once the tree is quiet, and resolve the §212-vs-§217
+numbering collision.
+
+### §218 — `e2e-bug.466`: one expression, two date bugs, and a third underneath it
+
+`resolveMarketingDateRange` closed its window two different ways depending on how the range arrived:
+
+```
+to: phrase ? new Date(`${range.end}T23:59:59.999Z`) : new Date(range.end),
+```
+
+The enum branch closed on the last millisecond of the end day; the prompt branch closed at that
+day's **midnight**. Against an inclusive `Between`, "how many signed up this month" typed as prose
+under-reported by a whole day versus the identical request sent as `dateRange: 'this_month'`. Both
+now close at end of day.
+
+**The second bug was in the same expression.** Both branches anchored at `T00:00:00.000Z` although
+`resolveDateRange` had already computed the day keys **in the business timezone**, so the local days
+were re-interpreted as UTC days and the whole window slid by the offset. For Asia/Yerevan (UTC+4)
+the range ran `2026-08-01T00:00Z … 2026-08-31T00:00Z` — starting four hours late, ending a day and
+four hours early. Now converted with the existing `getUtcBoundsForDateKey(dayKey, timeZone)`, giving
+`2026-07-31T20:00Z … 2026-08-31T19:59:59.999Z`.
+
+Both are pinned by tests, and the first one asserts **the two paths against each other** rather than
+against a literal — the defect was disagreement, so that is the thing worth asserting. The clock is
+faked, per §217.
+
+**The third bug was in the helper I reached for.** `getUtcBoundsForDateKey` closed each day on
+`23:59:59.000`. All **twelve** call sites use it as "the whole of day X" against an inclusive
+`Between`, so every one of them silently dropped anything in the final second — provider-mobile's
+"today" queries and public-booking's day lookups included. Widened to `.999`. That direction is safe
+by construction: it can only include rows that were always meant to be in range, never drop one.
+
+**Checked rather than assumed on the blast radius.** Running the twelve callers' suites showed 3
+failed suites / 5 failed tests — so I reverted the helper to `.000`, re-ran, and got **the same 3
+and 5**. They are `e2e-bug.471`'s pre-existing ungated set (`e2e318`, two `public-booking-tour`), not
+fallout. Restored, counts identical.
+
+No new helper was written for any of this: the timezone-aware one already existed and two
+UTC-pinned near-duplicates (`resolveAvailabilityDayBounds`, `resolveCollectionQueueDayBounds`) were
+deliberately not extended, since adding a third copy is how the first two happened.
+
+Verified after `npx jest --clearCache`: marketing logic spec 11/11, helpers spec 109/109, timezone
+util 14/14, gate chain 4,149 passing / 0 failing, corpus **8463/8464 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §219 — `e2e-bug.469`: the reported bug was fixed; the one underneath it was not
+
+Measurement first, and it retired half the ticket immediately:
+`extractTimeSlotFromPrompt('at 24:00' | 'at 99:99' | 'at 003:30 pm')` all return `null` today, and
+`ai-structural-extractors.spec.ts` already carries a test block citing this ticket. The extractor
+was fixed **by the concurrent session in their §211 on 2026-08-18** — so this slice is a follow-on to
+their work, not a re-fix of it, and their ticket status stands.
+
+**The ticket's remaining complaint turns out to be correct behaviour.** It proposes a validity check
+inside `normalizeTime24` so it stops echoing malformed input. But the echo is load-bearing: the
+function has ~50 call sites and an "always return a string" contract, so echoing `'24:00'` lets
+every validator downstream refuse it, while "repairing" it to `'00:00'` would silently book
+midnight. Returning null, as the ticket notes, changes the contract for all fifty. Left as is, and
+now pinned by a test that says *why*.
+
+**What was actually broken was next to it, and is the opposite failure.** The 12-hour branch added
+12 with no upper bound, so it did not echo malformed input — it **fabricated** valid-looking
+nonsense: `'13:30 PM'` → **`'25:30'`**. That is not the documented fallback, it is an invented value,
+and it is shaped plausibly enough to be stored rather than rejected. Guarded with `hour <= 12`, and
+the meridiem is now stripped so the 24-hour branch reads the clock part — `'13:30 PM'` → `'13:30'`,
+which is exactly the rule `extractTimeSlotFromPrompt` already applied to `'at 14:00 pm'`. The shared
+util was simply behind its own caller.
+
+Genuine 12-hour readings are unchanged (`'9:30 pm'` → `'21:30'`, `'12:00 am'` → `'00:00'`,
+`'12:00 pm'` → `'12:00'`).
+
+**Blast radius measured rather than argued.** Nine caller suites: **7 failed / 12 tests with the
+guard, and 7 / 12 without it** — identical, so nothing regressed. The comparison was worth running
+precisely because 50 callers is too many to reason about.
+
+**`time-format.util.ts` had no spec file at all** — which is how a 12-hour branch could invent
+`25:30` and go unnoticed through every one of those callers. Added one: 13 tests covering the
+conversions, the meridiem-is-noise rule, and the echo-on-garbage contract with its rationale.
+
+Verified after `npx jest --clearCache`: new util spec 13/13, gate chain 4,149 passing / 0 failing,
+corpus **8463/8464 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §213 — manifest re-baselined: 66/203 → 65/202
+
+Tree had been quiet ~9 minutes, and the sweep delta was two items, both explainable — the only
+condition under which re-baselining is honest.
+
+**One of them was not a baseline candidate.** `ai-command-inventory.boundary.spec.ts` failed
+because the other session edited source without rebuilding the checked-in inventory; the failure
+message names its own fix. Baselining it would have recorded "the inventory may be stale" as
+accepted, and it would have stayed accepted long after the drift was gone. Rebuilt instead —
+31/31.
+
+**The other was the shrink:** `day-slots-get-no-persist`, fixed in §212. Verified gone by name,
+not by count, since a count can shrink by one while a different entry quietly appears. The
+`reasons` block carried through intact (three keys from §205 plus the CLEARED annotations),
+confirmed rather than assumed because everything else in the file is regenerated.
+
+Gates clean. Still unresolved and not mine to decide: the §213-vs-§217/§218 numbering collision
+with the concurrent session.
+
+### §220 — orchestration-set flags: a declared-input class no user can supply
+
+Followed up two things noticed in passing during C2 — `resultsThenRebook` (§209) and
+`completeIntakeAndBook` (§214) — expecting a pair. The sweep found **22** such flags across the
+compound utils (`continueAfterIntake`, `guestPayCashManage`, `bookIfCapacityOk`, …), of which
+**7 reach a `CommandSpec`, in 16 declarations across 13 commands.**
+
+They are genuinely inputs: a compound recipe writes them onto `params` and the step handler reads
+them, so C2 is right to declare them. What is missing is that **nothing in a spec distinguishes an
+input from the orchestrator from an input from the user**, and that distinction turns out to have
+teeth: declared optionals are rendered into the **LLM planner prompt**
+(`ai-command-spec.derive.ts:184` → `ai-command-plan.prompt.ts:146`), so the model is currently told
+it may set `tourGroupCheckout (boolean)` on a standalone command from a user's prose.
+
+**No measured harm, and I did not "fix" it on that basis.** None of the seven is `required`, so no
+user is ever asked for one, and the corpus is unmoved (99.99%, unchanged across all of C2). The
+plausible failure — a standalone command taking a compound branch because the planner inferred a
+flag from the word "group" — is a trap, not a regression. Filed as `e2e-bug.485` with the design
+question stated (should `CommandVariableSpec` be able to say "this input is not yours to fill"?) and
+the three options costed, rather than guessed at.
+
+What did ship is the thing that stops the class growing silently: a rule pinning all 16 declarations
+by value, plus a second test asserting **none of them is `required`** — the guard that keeps this a
+documentation problem instead of an `e2e-bug.399` one, since a required orchestration flag would
+have the planner ask a user to confirm they are inside a compound they cannot see.
+
+**Verified the rule bites**: adding an unpinned `tourGroupCheckout` to a clinic spec turned the
+suite red on the pinned-set test specifically (1 failed / 55 passed), then restored. Rule spec
+**56/56**.
+
+### §221 — `e2e-bug.445`: the suspicious line was fine; the missing test was the bug
+
+`command-completion.pipeline.service.ts` carried
+`service: services.length === 1 ? services[0] : services[0]` — two identical branches, filed as a
+dead guard. The line directly above it is the shape it appears to be missing:
+`employee = employees.length === 1 ? employees[0] : undefined`.
+
+**Applied the obvious fix as a probe, and it broke nothing.** 40 suites / 537 tests around the
+pipeline passed, and the corpus was unmoved at **8463/8464, +0%**. On the evidence alone the tidy-up
+looked safe.
+
+**It is not, and the ticket's author had reasoned it out correctly two months before any test could
+show it.** `enrichedParams.serviceId` is assigned only inside `if (services.length === 1)`, so when
+several services are named `entities.service` is the *only* thing making the completeness check
+`entities.service || enrichedParams.serviceId` true. Withhold it and the validator asks the user to
+name a service they have just named two of. Nothing in the suite or the corpus exercises a
+multi-service resolve reaching that check — **a clean result measuring absent coverage, not
+correctness.**
+
+This is the §211 lesson arriving from the other direction. There, fourteen handlers reporting "reads
+nothing" was implausible on its face and the prior said so. Here the green run was entirely
+plausible, and the only thing that contradicted it was reading what `serviceId` is gated on. **A
+passing test suite is evidence about the tests as much as about the code**, and which of the two it
+is worth more depends on whether anything actually covers the path.
+
+Shipped: the branch collapsed to plain `services[0]` with the asymmetry documented where someone
+would next be tempted to tidy it — `employees.length !== 1` means the name was *ambiguous* so the
+singular is withheld; `services.length > 1` means the user was *deliberate* so it must not be. Plus
+`command-completion.pipeline.multi-service.spec.ts`, four tests closing the gap, one of which pins
+that `serviceId` stays unset for several services — because if that ever changes, the singular stops
+being load-bearing and the branch can be revisited on purpose rather than by accident.
+
+**Verified the tests catch the regression they exist for:** re-applying the obvious fix turns the
+suite red (1 failed / 3 passed) on the singular-still-set assertion specifically, then restored.
+
+Verified after `npx jest --clearCache`: new spec 4/4, gate chain **4,151 passing / 0 failing**,
+corpus **8463/8464 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §214 — e2e-bug.473: the debris included an unfixable manifest entry
+
+Filed as low-priority tidying; measuring it first changed that. `zzz-a4-probe.spec.ts` opens a
+real Postgres connection, so it **can never pass in CI** — yet it held a slot in
+`ai-known-failures.json` as an accepted failure. The manifest's rule is that entries leave only by
+being fixed, so an entry that is unfixable by construction is a permanent occupant: the dumping
+ground that rule exists to prevent, sitting inside the mechanism meant to prevent it.
+
+`git mv`'d to `zzz-a4-probe.probe.ts` — `testRegex` is `.*\.spec\.ts$`, so jest stops collecting
+it while the tool, its history and a "how to run this" header survive. Deleting would have thrown
+away something whose only fault was its filename. The 0-byte `zzz-e2.` was `git rm`'d.
+
+**Manifest 65/202 → 64/201**, swept first, delta exactly one entry. Gates clean.
+
+**Left alone:** `eval/zz-state.spec.ts` is untracked, always passes, and only prints diagnostics —
+deleting it is unrecoverable, unlike the two git remembers. That asymmetry is the whole reason,
+and it is the owner's call.
+
+
+---
+
+## e2e-bug.486 — the live execution path has no compensation; the saga that would provide it is attached to a dead executor
+
+**Status: Open.** Found while sizing B2 / e2e-bug.368 (tech-debt).
+
+**Finding, verified four ways.**
+
+1. **No production code calls the §33 executor.** `grep -rn "import.*executePlan" backend/src`,
+   excluding specs, returns nothing. `ai-plan-executor.util.ts:executePlan` has zero callers.
+2. **§124's "executePlan has 7 live call sites" counted the wrong symbol.** Those seven are
+   `ai-schedule-handlers.service.ts:943`, a **private method of the same name** that delegates to
+   `command-orchestration.service.ts:executePlan` — a different function with a different plan type
+   (`AgentPlan`, not `CommandPlan`).
+3. **The saga is downstream of the dead function.** `ai-saga.util.ts` (which exports `compensate`)
+   is imported by exactly one file: the uncalled executor.
+4. **The live path has nothing.** `command-orchestration.service.ts` contains no `compensat*`,
+   `saga`, `rollback`, or `CaptureMap`.
+
+**Why this is its own ticket.** `e2e-bug.368` says the saga engine is not wired, and its three
+checkboxes describe wiring it. Doing all three would change nothing at runtime, because they wire an
+executor nothing calls. The defect that actually affects users is different and larger: **the path
+that really executes multi-step plans can fail midway, leave earlier writes standing, and report
+nothing about them** — and the model built to describe that cannot reach it.
+
+**Severity.** A partial failure leaves real writes in place. §47 established that several of these
+cannot be undone at all — a cancelled appointment has already emailed the customer.
+
+**A free half, when this becomes actionable.** 73 specs declare `compensation.kind: 'manual'` and 120
+declare `'none'`. `actionFor` resolves both **without** a `CaptureMap`, returning `needs_human` /
+`irreversible` with the declared reason. So the stranded-writes *report* for 193 commands needs no
+capture infrastructure at all — only an executor that runs and a call to `compensate()`. The
+capture work (`kind: 'inverse'`, 152 specs) is the expensive half and can come later.
+
+**Recommended sequencing.** Do not wire the three `e2e-bug.368` seams first — they are inert until
+the `CommandPlan` executor is on a request path. Decide that first (the Phase 5 / A1 question), then
+take the `manual`/`none` reporting half, then captures.
+
+
+---
+
+## e2e-bug.491 — two specs failed only near midnight UTC, reddening the shared gate
+
+**Status: Fixed 2026-08-21.**
+
+**Symptom.** `npm run test:ai-known-failures` reported *"7 failure(s) NOT in the manifest — this
+change broke them"* across `public-customer-booking.integration.spec.ts` and
+`public-customer-booking.service.spec.ts`. Reverting every file changed in the session reproduced
+the failures identically, so they belonged to no change at all.
+
+**Cause.** Both specs build `futureStart = Date.now() + 72h`, then lay package-visit lines an hour
+apart starting at `futureStart + 24h`. The block therefore inherits **the current time of day**. Run
+near midnight UTC, the second line crosses into the next day and
+`reschedulePackageVisitInternal` rejects the payload with *"All package services must be scheduled
+on the same day"*.
+
+Computed rather than inferred, at 23:55 UTC:
+
+```
+blockStart  2026-08-24T23:55  →  +60m → 2026-08-25T00:55   ← different day
+```
+
+**Fix.** Anchor the base to a fixed hour — `setUTCHours(10, 0, 0, 0)` — in both specs. The date stays
+genuinely in the future; only the within-day arithmetic becomes deterministic.
+
+**Verification.** Simulated the anchored construction at **all 24 launch hours**: same-day at every
+one. 70/70 tests across both suites. The whole-backend gate returned to exit 0 with *"Failure set
+matches the manifest exactly"* (63 suites / 200 tests / manifest 200).
+
+**Swept for the class, not the instance.** 41 specs derive times from `Date.now()`; 5 of those also
+involve same-day or sequential logic. The three besides the two fixed here were each checked and are
+**not** vulnerable — they have no same-day constraint, so their within-day offsets are harmless.
+They were deliberately left unchanged: a speculative "fix" to a spec that is not broken adds churn
+and hides which specs actually carry the invariant.
+
+**Why it matters beyond these two files.** This is a live instance of **e2e-bug.474** — the
+known-failures gate compares failure sets exactly, so a single clock-dependent flake turns it red
+and every subsequent change looks like the culprit. It cost real time here: the failures were first
+attributed to a concurrent session before being computed. It is the same class as **e2e-bug.482**
+(tests that expire on a calendar), and both argue for the same rule: **a spec may depend on "later
+than now", never on "the current time of day".**
+
+
+---
+
+## e2e-bug.499 — the known-failures manifest, triaged: 133 tests are ~6 questions
+
+**Status: Open — awaiting product decisions. The engineering triage is done.**
+
+**What was cleared (2026-08-21).** 67 tests across 10 suites, in two mechanical classes, neither of
+which was disputed behaviour:
+
+| class | suites | tests | root cause |
+|---|---|---|---|
+| expired fixtures | 3 | 19 | bookings hardcoded to dates now past, so `startTime >= now` matched nothing |
+| `mock_missing_transaction` | 7 | 48 | `ensureBookingManageToken` opens `bookingRepo.manager.transaction`; no mock had a `manager` |
+
+Manifest **200 → 133 tests, 63 → 53 suites**, verified exact by the gate.
+
+**The point worth keeping:** a third of the "known failures" were never open questions. They were one
+stale fixture pattern and one missing mock, sitting in a list whose entire job is to separate
+known-bad from newly-bad — quietly degrading the signal the gate exists to give.
+
+### What remains is not 133 problems
+
+Every remaining suite was re-run and classified. All are `assertion_mismatch`, and they cluster hard —
+each large suite is **one disagreement repeated across its cases**:
+
+| tests | suite | the single question |
+|---|---|---|
+| 22 | `ai-service-discovery.integration` | for *"a cut"*, should the extractor yield `cut` (outside the catalog's vocabulary) or map to `haircut`? |
+| 9 | `ai-implication-corpus.fixtures` | **not a routing question — analysed 2026-08-23.** All 9 fail on the *same line*, the `ranked[0]?.anchor.id` assertion; every one passes the `action` and `rescueReason` checks above it, and the competing anchors are **action-equivalent** (`en-implied-wellness-need`/`en-asap-booking` both → `create_booking`; `en-implied-availability-opening`/`en-check-who-free` both → `check_providers_for_service`). So the user-visible outcome is identical and what changed is which anchor wins the ranking. **Not simply an obsolete pin either**: 33 fixtures pin a top anchor and **24 still pass**, so nine specific rankings shifted. The question is therefore narrow — *why did these nine reorder, and is the pin still meaningful for them?* — and it is answerable by whoever tuned the anchor scores, not by product. Relaxing the nine to the spec's own looser `else` branch (assert the action only) would go green without answering it |
+| 8 | `ai-service-discovery.eval` | a count disagreement — expected 1 result, produced 3 |
+| 7 | `ai-e2e248-reschedule-nearest.util` | does *"move my appointment to the nearest free time"* **reschedule** or **create**? |
+| 5 | `ai-e2e267-reschedule-semicolon.util` | the same reschedule-vs-create question, semicolon phrasing |
+| 5 | `ai-provider-client-context-locale-parity` | **three different coverage gaps, not one — analysed 2026-08-23.** `isSummarizeClientPrompt` was probed against every `summarize_client` scenario: **overview** works in English and Armenian but misses the Russian *"Дай обзор клиента John"*; **marketing** works in English but misses both translations; **referral** misses in *English too* (*"Was this client referred by anyone?"*), so that topic is uncovered in every language and the English gap is simply not asserted anywhere. So this is not a locale-parity question at all — it is one missing topic plus two missing phrasings, all decidable by whoever owns the detector's vocabulary. Most hy/ru scenarios **pass**, so there is no systemic translation problem to solve |
+
+**Six questions cover 56 of the 133.** Two of them (`e2e248`, `e2e267`) are visibly the *same*
+question, so answering "reschedule or create?" once clears 12 tests.
+
+### The obvious fix for the largest cluster is measured and does not work
+
+For `ai-service-discovery.integration`: the classifier supplies `serviceCategory: 'haircut'` and
+`enrichDiscoveryParamsFromPrompt` overwrites it with `'cut'`
+(`if (category) { rankedParams.serviceCategory = category; }`). `'cut'` appears nowhere in the
+fixtures' vocabulary and the same fixture's `catalogParams` expect `'haircut'` downstream — so the
+code looks wrong.
+
+**But changing it to gap-fill (`if (category && !rankedParams.serviceCategory)`) leaves the failure
+count unchanged at 30.** Measured, then reverted. The answer is not "stop overwriting"; it is what
+`extractServiceRankServiceCategoryFromPrompt` should return for a bare *"a cut"*.
+
+### Why this stops here
+
+Each of these decides what a customer gets matched to, or which command runs against their booking.
+Guessing would put invented product intent into the corpus that every other gate is measured against
+— and the tests are as likely to be stale as the code is to be wrong. What is needed is someone
+saying which side is right, once per question, not more engineering.
+
+---
+
+## §222 — `e2e-bug.506`: the test was stale, and the two tests disagreed with each other
+
+**Status: Fixed 2026-08-24.**
+
+The ticket said `enrichPublicAssistantParamsFromPrompt` writes the literal string `"tomorrow"`
+into `params.date`, and called that value "not a date in any format the downstream consumers
+parse". The second half of that sentence was the whole basis for the severity, and it is false.
+
+**Where the word comes from.** Bisected the chain rather than guessing. The four discovery
+enrichers (`enrichBudgetFromPrompt`, `enrichServiceRankFromPrompt`, `enrichServiceTierFromPrompt`,
+`enrichEmployeeRoleRankFromPrompt`) all preserve a concrete date, as do three of the four
+flexible-availability enrichers. The writer is
+`applySameDayRelativeDateToAvailabilityParams`, reached from
+`enrichFlexibleAvailabilitySingleWindowFromPrompt`. It stamps the unresolved keyword on purpose:
+`e2e-bug.296` needs the word to survive enrichment so the same-day cue can delete a classifier's
+`dateFrom`/`dateTo` range before it expands into a 14-day scan.
+
+**Why the raw word is safe.** It is resolved at the service boundary, by
+`normalizeDateParams` → `toIsoDay` → `resolveRelativeDateKeyword`. Every entry point that consumes
+these params calls it: `PublicBookingAssistantService.chat`, `executeDeterministicIntent`, that
+method's compound `runStep` callback, and `AiCommandService`'s dashboard path. There is no route
+from the enricher to a consumer that skips it.
+
+**The tell I should have looked at first.** The two failing expectations live in the *same*
+`describe` block and contradict each other on the identical word: one expected the session date
+`10/06/2026` to survive the prompt "give me available slots **tomorrow** afternoon…", and its
+sibling twenty lines down expected `date: 'tomorrow'` from the same phrasing. Two tests asserting
+opposite things about one input is a much stronger signal than a suspicious-looking value, and it
+was visible before any of the bisection.
+
+**On the diagnosis being wrong.** The ticket filed this as the third instance of the
+overwrite-instead-of-gap-fill family (`e2e-bug.500`'s `serviceRank`, then `serviceCategory`). It is
+not. Here the overwrite is the correct behaviour — the guest said "tomorrow", so a stale session
+date *should* lose. Pattern-matching a new symptom onto a family I had just spent time in made the
+wrong shape look obvious; the fix was to a test, not to code.
+
+**What is pinned now.** A contract test in `ai-flexible-availability.util.spec.ts` covering both
+halves of the handshake, because the split is only safe while writer and reader share a vocabulary:
+every keyword the stamper can write resolves to `YYYY-MM-DD`, resolution happens in the business
+timezone (the actual `e2e-bug.296` failure mode), tomorrow is exactly one day after today, and a
+prompt with no relative day leaves a session date alone. Manifest shrunk 91 → 90.
+
+The suite's other failure — `serviceName: null` where `'Haircut basic'` is expected — is
+`e2e-bug.501` and is untouched; it needs a product answer about `cut` vs `haircut`.
+
+**Filed in passing, then fixed:** `e2e-bug.507` — the known-failures gate printed
+`suiteCount`/`testCount` from the manifest header but never checked them against the `failures` map
+it compares, so a hand-edited manifest reported a count that disagreed with the verdict printed one
+line below it. `loadManifest` now derives both counts from the list and refuses on a mismatch,
+before the sweep rather than after it. It fails rather than self-corrects: drift only comes from a
+hand-edit, and quietly fixing the header would conceal a half-finished one in the file whose entire
+job is to be an honest ledger. `--update` is exempt — it regenerates both counts from what it just
+measured, and it is the repair path the error message recommends.
+
+**Filed in passing, then fixed:** `e2e-bug.508` — `PaymentStatus.UNPAID` is not a member of the
+enum. 23 spec references evaluated to `undefined`; 9 more wrote the bare string `'unpaid'`, which
+`tsc` could not see because the consuming interfaces declare the field as `string`. No test failed,
+which is the point: the consumers these fixtures reach all test `=== PAID`, where the bogus value
+is indistinguishable from `pending`. Three predicates elsewhere test `=== PENDING` — cash-pending
+bookings, the end-of-day summary, and list-team-unpaid-today — and a fixture with the bogus value is
+invisible to every one of them, so a test written to cover the unpaid path would have exercised the
+wrong branch and passed. All 32 sites now say `pending`; verified first that none of them carry the
+`payAtVenue` / `cash` metadata that would have made `isCashPendingBooking` flip. 839 tests green.
+
+**Filed in passing, then fixed:** `e2e-bug.509` — swept the *small* `tsc` buckets rather than the
+large ones, because TS2367/TS1117/TS2783 describe dead code, not loose typing. Thirteen sites, five
+defects. The one that mattered: `booking-mark-paid-tax.integration.spec.ts` hand-copied the
+mark-paid transition condition out of `booking.service.ts`, so it tested its own copy and could not
+fail on a change to the real one. `isTransitionToPaid` is now extracted beside the function it
+guards and both call it; inverting it now fails the spec, which it provably could not do before.
+Also: two assertion branches that could never run, a `?? null` default defeated by a later spread,
+a default mock carrying a predicate but not the handler it guards, and ten duplicate identifiers.
+Project typecheck 884 → 864.
+
+**Filed in passing, then fixed:** `e2e-bug.510` — the same sweep into TS2307/TS2554/TS18047/TS2493.
+Two imports in `provider-end-of-day-push.scheduler.spec.ts` pointed at `../` for modules sitting in
+the *same* directory; they never failed because both are type-only and ts-jest elides them, which
+also meant the two constructor casts using them were unchecked. A PHI call omitted its required
+`auditResourceId`, harmless only because that test takes the access-denied path. Four specs read
+`.action` off a rescue that returns `null` when it declines — fixed with an explicit non-null
+assertion rather than `?.`, since `expect(result?.action).not.toBe(x)` passes on null and would turn
+a crash into a silent pass. And eleven `toHaveBeenCalledWith` / `mock.calls[0][N]` assertions that
+TypeScript could not check, because `jest.fn(async () => x)` infers an empty argument tuple: four
+typed factories now live beside the shared gateway mocks, each documenting the real argument list
+and the `ai-gateway.service.ts` line it came from. Project typecheck 864 → 827.
+
+**Filed in passing, then fixed:** `e2e-bug.511` — the missing-handler defect from `e2e-bug.509(d)`
+was systemic. In `customer-ai-command.service.spec.ts`, `Object.assign(mocks, overrides)` replaced
+whole service slots, so an override naming two methods deleted every other method that service
+exposes; overrides now layer over the default instead. The `noopSprint` Proxy was typed `{}`, which
+is what made six handler reads errors — and its fallback returns a *fresh* mock on every property
+access, so asserting against the Proxy itself would always compare against an uncalled mock. Four
+defaults inferred return types narrower than their own reassignments. 18 errors → 2.
+
+The two left standing are the finding: declaring parameters on the `completeJson` default — the fix
+that worked on the gateway specs — takes this file from 8 errors to 26, because the ambient
+`@types/jest` `Mock<R, A, C>` is invariant in its argument tuple and every reassignment is a
+zero-parameter `jest.fn`. Switching to `@jest/globals` recovers only part of it. Measured, reverted,
+and the reason recorded in the file so nobody repeats it. Project typecheck 827 → 811.
+
+---
+
+## §223 — `e2e-bug.503`: three claims, three different answers
+
+**Status: Fixed 2026-08-24.** All four manifest entries for this intent now pass; manifest
+90 → 86 tests, 47 → 45 suites.
+
+**1. Naming the service broke detection — real, and the cause was in another file.**
+"What should I bring to my appointment?" parsed; "What should I bring to my **City Tour**
+appointment?" returned null. `hasTourExplainSurface` matches a bare `\btours?\b`, so the second
+prompt was claimed by `isExplainTourServicesPrompt` — a *catalog* intent — and
+`isExplainPreparationNotesPrompt` treats that detector as a blocker. The guard went in the tour
+detector rather than the preparation one, because that is where the wrong claim is made: had I only
+reordered the blockers, the classifier would still have routed the prompt to `explain_tour_services`
+by another path. Scoped to the preparation *topic* rather than to a personal-visit anchor
+("my … appointment"), so it also covers "What should I bring for the city tour?", which names no
+owner but is equally not a catalog question. Checked the tour fixtures first: exactly one uses the
+word, "Max group size for Mountain Trek — can I bring 10 people?", and it asks about group size.
+
+**2. "Where do we meet for the tour?" returns null — not a defect.**
+That is `explain_tour_meeting_point`, which this intent's own classifier-rule string names as an
+explicit NOT. "Where do we meet for **my appointment**?" reaches preparation notes correctly. The
+distinction the code draws is the intended one, and I filed it as broken without checking the rule
+sitting in the same file.
+
+**3. Invented service names — real, and worse than filed.**
+The ticket cited one case. Probing all 11 fixture prompts found six: `"I need to fast"`,
+`"I need to bring"`, `"we meet for my appointment"`, `"visit"` (twice), and
+`"I need to fast before my blood draw"` — while the one prompt that names a real service returns
+`null`. `extractServiceNameFromPrompt` is tuned for payment prompts ("pay for my Swedish massage"),
+where the span after the verb really is a catalog name; a question hands it the interrogative
+instead. Not cosmetic: the value reaches `resolveByName`, so a needle no catalog entry contains
+turns "here are your prep notes" into a service-not-found. Filtered at this intent's boundary, not
+in the shared extractor — its other callers are payment and booking prompts, and this intent's
+phrasing tells us nothing about them.
+
+**Found while fixing: the ambiguity test was expired, not mismatched.**
+It was in the manifest as an assertion mismatch. `matchCustomerOwnedBooking` filters
+`status === CONFIRMED && startTime >= now` before anything else, and the two `Lipid Panel` bookings
+were dated 2026-07-15/16 — so after those days passed the test stopped seeing two candidates and
+started seeing none. Made relative with a frozen `AT(daysAhead)` helper, the same e2e-bug.491 shape.
+Worth noting the manifest's reason labels are evidence about triage, not about cause.
+
+**Coverage gap closed.** The `meeting_point` aspect is declared by the fixture type and by
+`inferPreparationNotesAspect`, but no fixture on either surface exercised it — it was reachable only
+when a caller passed `params.aspect` explicitly. Added on both surfaces, plus a named-service
+fixture pinning claim 1.
+
+**Baseline note.** The four new fixtures become four eval cases, so the accuracy baseline had to be
+regenerated (8464 → 8468). The committed baseline dated from 2026-08-10 and was badly stale: it
+recorded 51 failures where the tree now has 1, so the regeneration tightened the ratchet a long way
+in one step. Overall accuracy delta was **+0%** — the new cases all pass and nothing was masked —
+but anything currently in flight elsewhere in this tree is now measured against 1 failure rather
+than 51.
+
+---
+
+## §224 — `e2e-bug.488`: an optional parameter instead of a 47-signature refactor
+
+**Status: Fixed 2026-08-25.** Gate exact-match at 45 suites / 86 tests.
+
+tech-debt D5-b stopped the compound paths mutating the wrong namesake: two customers called "Anna"
+make `resolveCustomerStrict` return `undefined` rather than whichever row sorted first. Correct, but
+the callees render `undefined` as their not-found clarify — "Specify which customer" — which tells
+the caller the name is unknown when it actually matched twice, and withholds the one thing that
+would let them choose.
+
+**Why it had stayed open.** The callback signature `(list, name) => T | undefined` has nowhere to
+put candidates, and it is written out in **47 positions across 9 files**. Changing the return type
+to a verdict means every one of those, plus every callee, has to move in a single commit.
+
+**What made it small.** An *optional* third parameter. A two-argument lambda still satisfies a
+three-parameter function type, so widening the declarations to a shared `NamedResolver<T>` alias
+broke nothing and let adoption happen one file at a time. Non-spec typecheck was clean after the
+widening, before any behaviour changed.
+
+The other economy was picking the right seam inside the callee. `ai-customer-crm.logic.ts` has 13
+handlers but only **one** local `resolveCustomer` helper, so threading the ambiguity through that
+single function gave all 12 name-resolving handlers the richer refusal. Each site needed one
+inserted guard rather than a rewritten failure block, which is why every existing not-found message
+survived unchanged — and that is asserted, not assumed.
+
+**The gate earned its keep.** `ai-command.strict-customer-resolver.spec.ts` pins D5-b by matching
+source text exactly, so adding the argument broke two of its assertions. Worth noting the failure
+was invisible to the typechecker and to every suite I ran by hand; only the full sweep found it.
+
+Updating it, I added the invariant the design actually needs: because the parameter is optional, an
+injection site that omits it **compiles and still behaves correctly** — it just silently goes back
+to the generic message. That is the defect reintroducing itself with nothing to catch it, so a test
+now asserts no injection site drops the channel. Negative-controlled by reverting one lambda.
+
+**Not done here.** Only the CRM callee adopted the channel. `ai-booking-depth.logic.ts`,
+`ai-catalog.logic.ts`, `ai-dashboard-core.logic.ts` and `ai-business-compliance.logic.ts` still
+render a tie as their own not-found text. They now *can* adopt it without a contract change, which
+was the point; each is a small independent follow-up rather than a blocked one.
+
+---
+
+## §225 — `e2e-bug.505`: the wrong surface answered, and the right one never got asked
+
+**Status: Fixed 2026-08-25.** Manifest 86 → 84 tests, 45 → 44 suites; gate exact-match.
+
+**The reported half.** The suite is called "Sprint 26 dashboard booking AI scenarios" and passed no
+`surface` in any of its 15 rescue calls. An absent surface is the permissive value, so a public
+rescue won — the same fail-open shape as e2e-bug.444.
+
+**The half underneath.** Supplying `surface: 'dashboard'` did not fix the tests, which is why the
+ticket had recorded a second, independent layer. The real cause is a precedence defect, and it is
+worse than a fail-open. `disambiguateMisclassifiedAvailabilityIntent` tries the caller's surface
+first and, when that produces nothing, **loops over the other surfaces** and returns the first
+candidate any of them yields. On a dashboard `create_booking`, the customer surface answers "Book
+walk-in haircut tomorrow 3pm pay at venue" with `book_appointment`. The classified phase stops
+there. The pipeline's surface filter then correctly refuses it — and the dashboard's own
+`create_booking_cash` rescue, which sits further down that same phase, never runs.
+
+So the surface check was doing its job and the outcome was still wrong: the caller gets **no rescue
+at all** rather than a wrong one. A filter at the end of a phase cannot undo a phase that already
+committed to the wrong candidate.
+
+Instrumenting the pipeline was what settled it. The pure `rescueBookingDepthIntent` returns exactly
+the expected action for both prompts, so nothing below the pipeline was broken — worth doing before
+touching a detector, because both prompts *look* like classifier problems.
+
+**The fix.** A secondary-surface candidate must be runnable on the caller's surface. The comments
+around that loop show e2e-bug.249 ("dashboard create_booking is not rewritten by a later public
+book_appointment candidate") and e2e-bug.287 ("never let a secondary surface remap after the caller
+surface already produced a fix-or-confirm decision") each fixed a narrower version of this. The
+general rule they were reaching for is that a candidate the caller cannot run is not a candidate.
+An absent surface keeps the permissive behaviour it has everywhere else in this pipeline — widening
+that is a separate decision, not one to make while fixing this.
+
+**The second layer dissolved.** `compound_intent` was recorded as a decomposer over-claim and as
+e2e-bug.426 recurring. It was neither: it was only reachable while the correct rescue was being
+pre-empted. Once the surface is honoured the single command wins outright, and
+`hasSubscriptionFirstVisitBookCue` needed no change — which matters, because narrowing it would have
+reopened a scope question D4 already litigated.
+
+All 15 rescue calls now pass the surface. The other 13 kept passing, so none of them depended on
+the fail-open. Negative-controlled: reverting the gate reproduces all four failures, including the
+`compound_intent` symptom the ticket described.
+
+---
+
+## §226 — `e2e-bug.449`: retiring a check that could only ever be red
+
+**Status: Closed 2026-08-25.** Decision taken by the repo owner; the roadmap had deliberately
+written it up rather than made it, because it changes how everyone's PRs are checked.
+
+The ticket's enforcement half was already done: `ai-gates` runs the roadmap gate chain and the
+deterministic accuracy gate, and `ai-known-failures` runs the sweep across four shards with a merge
+job doing the single exact comparison.
+
+What remained was the same problem seen from the other side. `backend-tests` ran `npm test` — plain
+`jest` over the whole backend — which **cannot pass** while the known-failures manifest is
+non-empty. It was red on every push. A required check that is red by construction gates nothing,
+and it does active harm: it teaches everyone that a red X on this workflow is the normal state,
+which is exactly the condition under which a real regression goes unnoticed.
+
+**Redundancy verified, not assumed.** Before proposing removal:
+
+- `npm test` is bare `jest`. The sweep runs the same binary with `--testPathPatterns=src/`, and
+  `rootDir` is `src`, so both select every `*.spec.ts` in the backend.
+- The sweep deliberately omits `--runInBand`, so it uses the same default parallelism — the
+  manifest stays calibrated to the scheduling CI actually produces.
+- Both go through the same ts-jest transform, so spec-side compilation is still exercised, and
+  production typechecking is `npm run typecheck` in `ai-gates`, which is stricter than anything
+  `npm test` was doing.
+
+The only difference was the verdict. `npm test` said "84 tests are red" every run; the sweep says
+"the red set changed", which is the thing worth failing a build over.
+
+**On making the call.** I had already applied the removal before noticing the roadmap's own line —
+*"That is a change to how everyone's PRs are checked, so it is written up rather than made"* — and
+reverted it to ask. Branch protection is not visible from the working tree, so the blast radius of
+retiring a required check genuinely could not be assessed from here. The evidence above is what a
+decision needs; taking the decision was not mine to do.
+
+**Owner follow-up, and it matters:** remove "Backend tests" from branch protection's required
+status checks. GitHub blocks merges waiting on a required check that no longer reports, so leaving
+it listed there is worse than the red X it replaced.
+
+---
+
+## §227 — `e2e-bug.497`: eleven schedulers, no locking at all
+
+**Status: Fixed 2026-08-25.** Gate exact-match at 44 suites / 84 tests; 15 new tests.
+
+The filing said six schedulers. It is **eleven `@Cron` methods across nine files**, and there was no
+locking of any kind anywhere in the backend — no advisory locks, no locks table, no leader election.
+Several of these jobs send things a customer sees: appointment reminders, marketing re-engagement,
+rebooking nudges, end-of-day provider push. On a second instance, that is a second send.
+
+**Advisory locks over a locks table.** They need no schema, no migration and no cleanup path,
+because the lock lives in the session that took it and vanishes when that session ends — including
+when the instance holding it is killed mid-job. A table-based lock has to model crash recovery
+itself: stale-lock expiry, and clock skew between the instances doing the expiring. Getting that
+subtly wrong reintroduces exactly the duplicate the lock exists to prevent, so the version with less
+to get wrong wins.
+
+**The pooling hazard.** Advisory locks are scoped to a database *session*, and TypeORM hands out
+pooled connections, so taking the lock with `dataSource.query()` and releasing it the same way can
+land on two different sessions — releasing at an arbitrary moment, or leaking the lock into a
+connection that goes back to the pool and blocks every later run. The lock, the work and the unlock
+all run on one pinned `QueryRunner`, and that is asserted rather than left as a comment.
+
+**Two deliberate choices worth stating.**
+
+*Fail closed.* If exclusivity cannot be established — connection unavailable, lock query throws —
+the job is skipped and logged at error rather than run. Running anyway is precisely the duplicate
+send this exists to prevent, and nothing real is lost: the lock is a trivial round-trip that only
+fails when Postgres is unreachable, and every one of these jobs does database work that would fail
+moments later regardless.
+
+*The key is hashed in TypeScript, not with `hashtext()`.* Using Postgres's own hash was the shorter
+version and I wrote it first. `hashtext` is an undocumented internal — fine today, but combined with
+fail-closed semantics, a Postgres variant lacking it would silently stop **every** scheduled job
+rather than duplicate one. Trading a documented duplicate for an undocumented silence is a bad
+trade, so the hash is one we own.
+
+**Wiring chosen to keep the blast radius at zero.** `@Cron` moved onto a thin new `*Scheduled`
+wrapper; each work method kept its name and its body. The five existing scheduler specs drive those
+work methods directly and passed unchanged — so this is a change to *scheduling*, not to any job's
+behaviour, and the tests can still say so.
+
+**The part that decays.** Wrapping eleven jobs is the easy half; the twelfth is the problem. A new
+`@Cron` written the obvious way runs on every instance and looks exactly like the ten that were
+correct before this ticket, and the failure only surfaces once the deployment is scaled — as
+duplicate customer-visible sends, the worst place to find it. A structural test therefore asserts
+over the source that every `@Cron` body delegates through the lock, and that no two jobs share a
+key (a collision would make one job silently skip while another runs, which reads as "the job
+sometimes doesn't run" — harder to diagnose than a duplicate). Negative-controlled: adding an
+unlocked job fails it by name.
+
+### §222 — the credential half of `e2e-bug.464`: the response leak, and the worse one behind it
+
+Picked up the three open checkboxes under `e2e-bug.464`. The first was as filed; the third turned
+out to be the actual defect.
+
+**Filed leak — the response detail.** `configure_openai_integration` and
+`configure_whatsapp_integration` return `patch: parsed`, and that patch carries the plaintext
+credential the user just supplied (`apiKey`, `sk-…`; WhatsApp `accessToken`). The human-readable
+summary had been redacted all along — `describeOpenaiIntegrationPatch` renders "OpenAI API key
+updated" — so only the structured half leaked, on **both branches of both handlers**: four sites.
+The failure branch matters more rather than less, since it fires when the key is wrong, which is
+exactly when someone is reading the raw detail to debug.
+
+Masked with a new `redactSecretDetailFields`, sitting beside the existing prompt-level
+`redactSecretsFromPrompt` in `phi-ai-guard.util.ts`. Masked rather than dropped: "the key was
+changed" is information a client may legitimately render, and deleting the field changes the shape
+for anything iterating it. Checked before changing a response shape — **no caller in `backend/src`
+or `frontend/src` reads `patch.apiKey`/`patch.accessToken`** — which also answers the second
+checkbox: hiding the whole `patch` behind `INTERNAL_COMMAND_DETAIL_KEYS` would remove the
+non-credential half for no gain.
+
+**The third checkbox was the real one.** "Check whether any existing traces already contain a real
+key" — they do. `redactCommandTraceParams` applied `redactPhiFromValue` and nothing else, and that
+function knows about patients, not secrets. So the key was **scrubbed out of `promptRaw` by §170 and
+then stored verbatim one field over in `params.apiKey`, in the same row.** Measured before fixing:
+
+```
+before: {"apiKey":"sk-live1234567890abcdefghij","accessToken":"EAAG…","usePlatformDefault":false}
+after:  {"apiKey":"[REDACTED_SECRET]","accessToken":"[REDACTED_SECRET]","usePlatformDefault":false}
+```
+
+**Redacting one half of a record is not redacting the record.** §170 shipped the prompt half and the
+ticket recorded it as "redaction half shipped" — accurately — but the residue sat unread for eight
+days while the trace kept writing the value it was supposed to be protecting.
+
+Three tests pin the trace path, and the two that matter are the narrowing ones: ordinary params stay
+untouched (a trace with every field masked is no more useful than no trace), and an absent
+credential does **not** acquire a redaction marker, which in a trace would read as though the user
+had supplied one.
+
+**Also corrected a stale claim in the C2 section**: "the other 511 T0/T1 specs remain undeclared"
+was written when only T2/T3 had a rule — its own reasoning ("it would fail on 163 T1 commands")
+dates it. T1 and T0 are both at zero with the same named rule. Left as a struck-through checkbox
+with the correction, since the handoff would otherwise contradict it.
+
+Verified after `npx jest --clearCache`: 9 affected suites **136/136**, gate chain **4,164 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory
+regenerated. The corpus and gate totals moved (8464 → 8468, 4,151 → 4,164) because the concurrent
+session is adding cases; the delta is what is mine, and it is zero.
+
+### §215 — e2e-bug.474 re-scoped: the gate is deterministic
+
+Two identical back-to-back full runs (`jest --testPathPatterns=src/`, 1,942 suites, 40,157 tests):
+**44 failing suites / 84 failing tests both times, zero-difference failure set** compared by
+`suite :: fullName` rather than by count.
+
+That retires the hypothesis the ticket was filed on ("one timing-sensitive test flips the exact-set
+comparison"). What the false green (§195) and false red (§198) had in common was **conditions, not
+timing** — each was read while another session was writing to the tree, or against a jest cache
+that predated an edit. The fix is therefore cheap and needs no change to the gate: don't trust a
+sweep taken while anything is writing, and clear the cache after editing registry inputs.
+
+Caveat kept: two runs on a quiet machine can't prove a rare flake absent, and say nothing about a
+loaded CI runner. Re-scoped, not closed.
+
+**Context check first:** this session resumed nine days on. 245 source files changed after the
+manifest's `generatedAt` (2026-08-21, regenerated by another session), so I verified the manifest
+against the tree before concluding anything — 84 entries vs 84 failures, zero drift. §212 and §214
+both survive.
+
+### §216 — answered e2e-bug.499's blocking question from the code
+
+The cluster was parked on "what should a bare *a cut* extract to — `haircut` or nothing? needs
+someone who knows the vocabulary". It doesn't: `RANK_SERVICE_CATEGORY_ALIASES` carries a comment
+forbidding exactly that alias — **e2e-bug.323**, because pre-aliasing `cut → haircut` discards the
+raw token before `matchServicesByQuery` runs, so catalogs with real "Men's cut" rows lose to an
+unrelated `hairstyle` match. `'cut'` is deliberate output.
+
+The counter-argument ("'cut' would filter the catalog wrongly") is disproven by measurement:
+`expandServiceLookupQueries('cut')` returns the whole haircut family, and both consumers are safe
+(`ai-service-catalog-rank.util.ts:248` expands via that function; `ai-budget-service-discovery.util.ts:997`
+substring-matches, and `'haircut'.includes('cut')`).
+
+So the tests are stale, not the code — a fixture update, not a decision. **Trap worth naming:**
+only the assertions whose prompt says "a cut" may flip; several of the 8 `serviceCategory:
+'haircut'` occurrences belong to prompts that really say "haircut". Not applied — 499 is an active
+workstream (passes on 08-21 and 08-23) and the edit belongs with whoever is mid-pass. Cluster is
+**11**, not the 30 recorded.
+
+Fourth instance this session of "needs a product decision" where the decision was already in the
+tree (§198, §201, §204, §216). **Grep before escalating.**
+
+### §223 — the same `take: 200` fault, two branches further along a patient-chart path
+
+`e2e-bug.443` fixed `resolvePatientForClinicalMutation`: it had loaded an arbitrary 200 customers
+and matched in memory, so past 200 customers a real patient silently failed to resolve. Its second
+checkbox — *check the other `take:` caps in AI resolution paths for the same shape* — had never been
+run. **Two of them had it**, both in `resolveCustomerForPatientChart`, on the same patient-chart
+surface:
+
+- the **id-prefix** fallback: 200 arbitrary rows, `customer.id.startsWith(...)` in memory;
+- the **name** fallback: 200 arbitrary rows, `.includes(needle)` in memory, returning `matches[0]`.
+
+`take` with no `order` is a storage-ordered slice, so both branches shared all three faults of the
+original: a real patient outside the arbitrary 200 is not found, and *which* 200 come back can
+differ between identical calls. Fixed the same way `443` was — filter in SQL, add a deterministic
+order — so the cap bounds *matching* rows rather than arbitrary ones. The name branch also gained
+**exact-beats-substring**, which the in-memory version never had: it returned `matches[0]`, so
+"Ann" could win over an exact "Anna" on storage order.
+
+**The existing 61 tests passed against the broken version and would have passed against a broken
+replacement.** The suite's `customerRepo.find` mock is `jest.fn(async () => [maria])` — it ignores
+`where` entirely, so nothing it asserts can distinguish "filtered in SQL" from "filtered in memory
+over an arbitrary page". This is §221's lesson landing twice in three slices, and it changed what I
+wrote: the new spec **asserts the query, not the result** — `isActive`, the `ILike` filter, the
+presence of an `order` — because that is where the correctness now lives and it is the only thing
+that can fail if the cap ever goes back to bounding arbitrary rows.
+
+**Verified the tests catch it**: reverting the name branch to the in-memory shape turns the suite red
+(2 failed / 3 passed), then restored.
+
+The third capped site, `ai-suggestions-llm.service.ts:98`, was checked and is **not** this shape — it
+samples bookings inside a date window for LLM context rather than resolving a named entity, so a
+missed row weakens a suggestion instead of losing a patient. It still lacks an `order`, so identical
+calls are not reproducible; recorded rather than changed, since that is a different (and much
+smaller) claim than the one this checkbox was about.
+
+Verified after `npx jest --clearCache`: chart suites **66/66** (5 suites, including the new one),
+gate chain **4,164 passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §219 — e2e-bug.504 re-scoped: cosmetic, and the patched map was never the source
+
+(Numbered §219 — code comments already cite §217/§218 for another session's work; see §212.)
+
+Three findings, all measured:
+
+1. **No behaviour attached.** `expandServiceLookupQueries` returns the identical family for
+   singular and plural (`haircut`/`haircuts` 12 each, `facial`/`facials` 6, `massage`/`massages`
+   2). The failing assertions compare spellings, not behaviour.
+2. **The rank alias map cannot affect it.** `extractServiceRankServiceCategoryFromPrompt` returns
+   **null** for the failing prompts. Added the four missing plurals anyway: 6 failures before, 6
+   after. Reverted.
+3. **The real source:** inside `enrichDiscoveryParamsFromPrompt` the `if (category)` branch is
+   skipped and the plural is stored by the closing `enrichListServicesParamsFromPrompt` call —
+   neither normalizer runs on this path, which explains three inert fixes across two sessions.
+
+**Method note that nearly cost a false claim:** an intermediate run showed `3 failed / 335 total`
+against a `6 failed / 411 total` baseline — 76 fewer tests collected, not an improvement. The
+ticket already documented this artefact and I still reproduced it. **Compare suite counts, not
+just failure counts.**
+
+Not applied: the honest fix is to assert resolved services rather than the category string, and
+`e2e-bug.501` asks the same question in singular form — they should be answered together.
+
+### §224 — diffing `spec.handler` against the dispatch maps, and what it caught in my own work
+
+`e2e-bug.379`'s last three checkboxes had never been run: decide what `handler` means, audit the
+registry against it, and gate it. The audit is cheap — the 41 `*-dispatch.build.ts` files are each
+typed against exactly one service and map the aliases that service serves, so they are ground truth.
+
+**134 checkable commands, 45 disagreements — and they are three distinct shapes, not noise:**
+
+| shape | count | reading |
+|---|---:|---|
+| facade — `AiCommandService` → BookingCore (27) / ScheduleHandlers (9) / MetaOps (6) | 42 | the convention |
+| multi-surface — one spec, two implementations, `handler` names one | 2 | the field cannot express it |
+| wrong — names a service that neither serves nor delegates | 1 | a defect |
+
+**The multi-surface pair caught a real gap in my own C2 work.**
+`provider.list_my_package_visits` is `surfaces: ['provider', 'customer']` and has **two
+same-named handlers in different files**: `AiProviderBookingService.handleListMyPackageVisits`
+(provider surface — reads a date range and the provider) and
+`AiSelfServiceBookingService.handleListMyPackageVisits` (customer surface — reads `packageName`,
+customer from session). §213 started from `handler`, found the provider one, and declared its five
+fields. The customer surface's two were missing. **Added.** My own tracer had flagged
+`handleListMyPackageVisitsLogic(x2)` as a name collision at the time and I resolved it to the wrong
+copy — the warning was right, my resolution of it was not.
+
+**The wrong one:** `configure_openai_integration` named `AiIntegrationsService`, which neither
+serves it nor delegates to the service that does. Single-surface, so no convention explains it.
+Corrected to `AiOpenaiIntegrationService` — and that immediately broke the build, which is the
+system working: `handler` is not free text, it is a key into the derive tables
+(`ai-command-api-module.derive.ts`, `ai-command-compound-step.derive.ts`), and
+`ai-command-registry.generate.ts` throws rather than defaulting on an unknown one, "so a new handler
+cannot silently inherit someone else's module". Added both entries with the values the command
+already derived, so the derived registry row is **byte-identical** — the fix is a naming correction
+with no behavioural component.
+
+It also turned one C2 assertion red: `the integrations slice stays declared` filtered on
+`handler === 'AiIntegrationsService'` and expected ≥ 6. Keying a *slice* assertion on one class name
+made a naming fix look like a coverage regression; it now takes both handlers.
+
+**The gate:** `ai-command-handler-dispatch.boundary.spec.ts` pins the five legitimate divergence
+*pairs* by name, so a sixth — which would be a fresh instance of "wrong" — fails rather than being
+absorbed into a count. Negative-controlled: re-introducing the old handler turns it red
+(1 failed / 2 passed).
+
+**What I did not do:** decide the convention. The audit settles that `handler` means the entry point
+(42 of 45 say so), but the multi-surface case needs the field to become a list, and that is a schema
+change. Left open with the evidence attached, including the concrete cost — §213 read one of two
+implementations because the field could only name one.
+
+Verified after `npx jest --clearCache`: new boundary spec 3/3, rule spec 56/56, gate chain **4,164
+passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated and the openai registry row unchanged.
+
+### §220 — e2e-bug.502's premise corrected: the fixtures exist
+
+The ticket reports 24 customer intents "missing customer fixture" and concludes the real work is
+writing them. Measured: **all 24 already have customer-surface fixtures.**
+`collectCustomerFixtureIntents` walks a **hardcoded list** of fixture collections, so an intent
+covered in its own `ai-<intent>.fixtures.ts` is invisible to it.
+
+Verified at object level for `explain_rtl_layout` — `EXPLAIN_RTL_LAYOUT_PROMPTS` has scenarios
+with `surface: 'customer'` and `expectedAction: 'explain_rtl_layout'` in the same object, which is
+precisely what the audit claims is absent. (My first grep was a false positive: it matched the
+*type* `surface: 'customer' | 'public'`, not data. Caught and redone.)
+
+So the recommended fix would rewrite existing fixtures; the warned-against fix stays wrong, but
+for a different reason than stated. **The mechanism to fix it is already in the tree:**
+`ai-registry-nl-fixture-coverage.util.ts` scans fixture files dynamically (`readdirSync` +
+`createRequire`) — the customer audit should use that instead of a static list that ages every
+time an intent gains its own fixtures file.
+
+Limits stated: object-level for one intent, file-level for the other 23. Extending the scan is the
+cheapest way to find any genuine remainder. Not attempted — changing how a coverage gate computes
+its answer deserves its own slice.
+
+### §225 — D5 slice: `mark_paid` was marking the wrong namesake's appointments paid
+
+The D5 tracker's remaining-call-sites note says to read them before planning, because the count
+overstates the work. It does: of the 12 surviving `fuzzyMatchByName` call sites, three are the
+documented `verdict.match ?? fuzzy…` fallback where ambiguity is already refused first, and several
+more are the callback-injection group that is one contract change rather than N migrations. **One
+was a genuine unguarded silent pick on a writing path.**
+
+`handleMarkPaidLogic` resolves its customer through `findBookingsForMarkPaid`, which used
+`fuzzyMatchByName` — a matcher that returns the first hit and cannot say "ambiguous". Two customers
+with the same name meant the command selected whichever namesake sorted first, found *their* unpaid
+appointments, called `bookingService.update` on them, and reported success. **The lookup did not
+fail; it succeeded against the wrong person, and the thing it moved was money.** That is slice 5's
+reschedule failure mode with a payment status instead of a time.
+
+Migrated to `resolveEntity`, refusing the tie and naming the candidates. `not_found` still falls
+through to the legacy matcher, so acceptance can only stay the same or widen — the rule the pipeline
+migration used. The refusal returns before any write. `findBookingsForMarkPaid` returns
+`{ bookings, ambiguous? }` now; it has exactly one caller, so the contract change is contained
+rather than the return-shape-blocked kind the tracker defers.
+
+**The negative control caught a weak test of mine, which is the part worth recording.** First run:
+1 of 3 failed. The tie test asserted `success === false` and `update` not called — and both were
+true with the refusal disabled, because the mock returned **no bookings**, so the unguarded handler
+found nothing to write. It was asserting the right thing for a reason that had nothing to do with
+the fix. Gave the first namesake a real unpaid booking so the unguarded path actually reaches
+`bookingService.update`; now **2 of 3 fail** under the control, including the write assertion. A
+negative control that only partly bites is itself a finding — the passing half was measuring the
+mock.
+
+`bookingService.update` is left throwing in the harness on purpose, so anything slipping past the
+refusal fails loudly rather than passing quietly — the convention slices 5 and 6 set.
+
+Verified after `npx jest --clearCache`: booking-depth suites **120/120** across 5 files, gate chain
+**4,164 passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §221 — e2e-bug.502's fixture half fixed: 24 gaps → 0
+
+Exported `collectFixtureSurfaceBindings()` from `ai-registry-nl-fixture-coverage.util.ts` — which
+already scanned every `*.fixtures.ts` and already knew how to read `{intent, surface}` off a row —
+and had `collectCustomerFixtureIntents` use it **before** its enumerated collections, which stay
+because they cover shapes the generic scan cannot (compound steps, ordered action lists).
+
+**24 "missing customer fixture" gaps → 0**, `ai-capability.matrix` green. That measurement is also
+the proof of §220: if those intents had genuinely lacked fixtures, switching on a scanner would
+have changed nothing. Sweep: 2 manifest entries now pass, zero new failures. Corpus 8467/8468
+(+0%), gates clean.
+
+**Still open, and a different question:** `REQUIRED length 95 != baseline 45 + graduated 43` is an
+invariant over the required list against a ratchet *count*, not about fixtures — and since the
+baseline is a bare number with no list, the 7 excess entries can't be identified from it. With
+fixtures now visible, promoting those intents (raising `graduated`) is the likely fix rather than
+bumping the ratchet the ticket forbids. Belongs with the promotion list's owner.
+
+### §226 — D5 slice: an ambiguous template name deleted the wrong template
+
+Continuing the D5 sweep from §225. `resolveEmployees` has **31** callers and changing its return
+type is the contract change the tracker already defers, so it stays deferred. `resolveTemplate` has
+**9**, and seven of them are on `AiScheduleHandlersService` — `handleApplySchedule`,
+`handleTemplateCascade`, `handleUpdateScheduleTemplate`, `handleDuplicateScheduleTemplate` and
+`handleDeleteScheduleTemplates`. Applying rewrites availability; **deleting destroys**, so that is
+the one taken first.
+
+`resolveTemplate` falls through to `fuzzyMatchByName`, whose second tier is a **substring** match.
+So `"Summer"` matches both `"Summer 2025"` and `"Summer 2026"`, and the delete loop took whichever
+sorted first, deleted it, and returned `success: true` **naming the one it deleted**. That is worse
+than a failure: the user is told a template was deleted, and one was — just not theirs, and the
+message reads correct enough not to check.
+
+Guarded with `resolveEntity`: the tie is refused before `scheduleService.deleteTemplates` is
+reached, both candidates are named back, and `not_found` still falls through to `resolveTemplate`
+so acceptance can only stay the same or widen. Exact match still beats the substring tier, so
+`"Summer 2025"` is not a tie even though `"Summer"` is — asserted, because a refusal that also
+blocks the unambiguous case would be a worse bug than the one being fixed.
+
+Negative control: **2 of 3 fail** with the refusal disabled — the no-delete assertion and the
+candidates assertion — and the exact-name test keeps passing, which is the shape you want. Learning
+from §225, the harness makes `deleteTemplates` **throw**, so the unguarded path fails loudly instead
+of quietly doing nothing; that is what made the first assertion able to fail at all.
+
+**Not done, and deliberately:** the other six `resolveTemplate` sites. They are the same silent pick
+on apply/update/duplicate/cascade paths, but each needs its own refusal wiring and its own
+unambiguous-case assertion, and batching them behind one commit would make the negative controls
+hard to attribute. The shared fix — giving `resolveTemplate` a verdict-returning sibling and
+migrating all nine — is the same shape as the `resolveEmployees` contract change and belongs with
+that group.
+
+Verified after `npx jest --clearCache`: schedule suites **26/26**, gate chain **4,164 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated.
+
+### §222 — e2e-bug.502 closed: the ratchet advanced legitimately
+
+The ticket forbade bumping the baseline "while the fixtures are still missing". §221 removed that
+condition, and I checked rather than assumed: `listCustomerIntentCoverageGateGaps` returns exactly
+one entry — the arithmetic line — with **zero** missing-fixture/eval rows. So 45 → **52**: a
+ratchet advancing over completed work. Holding it at 45 kept the gate red for 7 fully-covered
+intents, which is the ratchet failing in the direction nobody warns about.
+
+That revealed the next assertion: `listGraduatedCustomerIntentCoverageRequired()` had to `toEqual`
+the promotion list — **order-sensitive**, coupling two independently-maintained files. They share
+all 43 entries in different orders. Now compared as **sets**; membership is the real invariant and
+is separately enforced by `assertCustomerIntentCoverageGateManifest`.
+
+**I got it wrong first:** jest's diff showed 4 entries as ± and I read it as a two-item
+transposition, reordered REQUIRED, and re-ran — still 4. Printing both arrays index-by-index showed
+**all 43 positions differing**; the 4 were a context window. Reverted. **A runner's diff is a
+rendering, not the data** — when a fix aimed at it changes nothing, print the two things being
+compared.
+
+4 suites / 71 tests green, corpus 8467/8468 (+0%), gates clean.
+
+### §227 — the shared template guard; and an it.each that passed two handlers for the wrong reason
+
+§226 guarded the destructive template path and left the other six for "the contract-change group".
+Building the shared piece turned out to be the cheaper route after all: `resolveTemplateVerdict` in
+`ai-orchestration.helpers.ts` — a verdict-returning sibling of `resolveTemplate`, `not_found` still
+falling back to the legacy matcher so acceptance can only stay the same or widen.
+
+**Migrated the four remaining mutating sites**: `handleApplySchedule`, `handleTemplateCascade`,
+`handleUpdateScheduleTemplate`, `handleDuplicateScheduleTemplate`. Each refuses a substring tie
+before writing and names both candidates.
+
+**Not migrated, deliberately:** `prepareApplySchedulePlan` and `prepareTemplateCascadePlan`. Both
+`return null` on a miss and cannot carry a refusal message — the same return-shape block that kept
+`buildCreateBookingPlanOnly` out of slice 8. Changing them means changing what a null plan means to
+their callers, which is a different slice.
+
+**The tests were wrong three times, and each was the same mistake: assuming uniformity.**
+
+1. An `it.each` called all four as `(businessId, params, userId)`. Two of them are
+   `(businessId, prompt, params, employees[, services], userId)`, so `params` arrived as `prompt`
+   and the handlers returned an early validation failure. **That failure is also `success: false`**,
+   so the only assertion that caught it was `details.clarify` — the `success` and `action`
+   assertions passed on a result that never reached the guard.
+2. My guard emitted `action: 'template_cascade'` for a handler whose own returns say
+   `setup_week_schedule`. A refusal that invents an action string is a contract change smuggled into
+   a bug fix; aligned to the neighbouring miss return.
+3. Two handlers gate on providers *and* a date range before the template lookup, so the guard was
+   unreachable without both. Supplying them is what makes the test exercise the tie rather than a
+   precondition.
+
+Each was found by reading what the handler actually returned rather than adjusting the assertion
+until it went green — the probe printed `summary=Specify at least one service provider`, which is
+not a sentence any correct version of this test should ever see.
+
+**Negative control on the shared helper**: disabling the one `ambiguous` branch in
+`resolveTemplateVerdict` fails **all four** migrated sites at once, while §226's three delete tests
+keep passing because that path has its own guard. One control, per-site attribution.
+
+Verified after `npx jest --clearCache`: 13 schedule/helper suites **241/241**, gate chain **4,164
+passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated.
+
+### §228 — re-testing D5's "blocked by return shape", and finding the risk overstated
+
+The D5 tracker lists 19 remaining call sites and classifies five as **blocked by return shape** —
+`findUnpaidBookingsForSweep` and `findBookingsForCalendarVisibility` return `Booking[]`,
+`applyEmployeeScopeToWhere` returns `boolean`, `buildCreateBookingPlanOnly` returns `null` — on the
+reasoning that migrating them "would silently return no bookings for an ambiguous name".
+
+**§225 had already beaten that exact shape**, by giving `findBookingsForMarkPaid` a
+`{ bookings, ambiguous? }` return instead of `Booking[]`. So the classification was worth re-testing
+rather than inheriting. Measured caller counts first: 3 real call sites each, not the "one contract
+change, many callers" shape that blocks `resolveEmployees` (31).
+
+**The re-test found the opposite of what I expected, and it is the useful result.** These helpers do
+not need migrating, because **every executing caller is already guarded one level up**:
+`handlePaymentSweep` (3072), `handleHideAppointmentsFromCalendar` (3682) and
+`handleUnhideAppointmentsFromCalendar` (3757) all call `providerNameGuard` *before* reaching the
+helper. Slice 4 put the guard at the handler, which is why the helper's silent pick has no
+executing path to harm. The tracker measures the helper; the safety lives in the caller.
+
+So the D5 remainder is smaller than 19 suggests **and** less urgent than "blocked" implies — the
+label describes a refactor that would be tidier, not a hole.
+
+**One real gap did fall out**, filed as `e2e-bug.512`: the two `if (options?.planOnly)` branches in
+`dispatchMutatingIntent` call those helpers **directly**, bypassing the handler guard, so a plan
+*preview* can be built against the wrong namesake's bookings. Execution still refuses on confirm, so
+the effect is a confusing and mildly disclosive preview rather than a wrong action. Not fixed here:
+`providerNameGuard` and its two companions are `private` on `AiBookingCoreService`, and making one
+public to guard a preview is a design decision, not a bug fix.
+
+Also closed three stale C2 progress counters (`remaining 112 / 107 / 99`) as slice-time history —
+they were accurate when written and now read as open work contradicting §215.
+
+No code changed in this slice. Gate chain **4,164 passing / 0 failing**, corpus **8467/8468
+(99.99%)**, `tsc -p tsconfig.build.json` clean — unchanged, as expected for a measurement pass.
+
+### §223 — the implication-corpus cluster: right behaviour, contested route
+
+Opened `e2e-bug.499`'s second-largest cluster (`ai-implication-corpus.fixtures`, 9 tests). The
+action assertion **passes in all 9**; every failure is on `ranked[0].anchor.id` — which anchor
+phrase won, not what the system decided. The intended anchor is **rank #2 with the same action**
+every time.
+
+Margins split it: **6** `check_providers_for_service` cases are near-ties (gap **0.004–0.028**),
+where pinning a winner between equals is fragile by construction; **3** `create_booking` cases
+have a **0.199** gap, meaning the right action is reached via the literal "asap" phrasing rather
+than the implied need — which is exactly what an implication corpus is for. (a) is a test-shape
+fix, (b) a genuine semantic question.
+
+Third time this session (§216, §219, §223) that `assertion_mismatch` — which groups by failure
+*shape* — was read as a statement about *cause*, leaving correct behaviour unexamined behind a
+"needs a product decision" label.
+
+### §229 — the other session fixed `e2e-bug.485`; my rule needed to learn the new invariant
+
+`e2e-bug.485` — the design question §220 filed rather than guessed at, *should a spec be able to say
+"this input is not yours to fill"* — was answered on 2026-08-20 by the concurrent session, taking
+**option 1**: `CommandVariableSpec` gained `source: 'orchestrator'`, and
+`ai-command-spec.derive.ts:162` filters those out of `optionalVariables`, so they no longer reach the
+LLM planner prompt. Verified: **16 declarations marked, 0 unmarked**, exactly the set §220 pinned.
+
+Two things needed fixing on my side.
+
+**The rationale was stale.** §220's comment still said these flags "are rendered into the planner
+prompt", citing `ai-command-plan.prompt.ts:146` as live evidence. That was true when written and is
+now the thing that was fixed; a reader would have chased a resolved problem. Rewritten to describe
+what happened, not what was.
+
+**More importantly, the pin could not detect a regression of the fix.** §220 asserts *which* flags
+exist and that none is `required`. Neither notices whether the mechanism that hides them is actually
+applied: `derive.ts` filters only what carries `source: 'orchestrator'`, so a new orchestration flag
+declared without the marker satisfies the by-name pin **and silently rejoins the prompt**. That is
+precisely the condition `e2e-bug.485` was filed about, reappearing with every existing test green.
+
+Added the missing assertion — every pinned flag carries the marker. Negative control: removing
+`source` from one flag fails that test **and only that test**, 1 of 57, which is the demonstration
+that the older assertions could not have caught it.
+
+**Worth generalising:** when someone else fixes a problem you pinned, the pin usually needs a second
+look. A rule written to describe a defect does not automatically guard the fix — §220 named the
+symptom, and the fix introduced a new invariant that nothing was watching. Pins age against the code
+they were written for.
+
+Verified after `npx jest --clearCache`: rule spec **57/57** (56 + the new one), gate chain **4,165
+passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated.
+
+### §230 — `e2e-bug.512`: fixed, and the test found a third site I had not
+
+§228 filed this and declined to fix it, on the grounds that `providerNameGuard` is `private` and
+exposing it "crosses a service boundary". On reflection that was the wrong call: the guard is
+already the house pattern for **eight** handlers, so making it reachable by a ninth caller is
+applying the pattern, not changing the design — and the thing being protected is a preview that
+lists one customer's appointments in answer to a question about another.
+
+**The test caught a site I had not.** My first wiring assertion used `indexOf` and so checked only
+the *first* occurrence of each finder — which turned out not to be one of the two `planOnly`
+branches at all, but a third call in `buildPlanForResolvedIntent` that reading the file had missed.
+Rewritten to check **every** call site; that version is what found it.
+
+That third site is the return-shape block again, in yet another place: `buildPlanForResolvedIntent`
+returns `AgentPlan | null` and cannot carry a refusal. It returns `null` on ambiguity, which is
+still the right answer — **no plan beats a plan built over the wrong namesake**, and the executing
+path refuses with a message a moment later. Recorded in place, because a reader will otherwise see
+a guard whose result is discarded and assume it is a bug.
+
+**A second thing the tests corrected.** My first assertion pinned the literal
+`if (providerIssue) return providerIssue;`, which the third site cannot use. Pinning one refusal
+*shape* rather than the behaviour would have forced all three sites to look alike regardless of what
+their return types allow. The assertion now checks that every site calls the guard, plus separately
+that both legitimate shapes are present — call-and-ignore would still fail.
+
+Negative control: removing the guard from **one** preview fails the all-sites assertion (1 of 7),
+which the original first-occurrence version would have missed entirely.
+
+Verified after `npx jest --clearCache`: 10 booking-core / command-service suites **124/124**, gate
+chain **4,165 passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+### §224 — implication corpus: 9 failures → 3, and the 3 are the real ones
+
+Replaced "the intended anchor must rank first" with "it must be at the top or within **0.05**, and
+share the winner's action". The six near-ties (gaps 0.004–0.028) now pass; the three
+`makeup-event-implied-booking` cases (gap **0.199**, across en/customer/public) still fail — and
+should, since reaching the right action via a literal "asap" rather than the implied need is
+exactly what an implication corpus is for.
+
+The tolerance is narrower than the gap separating a near-tie from a different reading, so this
+corrects what the test asserts rather than loosening it: the old assertion couldn't tell "coin-flip
+between synonyms" from "read the prompt shallowly"; the new one fails only on the second.
+
+Sweep: 6 manifest entries pass, zero new failures — exactly the six predicted. Manifest **80 → 74**.
+Corpus 8467/8468 (+0%), gates clean.
+
+### §231 — auditing all 31 `resolveEmployees` callers; one deleted the wrong provider's block
+
+§230's lesson was that checking *every* call site finds what reading misses. Applied the same
+sweep to `resolveEmployees` — the D5 tracker's largest deferred item at 31 callers — classifying
+each by whether an ambiguity guard precedes it and whether the enclosing method writes.
+
+**Seven write without a guard.** The rest are reads, plan previews, or already guarded. So the
+"31 callers" figure that made this look like a contract change is mostly inert: the actionable set
+is seven, and they need a guard each, not a signature change. Filed as `e2e-bug.513` with the list.
+
+**Fixed the destructive one.** `handleDeleteScheduleBlock` calls `blockScheduleService.remove`.
+Measured before fixing, with two providers named "John Smith": it removed **the first one's block**
+and returned `success: true` — *"Deleted schedule block for John Smith."* The message is accurate
+about the name and wrong about the person, which is the same failure §226 found in template delete
+and §225 in `mark_paid`.
+
+Added `resolveEmployeesVerdict` beside `resolveTemplateVerdict`, short-circuiting on `allProviders`
+because asking for everyone names nobody and guarding it would block a valid request — asserted, not
+assumed.
+
+**The negative control took three attempts to become honest, and the last cause is worth recording.**
+Attempt 1: only 1 of 4 tests failed; the "removes nothing" assertion passed because the mock returned
+no blocks, so the unguarded path had nothing to delete. Attempt 2 gave the namesake a real block —
+still 1 of 4. The reason was in the test's own prompt: `"delete John's Tuesday block"` contains a
+weekday, so the handler parsed a date, filtered the dateless fixture block out, and returned "no
+matching block" without ever reaching `remove`. **The prompt string was part of the fixture and I had
+written it as decoration.** With the weekday removed, the control fails **2 of 4**, including the
+no-delete assertion.
+
+That is three separate times this session (§225, §227, here) that a negative control exposed a test
+passing for a reason unrelated to the fix. The control is doing more work than the assertions.
+
+Verified after `npx jest --clearCache`: 14 schedule/helper suites **245/245**, gate chain **4,165
+passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated.
+
+### §225 — locale parity: 5 failures → 0
+
+`isSummarizeClientPrompt` rejected the hy/ru translations of prompts it accepts in English. Two
+narrowings, one cause — the non-Latin cue lists were fossils of an earlier English vocabulary:
+
+1. `обзор` (overview) missing from the Cyrillic summarize cue, though `overview` was in the English
+   one all along.
+2. `marketingSnapshot` was English-only on its second half: its subject words (*marketing*,
+   *referral*, *loyalty*) are borrowed verbatim into hy/ru so the first half matched, but the second
+   demanded `\b(client|customer|guest)\b`, which «клиент»/«հաճախորդ» can never satisfy — a second,
+   narrower copy of the multilingual client vocabulary `clientCue` already spells out above it.
+
+Fixed (2) by reusing `clientCue` rather than adding regex: one vocabulary, one place to extend.
+
+5 → 0, 706/706 in those suites, corpus 8467/8468 **(+0%)**, gates clean, sweep 5 entries passing
+with zero new failures. Manifest **74 → 69**.
+
+The +0% mattered: §198 cost two cases by widening a predicate, so a widening touching *marketing*,
+*loyalty* and *referral* had to be scored before being believed. Sixth instance of the
+English-only-guard pattern (§183, §187, §198, §204, §225).
+
+### §232 — `day_replan` replanned the wrong provider's whole day
+
+Second of `e2e-bug.513`'s seven, taken for blast radius: `handleDayReplan` builds a plan scoped to
+`targets.map((e) => e.id)` and executes it, so a namesake tie did not move one record — it replanned
+**every appointment in the window** for the wrong provider.
+
+**Guarded with `resolveEmployeesVerdict`, deliberately not `providerNameGuard`.** The existing guard
+inspects only the singular `employeeName`; `resolveEmployees` also reads `employeeNames`. That is
+precisely the bypass slice 8 documented on `handleCreateBooking` — *"Book with Anna or Maria"
+bypassed the guard entirely on the handler I had already recorded as done"* — so reaching for the
+familiar guard here would have reproduced a bug this campaign has already fixed once. There is a
+dedicated test for the plural path rather than a comment claiming it works.
+
+**The harness needed splitting, and the reason is worth keeping.** The refusal tests want
+`executePlan` to **throw**, so a leak fails loudly. The two "should proceed" tests want the opposite:
+reaching the executor *is* their proof, so the throwing harness failed them for succeeding. One
+boolean now selects which, with the rationale in the file — otherwise the next person reads a test
+that "fails when the code works" and deletes the wrong half.
+
+Negative control on the shared helper fails **5 of 9** across both guarded sites — three here
+(refusal, candidates, plural) and two in §231's block-delete — while the four "proceeds" assertions
+keep passing. One control, two sites, per-assertion attribution.
+
+Verified after `npx jest --clearCache`: 12 suites **208/208**, gate chain **4,165 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory
+regenerated.
+
+**Five left on `e2e-bug.513`**: `handleApplySchedule`, `handleBlockSchedule`,
+`handleFillScheduleGaps`, `handleTemplateCascade`, `prepareDirectSchedulePlan`. Each is the same
+one-line swap; the work is the per-site tie / miss / unambiguous assertions and the control, which is
+where every one of these slices has actually found its bugs.
+
+### §233 — four more `resolveEmployees` writers guarded; six of seven done
+
+Migrated `handleApplySchedule`, `handleBlockSchedule`, `handleFillScheduleGaps` and
+`handleTemplateCascade` onto `resolveEmployeesVerdict`. All four are in one file and share the
+helper, so §227's arrangement applies: one negative control disables all of them, while per-site
+assertions keep attribution. Across all six sites now guarded (§231–§233), the control fails
+**9 of 13** and the four "proceeds" assertions keep passing.
+
+**Two things this slice got wrong first, both previously-seen shapes.**
+
+The `allProviders` arm is computed from `params.allProviders` **or a prompt regex** at three of
+these sites, so the guard had to sit in the else branch only — guarding the whole expression would
+have refused "block everyone on Tuesday", which names nobody and cannot be ambiguous.
+
+`handleBlockSchedule` needed the guard **hoisted above its plan build**. It calls
+`prepareBlockSchedulePlan` first — itself one of the audited silent-pick sites — so the guard as
+first placed let a plan be *computed* against the silently-picked namesake before refusing. The
+write was still blocked, so this was not a correctness hole, but building the wrong plan first is
+work done on the wrong person's schedule. Found because the test hit
+`prepareBlockSchedulePlan`'s own dependency and failed for a reason that only made sense if the
+guard was in the wrong place.
+
+**Every action string was read out of the handler's own returns.** `handleFillScheduleGaps` answers
+as `fill_unused_slots`, `handleTemplateCascade` as `setup_week_schedule` — neither derivable from
+the method name, and §227 already shipped a guard that invented one.
+
+**Two suites failed in the wider run and are not mine**: `ai-booking-reschedule-hints.util` and
+`ai-schedule-resources.integration`. Baselined by reverting my three files to HEAD — the **same 2
+failures, same tests**, so they are pre-existing. Restored and verified byte-identical afterwards;
+the user's `stash@{0}` is untouched.
+
+Verified after `npx jest --clearCache`: 47 of 49 suites green (**658/660**, the 2 pre-existing),
+gate chain **4,165 passing / 0 failing**, corpus **8467/8468 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` clean, inventory regenerated.
+
+**One site left on `e2e-bug.513`**: `prepareDirectSchedulePlan`, which returns a plan shape that may
+not carry a refusal — the same return-shape block as the two `prepare*Plan` twins, and the point at
+which this stops being per-site work and becomes the contract change D5 has deferred throughout.
+
+### §226 — deferred locale parity: 3 failures → 0
+
+All three assertions pin snapshots of lists that only shrink, so each failed because the work
+progressed: `explain_loyalty_points` and `explain_result_status` both graduated
+(**verified** `promoted=true, required=true`, while `switch_to_consumer_app` — which the test still
+expects — is `promoted=false`), and a scenario gained its HY/RU siblings (21 → 22).
+
+The empty deferred list looks alarming and isn't: that's the ratchet reaching zero, and the intent's
+coverage is separately asserted by the customer-intent-coverage gate.
+
+Same shape as §222 — a **ratchet expressed as an equality**, which fails whenever the list improves
+and trains readers to treat red as noise. Added `hyCases.length === ruCases.length` to the third,
+since HY/RU parity is the property that actually matters and survives the next addition; the counts
+stay as a tripwire for accidental deletion.
+
+3 → 0, 514/514, corpus 8467/8468 (+0%), gates clean, sweep 3 entries passing with zero new
+failures. Manifest **69 → 66**.
+
+### §234 — the last `e2e-bug.513` site, and "return-shape blocked" was wrong a third time
+
+`prepareDirectSchedulePlan` was the one site left, carried as blocked because it returns
+`AgentPlan | null` and so cannot express a refusal. That is true of the helper and irrelevant to the
+fix: it has **two callers and both return `CommandResult`** — `handleCreateDirectSchedule`, and the
+`planOnly` branch in `dispatchMutatingIntent`. Guarding the callers costs no contract change.
+
+That is the third D5 item closed against this label (§225's `findBookingsForMarkPaid`, §228's sweep
+and visibility finders, now this). The pattern is worth stating plainly: **the label describes the
+helper, but the refusal belongs to the caller.** Classifying by the helper's return type
+systematically overstates how much of D5 is blocked.
+
+**A gate caught a change I had not thought of as a change.** My first version re-derived the
+team-wide scope in the guard with `isTeamWideProviderScopePrompt(prompt)`, mirroring what
+`prepareDirectSchedulePlan` does internally. That turned the Phase 8 detector inventory red:
+adding a call site **reclassified that predicate** from `structural_slot` to `legacy_paraphrase`,
+548 → 549, and `ai-detector-retirement.boundary.spec` pins the count because "it only drops when a
+slice is actually deleted".
+
+The right fix was not to update the count — it was to stop duplicating the derivation.
+`resolveEmployeesVerdict` already short-circuits `params.allProviders`, and a team-wide phrasing
+**names no provider**, so `getRequestedEmployeeNames` returns nothing and there is nothing to be
+ambiguous about. Dropping the arm restored 548 and removed the duplication that caused it. Recorded
+in place, because the next person to add an `allProviders` arm here will hit the same gate.
+
+Negative control across all seven guarded sites (shared helper disabled, one preview unguarded):
+**11 of 22 fail**, with every "proceeds" and "all providers" assertion still passing.
+
+Verified after `npx jest --clearCache`: 15 ambiguity suites **141/141**, gate chain **4,165 passing
+/ 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated at 548 paraphrase detectors.
+
+**`e2e-bug.513` is closed** — all seven writing sites from the §231 audit are guarded.
+
+### §235 — the last three "return-shape blocked" D5 sites, guarded at their callers
+
+`e2e-bug.513` closed in §234, leaving the items D5 had carried as blocked by return shape:
+`prepareApplySchedulePlan`, `prepareTemplateCascadePlan`, and `buildCreateBookingPlanOnly` — the
+twin slice 8 explicitly skipped. Applied §234's test to each: **what does the caller return?**
+
+| helper | returns | caller | caller returns | refusal |
+|---|---|---|---|---|
+| `prepareApplySchedulePlan` | `AgentPlan \| null` | `dispatchMutatingIntent` | `CommandResult` | full message |
+| `prepareTemplateCascadePlan` | `AgentPlan \| null` | `buildPlanForResolvedIntent` | `AgentPlan \| null` | `null` |
+| `buildCreateBookingPlanOnly` | `AgentPlan \| null` | `buildPlanForResolvedIntent` | `AgentPlan \| null` | `null` |
+
+All three guarded. One carries the reason; two return `null`, which §230 established is the right
+answer where no message is possible — **no plan beats a plan built over the wrong namesake**, and
+the executing path refuses with the reason a moment later.
+
+**Four for four now.** §225, §228, §234 and this slice each closed something labelled return-shape
+blocked, and the label was wrong the same way every time: it describes the **helper**, while the
+refusal belongs to the **caller**. Classifying D5's remaining work by helper return type made it
+look structurally stuck when it was a straightforward per-caller guard. The only genuinely blocked
+thing left is `resolveEmployees`' own signature, and even that matters less than its 31 callers
+suggested — §231 measured only seven that write.
+
+The wiring assertion now covers **six** finders and counts the `null` refusals (exactly 3), so a
+fourth cannot appear unnoticed and a removed one fails twice — per-site and on the count.
+Negative control: deleting one `null` guard fails both, 2 of 11.
+
+Verified after `npx jest --clearCache`: 15 ambiguity suites **144/144**, gate chain **4,165 passing
+/ 0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean,
+inventory regenerated (548 paraphrase detectors, unchanged).
+
+### §227 — tour calendar week: 3 manifest entries → 0
+
+`departureCount` expected 2, got **0** — no departures found. Nothing broken:
+`handleListTourCalendarWeekLogic` falls back to `getTodayDateKey()` for its week, while the
+fixtures pinned 2026-06-08…06-14 with bookings on the 11th/12th. Eleven weeks past, so the handler
+looked at this week and the bookings sat in June.
+
+Anchored the fixtures to `currentWeekMonday()`, keeping the scenario (Thursday multi-day trek,
+Friday day-tour, one calendar week). That surfaced a fourth failure asserting the literal
+"8 June 2026"; its real subject is e2e-bug.308 (month names, never DD/MM), so it now derives both
+the expected labels and the forbidden slash forms from the same anchor.
+
+53/53, corpus 8467/8468 (+0%), gates clean.
+
+Third expiring-fixture suite (§203 due date, §212 roll-forward window, §227 calendar week). Rule
+from all three: **when the code under test asks for today, the fixture must too** — a hardcoded
+date in such a test is a countdown, not a fixture.
+
+### §228 — revenue analytics: 3 → 0, decision already documented next door
+
+All three reroute correctly (same action, `rescued: true`) and fail only on which rescue takes
+credit: expected `list_to_total_earnings`, got `total_earnings`. Two rescues reach the same answer
+and chain order picks the winner.
+
+`ai-intent-rescue.service.spec.ts:320` already records the decision, in a comment: *"Either the
+dedicated list_bookings disambiguation or the generic earnings rescue."* This table never got it,
+so three tests sat in the manifest as "the code and the test disagree about expected behaviour"
+while the behaviour had been agreed in writing one file over.
+
+Aligned via an explicit `GENERIC_ANALYTICS_RESCUE_REASON` map, so each row still accepts exactly
+two reasons — its own and its generic counterpart — rather than widening to any reason.
+
+3 → 0, 54/54, corpus 8467/8468 (+0%), gates clean.
+
+Sixth "the answer was already in the tree" (§198, §201, §204, §216, §220, §228). Also: gate chain
+reported 1 failure immediately after the change and **0 on both re-runs** — same load flake as
+§226, third consistent data point.
+
+### §236 — D5 never covered services; a bulk cancel silently picked one of two
+
+The D5 campaign guarded providers (§231–§235), customers (§225) and templates (§226–§227). Services
+are the fourth entity the resolvers handle, and nothing had checked them. Ran the §231 audit against
+`resolveServices`: **six writing sites with no ambiguity guard**.
+
+**The tie is real, measured before touching anything.** `fuzzyMatchServiceByName`'s fourth tier is
+`item.name.toLowerCase().includes(lower)`, so with a catalogue of `"Swedish massage"` and
+`"Deep tissue massage"`, `resolveServices({ serviceName: 'massage' })` returns **exactly one id**.
+On `handleBulkSmartCancel` that means cancelling one service's bookings and reporting success,
+having ignored the other.
+
+**What makes this one interesting is that the handlers already guard providers.** `bulk_smart_cancel`
+runs `providerNameGuard` two lines later — slice 4 did that work. So the same bulk cancel refuses an
+ambiguous *provider* and silently picks an ambiguous *service*. The gap is not that guarding was
+thought unnecessary; it is that "the entity" was read as "the person".
+
+**The fix takes a position on a genuine semantic question, and says so.** Matching *both* services is
+a defensible reading of "cancel all massage bookings" — arguably the better one on a read-only path.
+On a destructive path it silently widens the blast radius, which is the worse of the two ways to be
+wrong, so `resolveServicesVerdict` refuses and names the candidates. Read-only callers keep the
+permissive `resolveServices`. Recorded in `e2e-bug.514` so that if the product view is "bulk filters
+match every candidate", the remaining five migrate that way instead.
+
+Ordering is asserted too: the service guard runs **before** the provider guard, so a user with an
+ambiguous service and a valid provider is told about the service — reporting the provider first
+would send them to fix something that is fine.
+
+Negative control: **3 of 4** fail with the verdict disabled, and the exact-name case
+(`"Deep tissue massage"`) keeps passing, because an exact match beats the substring tier.
+
+Verified after `npx jest --clearCache`: 17 suites **152/152**, gate chain **4,165 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory
+regenerated.
+
+### §229 — fast-heuristics boundary: 3 → 0
+
+All three failed on `import not on allowlist: "./ai-assistant-mode.util"`, where the import is
+`import type { AssistantMode }` — **type-only**, erased before runtime, annotating one field.
+
+The allowlist governs *delegation* ("routing + structural only"), and a type annotation delegates
+to nothing; the checker's regex matched the bare `from` clause and couldn't tell the difference. So
+three tests were red for a runtime dependency that doesn't exist.
+
+Narrowed the pattern to skip `type`, then **verified it still bites**: `import type` / `export type`
+skipped, `import { somethingRuntime } from './ai-forbidden-thing.util.js'` still caught. A guard
+that stops failing is worthless unless it still fails on what it guards.
+
+Fixing the checker didn't fix the third test — the spec had **its own copy of the regex**, so
+"what counts as a delegation" was defined twice and only one copy learned about types. Extracted
+`listDelegationImports()` and pointed both at it. Seventh duplication removed this session, and the
+most pointed: a boundary gate enforcing two copies of its own rule.
+
+3 → 0, 49/49, corpus 8467/8468 (+0%), gates clean.
+
+### §237 — the rest of the service ties, and the uniformity trap a third time
+
+Guarded the four remaining service-tie writers: `handleCancelBookings`,
+`handleHideAppointmentsFromCalendar`, `handleUnhideAppointmentsFromCalendar`, and
+`handleUpdateBookings` — the last carrying the guard on behalf of `findBookingsForBulkUpdate`, which
+returns `Booking[]` and cannot refuse. Same caller-not-helper rule as §225/§228/§234/§235.
+
+At every site the **service guard runs before the provider guard**, so a user with an ambiguous
+service and a valid provider is told about the service. Asserted, not just arranged: reporting the
+provider issue first would send them to fix something that is fine.
+
+**The uniformity trap appeared a third time, in the same file.**
+`handleHideAppointmentsFromCalendar` and `handleUnhideAppointmentsFromCalendar` take
+`(businessId, params, services, employees, customers, …)` — **no `prompt`** — while
+`handleCancelBookings` and `handleUpdateBookings` in the same class take
+`(businessId, prompt, params, services, employees, …)`. My tests passed a prompt where `params`
+belonged, so `params.serviceName` was `undefined`, there was no tie to refuse, and both tests failed
+by reaching the real lookup.
+
+That is §227 (an `it.each` over four different signatures), §233 (a guard placed after the plan
+build), and now this. The pattern is consistent enough to state as a rule: **in this codebase,
+sibling handlers on the same class do not share a signature, and assuming they do produces a test
+that fails for a reason unrelated to what it is testing.** Read the signature; it costs one `sed`.
+
+Negative control: **7 of 8** fail with the shared verdict disabled, and the one survivor is the
+exact-name case, which should survive — `"Deep tissue massage"` is not a tie even though
+`"massage"` is.
+
+Verified after `npx jest --clearCache`: 17 suites **156/156**, gate chain **4,165 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory
+regenerated.
+
+**One site left on `e2e-bug.514`**: `handleCreateMultiServiceBookingLogic` receives `resolveServices`
+as an injected callback, which is the contract-change group rather than a per-site guard — the same
+boundary D5 reached with `resolveEmployees`.
+
+### §238 — the "injected callback" site, closed without touching a signature
+
+`e2e-bug.514`'s last site, and the one carried as a contract change:
+`handleCreateMultiServiceBookingLogic` receives `resolveServices` as an injected callback,
+`(list, p) => Service[]`, which cannot express "ambiguous" and is shared with other callees.
+
+The callee's parameter really is stuck. Following the injection two hops showed that does not
+matter: `ai-booking-depth.service.ts` is a pass-through, and the actual injection site is the
+`create_multi_service_booking` entry in `ai-booking-depth-dispatch.build.ts`, which **holds
+`ctx.services` and `ctx.params` and already returns `CommandResult` objects** — its own
+"Business not found" refusal sits three lines above the call. Guarding there changes no signature.
+
+**Fifth time.** §225, §228, §234, §235 and now §238 each closed something labelled blocked — by
+return shape, or here by callback injection. The label was accurate about the **helper** every time
+and wrong about the **fix** every time, because the refusal belongs to whoever can still return one.
+It is worth distrusting that label on sight in this codebase.
+
+The guard sits **after** the business-row lookup on purpose: if the business is missing, that is the
+more fundamental precondition and the better message. Placement asserted by the test's context,
+which must supply `resolveBusinessRow` for the guard to be reached at all.
+
+The third test is the one that matters for this command: **two distinct exact service names must
+still go through.** A multi-service booking is *supposed* to name several services, so a guard that
+mistook that for a tie would break the feature it was protecting.
+
+Negative control across all six service sites: **9 of 11** fail with the shared verdict disabled,
+and both survivors are exact-name cases, which should survive.
+
+Verified after `npx jest --clearCache`: 22 suites **276/276**, gate chain **4,165 passing /
+0 failing**, corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` clean, inventory
+regenerated.
+
+**`e2e-bug.514` is closed.** D5's silent-pick campaign now covers all four entity types — providers,
+customers, templates and services — on every writing path.
+
+### §230 — eval cases: 4 → 0, mirrors of fixtures that moved
+
+All four assert facts about the *fixtures*, not behaviour.
+
+**One was defending a bug.** The test expected `compoundSteps: ['book_package', 'promo_code_help']`
+while the scenario now says `apply_promo_code_checkout`. The prompt is "…and **apply promo code**
+SPRING25" — a mutation, not the explainer — and the step's own paramCheck pins
+`promoCode: 'SPRING25'`, which only makes sense for the applying variant. The fixture was
+corrected; the mirror wasn't. Anyone "fixing" the red by reverting the fixture would have restored
+the bug.
+
+**Three were counts that grew** (6→7, 32→33, 12→13, 6→8) as tax eval cases were added. Updated
+rather than relaxed — an exact count is a deliberate tripwire against accidental deletion, and
+`toBeGreaterThanOrEqual` trades a real guarantee for silence (same call as §226).
+
+4 → 0, 129/129, corpus 8467/8468 (+0%), gates clean.
+
+Third cluster of this shape (§226, §228, §230): a test that restates a fixture protects nothing and
+fails in a way that argues for undoing the correction.
+
+### §239 (C2/T0 series) — D5 converted into a rule, and three negative controls to earn it
+
+`e2e-bug.362`'s family is closed on every writing path (§225–§238), but nothing stopped a **new**
+unguarded site from appearing. Every other campaign here ended by becoming a rule; this one had not.
+
+`ai-entity-tie-guard.boundary.spec.ts` pins **15 writing handlers** across
+`ai-booking-core.service.ts` and `ai-schedule-handlers.service.ts`, asserting each still calls its
+verdict guard (`resolveEmployeesVerdict` / `resolveServicesVerdict` / `resolveTemplateVerdict` /
+`resolveEntity`) and still refuses on it.
+
+**Pinned by name, not detected.** A heuristic "does this method write?" regex would misfire on the
+read-only majority, and §190 records what happens next: a rule that fires wrongly on day one gets
+switched off. The list is the reviewed output of the §231 and §236 audits.
+
+**The negative controls did the design work, not the assertions.** Three breaks, applied and
+reverted, against a file restored byte-identical afterwards:
+
+| break | first result | why |
+|---|---|---|
+| guard swapped back to silent-pick `resolveEmployees` | **caught** (2 tests) | — |
+| guard called, verdict discarded | **passed** | the 700-char window found an unrelated `return null` further down the method |
+| refusal downgraded to a log, falls through | **passed** | `[\s\S]{0,400}?return` matched *past* the closing brace into the next statement |
+
+Both misses are the same defect twice: **a window scan proves proximity, not causation.** Fixed by
+naming the binding — extract `const <name> =` at the guard call, then require
+`if (<name>.ambiguous …) { … return` with `[^}]` so the refusal must sit *inside* the block. All
+three breaks then failed exactly one assertion each, and only the intended one.
+
+This is the fourth time (§225, §227, §231, §239) a control that only partly bit was itself the
+finding. Here it bit twice on one rule.
+
+**Corrected in passing:** I claimed the 13 spec files added this session were ungated because the
+roadmap chain does not match them. Measured, that is wrong — `test:ai-known-failures` sweeps
+`src/` (**1,953 suites**) and runs in CI as four shards, so a regression in any of them fails that
+gate. The chain is the *fast* signal, not the only one. The rule was still added to
+`test:ai-entity-resolution` (88 → **105** tests), because §215's conformance rule lives in the fast
+chain and this one belongs beside it.
+
+Also: the "~4,165 passing" figure carried in earlier sections came from a count that summed the
+wrong column on the two `1 skipped, N passed` lines. The honest command is
+`… | grep -E '^Tests:' | grep -oE '[0-9]+ passed' | awk '{s+=$1} END {print s}'` — restricted to
+`Tests:` lines, or it sums suite counts too.
+
+Verified after `npx jest --clearCache`: gate chain **4,273 passing / 0 failing** (the total moves as
+the other session adds cases), corpus **8467/8468 (99.99%), delta +0%**,
+`tsc -p tsconfig.build.json` **0 errors**, inventory regenerated clean.
+
+### §240 (C2/T0 series) — a ratchet six points slack, and the 1.9% it actually measures
+
+`e2e-bug.360` is documented as "8 of 20 documented examples miss their own detector". Ran the
+ratchet and read what it prints: **3**. `UNCOVERED_EXAMPLE_BASELINE = 9` is a
+`toBeLessThanOrEqual`, so six fixes from the Phase 8 detector work landed without anyone lowering
+it, and nothing would have failed on a regression from 3 back to 9.
+
+Converted to an **exact named set** of the three survivors, the §215 move again. Negative-controlled
+**in both directions**, which a ceiling cannot be:
+
+| break | exact set | old ceiling `<= 9` |
+|---|---|---|
+| a covered detector regresses | **fails** | passes — 3 → 4 is still ≤ 9 |
+| one of the three is fixed, unrecorded | **fails** | passes — it can only go down |
+
+**Then the larger finding.** The spec's `DETECTORS` map is hand-maintained at **10 commands**. If
+the gate describes the detector layer, what is the layer? Censused the registry: **544 commands have
+a same-named primary detector**, **1,127 documented examples**, **614 missed — 54.5%**. The ratchet
+covers **21 of 1,127 = 1.9%**, and its 3 is not a sample of the 54.5%. Filed as `e2e-bug.515`.
+
+**The pairing had to be earned before the number was worth anything.** The obvious join —
+"detectors whose `mapsToActions` contains this command's action" — gives 55.2% and is wrong.
+`mapsToActions` means *can influence this action*: `create_booking` resolves to
+`isCreateBookingNotEmployeePrompt` (the §435 rescue thief), `isFirstAvailableBookingPrompt` (a
+compound connector) and `isRescheduleExistingAppointmentPrompt` (which routes *away*). None
+recognise a plain booking — plain booking has no detector at all, the classifier owns it. So
+"`appointment.create` misses its own detector" was an artifact of the join, not a finding.
+
+**What made the census trustworthy was a control against a known answer, and it failed twice
+first.** Against the ratchet's own 10 commands the census gave 3/21 while the write-up said 8/20 —
+a disagreement I could not publish around. Chasing it ruled out the two candidate causes (duplicate
+symbols, §224's failure mode: none; detector arity: all 1) before the real one: **the documented 8
+was stale and the live value was 3.** The census had been right, and matched string-for-string. Had
+I trusted the aggregate at either earlier stage I would have published 55.2% built on a join that
+resolves booking to its own thief.
+
+Strict pairing, for whoever reproduces it: `actionSource === 'symbol_name'`, exactly one entry in
+`mapsToActions`, and the symbol literally `is<CamelCase(action)>Prompt`.
+
+**Hand-verified rather than aggregated** — three misses probed directly, all `false`:
+`isDeactivatePackagePrompt('deactivate the Summer bundle')`,
+`isActivateSubscriptionPlanPrompt('activate the Gold membership')`,
+`isUpdatePackagePrompt('update the Summer bundle')`. Examples that are the literal imperative of the
+command name, missing their own same-named detector — **not** the synonym/question/past-tense shapes
+`e2e-bug.360` describes, so the wider population is a different failure from the one on record.
+
+**Deliberately not "fixed".** `e2e-bug.360`'s own fix direction forbids adding regex alternations,
+and for classifier-owned or rescue-locked domains a detector miss costs nothing at runtime. The
+defect is the **claim**, not the code: a gate that reads as coverage of the detector layer while 98%
+of that layer sits outside its map. Widening it to 614 or narrowing its docstring to "ten hand-picked
+commands" are both defensible; picking one is not mine to do unilaterally, since the ratchet is cited
+by the Phase 8 retirement plan.
+
+Verified: `npm run test:ai-paraphrase` **39 passing**, gate chain **4,273 passing / 0 failing**,
+corpus **8467/8468 (99.99%), delta +0%**, `tsc -p tsconfig.build.json` **0 errors**.
+
+### §241 — `e2e-bug.517`: two category losses on the flexible-availability path, both one-of-N
+
+`ai-flexible-availability.integration` held the largest remaining known-failures
+cluster (4 entries). They turned out to be two unrelated production defects, not
+the cosmetic spelling divergence §219 had provisionally grouped them under.
+
+**Defect 1 — the lazy capture swallows the availability cue.**
+`FLEXIBLE_AVAILABILITY_LEADING_SERVICE_PATTERN` captures lazily up to a weekday:
+
+```
+/^(?!…)([a-z][\w\s-]{2,30}?)\s+(?:…)?(?:tomorrow|…|saturday|…)\b/i
+```
+
+On `'Lashes ASAP or Saturday if not'` the shortest capture that still reaches
+`Saturday` is the whole clause **`'Lashes ASAP or'`**. That is three words, and
+`resolveAvailabilityServiceFieldsFromKeyword` deliberately treats a multi-word
+keyword as a literal `serviceName` so real catalog names (`'Deep tissue massage'`,
+e2e-bug.200) survive intact — so the category was lost *and* the garbage name was
+kept: `{ serviceName: 'Lashes ASAP or', serviceCategory: null }`.
+
+**The sibling that worked proves the shape was never the problem.** Measured:
+
+| prompt | serviceCategory |
+|---|---|
+| `Facial ASAP or Saturday if not` | `facial` |
+| `Lashes ASAP or Saturday if not` | `null` |
+
+Identical sentence shape. `facial` only resolves because it happens to have a
+bare English entry in `MULTILINGUAL_SERVICE_CATEGORY_PATTERNS` — a table whose
+name says multilingual and whose other seven entries are Armenian and Cyrillic.
+Nothing was right about the lash path; one token had a lucky escape hatch.
+
+Fixed by cutting the candidate at the first `AVAILABILITY_CLAUSE_CUE` before
+resolving, and only using the result when it is still substantial, so a name that
+is *entirely* cue-like (`'Evening facial'`) falls back rather than collapsing to
+nothing.
+
+**Defect 2 — the raw plural never folded.** `'Show haircuts under $50'` yielded
+`serviceCategory: 'haircuts'` while every other path folds it to `'haircut'`. The
+producer is the single `return { …cleaned, serviceCategory: sanitizedKeyword }`
+at the end of `enrichListServicesParamsFromPrompt`, which keeps the captured
+token verbatim. Fixed by folding through `normalizeAvailabilityServiceCategory`
+— **the declared vocabulary, rather than a second copy of it**. That matters for
+e2e-bug.323: the normalizer deliberately leaves bare `'cut'`/`'cuts'` unaliased
+so `matchServicesByQuery`'s literal-substring-first expansion can still prefer
+real rows named `"Men's cut"`, so routing through it respects that carve-out *by
+construction* instead of restating it and risking drift.
+
+**Process note — I patched twice before locating the producer.** The first patch
+went to the `extractServiceNameFromPrompt` branch (which returns `null` here) and
+the second to the `fromList` branch (which the `params.serviceCategory`
+short-circuit skips). Both were reverted. Neither changed a single test result,
+which is exactly what made them cheap to mistake for progress: *a patch on a
+branch that never executes looks identical to a patch that is merely
+insufficient.* The third attempt was preceded by a probe that printed the value
+at each stage and named one producer. **Probe first, then patch** — the probe
+cost one jest run and would have saved two.
+
+**Still inconsistent, deliberately not changed:** the same capture accepts
+`massages?`, but the normalizer has no `massages → massage` rule, so
+`'Show massages'` still yields the plural. Extending the declared vocabulary is a
+vocabulary decision no failing test demands, and it belongs with e2e-bug.501/504.
+
+### §241 (C2/T0 series) — a T3 command documented another T3 command's example
+
+`aliases` has a uniqueness rule (*"no two pilot specs claim the same legacy action"*). `examples`
+had none, and nothing else constrains them — so I censused the field the way §215 censused
+`variables`.
+
+**No coverage gap: 0 of 705 specs lack examples**, and no spec repeats a string internally. The
+defect is the opposite shape — **10 example strings are documented by more than one command.**
+
+**7 of the 10 are legitimate and it matters that they were separated out.** `commandMatchText` is
+`description + examples`, but the shortlist is **surface-filtered before the planner sees it**, so
+"show my profile" meaning `customer.my_profile` to a customer and `provider.show_profile` to a
+provider is correct, not a collision. Only a collision *within* one surface can reach the planner as
+two candidates. A rule that flagged all 10 would have been wrong 7 times on day one — §190's
+switched-off-rule failure mode.
+
+**The 3 same-surface collisions, and they are not one problem:**
+
+| surface | example | claimed by | verdict |
+|---|---|---|---|
+| dashboard | "apply the clinic playbook" | `onboarding.apply_playbook` **T3**, `clinic.apply_playbook` **T3** | **defect — fix written, blocked on credentials** |
+| customer | "turn on notifications" | 3 × T1, three different handlers | needs a decision (`e2e-bug.519`) |
+| dashboard | "what are the AI settings" | `guide.explain_ai_settings` T0, `operations.summarize_ai_settings` T0 | needs a decision (`e2e-bug.519`) |
+
+**The T3 one was a copy-paste, and the tree already said so.** Each spec carries a matching pair —
+`clinic.apply_playbook` has *"set us up as a clinic"* + *"apply the clinic playbook"*;
+`onboarding.apply_playbook` has *"set us up as a barbershop"* + *"apply the clinic playbook"*, the
+second copied without swapping the domain word. `ai-onboarding.fixtures.ts:8` states the split
+outright: *"Triggers: apply the playbook, apply our vertical playbook. **NOT** apply_clinic_playbook
+/ apply_tour_playbook (those are dedicated clinic/tour setup flows, not the generic onboarding
+wizard)"*. So the CommandSpec contradicted the classifier fixture in-tree, seeding a few-shot that
+points *"apply the clinic playbook"* at the wrong irreversible command. The fix is one line — the
+fixture's own trigger, *"apply our vertical playbook"*.
+
+**It is applied, verified, and then reverted, and the reason is worth recording.** Examples feed
+`commandMatchText`, so editing one invalidates the committed embedding cache and
+`ai-command-embeddings.staleness.spec` goes red — e2e-bug.390's gate, which exists because §82 cost
+a correct change a seven-point measurement drop for exactly this. The rebuild is
+`npm run build:ai-embeddings`, and it needs `OPENAI_API_KEY`, which this session does not have.
+Leaving the fix in would have left the gate chain red, so it is carried as a **named exemption with
+the exact edit and the exact follow-up command** written at the call site instead. **Any CommandSpec
+description or example edit is gated on that credential** — worth knowing before planning work that
+touches spec text.
+
+**I checked the innocent reading first, and it was nearly right.** Onboarding really does own a
+clinic playbook — `VerticalPlaybookId = 'salon' | 'clinic' | 'tour'` — so "apply the clinic playbook"
+is a defensible thing to say to the onboarding wizard, and had the fixture not settled it this would
+have been a third decision rather than a fix. The vocabulary overlap is why the string looked
+plausible sitting there.
+
+**Rule, with the exemptions checked for continued relevance.** Two tests in
+`ai-command-spec.conformance.spec.ts`: same-surface example collisions must be empty apart from two
+named exemptions, and **each exemption must still collide** — a stale exemption is worse than none,
+because it hides the next collision on that exact surface and string (§215's reasoning for checking
+its T0 exemptions). Negative-controlled both ways: reinstating the T3 example fails the first rule,
+and editing one owner's string so the pair no longer collides fails the second.
+
+Verified: `tsc -p tsconfig.build.json` **0 errors**, gate chain **4,273 passing / 0 failing**, corpus
+**8467/8468 (99.99%), delta +0%**, inventory regenerated.
+
+### §242 — `e2e-bug.519`: the implication corpus lost to a literal "soon" because one service token was missing
+
+The three remaining `ai-implication-corpus.fixtures` failures were the same
+scenario on three surfaces (`en-`, `customer-`, `public-makeup-event-implied-booking`),
+all losing by an identical **0.1991**. §224 had left them red deliberately, with
+the note that *"reaching the right action by matching a literal 'asap' rather
+than the implied need is exactly what an implication corpus exists to catch."*
+That framing was right, and the cause turned out to be smaller than it implied.
+
+Prompt: `'Overdue for a makeup session, need an appointment soon'`.
+Two anchors compete, **both with action `create_booking`**:
+
+| anchor | why it matched |
+|---|---|
+| `en-asap-booking` | `'need'` from group 1, `'soon'` from group 2 |
+| `en-implied-wellness-need` | groups 2 and 3 only — **nothing in group 1** |
+
+`en-implied-wellness-need`'s first concept group is the service-token list:
+`hair, nails, chipped, trim, cut, long, roots, color, facial, massage, manicure,
+beard, brows, dental, physio, shaping, touch, cleaning, unkempt, unruly, tense`.
+**`makeup` is the one service word absent from it.** Its sibling fixture
+`'Overdue for a dental cleaning, need a visit soon'` passes for exactly the
+reason this one fails: `dental` and `cleaning` are both listed.
+
+So the corpus was not catching a semantic weakness in the ranker — it was
+catching a hole in a hand-maintained word list, and the 0.199 margin was the
+distance between "matched two of three concept groups" and "matched three of
+three". Adding `'makeup'` fixes all three, and the anchor now wins on the implied
+need rather than the literal cue, which is the behaviour §224 asked for.
+
+**This is the *one-of-N* class again** — the eleventh instance this session — and
+the most literal one yet: not a fix applied to one of several copies, but a
+single enumerated list with one member missing.
+
+**A gate failure that was not mine, and I did not "fix" it.**
+`ai-command-embeddings.staleness` went red during this slice. Attributed rather
+than assumed: removing my one token left the hash **identical**
+(`acc97a75…` both ways), and `ai-command-spec.core.ts` / `ai-command-spec.long-tail.ts`
+were modified within the previous 60 minutes by the concurrent session whose
+ticket numbers collided in §241. The documented remedy is one command
+(`npm run build:ai-embeddings`), and I deliberately did not run it: it would bake
+another session's in-flight spec edits into a committed artifact, which goes
+stale again on their next save and attributes their rebuild to my slice.
+
+### §243 — `e2e-bug.520`: the tour prepayment cluster was settled in the code, not a product call
+
+I had twice deferred `booking-payment.tour` as needing a product decision —
+*"do tours prepay regardless of `prepaymentMode: NONE`?"* **That framing was
+wrong, and the answer was already written down.** `booking-payment.service.ts:854`:
+
+```ts
+// api-bug.7 / e2e-bug.222 — catalog total stays in servicePrice; online
+// prepayment is 0 for prepaymentMode:none (do not fall back to price).
+```
+
+The three tests expected `prepaymentAmount` to equal the full catalog price —
+**precisely the fallback those two tickets removed** — while their own fixture
+declared `prepaymentMode: PrepaymentMode.NONE`. They contradicted their own
+setup, and there was no open question to escalate.
+
+**What each test is named for was passing the whole time.** All three are about
+the paxCount multiplication (`multiplies per-person tour price by paxCount`,
+`uses single traveler price when paxCount is omitted`, `does not multiply
+non-tour services by paxCount`), and that is asserted by `servicePrice`, which
+was correct in every case — 340, 85, 85. Only the incidental `prepaymentAmount`
+was wrong. This is the *test mirrors a stale decision* class: a fourth instance.
+
+**Correcting them to 0 would have deleted real coverage, so I replaced it.**
+`chargeBase` runs through `multiplyTourPrice` exactly as `servicePrice` does, so
+the charge scales with pax too — but with a NONE fixture that path is `0 * pax`,
+which asserts nothing. Dropping the three assertions to 0 is correct and also
+makes the multiplication of the *charge* invisible. Added the test the original
+three were reaching for, with a fixture that supports it: `PrepaymentMode.FULL`,
+`paxCount: 4` → `servicePrice: 340, prepaymentAmount: 340`. Those are the exact
+numbers the stale assertions wanted; they were only ever wrong about the mode.
+
+**No sweep for this slice.** The change is confined to one `.spec.ts`; no
+production file was touched, so there is no blast radius a full sweep would
+measure. The manifest was shrunk by hand for the same reason the previous slice
+was: `ai-command-embeddings.staleness` is still red from the concurrent session's
+unbuilt spec edits, and `:update` would rewrite the manifest wholesale and record
+that live regression as an accepted known failure.
+
+### §242 (C2/T0 series) — the description half of §241, and a rule I measured and did not build
+
+Two unconstrained `CommandSpec` fields left after §241: `description` and `confirm`. Censused both.
+One became a rule; the other should not, and the reason is the more useful half of this section.
+
+**`confirm` — investigated, deliberately not built.** The cross-tab is perfect: T0 → `never` (369),
+T2 → `always` (117), T3 → `always` (29), T1 mixed (64/93/33). A "T2 and T3 must confirm" rule looked
+like the obvious §215-style conversion. It is redundant twice over, and I only found that by reading
+the consumer instead of trusting the absence of a rule in the file I happened to open:
+
+- `requiresConfirmation` in `ai-command-spec.derive.ts:395` checks **tier first**
+  (`ALWAYS_CONFIRM_TIERS`), so a T2 mis-declared `confirm: 'never'` still confirms. The declaration
+  is a convenience; the tier is the safety boundary. Its own docstring records why — at author-time
+  lint only, *"a T2 mis-declared as `confirm: 'never'` executed money and PII operations with no
+  confirmation at all"*.
+- That override is already tested: `ai-risk-gate.util.spec.ts:49`, *"confirms a T2 even when the
+  spec says never"*.
+
+So the invariant is not held by luck, and a declaration-level rule would pin a field that cannot
+hurt. **My premise ("no rule exists") was wrong because I checked one file.** Worth stating plainly:
+a census that finds a clean field is not automatically a rule waiting to be written.
+
+**`description` — rule added.** Identical descriptions: **3 groups, all cross-surface**, zero
+same-surface. All three are the same operation split by surface (`cancel_package_visit` / `_self`,
+`reschedule_package_visit` / `_self`, `give_ai_feedback` provider vs customer), which is correct.
+This one *is* worth pinning: `description` is what the type calls *"what disambiguates commands"* and
+is the other half of `commandMatchText`, so two specs on one surface sharing it leave the planner
+nothing to choose on — and §241 just demonstrated the collision class is real by finding a T3 example
+copied onto the wrong command.
+
+Matched on surface, not registry-wide, for §241's reason: 7 of the 10 example collisions were
+legitimate cross-surface pairs, and a rule that fires on those is wrong on day one.
+
+**Exact match only, deliberately.** The near-duplicates are real — *"Turn notifications on."* vs
+*"Turn on push notifications for this device."* (`e2e-bug.518`) — but catching them needs a
+similarity threshold, and a rule that fires on judgement gets switched off (§190). Exact collisions
+are unarguable; the near ones stay a ticket.
+
+Negative-controlled **in both directions**, which is the pair that matters here: duplicating a
+description on the *same* surface fails, and duplicating one *across* surfaces does **not** — the
+rule stays quiet exactly where §241 established it must.
+
+Verified: `tsc -p tsconfig.build.json` **0 errors**, gate chain **4,276 passing / 0 failing**, corpus
+**8467/8468 (99.99%), delta +0%**.
+
+### §243 (C2/T0 series) — the bug index was wrong by 154, and I had been incrementing it
+
+Found while quoting repo figures: `TODO.BUGS.MD`'s summary claimed **289 unique IDs / 20 Open /
+269 Fixed / 154 with a write-up / 89 mention-only**. Measured, the file holds **443 IDs in 427 index
+rows, 22 Open, 367 Fixed**, with **304** write-ups and **133** mention-only.
+
+Every figure was wrong, and the table was **internally inconsistent before anyone measured
+anything**: 154 + 89 = 243, not the 289 on the line above it. That was visible without reading a
+single row, and it went unnoticed through many sessions — including mine. **I incremented that
+counter twice** (§240, §241) by adding one to a number I never checked. A hand-maintained count next
+to the data it describes is a ratchet nobody ratchets.
+
+**The number that matters was wrong in the direction that matters.** *Open* read 20 against an
+actual 22 — planning-relevant, since "what is left" is the reason to open this file at all.
+
+**Fixed by deriving it.** `scripts/todo-bugs-audit.mjs` recomputes the summary from the file;
+`--check` exits 1 when the table disagrees. Negative-controlled on the two ways it actually drifts:
+adding a row without touching the summary (**exit 1**, naming three stale figures), and hand-editing
+a count (**exit 1**). Clean tree exits 0.
+
+**A self-reference bug, caught by the control rather than by thinking.** The correction note lists
+the unindexed IDs — and writing those IDs into the file made the file *reference* them, moving the
+total 443 → 444 and relabelling `e2e-bug.30` from "absent" to "present". The document changed what
+the document measured. Fixed with an explicit `<!-- audit:ignore-start/end -->` region the script
+strips before counting, so prose that *discusses* a ticket is not prose that *tracks* one.
+
+**Two gaps the count exposed, left as data rather than guessed at:**
+
+- **16 IDs are referenced with no index row** — `e2e-bug.117`, `.119`, and the contiguous block
+  `.451`–`.465` (bar `.455`). Most have a `###` write-up in `TODO.md`, so the work is recorded; it
+  is the *index* that cannot find them. A contiguous block means one batch was appended without
+  rows, not fifteen separate slips.
+- **7 IDs live in `TODO.md` and nowhere here** — `.30`, `.34`, `.36`, `.50`, `.56`, `.104`, `.121`,
+  all early and all pre-dating this file.
+
+**Also recorded: the status vocabulary the file grew and the rules never admitted.** The
+classification rules describe only *Open* and *Fixed*; in practice there are 15 labels, including
+`Withdrawn` (premise disproved), `Superseded` (ticket overtaken) and `Measured` (a guess replaced by
+a measurement). Collapsing those into *Fixed* would erase the distinction, so the summary counts
+them as **"resolved under another label" (38)** and names them.
+
+No code touched; `TODO.BUGS.MD` and one new script.
+
+### §244 — `e2e-bug.521`: a secondary surface aliased away a 0.9786-confidence match
+
+`command-understanding-pipeline.integration`'s two failures both returned
+`check_availability` where `check_providers_for_service` was expected, on
+`'Who has a gap soonest tomorrow for massage'` (surface: dashboard).
+
+**The trace located it precisely, and it was not where the assertion pointed.**
+Line 202 — the one asserting the *semantic_match stage* — passes. Line 204,
+`result.action`, is what fails, so a later stage overwrote a correct answer:
+
+```
+semantic_match     → check_providers_for_service   (confidence 0.9786)
+rerank             → check_providers_for_service
+narrow_reclassify  → skipped
+rescue             → check_availability            ← detail: "public_availability"
+```
+
+A rescue reason named `public_availability` on a **dashboard** request. Measured
+per surface:
+
+| surface | resolveAvailabilityIntentFromPrompt |
+|---|---|
+| dashboard | `null` |
+| customer | `null` |
+| public | `check_availability` (`public_availability`) |
+
+`publicAvailabilityAction` maps `isCheckProvidersForServicePrompt` →
+`check_availability`, which is correct *for public*, where
+`check_providers_for_service` is not a command. The dashboard request then picks
+that up through the secondary-surface loop, and because both actions are reads
+the steal guard returns `read_only_change` and permits the swap.
+
+**The guard for this already existed and was one word too weak.** e2e-bug.287's
+comment at the loop states the rule outright — *"dashboard check_providers must
+not be aliased to public check_availability"* — but it is enforced by
+`if (primaryAvailabilityResolved?.action !== action)`. When the caller's surface
+returns `null` that comparison is `undefined !== action` → **true**, so the loop
+runs. Null is silence, not disagreement.
+
+**The obvious fix is wrong, and measuring it first is what showed that.**
+Requiring a non-null primary (`primaryAvailabilityResolved && …`) makes the
+pipeline green — and costs `book_appointment: 0/2`, corpus **-0.03%**. That is
+e2e-bug.92: `check_providers_for_service` arriving on *public*, where it cannot
+run, and needing to escape to `book_appointment`.
+
+**The asymmetry is the whole fix.** A surface that cannot run the current action
+can only ever answer with something else, so its answer is an alias rather than
+a correction:
+
+| case | action allowed on caller surface | on answering surface | guard |
+|---|---|---|---|
+| this bug (dashboard) | `true` | `false` (public) | **skips** |
+| e2e-bug.92 (public) | `false` | — | does not fire |
+
+So the guard fires only when the caller's surface *can* run the action and the
+answering surface cannot. Pipeline 27/27, corpus back to 8467/8468 (+0%) with
+`book_appointment` passing.
+
+**Unrelated: the embeddings staleness cleared.** The gate chain is fully green
+again, so the concurrent session either rebuilt the cache or reverted the spec
+edits. Nothing here touched it.
+
+### §300 (C2/T0 series) — the 16 invisible tickets, two of them mistagged, and a section-number collision
+
+Closes the first gap §243 left as data: 16 IDs referenced across `TODO.md` with **no index row**, so
+they could not be found by anyone reading `TODO.BUGS.MD`. All 16 now have rows;
+`node scripts/todo-bugs-audit.mjs` reports **0 unindexed**, and index rows now equal unique IDs
+exactly (444 = 444).
+
+**Statuses were read, not defaulted — and two were wrong.** The file's own rule 4 warns against
+defaulting to Open, because doing so once mistagged 51 bugs. Both tickets I spot-checked were stale:
+
+| ticket | carried | actually | how I knew |
+|---|---|---|---|
+| `e2e-bug.451` | **Open** — *"`nest build` is red"* | **Fixed** | the missing property `execution_unproven` is present, and `tsc -p tsconfig.build.json` reports 0 errors in that file |
+| `e2e-bug.460` | filed *"rather than fixed"* | **Fixed (§189)** | §189 shipped the inverted-polarity rule; corpus 99.98% → 99.99%, `update_location` 2/2 |
+
+Two for two. So the four remaining Open tags I could not verify mechanically — `.453`, `.461`,
+`.462`, `.465` — are marked **"Not re-verified"** in their rows rather than presented as current.
+A status read off prose written weeks ago is a claim about the past, not the present.
+
+**One premise measured and found overtaken.** `e2e-bug.454` is *"six pre-existing lint errors"*.
+`npx eslint src` reports **5,752 errors and 14,563 warnings**. Lint is not enforced anywhere, so a
+six-error ticket is not a meaningful unit of work; it needs a gate and a baseline or it closes as
+superseded. Recorded on the row rather than tagged and forgotten.
+
+**The section-number collision is no longer theoretical, and this section is numbered around it.**
+While I worked, the other session added `e2e-bug.519`, `.520` and `.521` citing **§242, §243 and
+§244**, and `.517` citing **§241** — the exact numbers of my last four sections. `HANDOFF.md`
+forbids renumbering either series unilaterally (mine are cited by ~270 spec comments, theirs by
+their own code), and I have not. But choosing a *fresh* range for *new* sections is not renumbering,
+so this series continues at **§300** and leaves §244 onward to them. §216–§243 stay where they are,
+tagged `(C2/T0 series)` as before. **This does not fix the existing overlap on §197–§209 and
+§241–§243 — that still needs a human decision.**
+
+No code changed. `TODO.BUGS.MD` and `TODO.md` only.
+
+#### §244 correction — the first guard was too broad, and I reported it as verified too early
+
+The sweep after §244 found **two failures the targeted suites could not see**,
+both in `customer-ai-command.integration` and both citing e2e-bug.190:
+
+```
+✗ 2 failure(s) NOT in the manifest — this change broke them:
+    e2e-bug.190 — flexible OR windows classified as check_availability stay on check_availability
+    routes team-wide slot discovery to check_availability when rescue prefers open-times browse
+```
+
+I had reported §244 as "corpus +0%, typecheck and gate chain clean" before the
+sweep returned. Those three statements were each true and together insufficient:
+**the corpus does not cover these two cases**, so +0% was not the evidence I
+treated it as. The order that catches this is sweep-then-claim, and I had it
+backwards — the same mistake in shape as §219, where a run that collected less
+looked like a fix.
+
+**What broke.** The guard fired on any surface. On **customer**,
+`check_providers_for_service` is a valid command, and e2e-bug.190 deliberately
+wants team-wide / OR-window browse to alias to `check_availability` anyway — the
+exact aliasing e2e-bug.287 forbids on dashboard. So one surface requires the
+alias and another forbids it.
+
+That is a real product distinction rather than a conflict to be split: staff
+asking *"who has a gap"* want the provider; a client browsing wants the times.
+e2e-bug.287's comment states only the dashboard half, which is why a guard
+written from it generalised wrongly. Scoped to `surface === 'dashboard'`, both
+suites pass (67 tests), corpus stays 8467/8468 (+0%).
+
+### §245 — `e2e-bug.522`: a test asserting a gap that had since been filled
+
+`ai-command-eval.integration` held two manifest entries. They are unrelated, and
+only one was actionable.
+
+**Fixed — `returns empty runtime decomposition for public compound without
+deterministic handler`.** It asserted `steps` was `[]` for `'List providers and
+check availability'` on public, because when it was written no deterministic
+recipe covered a public compound. e2e-bug.204 then added
+`public_public_assistant_compound` and its customer twin on purpose — the comment
+says *"live /public/:slug/assistant uses surface:customer; golden must match on
+customer (and public) so registry examples stay compounds"* — so the test was
+asserting the continued absence of a feature that had been added deliberately.
+
+The test's actual guarantee is its **second** assertion, `llm.completeJson` not
+being called: a public compound must not fall through to the LLM. That is now met
+*more* strongly, since the steps come from a deterministic recipe rather than from
+nothing. Updated to assert `['list_providers', 'check_availability']` with the
+no-LLM check intact, and renamed to describe what it now verifies. 87 → 88 pass.
+
+**Not fixed, and not mine to fix — `eval suite passes for full deterministic
+golden catalog`.** It asserts `summary.failed === 0` over all 8,468 cases, so it
+is a stricter duplicate of the accuracy gate, which ratchets at 99.99% and
+tolerates exactly one known failure. Identified that case rather than assuming:
+
+```
+id: e2e137-professional-profile
+errors: [ "rescuedAction: expected explain_professional_profile, got none",
+          "rescueReason: expected professional_profile, got none" ]
+```
+
+That is `e2e-bug.456`, already open and **already costed**: doing nothing means a
+staff member asking for a colleague's profile on dashboard rescues to `none` and
+gets no answer; the alternative adds `dashboard` to the command's surfaces and
+changes the dashboard's catalogue, shortlists and permissions. Both are product
+calls, so the entry stays — with the reason now recorded in the manifest's
+`reasons` map rather than left for the next person to re-derive.
+
+**This test can never go green on engineering effort alone**, which is worth
+saying plainly: it is gated on a decision, not on a fix.
+
+### §301 (C2/T0 series) — the pre-index era, and statuses verified in the present tense
+
+Closes the second gap §243 left as data. Seven IDs were referenced in `TODO.md` and appeared
+nowhere in `TODO.BUGS.MD` — `e2e-bug.30`, `.34`, `.36`, `.50`, `.56`, `.104`, `.121`, all pre-dating
+the index. All seven now have rows.
+
+**Both gaps are now zero, and the index is closed as a set:** `total unique IDs == index rows`
+(452 == 452), with `referenced but no index row: none` and `in TODO.md but absent here: none`.
+That equality is the real invariant — it says every ID the file discusses has a row, and every row
+belongs to an ID the work actually mentions.
+
+**Statuses verified in the present tense, not read from the prose.** §300 had just found two of two
+spot-checked statuses stale, so "the write-up says fixed" was not good enough here. Each of the
+seven names a specific guard, and each guard was confirmed to exist in the tree today:
+
+| ticket | guard verified live |
+|---|---|
+| `.30` | `isStaffMemberUserId` in `booking.service.ts`, + `api-bug1-customer-actor.util.spec.ts` |
+| `.34` | `e2e-bug.34` guard in `ConsumerMultiServiceVisitActions.tsx` and `group-package-bookings.ts` |
+| `.36` | `e2e-bug.36` guard in `ConsumerPackageVisitActions.tsx` |
+| `.50` | `buildPublicOpeningHoursFromTemplates` in both the AI and public-booking services |
+| `.56` | `resolveMultiServiceAvailabilityCatchMessage` + its source-regex build guard |
+| `.104` | the original `e2e-bug.104/149` comment on the tour-week query, + two suites |
+| `.121` | `api-bug5-cancel-concurrency.util.spec.ts` |
+
+`.56` is worth singling out: its guard is a **source-file regex assertion** that fails the build if
+the `err.message ||` anti-pattern is reintroduced — a fix that defends its own shape rather than
+just its symptom, which is the pattern the rules in §215, §239 and §241 all converged on
+independently.
+
+**The other session moved again during this slice** — `e2e-bug.522`, citing **§245**. That accounts
+for the count moving by 8 when I added 7 rows, and it is the fourth concurrent write observed today.
+The §300 range split is holding: their series is at §245, mine at §301, and they no longer meet.
+
+No code changed.
+
+### §246 — `e2e-bug.523`: three clinic singletons, two of them one defect
+
+The manifest had three separate clinic entries in three suites. Two shared a
+root cause; the third was unrelated. All three were tests contradicting
+deliberate routing rules — no production code was touched.
+
+**Two entries, one prompt.** `ai-clinic-booking.logic` (`explains
+service-specific lab prep`) and `ai-clinic-booking-multilingual.util` (`maps
+parsed prompt fields when fixture params are omitted`) both used
+`'Explain the lab prep for Lipid panel'`, and `parseExplainClinicBookingFromPrompt`
+returns `null` for it — so one test saw `success: false` and the other saw
+`paramsPartial` omitted entirely. Two different-looking symptoms, one cause.
+
+The `null` is **correct**. `isExplainClinicBookingPrompt` blocks it at
+`CONSUMER_LAB_PREP_EXPLAIN`, whose pattern includes
+`prep(?:aration)?\s+for\s+(?:the\s+)?(?:CBC|lipid|…|panel|…)` — consumer lab-prep
+questions are routed away from `explain_clinic_booking` on purpose. The tests
+were asserting against a deliberate exclusion.
+
+Since both tests are about the *mapping*, not the routing, they need a prompt the
+command actually owns. Used the English analogue of the already-passing Russian
+fixture `'Как подготовиться к Lipid panel на странице записи?'` →
+`'How do I prepare for Lipid panel on the booking page?'`, verified to yield
+exactly `{ aspect: 'preparation', serviceName: 'Lipid panel' }`. It escapes the
+exclusion for a precise reason worth recording: the pattern needs whitespace
+directly after `prep`, and **`prepare` has none**.
+
+**The third: a test named for a surface it never named.** `rescues dashboard
+prompt create-order-to-staff-book` expected `staff_book_lab_collection` and got
+`book_appointment`. `rescueDashboardClinicLabBookingIntent` answers the prompt
+correctly in isolation — measured — so the intent was never in doubt. The call
+simply omitted `surface`, and with it absent the **public** disambiguation path
+claimed the prompt (book verb + concrete time) and returned `book_appointment`
+under `rescueReason: 'public_timed_book'`.
+
+That is the second time in two slices that a `public_*` reason surfaced on a
+request that was not public — §244 was `public_availability` on dashboard. The
+shape is the same: **the public path is the permissive one, so it wins by default
+whenever the surface is unstated.** Here the fix is in the test, because these
+commands are dashboard-only by design (the e2e-bug.77 gate in the rescue service
+says so) and the scenario always meant dashboard. Worth noting that the sibling
+`consumer` and `provider` blocks in the same file omit `surface` too and pass —
+they are one prompt away from the same failure.
+
+### §302 (C2/T0 series) — two tickets from the T1 slice: one closed, one that pointed the wrong way
+
+The first slice planned off the repaired index (§300–§301). Both tickets came from §177–§178's T1
+declare-inputs work, and neither had been re-verified since filing.
+
+**`e2e-bug.461` — "three duplicate-command pairs" — closed, they are deliberate.** The ticket names
+no pairs, so I censused four duplicate signals across all 705 specs. Exactly **three** groups, all
+**pairs**, matching the count:
+
+| pair | surfaces | handlers |
+|---|---|---|
+| `booking.cancel_package_visit_self` / `booking.cancel_package_visit` | customer / dashboard | `AiSelfServiceBookingService` / `AiBookingDepthService` |
+| `booking.reschedule_package_visit_self` / `booking.reschedule_package_visit` | customer / dashboard | same split |
+| `provider.give_ai_feedback` / `operations.give_ai_feedback` | provider / customer+public | `ProviderAiCommandService` / `AiGiveAiFeedbackService` |
+
+Every pair has a **different handler on disjoint surfaces** — one operation implemented once per
+surface, not a redundancy. The shortlist is surface-filtered before the planner sees it, so they
+never compete. Also measured clean: **0** same-handler duplicates, **0** identical alias sets, **0**
+aliases claimed by two specs. The real residue is cosmetic — all three pairs share an identical
+`description` — and improving that is blocked on the embedding-cache credential, like `e2e-bug.518`.
+
+**`e2e-bug.462` — "the validator accepts an alias the handler never reads" — the premise is
+backwards.** Two measurements:
+
+- **Action level: clean.** All **163** `ACTION_RULES` keys resolve to a real `COMMAND_REGISTRY`
+  entry. 0 orphans, 0 duplicates, 0 spec-only.
+- **Param level: 16 of 148** rules read a `params.x` the spec does not declare — which looked like
+  the ticket confirmed. It is not. **Both spot-checks show the handler does read the param**, so the
+  validator is correct and the *declaration* is short.
+
+`update_service_prices` is the instructive one: the validator reads `priceChangePercent`,
+`priceChangeAmount`, `absoluteChange` and `priceDelta`, and the spec's **own comment** already
+explains it — those are alternative spellings, *"one name each is declared"* because `required` has
+no *one-of* form. Deliberate, documented, citing `e2e-bug.164`. A false positive that my census would
+have reported as a defect had I stopped at the aggregate. `day_replan` is the opposite: the validator
+accepts `date || (dateFrom && dateTo)`, `handleDayReplan` reads all three, and the spec declares only
+`date` and `allProviders` — undocumented, a genuine gap.
+
+**So the residue is C2 under-declaration — my own campaign's known failure direction.** §177–§178
+recorded it explicitly: a handler-body grep *under-reports*, and under-reporting reads as "takes
+nothing". Here is evidence it did, on at least one command. It is contract debt rather than a live
+defect (`spec.variables` still has no runtime consumer), and the remaining 14 commands are named on
+the ticket so the work is bounded rather than open-ended.
+
+**Two tickets, two premises that did not survive measurement** — after §300 found two of two statuses
+stale and §243 found every figure in the index summary wrong. The pattern across this stretch is
+consistent enough to state plainly: **in this repo, a claim that has not been re-measured is a
+hypothesis, whoever wrote it and however recently.**
+
+No code changed.
+
+### §247 — `e2e-bug.524` / `e2e-bug.525`: the service-discovery family, four entries in one pass
+
+Five manifest entries sat in service-discovery/rank suites. Grouping them by the
+scenario id rather than by file showed they were not five problems:
+`rank-voice-premium-en` appeared in two suites, `discover-not-gift-en` in two
+(blocked on `e2e-bug.516`), and `discover-journey-clarify-en` stood alone.
+
+**`e2e-bug.524` — two entries, one stale expectation.** Both asserted
+`serviceCategory: 'haircut'` for the prompt `'Premium cut?'`, which says *cut*
+and never *haircut*. `RANK_SERVICE_CATEGORY_ALIASES` deliberately omits
+`cut -> haircut`, with the e2e-bug.323 reasoning stated in place: pre-aliasing
+discards the raw token before `matchServicesByQuery` runs, so its
+literal-substring-first expansion can no longer prefer real rows named
+`"Men's cut"`. Only the plural folds (`cuts -> cut`). The expectations predate
+that decision; `'cut'` is the intended value. Same shape as §231, opposite
+direction.
+
+**`e2e-bug.525` — a clarify turn was being treated as a browse.** Turn 2 of
+`discover-journey-clarify-en` is `'basic cut'`, expected to resolve to the
+catalog row `Haircut basic`; it returned `serviceName: null`.
+
+The cause is a branch doing its job in the wrong context. `'cut'` matches all
+three `Haircut *` rows, so the **family-browse** branch fires — the one that
+exists so `'show me facials'` lists a family instead of pinning its first row —
+and to do that it clears `serviceName`. Correct for a browse; wrong for the
+second turn of a journey, where the customer has already seen the list and
+`'basic'` is the word that chooses between them.
+
+Word order is why the existing exact-name guard missed it: the row is
+`Haircut basic`, the prompt is `basic cut`, so the substring test fails — and
+would fail for the natural `'basic haircut'` too, which is the tell that this was
+a real gap rather than one odd fixture.
+
+Fixed by narrowing before browsing, and **deliberately only when the leftover
+words pick out exactly one member**:
+
+| prompt | leftover after removing family token + stopwords | matches | result |
+|---|---|---|---|
+| `basic cut` | `basic` | 1 → `Haircut basic` | **pinned** |
+| `show me facials` | — | n/a | browse (unchanged) |
+| `cheapest haircut under $50` | `cheapest` | 0 | browse (unchanged, e2e-bug.500 safe) |
+
+**A fourth entry fell out that I had not targeted.** The sweep reported
+`ai-structural-extractors › enrichPublicAssistantParamsFromPrompt resolves basic
+cut clarify follow-up against haircut catalog` as now passing — a separate
+manifest singleton asserting exactly this behaviour. The expectation was already
+written down in two places; only the implementation was missing.
+
+**One gate broke, and it was mine.** `ai-command-inventory.boundary` went red —
+the documented remedy is `npm run build:ai-inventory`, and unlike the embeddings
+staleness in §241 this one was caused by my own edits, so I ran it. Checked what
+the regeneration actually did rather than trusting the diff size (142 insertions
+/ 127 deletions looked large for one function): **772 symbols before, 772 after,
+zero added, zero removed** — the churn is entirely recorded line numbers shifting
+under my insertions.
+
+### §303 (C2/T0 series) — the validator is a better instrument than a grep
+
+Continues §302's re-scope of `e2e-bug.462`. The claim was *"the validator accepts an alias the
+handler never reads"*. Ran it to ground across all 163 rules and ~45 undeclared params:
+**zero are validator-only.** Every one is read somewhere in production. The ticket is disproved, and
+what is left is the mirror image — the **declarations** are short, not the validator wrong.
+
+**The useful part is the instrument.** `ACTION_RULES` is an independent, per-command statement of
+what a command needs, written by whoever made the command work, and it disagrees with `variables` on
+16 commands. C2 built its declarations by reading handler chains; this is a second source that was
+sitting in the tree the whole time, and diffing the two is cheap.
+
+**One fixed, and it demonstrates why the instrument matters.** `day_replan` [T3] declared only `date`
+and `allProviders`; its own completion rule accepts `date || (dateFrom && dateTo)`. Following the
+chain: `handleDayReplan` → `resolveDateRange(params, prompt, timeZone)`, which reads
+`params.dateFrom` and `params.dateTo` at depth 1. Both now declared.
+
+**And it nearly went in for the wrong reason.** A body-level check reported `handleDayReplan`
+"references dateFrom: True" — but those references **write** `dateFrom` onto a downstream object;
+the handler never reads it. Declaring on that evidence would have been `e2e-bug.399`'s opposite
+mistake (declaring inputs no handler reads) while appearing to fix the right thing. §177 predicted
+the direction — a body grep under-reports — and here it also *mis*-reports, which is worse, because
+presence looks like confirmation.
+
+**Safe to continue incrementally**, and this is worth recording because §241 and §302 were both
+blocked by the opposite: `commandMatchText` is `[description, ...examples]`, so **declaring variables
+does not touch the embedding cache**. Verified rather than assumed — the staleness gate stays green.
+Description and example edits still need `OPENAI_API_KEY`; variable edits do not.
+
+**15 commands remain**, listed on the ticket, one of which (`update_service_prices`) is already
+answered in its own spec comment and needs no change.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated, embedding-staleness gate green.
+
+### §248 — `e2e-bug.526`: a gate that could only be satisfied by deleting live data
+
+`guide/sync-guide-corpus-i18n` looked like the cheapest entry left — a snapshot
+drift with a documented remedy in its own env var. Running that remedy would have
+been wrong.
+
+The drift test compares the committed snapshot against
+`buildGuideCorpusI18nSnapshot()`, which reads the frontend catalogs and keeps
+only `guide` and `helpCenter`. Running the sync **removed 924 lines** rather than
+adding them: the committed snapshot carries a `guide.flows` subtree the frontend
+does not define.
+
+**Checked whether the frontend had simply dropped it — it never had it.**
+`git log -S "flows:" -- frontend/src/i18n/messages/en.ts` returns nothing, and
+the four "flows" hits in `en.ts` are all the word *workflows*. Meanwhile the
+subtree is live backend data: `loadGuideCorpusSnapshot()` reads the file at
+runtime and `guide-flow-customer-public-i18n.util` walks `guide.flows.*` for the
+e2e-bug.46 full-corpus gate, with 20 topicIds fixtured against it.
+
+So the sync deleted data that only exists there, and the drift gate then demanded
+exactly that deletion. **The gate was unsatisfiable without data loss**, which is
+the real reason it sat in the manifest rather than being regenerated by anyone
+who tried.
+
+Fixed by re-attaching the backend-owned subtree during the rebuild, so the sync
+preserves what it does not own. Proof it is now safe: running
+`SYNC_GUIDE_CORPUS_I18N=1` leaves the snapshot **byte-identical** — the operation
+that previously destroyed 924 lines is now idempotent. All 14 guide suites pass
+(189 tests).
+
+**Trade-off stated rather than hidden:** the gate can no longer police
+`guide.flows`, because there is no frontend source to compare it against. It
+still compares everything the frontend does own, which is what it was built to
+catch. The alternative — moving `guide.flows` into its own backend-owned file so
+both halves are policed — is a larger change than this entry justified, and is
+the better long-term shape if anyone revisits it.
+
+**Nearly the opposite mistake to §247.** There, regenerating a checked-in
+artifact was exactly right and I verified the diff was inert (772 symbols before
+and after). Here the same reflex would have silently deleted a corpus. The
+difference is not visible from the failure message; both say "committed artifact
+does not match the tree".
+
+### §304 (C2/T0 series) — eight more declarations, and the tracer that spilled
+
+Continues §303. Built a resolver lookup first, because most undeclared params reach a handler through
+a shared helper rather than a direct read:
+
+| helper | reads from `params` |
+|---|---|
+| `resolveDateRange(params, …)` | `date`, `dateFrom`, `dateTo`, `_timeZone` |
+| `resolveEmployees` / `resolveEmployeesVerdict(list, params)` | `allProviders`, and `employeeName` / `employeeNames` **via `getRequestedEmployeeNames`** |
+| `resolveServices` / `resolveServicesVerdict(list, params)` | `serviceName`, `serviceNames` |
+| `parsePriceAdjustment` | the six price spellings |
+
+The employees row is §200 again: `resolveEmployees` shows only `params.allProviders` in its own body
+and delegates the two name fields one hop down.
+
+**Declared, each verified by walking the chain:**
+
+| command | added | via |
+|---|---|---|
+| `fill_unused_slots` [T3] | `date`, `employeeNames` | `resolveDateRange`, `resolveEmployeesVerdict` |
+| `hide_appointments_from_calendar` [T1] | `serviceName`, `serviceNames` | `resolveServicesVerdict` |
+| `unhide_appointments_from_calendar` [T1] | `serviceName`, `serviceNames` | `resolveServicesVerdict` |
+| `create_schedule_template` [T1] | `serviceName`, `serviceNames` | `prepareCreateScheduleTemplatePlan` reads both directly, and calls `resolveServices` |
+
+**The last row is the interesting one: the validator never mentions those two params.** It was found
+by following `handleCreateScheduleTemplate` → `prepareCreateScheduleTemplatePlan`, not by the diff
+that started this. So the validator is a good instrument for *finding candidates* and a poor one for
+*bounding the work* — the real gap is larger than the 16 commands it flags.
+
+**A tracer defect, caught before it wrote anything.** My first mapping pass extracted method bodies
+with a fixed 6,000-character window, which spills into neighbouring methods. It reported
+`clear_schedule` calling `resolveDateRange` and `unassign_employee_services` calling it too; with
+bodies bounded at the next method declaration, **both call neither**. Three of its answers changed.
+That is the fifth tracer defect recorded in this repo, and the first that **over**-reported — every
+previous one under-reported. A window that is too wide invents evidence, which is more dangerous than
+missing it, because the output still looks like a finding.
+
+`clear_schedule`'s `date` and `create_schedule_template`'s `timeSlot` are therefore **still
+unexplained**, not resolved — both handlers delegate to `prepare*Plan` methods that read neither.
+Those two are the best remaining candidates for the ticket's original claim actually being true
+somewhere.
+
+**11 commands remain**, listed on the ticket.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated, embedding-staleness gate green (variables are not part of `commandMatchText`).
+
+### §249 — `e2e-bug.527`: a shim test that bypassed the shim, and two Russian stems that are not variants
+
+Two singletons, unrelated except that both were assertions aimed slightly off
+their target.
+
+**`ai-intent-heuristics` — the block tested everything except the thing it is
+named for.** Every test reads `re-exports X`, but three of the four symbols were
+imported straight from the split modules:
+
+```ts
+import { extractTimeSlotFromPrompt } from './ai-structural-extractors.js';
+import { enrichBookingTimeHintsFromPrompt } from './ai-booking-param-hints.util.js';
+import { resolveBookingMetric } from './ai-metric-resolvers.util.js';
+```
+
+so the shim could have been deleted and only the last test would have noticed.
+Routed all five through `./ai-intent-heuristics.js`, which is what the titles
+claim.
+
+The failing assertion was separately wrong: `resolveBookingMetric({}, 'summarize
+today')` expects `'count'` and gets `null` — and `null` is the resolver working
+as built. Measured across its range: `'how many bookings today'` → `count`,
+`'how many bookings in total'` → `count`, and `'revenue today'`, `'no shows this
+week'`, `'unpaid bookings'`, `'summarize my day'` → **all null**, because the
+metric normally arrives in `params.bookingMetric` from the classifier and the
+semantic path only answers explicit count/total wording. Replaced with a prompt
+the resolver owns, plus a params-driven case, so the test proves the re-export
+rather than a behaviour the function never promised.
+
+**`intent-anchor.seed.util` — `запис` and `запиш` are different stems.** The test
+wanted the inherited ru group to contain `'запис'`; it contained `'запиш'`.
+These are not spelling variants: `запис` covers **записаться / запись /
+записать**, `запиш` covers the imperative **запиши / запишите**, and neither
+prefix matches the other's forms — they diverge at the fifth character, `с` vs
+`ш`. The group carried only the imperative, so `'хочу записаться на массаж'` —
+the most common Russian booking phrasing there is — matched none of its tokens.
+
+**The two sibling ru `create_booking` groups in the same bank already carry
+`'запис'`**, which is what makes this the one-of-N shape rather than a judgement
+call about Russian. Added it alongside `'запиш'` rather than replacing, since the
+test's own prompt (`'Запиши на ближайшее…'`) needs the imperative.
+
+The blast radius is wider than one entry, and worth stating:
+`resolveConceptGroupsForAnchor` inherits by `.find(action + locale)` — **first
+match wins** — and this is the first ru `create_booking` entry in the bank, so
+every eval anchor inheriting ru booking groups inherits exactly this list. That
+first-match inheritance is itself crude (it ignores phrase similarity, so a
+prompt about `ближайшее свободное время` inherits groups tuned to
+`или/суббот/вечер`), but changing the selection rule is a much larger change than
+this entry justified. Noted, not attempted.
+
+### §305 (C2/T0 series) — six more, and a tracer column that had to be thrown away
+
+Continues §304 on `e2e-bug.462`. Declared, each verified by opening the function rather than trusting
+a map:
+
+| command | added | chain |
+|---|---|---|
+| `clear_schedule` [T3] | `date`, `employeeNames` | `handleClearSchedule` -> `prepareClearSchedulePlan` -> `resolveScheduleDates` / `resolveEmployees` |
+| `hide_appointments_from_calendar` [T1] | `statusFilter`, `statusFilters` | `resolveCalendarVisibilityStatusFilters(params)` |
+| `unhide_appointments_from_calendar` [T1] | `statusFilter`, `statusFilters` | same |
+
+`clear_schedule` is the clearest case yet for the "read the chain" rule: the handler body is nine
+lines and reads **no params at all**. Everything it accepts is two hops away.
+
+**I built a second tracer this slice and then discarded half its output.** After §304's window bug I
+bounded the bodies properly and followed one hop into `prepare*`/`find*` delegates. It produced two
+columns — *read but undeclared* and *validator-only (nothing reads)* — and the second column is
+**wrong**, provably:
+
+- it flagged `statusFilter` / `statusFilters` on hide/unhide as read by nothing, while
+  `resolveCalendarVisibilityStatusFilters` — called directly by the handler, and named after exactly
+  those fields — reads both;
+- it flagged `blockFullDay` the same way, which §303's whole-tree scan had already found being read
+  in `ai-orchestration.helpers.ts`.
+
+The cause is reach: `accepts()` only knew two service files and a hand-written helper table, so
+anything resolved elsewhere reads as absent. **Under-reach presents as a confident negative.** The
+whole-tree scan is the stronger evidence and it stands: **no param is validator-only**, and
+`e2e-bug.462`'s original claim remains unreproduced after three slices of trying.
+
+Two tracers, two defects, opposite directions: §304's window was too wide and invented calls;
+§305's reach was too narrow and denied them. Both produced output that looked like findings.
+
+**Not declared, deliberately:** `customerName` and `limit` on hide/unhide. The tracer attributes them
+to `findBookingsForHide`, which reads neither directly — that is a tracer's attribution, not a
+reader's, and after the above it does not clear the bar.
+
+**8 commands remain**, listed on the ticket.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated.
+
+### §306 (C2/T0 series) — `e2e-bug.462` reproduces, once, on `holiday_mode`
+
+Three slices said the ticket did not reproduce. It does, on exactly one command, and finding it took
+abandoning tracers entirely and reading the chain by hand.
+
+**The defect.** `holiday_mode`'s completion rule:
+
+```
+hasClose = closeDates?.length || holidayDates?.length || !!cmd.params.dateFrom
+```
+
+Nothing downstream reads `dateFrom`. `handleHolidayMode` -> `prepareHolidayModePlanLogic` ->
+`parseHolidayModeDates(params)`, which reads `closeDates`, `holidayDates`, `extendDate`,
+`extendTimeFrom`, `extendTimeTo` — and the logic then bails on `if (!closeDates.length) return null`.
+So a plan carrying only `dateFrom` was judged **complete**, executed, and failed inside the handler.
+The user got *"Specify which days to close"* as an **error** when it should have arrived as a
+**question**, before anything ran.
+
+Fixed by dropping the clause, so the gate and the handler agree. **Asking is strictly safer than
+executing-then-failing**, and it needs no product input; whether a range *should* mean "close these
+days" does, and is filed as `e2e-bug.529` rather than guessed.
+
+**No test covered it either way** — the 9 completion suites stayed green through the change. Three
+tests added, negative-controlled: restoring the clause fails exactly one.
+
+**Declared this slice, each read rather than inferred:**
+
+| command | added | evidence |
+|---|---|---|
+| `block_schedule` [T1] | `blockFullDay` | `isFullDayBlock(params, …)`, first line `if (params.blockFullDay)` |
+| `create_direct_schedule` [T1] | `periods`, `employeeId` | `inferDirectSchedulePeriods` returns `params.periods` verbatim; `employeeId` read in the handler |
+| `swap_schedules` [T3] | `date` | `prepareSwapSchedulesPlanLogic` -> `resolveScheduleDates` |
+| `holiday_mode` [T3] | `employeeName`, `employeeNames`, `placeholder` | `resolveEmployees(employees, params)`; `placeholder` read directly |
+
+`swap_schedules` also passes `allProviders` through a spread into `resolveEmployees`, and I
+**deliberately did not declare it**: a swap needs exactly two named targets, so the all-providers arm
+can only ever fail the `length !== 2` check. Declaring a param that is read but can never contribute
+is `e2e-bug.399`'s mistake wearing a disguise.
+
+**A third tooling defect, and the reason I stopped writing tools.** A scan reported `isFullDayBlock`
+and `inferDirectSchedulePeriods` reading nothing; both read the exact param in question. Its
+"end of function" pattern matched `\n  return (` and truncated the body — §205's awk truncation
+again. Across three slices: §304's window was too wide and invented calls, §305's reach was too
+narrow and denied them, §306's bound was too eager and cut them off. **All three produced output
+shaped like findings.** Everything declared in this slice came from printing the function and reading
+it.
+
+**4 commands remain** on the ticket.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated.
+
+**Worth flagging:** `command-completion.validator.spec.ts` is **not** in the roadmap gate chain, so
+these three new tests are protected only by the `test:ai-known-failures` sweep. The validator decides
+whether a T3 command executes; that spec arguably belongs in the fast chain.
+
+### §307 (C2/T0 series) — the category pair, and the mirror defect
+
+Closes `unassign_employee_services` and `transfer_employee_services` on `e2e-bug.462`, by printing
+both input resolvers and reading them.
+
+| command | added | read by |
+|---|---|---|
+| `unassign_employee_services` [T1] | `serviceNames`, `unassignAllServices`, `unassignFromCategory` | `resolveUnassignEmployeeServicesInput` |
+| `transfer_employee_services` [T2] | `transferFromCategory` | `resolveTransferEmployeeServicesInput` |
+
+**And the mirror defect, which is the find of this slice.** `unassign_employee_services` **declared
+`assignFromCategory`** — a param its chain never touches. That name is read in exactly one place,
+`resolveAssignEmployeeServicesInput`, which serves the sibling `assign_employee_services` command.
+The declaration was copied across; the unassign resolver reads `unassignFromCategory`, one letter
+group away. Removed.
+
+**This is the first confirmed declared-but-unread param in the registry.** Everything C2 and
+`e2e-bug.462` chased ran the other way — inputs read but not declared. `e2e-bug.399` names this
+opposite mistake and the campaign has warned about it repeatedly; until now there was no instance on
+record. There is one now, and it survived the whole T1 declare-inputs pass because **nothing checks
+declarations against reads in that direction** — the T1 rule asks only whether a command declares
+*something*.
+
+That asymmetry is worth a rule, and it is the natural next slice: a reverse census, every declared
+variable checked for a real read. Two near-identical sibling commands with two near-identical param
+names is exactly the shape that produced this one, so more are plausible.
+
+`update_service_prices` needs no change — its four extra spellings are documented in the spec as
+alternatives with *"one name each is declared"*. **3 commands remain**, all large bulk handlers in
+`ai-booking-core.service.ts`: `create_booking`, `cancel_bookings`, `update_bookings`.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated.
+
+### §250 — `e2e-bug.529`: provider flexibility is not time flexibility; and a test anchored on formatting
+
+**`ai-booking-reschedule-hints` — a real conflation, and a corrected first attempt.**
+`'Book facemassage on Gevorg tomorrow at 9; if not available then Mary; if not
+whoever is free'` states **one time and three provider preferences**, yet came
+back with `bookingFirstAvailable: true` — which means *book the soonest slot* and
+discards the 9am the customer asked for. The chain only ever meant to relax the
+provider.
+
+`isFirstAvailableBookingPrompt` is anchor-similarity based, not rule-based, which
+is why this is not obvious from reading it. Measured:
+
+| prompt | first-available? |
+|---|---|
+| `Book facemassage whoever is free` | false |
+| `Book facemassage on Gevorg tomorrow at 9` | false |
+| the full fallback sentence | **true** |
+
+So no single clause trips it — the combination scores over the line. That also
+means the fix cannot be "remove a phrase from a regex"; it has to be structural.
+
+Cleared rather than skipped, because `enrichBookingTimeHintsFromPrompt` runs
+first and has already set the flag by the time the chain is extracted.
+
+**The first version of the guard was too broad and the sibling test caught it.**
+I keyed it on `providerFallbackNames.length > 0 || fallbackAnyProvider`, which
+broke `'Book first available massage tomorrow evening on any provider'` — a bare
+*"on any provider"* sets `fallbackAnyProvider`, and that prompt genuinely does
+want `bookingFirstAvailable`. Narrowed to **named fallbacks only**: a chain is
+`if not X then Y`, whereas "any provider" is a single preference. Both tests pass.
+
+**`ai-command-unknown-intent-guard` — the guard was fine; the search string was
+not.** This suite reads `ai-command.service.ts` as text and asserts the *order*
+of three stages. It searched for `"parsed.action === 'unknown' &&
+isClearSchedulePrompt"`, i.e. two terms adjacent on one line, and got `-1`.
+
+Verified the actual ordering before touching the test: the clear rescue (1264),
+the vertical rescue (1276) and the unknown guard (1321) are all present and in
+that order. What changed is that the condition gained a `!skipClassifierRescues
+&&` term and was wrapped across four lines, separating the two searched terms.
+**Nothing about the behaviour it guards had regressed.**
+
+Re-anchored on `isClearSchedulePrompt(effectivePrompt)` — the call the assertion
+is actually about. A source-text ordering test is only as stable as the smallest
+string it can anchor on, and a whole boolean condition is not that string.
+
+### §308 (C2/T0 series) — the reverse census: declared inputs nothing reads
+
+§307 found the first declared-but-unread param and observed that **no rule checks that direction** —
+the T1 rule only asks whether a command declares *something*. This runs the check.
+
+**Cheap pass: 516 distinct declared variable names, 3 appear nowhere in production code.** That is a
+good result for C2 overall. All three turned out to be the same defect as §307 — a plausible name
+that is not the one the code uses:
+
+| command | declared | actually read |
+|---|---|---|
+| `catalog.set_service_compatibility` | `compatibleWith` **required**, `serviceName` | `incompatibleServiceNames ?? serviceNames` |
+| `catalog.create_package` | `discountPercent`, `price` | `discountType`, `discountValue` (+ `description`, `expiresAt`, `notifyCustomers`) |
+| `compliance.list_sub_processors` | `article` (string) | `article28` (**boolean**) |
+
+**`set_service_compatibility` is the serious one, and not only by name.** `compatibleWith` was
+`required: true` — a mandatory input no handler reads — and described as *"Services bookable
+alongside it"*, while the handler records the pair that **cannot** be booked together. The
+declaration documented the inverse of the behaviour. Its `description` is inverted the same way, and
+that half is blocked on the embedding-cache credential: filed as `e2e-bug.531`.
+
+**The census under-detects, and the three fixes prove it.** Reading those commands surfaced two more
+wrong declarations the scan could not see — `serviceName` on the compatibility command and `price` on
+`create_package` — because both names are common elsewhere in the tree, so "appears nowhere" never
+fires. **The reliable check is per-command: declared names against the names that command's chain
+reads.** The cheap pass finds only the phantoms whose names are unique. Treat 3 as a floor, not a
+count.
+
+Also added while reading: `create_package` was missing `description`, `expiresAt` and
+`notifyCustomers`, all read by its handler — so the same command was wrong in both directions at
+once.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated, 30 catalog/compliance/declared-inputs suites green (3,411 tests).
+
+### §251 — `e2e-bug.531`: a live wrong-surface shadow, found where the corpus could not look
+
+Three rescue singletons. Two were mis-aimed tests; the third was a real defect
+that also falsifies a claim written into `ai-e2e435-rescue-chain-fallthrough.spec.ts`.
+
+**The real one.** On the provider surface,
+`Ինչու չեմ կարող խմբագրել հաղորդագրության ձևանմուշները` ("why can't I edit the
+message templates") returned **nothing at all** — `rescue()` gave `null`, so a
+provider asking a reasonable question got no answer.
+
+Every sibling worked, including the Armenian *loyalty* and *call* prompts, which
+is what made it worth chasing rather than writing off as an i18n gap. The
+detector was fine in isolation: `isExplainDashboardOnlyActionPrompt` returns
+`true` for it, and `rescueDashboardHandoffIntent` returns the correct action.
+
+Tracing found the handoff was **never called**. Instrumenting
+`acceptRescueForSurface` named the culprit in one line:
+
+```
+[ACCEPT?] explain_public_intake_form public_intake_form surface= provider
+```
+
+**Root cause is a substring collision in Armenian.** The intake-form detector's
+Armenian branch requires a form word:
+
+```
+/(առողջության|ձև|հարցաթերթիկ|նախապոստ)/
+```
+
+`ձև` means *form* — and it also matches inside `ձևանմուշ`, which means
+*template*: a different word sharing the morpheme. With `ինչու` ("why")
+satisfying the third clause, the templates prompt matched all three. **A word
+boundary cannot express this**: `\b` is ASCII-only and matches nothing beside
+Armenian script — the same constraint as §185/§207. Fixed with a negative
+lookahead, `ձև(?!անմուշ)`.
+
+**The mechanism is the one e2e-bug.435 describes, and its spec said this could
+not happen.** That docblock argued the failure mode "does not currently occur",
+citing the 8,464-case corpus. Two things were wrong with that:
+
+- **The corpus does not cover provider-surface Armenian handoff prompts**, so
+  "zero in the corpus" was never evidence of zero. It was an absence of
+  measurement being read as a measurement of absence.
+- **The pipeline's fallthrough is between phases, not within one.** A
+  wrong-surface hit inside the provider phase still returns from that phase, so
+  a correct rescue sitting later in the *same* phase is shadowed no matter what
+  the inter-phase logic does. `explain_public_intake_form` is discarded, the
+  unknown phase has nothing, and the result is `null`.
+
+Docblock corrected in place rather than left to mislead the next reader.
+
+**The two mis-aimed tests.** `ai-intent-rescue-pipeline.util`'s "stops after
+provider hit" used `list_my_bookings`, which is **not** provider-legal, so the
+hit was discarded exactly as designed and the test's premise never held; swapped
+for `list_bookings` (verified via `isIntentAllowedOnSurface`, not assumed).
+`ai-rescue-pipeline.coverage` expected `rescueReason:
+'digital_to_physical_gift_card'` for `'Buy physical gift card $75'`, but two
+rescues answer that prompt with the **same action** via the **same predicate**,
+differing only in the label they record; the budget path wins because `$75` is a
+price signal and its gift-card ordering is curated across e2e-bug.130/124/80.
+Recorded the reason that actually fires rather than reordering a curated chain
+for a diagnostic string — noting the more informative label is unreachable here.
+
+### §309 (C2/T0 series) — the per-command reverse census, and why it stays a shortlist
+
+§308 said the "appears nowhere" pass finds only phantoms with unique names, and that the reliable
+check is per-command. Built it, and it is **not** rule-grade — but it is a useful shortlist, and
+naming the difference matters.
+
+**Two attempts.** Matching declared names against the handler's own file flagged **155 of 192**
+commands — 81%, because the `.service.ts` files are thin wrappers and the reads live in `.logic.ts`
+siblings. `holiday_mode` came back with every one of its params flagged, including ones §306 had just
+verified. Widening to the file family plus `ai-orchestration.helpers.ts` brought it to **60 of 192**.
+Still far too noisy to gate on (§190), so it was used the way a shortlist should be: read the hits.
+
+**Read four, found two real and two false positives** — a hit rate that says "shortlist", not "rule":
+
+| flagged | verdict |
+|---|---|
+| `booking.check_availability` / `dayPart` | **false positive** — `params.timeOfDay ?? params.dayPart`, read in `ai-operations.util.ts`, outside the family |
+| `customer.update_my_locale` / `preferredLocale` | **false positive** — read in `ai-my-locale.logic.ts`, whose base name does not match the service's |
+| `catalog.list_packages` / `includeInactive` | **real** — `handleListPackagesLogic(deps, businessId)` takes no `params` argument at all |
+| `catalog.list_subscription_plans` / `includeInactive` | **real** — unread, *and* the handler reads `serviceName`, which was not declared |
+
+Both false positives share one cause: **a logic file whose name does not derive from its service's.**
+That is a naming convention, not a rule, so any file-proximity heuristic inherits its exceptions.
+
+**Fixes.** `catalog.list_packages` now declares `{}` and joins `T0_VERIFIED_NO_INPUT` — §190's
+documented no-input shape, an explainer dispatched `(deps, businessId)`. `catalog.list_subscription_plans`
+swaps `includeInactive` for `serviceName`.
+
+**§215's rule caught me adding the exemption.** The list is pinned twice — the const and a
+by-value `toEqual` — so adding one entry failed until both agreed. Exactly what that pinning is for,
+and pleasant to be on the receiving end of it.
+
+**Standing count for the reverse class: 5 confirmed** (`assignFromCategory` §307; `compatibleWith`,
+`discountPercent`+`price`, `article` §308; `includeInactive` ×2 §309). Every one is a plausible name
+that is not the one the code uses, and three of the five sit on commands that were *also* missing a
+param the handler reads. **Wrong-in-both-directions is the normal case, not the exception.**
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8467/8468 (99.99%), delta +0%**, inventory
+regenerated.
+
+### §252 — `e2e-bug.532`: three sprint rescue singletons, two thieves and a naming outlier
+
+**Sprint 29 — a "when can this fit?" question answered by proposing a booking.**
+`'Soonest appointment opening for multi-service block'` returned `create_booking`
+with `bookingFirstAvailable`, not `earliest_slot_all_services`.
+
+The victim detector was innocent, and measuring it is what settles the direction
+of the fix: `isEarliestSlotAllServicesPrompt` is **true** for this prompt and
+`isFindSoonestAppointmentPrompt` is **false**, so nothing downstream was
+ambiguous — the create-booking branch simply ran first, tripping on
+*soonest* + *opening*.
+
+The remedy was already written three lines above, by e2e-bug.248, for the same
+shape one intent over: *"the guard belongs on the thief rather than in the
+[victim] path"*. Added `if (isEarliestSlotAllServicesPrompt(prompt)) return null;`
+directly beneath its reschedule twin.
+
+**Sprint 24 — a guard firing on exactly the case its own comment excludes.**
+`'Which evening slots are available for Maria on Friday?'` lost its
+`timeOfDay: 'evening'` enrichment because the rescue returned nothing at all.
+
+e2e-bug.287 added a guard that drops a `check_availability → check_availability`
+rescue when the prompt is a check-providers question, and its comment is explicit
+that this is for the **indefinite** case: *"do not lock check_availability …
+when the prompt is indefinite anybody/anyone/who-is-open (named 'is Gevorg open…'
+stays check_availability)"*. But `isCheckProvidersForServicePrompt` does not draw
+that line — measured:
+
+| prompt | check-providers? |
+|---|---|
+| `Which evening slots are available for Maria on Friday?` | **true** |
+| `Which evening slots are available on Friday?` | true |
+| `Is Gevorg open tomorrow?` | false |
+
+So a prompt that already names one provider was being dropped. Added
+`!hasNamedProvider` (`params.employeeName`), which is the same signal the comment
+means by "named" — when the provider is pinned there is nothing to remap to
+`check_providers_for_service`, because the question is not *who*.
+
+**Sprint 28 — an assertion that was the odd one out in its own block.**
+`'Show my appointments'` expected `list_my_appointments`; the rescue returns
+`my_appointments`. **Both commands are real**: `booking.list_my_appointments`
+(handler `AiSelfServiceBookingService`) and `customer.my_appointments`
+(`AiCustomerCrmService`), both T0 reads on the customer surface that list the
+requesting customer's appointments.
+
+e2e-bug.75's steal guard frames the pair precisely — `list_my_appointments` is
+the *classification* a CRM list rescue must not clobber, not the thing that
+rescue produces — so from `action: 'unknown'` the CRM rescue owning it is
+correct. The assertion was also the outlier among its neighbours
+(`my_profile`, `my_subscriptions`), and the near-identical prompt
+`'My appointments'` two lines below already expected `my_appointments` and passed.
+
+**Filed in passing:** that pair is a genuine within-surface near-duplicate — the
+same class as the open `e2e-bug.518`, though not one of the three collisions its
+census found (that census keyed on *identical example strings*, and these two
+have different ones). Two handlers answer the same customer question; which
+should own it is a registry decision, not a test fix, and nothing here picked a
+winner.
+
+### §310 (C2/T0 series) — a documented scope the filter ignores, on a T3 destructive command
+
+Reading the last three bulk handlers for `e2e-bug.462` turned up something bigger than a missing
+declaration.
+
+**`cancel_bookings` [T3] declares `customerName` as *"Only cancel appointments for this customer"*,
+with `resolver: 'customer'`, and its first documented example is `"cancel Mary's appointment"`. The
+filter never reads it.** `handleCancelBookings` -> `findBookingsForCancel` builds its `where` from
+three helpers — `applyEmployeeScopeToWhere` (`allProviders`, `employeeName`, `employeeNames`),
+`applyServiceScopeToWhere` (`allAppointments`), `applyDateScopeToWhere` (`date`, `dateFrom`,
+`dateTo`) — then `filterBookingsByTimeConstraints` (`timeSlot`, and `timeFrom`/`timeTo` through
+`parseTimeWindow`). None mentions a customer. Neither handler body contains the string
+`customerName` at all. The one `customer` reference in the finder is `relations: { customer: true }`,
+loaded for display.
+
+**The completion validator bounds the blast radius without closing it.** `cancel_bookings` demands
+one of `date`/`dateFrom`/`employeeName`/`allProviders`/`serviceName(s)`, and `customerName` is not on
+that list — so a customer-only prompt is correctly returned for clarification, and "cancel
+everything" cannot happen by that route. But **"cancel Mary's appointments tomorrow"** supplies
+`date`, passes the gate, and cancels **every** booking tomorrow. `update_bookings` has the identical
+gap: "mark Karo's 10am as completed" would mark everyone's.
+
+Filed as **`e2e-bug.534`**. **Not fixed in this slice, deliberately:** `handleCancelBookings` receives
+`services` and `employees` and **no customers list**, so the fix needs one plumbed in or loaded, plus
+a D5 ambiguity guard — two customers named Mary must refuse rather than pick, exactly as §225-§238
+established for providers and services *on these same handlers*. A destructive path deserves its own
+slice with tests, not an edit tacked onto a census.
+
+**Interim, and the reason it is not just a ticket:** both `customerName` declarations now say the
+scope is not applied. A declaration that promises customer scoping is worse than an absent one,
+because the planner fills it and believes it. Variable descriptions are **not** part of
+`commandMatchText` — only `description` and `examples` are — so this needed no embedding rebuild.
+The command's own example, `"cancel Mary's appointment"`, is a separate matter and **is** blocked on
+that credential.
+
+**How it surfaced.** Not from the validator diff, which never flags `customerName` — the validator
+does not accept it as a filter, which is precisely the disagreement. It came from diffing the
+*declared* set against what the chain reads, i.e. §308's reverse direction, applied to the three
+commands `e2e-bug.462` had left. The forward census would never have found it.
+
+The remaining forward work on those three (declaring the params they genuinely read — `create_booking`
+alone has twelve) is deferred to the next slice so this one stays reviewable.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8469/8470 (99.99%), delta +0%** (case total rose
+by two — the other session), inventory regenerated.
+
+### §253 — `e2e-bug.534`: four registry-drift singletons, and one of them was a real hole
+
+Four suites failed on registry alignment. Three were gates describing an older
+shape of the code; one was a genuine missing registration.
+
+**A gate that predates the architecture it checks.** `ai-command-handler-coverage`
+reported **nine** dashboard intents with no handler — `explain_ai_audit_log`,
+`explain_ai_capabilities`, `explain_ai_usage_analytics`, `get_provider_calendar`,
+`list_customers`, `list_schedule_blocks`, `summarize_ai_briefing`,
+`summarize_ai_settings`, `summarize_ai_weekly_report`. It looks alarming and is
+not: every one is wired, via `map.set('<id>', …)` in `ai-meta-ops-dispatch.build.ts`,
+`ai-customer-crm-dispatch.build.ts` or `ai-schedule-handlers-dispatch.build.ts`.
+Checked one by one, not sampled. The gate only recognised `case '<id>':`, from
+before the move to per-domain dispatch builders. Now accepts either wiring, so it
+still catches a genuinely unreachable intent.
+
+**The real hole — a compound recipe that was never declared.**
+`customer_book_with_gift_card_compound` exists as a working golden pattern
+(`matches` + `buildSteps`), and two fixtures assert
+`compoundRecipeId: 'customer_book_with_gift_card_compound'` — but no recipe by
+that id was ever added to `COMPOUND_COMMAND_RECIPES`, so `listCompoundRecipeIds()`
+did not contain it and the schema had no entry for a compound the decomposer
+happily produces.
+
+Declared it rather than repointing the pattern at a neighbour. A sibling
+(`customer_gift_card_checkout_compound`) shows a `recipeId` may point at a
+*different* recipe, and `customer_gift_card_payments_compound` even documents
+this prompt shape — but the two fixtures name this id directly, so the intended
+design is that the recipe exists. `allowedStepIntentIds` lists exactly what
+`decomposeBookWithGiftCardCompoundPrompt` emits (`book_package` /
+`book_nearest_slot`, then `book_with_gift_card`) rather than spreading a broad
+intent set.
+
+Measurable consequence: the corpus grew from **8,468 to 8,470 cases** — the new
+recipe's two example prompts became eval cases, and both pass.
+
+**One field, two answers.** `ai-command-registry.integration` asserts every
+self-service booking intent has `apiModule: 'public-booking'`;
+`provider.list_my_package_visits` says `'provider-mobile'`. That command is
+`surfaces: ['provider','customer']` with **two implementations** — the same
+duality §224 documented for `handler`, where the provider surface goes to
+`AiProviderBookingService` and the customer surface to
+`AiSelfServiceBookingService.handleListMyPackageVisits`.
+
+`handler` has `surfaceHandlers` beside it for exactly this. **`apiModule` has no
+`surfaceApiModules`**, so there is nowhere to record the second answer, and the
+assertion as written demanded the command misdescribe its provider half. Skipped
+the dual-surface case; the missing schema field is the real gap and is filed
+rather than papered over.
+
+**A count ratchet made to say what it protects.** `MARKETING_GROWTH_INTENTS` grew
+26 → 27. Verified the growth is a real intent and not an accidental double-add —
+27 entries, 27 unique — and asserted that uniqueness alongside the count, so the
+next bump only has to confirm a number rather than re-derive what the number was
+guarding.
+
+### §311 (C2/T0 series) — `e2e-bug.533` fixed: the bulk paths apply the customer scope they declare
+
+`cancel_bookings` and `update_bookings` both declared `customerName` and neither used it (§310).
+Fixed.
+
+**The change.** `customers: Customer[]` is now a parameter of both handlers, supplied from
+`ctx.customers` in the dispatch map and `catalog.customers` in `ai-command.service.ts`. A new
+`resolveCustomerScope` resolves the name through the existing
+`resolveNamedVerdict(customers, name, 'customer')`, and both finders apply `where.customerId` — the
+same column `handleListBookings` already filters on, so nothing new was invented.
+
+**It refuses rather than widens, in both directions that matter.** A tie asks which customer (D5,
+§225–§238, the guard those same handlers already run for providers and services), and an
+**unresolvable name refuses outright** — on a destructive path *"I could not find Mary"* must never
+degrade into *"cancel everything that matches the date"*. An explicit `customerId` still wins
+outright, matching `handleCreateBooking`'s existing precedence.
+
+**The parameter is required, not defaulted.** A default would have let a forgotten call site silently
+disable the scope — the exact failure being fixed. Required means `tsc` names every caller, and it
+found all five, including one internal forward (`handleUpdateBookings` delegating a cancellation) I
+would not have thought to check.
+
+**The negative control found that my first five tests did not test the fix.** They mocked
+`findBookingsForCancel` and asserted what the handler *passed to* it, so deleting the
+`where.customerId` line — the actual fix — left all five green. Two more tests now drive the real
+finder against a mocked repo and assert the query. Re-run: removing either finder's filter fails one
+test each.
+
+| break | result |
+|---|---|
+| `where.customerId` removed from the cancel finder | **fails** (green before the extra tests) |
+| same, bulk-update finder | **fails** |
+| tie silently picks the first match | **fails** |
+| unknown name falls through instead of refusing | **fails** |
+
+Eight tests total. **Fourth time in this repo a control has shown tests passing for a reason
+unrelated to the fix** (§225, §227, §231, §311) — and the first where the tests were mine and written
+minutes earlier.
+
+Two spec files called these handlers positionally and were silently absorbing the new argument;
+both now pass `[]` explicitly.
+
+Verified after `npx jest --clearCache`: gate chain **4,276 passing / 0 failing**,
+`tsc -p tsconfig.build.json` **0 errors**, corpus **8469/8470 (99.99%), delta +0%**, inventory
+regenerated. A full `ai-` sweep is running to compare against the pre-change failure set.
+
+#### §253 follow-up — adding a recipe moved the corpus, and the baseline had to follow
+
+The sweep after §253 reported five failures outside the manifest. Two were noise
+and three were mine:
+
+- `ai-command.service.test-harness` and `ai-booking-core.lookup-ambiguity` failed
+  as whole suites (`› *`). Both pass in isolation — 14 tests, green — so these
+  are the load flakes e2e-bug.474 describes under full parallelism, not breakage.
+  Worth restating because a suite-level `› *` looks far more alarming than a
+  named assertion and is more likely to be noise, not less.
+- The three `ai-command-eval.accuracy-gate` failures were real and caused by the
+  new recipe: `[stale_baseline] baseline has 8468 cases, the suite has 8470`.
+
+Updating the baseline is the documented remedy, and the gate's own warning marks
+the line — *"Only do this when the corpus itself changed — never to make a red
+build green."* This is the first case: two example prompts on a newly declared
+recipe became two eval cases. The update reported **+0%** and printed no
+regression warning, so nothing was papered over; accuracy stayed at one known
+failure (`explain_professional_profile`, e2e-bug.456).

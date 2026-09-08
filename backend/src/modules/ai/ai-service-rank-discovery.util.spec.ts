@@ -1,4 +1,3 @@
-import { SERVICE_RANK_EXTRACTION_SCENARIOS } from './ai-service-rank-discovery.fixtures.js';
 import {
   SERVICE_RANK_ADMIN_ANALYTICS_RESCUE_SCENARIOS,
   SERVICE_RANK_EXTRACTION_SCENARIOS,

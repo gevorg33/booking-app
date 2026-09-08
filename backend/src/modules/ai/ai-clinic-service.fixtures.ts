@@ -106,7 +106,17 @@ export const EXPLAIN_CLINIC_SERVICES_PROMPTS = [
   },
 ] as const;
 
-export const CONFIGURE_CLINIC_SERVICE_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ConfigureClinicServicePromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName: string;
+  serviceType?: 'consultation' | 'lab_test' | 'procedure';
+  requiresFasting?: boolean;
+  preparationNotes?: string;
+};
+
+export const CONFIGURE_CLINIC_SERVICE_PROMPTS: readonly ConfigureClinicServicePromptFixture[] = [
   {
     id: 'mark-cbc-lab-fasting',
     prompt: 'Mark CBC as a lab test requiring fasting',

@@ -29,7 +29,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Report how often a customer has failed to attend.',
-    variables: {},
+    // §190 (C2/T0) — the staff-side lookup shape: the handler dereferences nothing
+    // itself and passes `params` to `resolveCustomer`, which reads `customerId`
+    // then `customerName`. Not to be confused with the `my_*` commands on the same
+    // service, which take the customer from the session instead.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer to look up.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer id — tried first by `resolveCustomer`.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'how many no shows has Gevorg had',
       'show me this customer no show history',
@@ -80,7 +97,15 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'List the subscription plans available to join.',
-    variables: {},
+    // §190 (C2/T0) — one filter, read directly.
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Only plans covering this service.',
+        required: false,
+        resolver: 'service',
+      },
+    },
     examples: ['what memberships do you have', 'show me subscription options'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -96,7 +121,15 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Explain the status and contents of a gift card order.',
-    variables: {},
+    // §190 (C2/T0) — the order; the customer comes from the session.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order being explained.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what happened to my gift card order',
       'explain my gift card purchase',
@@ -116,7 +149,35 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Explain what the customer subscription includes and when it renews.',
-    variables: {},
+    // §190 (C2/T0) — two ids for the same thing, plus what
+    // `parseExplainMySubscriptionFromPrompt` reads.
+    variables: {
+      subscriptionId: {
+        type: 'string',
+        description: 'Subscription being explained.',
+        required: false,
+        resolver: 'none',
+      },
+      customerSubscriptionId: {
+        type: 'string',
+        description: 'The customer-scoped id for the same subscription.',
+        required: false,
+        resolver: 'none',
+      },
+      focus: {
+        type: 'string',
+        description: 'Which aspect of the subscription to explain.',
+        required: false,
+        resolver: 'none',
+      },
+      subscriptionFirstVisit: {
+        type: 'boolean',
+        description: 'Explain the first-visit rules specifically.',
+        required: false,
+        resolver: 'none',
+        source: 'orchestrator',
+      },
+    },
     examples: [
       'what does my membership include',
       'when does my subscription renew',
@@ -135,7 +196,17 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Report the language the customer is currently set to.',
-    variables: {},
+    // §190 (C2/T0) — only the tenant slug, read by
+    // `resolveBusinessSlugFromParamsOrId`; the customer comes from the session.
+    variables: {
+      slug: {
+        type: 'string',
+        description:
+          'Business slug. A tenant identifier from the URL, not something the user says.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what language am I set to', 'which locale do I have'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -151,7 +222,15 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Report the balance of a gift card the customer holds.',
-    variables: {},
+    // §190 (C2/T0) — the code; the customer comes from the session.
+    variables: {
+      giftCardCode: {
+        type: 'string',
+        description: 'Gift card code to check.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how much is on my gift card', 'my gift card balance'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -183,7 +262,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the bookings belonging to a specific customer.',
-    variables: {},
+    // §190 (C2/T0) — the staff-side lookup shape: the handler dereferences nothing
+    // itself and passes `params` to `resolveCustomer`, which reads `customerId`
+    // then `customerName`. Not to be confused with the `my_*` commands on the same
+    // service, which take the customer from the session instead.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer to look up.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer id — tried first by `resolveCustomer`.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['show me Gevorg bookings', 'list this customer appointments'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -196,7 +292,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the gift cards held by a specific customer.',
-    variables: {},
+    // §190 (C2/T0) — the staff-side lookup shape: the handler dereferences nothing
+    // itself and passes `params` to `resolveCustomer`, which reads `customerId`
+    // then `customerName`. Not to be confused with the `my_*` commands on the same
+    // service, which take the customer from the session instead.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer to look up.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer id — tried first by `resolveCustomer`.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: [
       'what gift cards does Gevorg have',
       'list this customer gift cards',
@@ -212,7 +325,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List the subscriptions held by a specific customer.',
-    variables: {},
+    // §190 (C2/T0) — the staff-side lookup shape: the handler dereferences nothing
+    // itself and passes `params` to `resolveCustomer`, which reads `customerId`
+    // then `customerName`. Not to be confused with the `my_*` commands on the same
+    // service, which take the customer from the session instead.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer to look up.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer id — tried first by `resolveCustomer`.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['what plan is Gevorg on', 'list this customer subscriptions'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -294,7 +424,15 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T0',
     description:
       'Report how much of a subscription allowance the customer has used.',
-    variables: {},
+    // §190 (C2/T0) — one subscription; the customer comes from the session.
+    variables: {
+      subscriptionId: {
+        type: 'string',
+        description: 'Subscription whose usage is summarized.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how many visits do I have left', 'my subscription usage'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -307,7 +445,37 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Report subscription usage across customers over time.',
-    variables: {},
+    // §190 (C2/T0) — the staff-side lookup shape: the handler dereferences nothing
+    // itself and passes `params` to `resolveCustomer`, which reads `customerId`
+    // then `customerName`. Not to be confused with the `my_*` commands on the same
+    // service, which take the customer from the session instead. It also takes the
+    // subscription, by id or plan name.
+    variables: {
+      customerName: {
+        type: 'string',
+        description: 'Customer to look up.',
+        required: false,
+        resolver: 'customer',
+      },
+      customerId: {
+        type: 'string',
+        description: 'Customer id — tried first by `resolveCustomer`.',
+        required: false,
+        resolver: 'customer',
+      },
+      subscriptionId: {
+        type: 'string',
+        description: 'Subscription whose usage history is listed.',
+        required: false,
+        resolver: 'none',
+      },
+      planName: {
+        type: 'string',
+        description: 'Plan name, when no subscription id is given.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how are subscriptions being used', 'subscription usage report'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -323,7 +491,15 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Report the delivery status of a physical gift card order.',
-    variables: {},
+    // §190 (C2/T0) — as `explain_gift_card_order`, for the shipping view.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Physical gift card order being tracked.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['where is my physical gift card', 'track my gift card delivery'],
     confirm: 'never',
     handler: 'AiCustomerCrmService',
@@ -587,7 +763,23 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Ask for a gift card order to be cancelled.',
-    variables: {},
+    // §177 (C2/T1) — the customer is injected by the dispatch as
+    // `sessionCustomerId`, so it is not user input; the order and the note are.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description:
+          'Gift card order to cancel. The handler refuses without it.',
+        required: true,
+        resolver: 'none',
+      },
+      customerNotes: {
+        type: 'string',
+        description: 'Why the customer wants it cancelled.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['cancel my gift card order', 'I want to cancel that gift card'],
     confirm: 'always',
     compensation: {
@@ -608,7 +800,28 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Ask for a change to a gift card order.',
-    variables: {},
+    // §177 (C2/T1) — as `request_gift_card_cancel`, plus the requested change.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description:
+          'Gift card order to modify. The handler refuses without it.',
+        required: true,
+        resolver: 'none',
+      },
+      modifyPayload: {
+        type: 'object',
+        description: 'The change being requested.',
+        required: false,
+        resolver: 'none',
+      },
+      customerNotes: {
+        type: 'string',
+        description: 'Free-text note accompanying the request.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'change the amount on my gift card order',
       'modify my gift card',
@@ -711,7 +924,24 @@ export const CUSTOMER_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Change the language the requesting customer sees.',
-    variables: {},
+    // §177 (C2/T1) — `preferredLocale` with `locale` as an alias; the customer
+    // comes from the session (`missing: ['sessionCustomerId']` is a sign-in
+    // prompt, not a field the caller supplies).
+    variables: {
+      preferredLocale: {
+        type: 'string',
+        description:
+          'Locale the customer wants. `locale` is accepted as an alias.',
+        required: true,
+        resolver: 'none',
+      },
+      locale: {
+        type: 'string',
+        description: 'Alias for `preferredLocale`.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['switch me to Armenian', 'change my language to Russian'],
     confirm: 'never',
     compensation: {

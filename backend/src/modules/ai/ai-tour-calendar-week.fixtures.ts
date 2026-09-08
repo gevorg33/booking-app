@@ -16,7 +16,20 @@ export const TOUR_CALENDAR_WEEK_CLASSIFIER_RULES = `- list_tour_calendar_week: R
   - "Նախորդ շաբաթվա էքսկուրսիաները օրացույցում" → list_tour_calendar_week, weekStartDate=last week
   - "Ցույց տուր հաջորդ շաբաթվա էքսկուրսիաները օրացույցում" → list_tour_calendar_week, weekStartDate=next week`;
 
-export const LIST_TOUR_CALENDAR_WEEK_PROMPTS = [
+/**
+ * Declared so the array is one type, not a union of thirteen literal shapes.
+ * `employeeName` stays `string` — the two values present are sample names, not
+ * a domain.
+ */
+export type ListTourCalendarWeekPromptFixture = {
+  id: string;
+  prompt: string;
+  employeeName?: string;
+  weekStartDate?: string;
+  serviceName?: string;
+};
+
+export const LIST_TOUR_CALENDAR_WEEK_PROMPTS: readonly ListTourCalendarWeekPromptFixture[] = [
   {
     id: 'list-calendar-week-departures',
     prompt: 'List tour departures on the provider calendar this week',

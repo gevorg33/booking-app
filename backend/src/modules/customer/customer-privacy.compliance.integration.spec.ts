@@ -4,7 +4,7 @@ import { buildGdprMetadata } from './customer-privacy.types.js';
 
 describe('Sprint 37 — customer privacy compliance integration', () => {
   const customerRepo = {
-    findOne: jest.fn(),
+    findOne: jest.fn<Promise<unknown>, unknown[]>(),
     save: jest.fn(async (c: unknown) => c),
   };
   const bookingRepo = { find: jest.fn(async () => []) };

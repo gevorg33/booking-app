@@ -181,9 +181,36 @@ function isConfigureTourServicePromptCore(prompt: string): boolean {
   return true;
 }
 
+/**
+ * e2e-bug.503 — "what should I bring / do I need to fast / how should I
+ * prepare" is a visit-preparation question, never a tour-catalog one.
+ *
+ * `hasTourExplainSurface` matches a bare `\btours?\b`, so naming the service
+ * in a personal preparation question ("What should I bring to my **City Tour**
+ * appointment?") handed it to `explain_tour_services`. Because
+ * `isExplainPreparationNotesPrompt` treats this detector as a blocker, naming
+ * the service made the preparation parser return `null` and
+ * `handleExplainPreparationNotesLogic` bail at its first guard — the identical
+ * question with the service left out worked fine.
+ *
+ * Scoped to the preparation topics rather than to a personal-visit anchor
+ * ("my ... appointment"), because `explain_tour_services` answers catalog
+ * attributes — group size, per-person pricing, duration, departures, cover
+ * images — and none of those is what a guest should bring. That also covers
+ * "What should I bring for the city tour?", which names no owner but is still
+ * not a catalog question. The one tour fixture using the word, "Max group size
+ * for Mountain Trek — can I bring 10 people?", asks about group size and is
+ * deliberately not matched.
+ */
+const VISIT_PREPARATION_TOPIC = new RegExp(
+  String.raw`\b(?:what\s+should\s+i\s+bring|what\s+do\s+i\s+need\s+to\s+bring|what\s+to\s+bring|do\s+i\s+need\s+to\s+fast|should\s+i\s+fast|how\s+should\s+i\s+prepare|prep(?:aration)?\s+instructions?|preparation\s+notes?)\b`,
+  'i',
+);
+
 export function isExplainTourServicesPrompt(prompt: string): boolean {
   if (isDiagnoseTourCapacityPrompt(prompt)) return false;
   if (isExplainTourMeetingPointPrompt(prompt)) return false;
+  if (VISIT_PREPARATION_TOPIC.test(prompt)) return false;
   if (isExplainPackageDisplayNamePrompt(prompt)) return false;
   if (isExplainTourBookingRecordPrompt(prompt)) return false;
   if (isExplainTourCalendarSpanPrompt(prompt)) return false;

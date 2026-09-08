@@ -36,7 +36,7 @@ describe('plannerVariableHints', () => {
   it('names a scalar type', () => {
     expect(
       hint(
-        spec({ price: { type: 'number', description: '', required: true } }),
+        spec({ price: { type: 'number', description: '', required: true }, resolver: 'none' }),
         'price',
       )?.type,
     ).toBe('number');
@@ -47,7 +47,7 @@ describe('plannerVariableHints', () => {
     expect(
       hint(
         spec({
-          serviceNames: { type: 'string[]', description: '', required: true },
+          serviceNames: { type: 'string[]', description: '', required: true, resolver: 'none' },
         }),
         'serviceNames',
       )?.type,
@@ -61,8 +61,8 @@ describe('plannerVariableHints', () => {
         description: '',
         required: true,
         properties: {
-          categoryName: { type: 'string', description: '', required: true },
-          note: { type: 'string', description: '', required: false },
+          categoryName: { type: 'string', description: '', required: true, resolver: 'none' },
+          note: { type: 'string', description: '', required: false, resolver: 'none' },
         },
       },
     });
@@ -85,8 +85,8 @@ describe('plannerVariableHints', () => {
             description: '',
             required: true,
             properties: {
-              serviceName: { type: 'string', description: '', required: true },
-              price: { type: 'number', description: '', required: true },
+              serviceName: { type: 'string', description: '', required: true, resolver: 'none' },
+              price: { type: 'number', description: '', required: true, resolver: 'none' },
             },
           },
         },

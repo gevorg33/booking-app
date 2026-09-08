@@ -8,6 +8,7 @@ import { rescueShareMyBookingIntent } from './ai-share-my-booking.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_SHARE_MY_BOOKING_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-share-my-booking integration (ai-cmd-customer-4.3.7)', () => {
   const deps = () => ({
@@ -33,15 +34,14 @@ describe('ai-share-my-booking integration (ai-cmd-customer-4.3.7)', () => {
   it.each(SHARE_MY_BOOKING_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, bookingId }) => {
-      const validation = validateCommand({
+      const validation = validateCommand(makeResolvedCommand({
         action: 'share_my_booking',
         params: bookingId ? { bookingId } : {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
         reasoning: 'test',
-        confidence: 0.9,
         prompt,
-      });
+      }));
       expect(validation.issues).toEqual([]);
 
       const result = await handleShareMyBookingLogic(

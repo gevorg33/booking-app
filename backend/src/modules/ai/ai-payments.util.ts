@@ -1,8 +1,8 @@
-import {
-  addCalendarDays,
-  localCalendarDate,
-} from './ai-datetime-resolution.util.js';
 import { isTrackPhysicalGiftCardPrompt } from './ai-customer-crm.util.js';
+// §185 (e2e-bug.367 / B7) — re-exported, not redefined. The implementation
+// moved to `ai-datetime-resolution.util.ts`, beside the calendar primitives it
+// composes; this keeps existing importers working without a second copy.
+export { resolveTomorrowDateKey } from './ai-datetime-resolution.util.js';
 import {
   hasGiftCardForSomeoneCue,
   isBuyGiftCardForSomeonePrompt,
@@ -89,6 +89,10 @@ import {
   isProvidersAvailableLaterDaysPrompt,
 } from './ai-schedule-resources.util.js';
 import { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
+import {
+  MULTILINGUAL_PROVIDER_AVAILABILITY,
+  MULTILINGUAL_WHO,
+} from './ai-check-and-book-multilingual.util.js';
 
 export const DASHBOARD_PAYMENTS_MUTATE_INTENTS = [
   'configure_cash_payments',
@@ -316,6 +320,15 @@ export function isCollectCashConfirmPrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * hy/ru "who" or "free/available", for the compound escape below — §183.
+ * Built from the existing `MULTILINGUAL_*` sets so the vocabulary has one home.
+ */
+const MULTILINGUAL_WHO_OR_AVAILABILITY = new RegExp(
+  `${MULTILINGUAL_WHO.source}|${MULTILINGUAL_PROVIDER_AVAILABILITY.source}`,
+  'iu',
+);
+
 export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   if (isFindSoonestAppointmentPrompt(prompt)) return false;
   // e2e-bug.193 — catalog list "what services are available?" is list_services.
@@ -378,7 +391,17 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
     ) &&
     !/\b(?:who|which|anyone|anybody|someone|somebody|everyone|everybody|check\s+(?:who|providers?|availability)|providers?\s+(?:for|available|free))\b/i.test(
       prompt,
-    )
+    ) &&
+    // §183 (e2e-bug.465) — the escape above is what stops a *compound*
+    // ("… who's free Saturday, book the earliest slot") being treated as a bare
+    // timed book, and it was English-only. So the identical Armenian sentence
+    // fell through to `return false` and its compound never decomposed.
+    //
+    // Located by binary search rather than by reading eleven guards: stripping
+    // the trailing "book the earliest slot" made the Armenian form pass, which
+    // named this clause exactly. The `ով`/`ազատ` tokens were already in
+    // `MULTILINGUAL_*` — the seam existed, this guard just did not consult it.
+    !MULTILINGUAL_WHO_OR_AVAILABILITY.test(prompt)
   ) {
     return false;
   }
@@ -837,12 +860,6 @@ export function extractAmountFromPrompt(prompt: string): number | null {
  * timezone-correct and tested. `timeZone` is required, because a default would
  * silently reintroduce the bug for every caller that forgot it.
  */
-export function resolveTomorrowDateKey(
-  timeZone: string,
-  now: Date = new Date(),
-): string {
-  return addCalendarDays(localCalendarDate(now, timeZone), 1);
-}
 
 /** Normalize classifier/prompt dates to YYYY-MM-DD for public slot queries. */
 function hasExplicitAvailabilityDate(params: Record<string, unknown>): boolean {

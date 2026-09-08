@@ -78,7 +78,7 @@ describe('AiClinicTestResultService integration (ai-cmd-clinic-6-gap-3.1)', () =
     find: jest.fn(async () => []),
   };
 
-  const businessRepo = { findOne: jest.fn() };
+  const businessRepo = { findOne: jest.fn<Promise<unknown>, unknown[]>() };
   const clinicTestResultService = {};
   const clinicTestResultActionService = {};
   const clinicLabAccessService = {

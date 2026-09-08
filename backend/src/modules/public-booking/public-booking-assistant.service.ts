@@ -39,6 +39,7 @@ import {
   enrichListServicesParamsFromPrompt,
   stripServiceRoleNoise,
   resolvePublicAssistantSessionServiceFields,
+  fuzzyMatchByName as canonicalFuzzyMatchByName,
 } from '../ai/ai-orchestration.helpers.js';
 import { resolveEntity } from '../ai/ai-entity-resolution.util.js';
 import { normalizeAvailabilityServiceCategory } from '../ai/ai-flexible-availability.util.js';
@@ -5020,6 +5021,45 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
         },
       };
     }
+    // tech-debt D5-c — the same tie, one level up, on the *list*.
+    //
+    // The singular guard above covers `employeeName`. `providerFallbackNames`
+    // ("book me with Anna or Maria, otherwise anyone") is resolved further down
+    // through `fuzzyMatchByName`, which silently returns the FIRST match and
+    // drops what it cannot resolve. So a guest naming an ambiguous provider was
+    // booked with whichever Anna happened to sort first — the exact defect the
+    // singular path was fixed for, reached by a different parameter.
+    //
+    // The first ambiguous name is named back rather than the whole list, so the
+    // question is about a name the guest actually typed. This mirrors the
+    // dashboard guard in `ai-booking-core.service.ts` (slice 10); the two
+    // surfaces answer this the same way even though their *precedence* rules
+    // deliberately differ.
+    const fallbackNames: string[] = Array.isArray(params.providerFallbackNames)
+      ? params.providerFallbackNames.filter(
+          (n: unknown): n is string => typeof n === 'string' && !!n.trim(),
+        )
+      : [];
+    for (const requested of fallbackNames) {
+      const verdict = this.resolveProviderVerdict(employees, requested);
+      if (verdict.ambiguous.length > 1) {
+        return {
+          success: false,
+          action: 'book_appointment',
+          summary: t(locale, 'assistant.providerAmbiguous', {
+            name: requested,
+            options: verdict.ambiguous.map((e) => e.name).join(', '),
+          }),
+          details: {
+            candidates: verdict.ambiguous.map((e) => ({
+              id: e.id,
+              name: e.name,
+            })),
+          },
+        };
+      }
+    }
+
     const employee = params.employeeName
       ? providerVerdict?.match
       : params.employeeId
@@ -5756,12 +5796,14 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     items: T[],
     name: string,
   ): T | undefined {
-    const lower = name.toLowerCase().trim();
-    return (
-      items.find((item) => item.name.toLowerCase() === lower) ||
-      items.find((item) => item.name.toLowerCase().includes(lower)) ||
-      items.find((item) => lower.includes(item.name.toLowerCase()))
-    );
+    // e2e-bug.446 / e2e-bug.362 — this was a third copy of the tiered matcher
+    // whose last tier was a raw `lower.includes(item.name)`. That returned an
+    // employee called "Al" for "is the salon open" (s-**al**-on) and, worse,
+    // for "book Alice for a haircut" — the wrong colleague, confidently.
+    // e2e-bug.362 anchored the shared version to word boundaries; the fix never
+    // reached the private copies. Delegating rather than re-patching, so the
+    // next fix has one place to land.
+    return canonicalFuzzyMatchByName(items, name);
   }
 
   /**

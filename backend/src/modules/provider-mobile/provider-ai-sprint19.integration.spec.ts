@@ -40,7 +40,7 @@ describe('Sprint 19 provider AI commands integration', () => {
   beforeEach(() => {
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
-      completeJson: jest.fn(),
+      completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     providerMobile = {
       resolveMobileAccess: jest.fn(async () => staffAccess),

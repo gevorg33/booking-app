@@ -56,6 +56,7 @@ import { buildSequentialAppointments } from '../../common/utils/multi-service-bo
 import { resolveMultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
 import {
   readBookingListAmounts,
+  isTransitionToPaid,
   recordTaxInclusivePaymentAmount,
 } from './booking-payment-summary.util.js';
 import { PhiFieldService } from '../compliance/phi-field.service.js';
@@ -784,10 +785,7 @@ export class BookingService {
     if (dto.hiddenFromCalendar !== undefined)
       booking.hiddenFromCalendar = dto.hiddenFromCalendar;
 
-    if (
-      booking.paymentStatus === PaymentStatus.PAID &&
-      previousPaymentStatus !== PaymentStatus.PAID
-    ) {
+    if (isTransitionToPaid(previousPaymentStatus, booking.paymentStatus)) {
       booking.metadata = recordTaxInclusivePaymentAmount(booking.metadata);
     }
 

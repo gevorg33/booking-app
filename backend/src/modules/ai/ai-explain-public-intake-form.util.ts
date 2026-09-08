@@ -110,7 +110,19 @@ export function isExplainPublicIntakeFormPrompt(prompt: string): boolean {
 
   if (
     (containsArmenianScript(text) &&
-      /(առողջության|ձև|հարցաթերթիկ|նախապոստ)/i.test(text) &&
+      // e2e-bug.531 — 'ձև' (form) also matches inside 'ձևանմուշ' (template),
+      // which is a different word that merely shares the morpheme. With
+      // 'ինչու' satisfying the third clause, the provider prompt 'Ինչու չեմ
+      // կարող խմբագրել հաղորդագրության ձևանմուշները' ('why can't I edit the
+      // message templates') matched all three and rescued to
+      // explain_public_intake_form.
+      //
+      // That is not allowed on the provider surface, so acceptRescueForSurface
+      // discarded it — and because the correct explain_dashboard_only_action
+      // rescue sits *later in the same phase*, it was never reached and the
+      // provider got **no answer at all**. A word boundary cannot express this:
+      // \b is ASCII-only and matches nothing beside Armenian script.
+      /(առողջության|ձև(?!անմուշ)|հարցաթերթիկ|նախապոստ)/i.test(text) &&
       /(ինչու|բաց թողնել|հարց)/i.test(text)) ||
     (containsCyrillicScript(text) &&
       /(здоров|анкет|вопрос)/i.test(text) &&

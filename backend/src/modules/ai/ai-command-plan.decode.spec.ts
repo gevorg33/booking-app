@@ -63,7 +63,11 @@ describe('AI-ROADMAP Phase 3 — planner prompt', () => {
       'required: customerName (string), serviceName (string), date (string)',
     );
     expect(prompt).toContain(
-      'optional: timeSlot (string), bookingFirstAvailable (boolean), employeeName (string)',
+      // e2e-bug.485 — `bookingFirstAvailable` deliberately no longer appears.
+      // It is `source: 'orchestrator'`: a compound recipe writes it, so the
+      // handler reads it and C2 requires it declared, but the model must not be
+      // invited to set it from prose. Its absence here IS the fix.
+      'optional: timeSlot (string), employeeName (string)',
     );
   });
 

@@ -31,7 +31,28 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Report staff commission earned over a period.',
-    variables: {},
+    // §204 (C2/T0) — the handler reads the location; `resolveFinanceDateRange`
+    // reads `from`/`to` before falling back to the prompt.
+    variables: {
+      locationId: {
+        type: 'string',
+        description: 'Location to scope the report to.',
+        required: false,
+        resolver: 'none',
+      },
+      from: {
+        type: 'string',
+        description: 'Start of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['what commission is owed', 'commission report for last month'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -44,7 +65,21 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List gift cards waiting to be made.',
-    variables: {},
+    // §201 (C2/T0) — paged listing.
+    variables: {
+      page: {
+        type: 'number',
+        description: 'Page of results wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      pageSize: {
+        type: 'number',
+        description: 'How many results per page.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what cards still need making', 'show awaiting creation'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -57,7 +92,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'List recorded business expenses.',
-    variables: {},
+    // §204 (C2/T0) — scoped listing.
+    variables: {
+      locationId: {
+        type: 'string',
+        description: 'Location to scope the report to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what expenses have we logged', 'list our expenses'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -70,7 +113,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List customer requests to change gift card orders.',
-    variables: {},
+    // §201 (C2/T0) — filtered listing.
+    variables: {
+      status: {
+        type: 'string',
+        description: 'Only change requests in this status.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what gift card changes are requested', 'list change requests'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -83,7 +134,27 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List gift card orders and their status.',
-    variables: {},
+    // §201 (C2/T0) — paged listing with a free-text search.
+    variables: {
+      page: {
+        type: 'number',
+        description: 'Page of results wanted.',
+        required: false,
+        resolver: 'none',
+      },
+      pageSize: {
+        type: 'number',
+        description: 'How many results per page.',
+        required: false,
+        resolver: 'none',
+      },
+      search: {
+        type: 'string',
+        description: 'Free-text filter over the orders.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['show me gift card orders', 'list our gift card sales'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -96,7 +167,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'List retail products in the catalogue.',
-    variables: {},
+    // §204 (C2/T0) — scoped listing.
+    variables: {
+      locationId: {
+        type: 'string',
+        description: 'Location to scope the report to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['what products do we stock', 'list our retail items'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -136,7 +215,22 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Produce a packing slip for a physical gift card order.',
-    variables: {},
+    // §201 (C2/T0) — same `resolveGiftCardId` chain as the details command.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order in question.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Take the first card in the creation queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['print the packing slip', 'get me the packing note'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -152,7 +246,22 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Find a retail product by name or SKU.',
-    variables: {},
+    // §204 (C2/T0) — the handler reads both search keys;
+    // `extractRetailSearchQuery` only falls back to the prompt.
+    variables: {
+      query: {
+        type: 'string',
+        description: 'Free-text search over the retail catalogue.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product searched for by name.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['find the shampoo sku', 'search for that product'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -165,7 +274,27 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Quote the cost and speed of shipping options.',
-    variables: {},
+    // §201 (C2/T0) — the quote is priced from all three.
+    variables: {
+      shippingMethodId: {
+        type: 'string',
+        description: 'Shipping method being quoted.',
+        required: false,
+        resolver: 'none',
+      },
+      amount: {
+        type: 'number',
+        description: 'Order amount the quote is based on.',
+        required: false,
+        resolver: 'money',
+      },
+      purchaserEmail: {
+        type: 'string',
+        description: 'Purchaser, used to resolve their address.',
+        required: false,
+        resolver: 'customer',
+      },
+    },
     examples: ['how much is delivery', 'what shipping options are there'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -181,7 +310,54 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T0',
     description: 'Suggest a product to offer alongside a service.',
-    variables: {},
+    // §204 (C2/T0) — the handler reads the appointment flag and service;
+    // `resolveBooking` reads the booking, `resolveProviderBooking` the
+    // provider, `resolveService` the service.
+    variables: {
+      myAppointment: {
+        type: 'boolean',
+        description:
+          'Whether the upsell is for my own appointment.',
+        required: false,
+        resolver: 'none',
+      },
+      bookingId: {
+        type: 'string',
+        description: 'Booking the upsell attaches to.',
+        required: false,
+        resolver: 'appointment',
+      },
+      customerName: {
+        type: 'string',
+        description: 'Customer, used to find the booking.',
+        required: false,
+        resolver: 'customer',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service being upsold against, by id.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service being upsold against, by name.',
+        required: false,
+        resolver: 'service',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Provider whose booking is used.',
+        required: false,
+        resolver: 'employee',
+      },
+      sessionEmployeeId: {
+        type: 'string',
+        description: 'Provider from the current session.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'what should I offer with this',
       'suggest an upsell',
@@ -198,7 +374,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise how customers move through the adoption funnel.',
-    variables: {},
+    // §204 (C2/T0) — the window is a day count, not a date range.
+    variables: {
+      periodDays: {
+        type: 'number',
+        description: 'How many days the funnel covers.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['how is adoption going', 'show the funnel'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -211,7 +395,27 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise profit and loss for a period.',
-    variables: {},
+    // §204 (C2/T0) — same location + `resolveFinanceDateRange` pair.
+    variables: {
+      locationId: {
+        type: 'string',
+        description: 'Location to scope the report to.',
+        required: false,
+        resolver: 'none',
+      },
+      from: {
+        type: 'string',
+        description: 'Start of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+      to: {
+        type: 'string',
+        description: 'End of the reporting window.',
+        required: false,
+        resolver: 'date',
+      },
+    },
     examples: ['how profitable were we', 'show me the P and L'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -224,7 +428,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T0',
     description: 'Summarise what customer reviews say.',
-    variables: {},
+    // §204 (C2/T0) — optionally scoped to one provider.
+    variables: {
+      employeeId: {
+        type: 'string',
+        description: 'Provider whose reviews are summarized.',
+        required: false,
+        resolver: 'employee',
+      },
+    },
     examples: ['what are reviews saying', 'summarise our reviews'],
     confirm: 'never',
     handler: 'AiRetailFinanceService',
@@ -237,7 +449,15 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { customer: ['client'] },
     risk: 'T0',
     description: 'Track a physical gift card shipment.',
-    variables: {},
+    // §201 (C2/T0) — the customer comes from the session; the card is named.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to track.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['where is my gift card', 'track my delivery'],
     confirm: 'never',
     handler: 'AiGiftFulfillmentService',
@@ -257,7 +477,23 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     // correctly — fails a spec that disagrees with the registry.
     risk: 'T0',
     description: 'Explain the details of a gift card order.',
-    variables: {},
+    // §201 (C2/T0) — `resolveGiftCardId` reads the id, then the prompt, then
+    // falls back to the head of the creation queue.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order in question.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Take the first card in the creation queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['explain this gift card order', 'what is on that order'],
     confirm: 'never',
     // Registered `mutating: true` but the handler only reads and formats
@@ -320,7 +556,24 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Begin preparing a physical gift card.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own. Identification runs through `resolveGiftCardId`,
+    // which reads `giftCardId` then `useFirstInQueue` (`_prompt` is
+    // pipeline-injected and so not declared).
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['start making that card', 'begin card preparation'],
     confirm: 'never',
     compensation: {
@@ -341,7 +594,24 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Mark a gift card as ready to send.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own. Identification runs through `resolveGiftCardId`,
+    // which reads `giftCardId` then `useFirstInQueue` (`_prompt` is
+    // pipeline-injected and so not declared).
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['that card is ready', 'mark it ready to ship'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -359,7 +629,36 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Assign someone to make a gift card.',
-    variables: {},
+    // §177 (C2/T1) — two resolvers: `resolveGiftCardId` for the order and
+    // `resolveEmployee` for the assignee, each with its own `missing` refusal.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Staff member id, when known.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description:
+          'Staff member to assign. The handler refuses with `missing: [employeeName]` when neither is resolvable.',
+        required: true,
+        resolver: 'employee',
+      },
+    },
     examples: ['give that card to Mary to make', 'assign a card creator'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -377,7 +676,35 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Assign someone to deliver a gift card.',
-    variables: {},
+    // §177 (C2/T1) — same pair of resolvers as `assign_card_creator`.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      employeeId: {
+        type: 'string',
+        description: 'Staff member id, when known.',
+        required: false,
+        resolver: 'employee',
+      },
+      employeeName: {
+        type: 'string',
+        description:
+          'Staff member to assign. The handler refuses with `missing: [employeeName]` when neither is resolvable.',
+        required: true,
+        resolver: 'employee',
+      },
+    },
     examples: ['send Gevorg to deliver that', 'assign delivery staff'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -398,7 +725,24 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Mark a gift card as out for delivery.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own. Identification runs through `resolveGiftCardId`,
+    // which reads `giftCardId` then `useFirstInQueue` (`_prompt` is
+    // pipeline-injected and so not declared).
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['it is on its way', 'mark out for delivery'],
     confirm: 'never',
     compensation: {
@@ -416,7 +760,34 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Mark a gift card order as shipped.',
-    variables: {},
+    // §177 (C2/T1) — order identification plus the shipment details it records.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      carrier: {
+        type: 'string',
+        description: 'Shipping carrier.',
+        required: false,
+        resolver: 'none',
+      },
+      trackingNumber: {
+        type: 'string',
+        description: 'Carrier tracking number.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['that order has shipped', 'mark it shipped'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -437,7 +808,24 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Mark a gift card as delivered.',
-    variables: {},
+    // §177 (C2/T1) — reads nothing of its own. Identification runs through `resolveGiftCardId`,
+    // which reads `giftCardId` then `useFirstInQueue` (`_prompt` is
+    // pipeline-injected and so not declared).
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['it has been delivered', 'mark that as delivered'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -458,7 +846,25 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Record that a delivery was accepted by the recipient.',
-    variables: {},
+    // §177 (C2/T1) — `handleAcceptDeliveryLogic` is a one-line delegation to
+    // `handleMarkOutForDeliveryLogic`, so it takes exactly the same inputs and has
+    // exactly the same effect. Second duplicate-command pair found by this
+    // campaign; see `e2e-bug.461`.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['they took the delivery', 'accept that delivery'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -479,7 +885,35 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Attach proof that a delivery was made.',
-    variables: {},
+    // §177 (C2/T1) — order identification plus the proof it stores; the handler
+    // refuses when neither proof field is present.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      proofUrl: {
+        type: 'string',
+        description: 'Link to a photo or signature proving delivery.',
+        required: false,
+        resolver: 'none',
+      },
+      proofNote: {
+        type: 'string',
+        description: 'Free-text note recorded as delivery proof.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add the delivery photo', 'capture proof of delivery'],
     confirm: 'never',
     compensation: {
@@ -500,7 +934,28 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     },
     risk: 'T1',
     description: 'Tell a customer their gift card order is delayed.',
-    variables: {},
+    // §177 (C2/T1) — order identification plus the reason sent to the customer.
+    variables: {
+      giftCardId: {
+        type: 'string',
+        description: 'Gift card order to act on.',
+        required: false,
+        resolver: 'none',
+      },
+      useFirstInQueue: {
+        type: 'boolean',
+        description:
+          'Act on the first order in the queue instead of naming one.',
+        required: false,
+        resolver: 'none',
+      },
+      delayReason: {
+        type: 'string',
+        description: 'Why the order is delayed.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['let them know it is late', 'notify the delay'],
     confirm: 'always',
     compensation: {
@@ -550,7 +1005,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       // queue flag the command declines rather than picking arbitrarily.
       giftCardId: {
         type: 'string',
-        description: 'Order to cancel. Falls back to an id found in the message.',
+        description:
+          'Order to cancel. Falls back to an id found in the message.',
         required: false,
         resolver: 'none',
       },
@@ -632,7 +1088,20 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Give a customer longer to cancel a gift card order.',
-    variables: {},
+    // §177 slice 16 — **corrected**. Earlier exempted as prompt-parsed on a grep of
+    // the handler body, which showed only `params._prompt`. The reads happen inside
+    // `parseCancelModifyWindowHours`, one level down — which reads exactly the
+    // field the handler's `missing` hint names. The earlier exemption note
+    // claimed it never read that param; that was wrong.
+    variables: {
+      cancelModifyWindowHours: {
+        type: 'number',
+        description:
+          'New cancel/modify window in hours. Parsed from the prompt when omitted.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['give them another day to cancel', 'extend the cancel window'],
     confirm: 'always',
     compensation: {
@@ -650,7 +1119,41 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['manager', 'owner'] },
     risk: 'T1',
     description: 'Change how gift cards are sold and fulfilled.',
-    variables: {},
+    // §177 (C2/T1) — the only command in this cluster that reads its params
+    // directly, with no resolver in between.
+    variables: {
+      digitalDeliveryEnabled: {
+        type: 'boolean',
+        description: 'Offer digital gift card delivery.',
+        required: false,
+        resolver: 'none',
+      },
+      physicalDeliveryEnabled: {
+        type: 'boolean',
+        description: 'Offer physical gift card delivery.',
+        required: false,
+        resolver: 'none',
+      },
+      cancelModifyEnabled: {
+        type: 'boolean',
+        description: 'Allow customers to cancel or modify an order.',
+        required: false,
+        resolver: 'none',
+      },
+      physicalCancelBeforeReady: {
+        type: 'boolean',
+        description:
+          'Restrict cancellation of physical cards to before they are ready.',
+        required: false,
+        resolver: 'none',
+      },
+      defaultExpiryMonths: {
+        type: 'number',
+        description: 'Default gift card validity in months.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change our gift card rules', 'update gift card settings'],
     confirm: 'always',
     compensation: {
@@ -722,7 +1225,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       productName: {
         type: 'string',
-        description: 'Product by name. Falls back to a name found in the message.',
+        description:
+          'Product by name. Falls back to a name found in the message.',
         required: false,
         resolver: 'none',
       },
@@ -772,7 +1276,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       productName: {
         type: 'string',
-        description: 'Product by name. Falls back to a name found in the message.',
+        description:
+          'Product by name. Falls back to a name found in the message.',
         required: false,
         resolver: 'none',
       },
@@ -812,7 +1317,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       productName: {
         type: 'string',
-        description: 'Product by name. Falls back to a name found in the message.',
+        description:
+          'Product by name. Falls back to a name found in the message.',
         required: false,
         resolver: 'none',
       },
@@ -879,7 +1385,52 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Add a retail product to the catalogue.',
-    variables: {},
+    // §177 (C2/T1) — `handleCreateProductLogic` refuses with `missing: ['name']`
+    // and reads `productName` as an alias for it.
+    variables: {
+      name: {
+        type: 'string',
+        description: 'Product name. `productName` is accepted as an alias.',
+        required: true,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Alias for `name`.',
+        required: false,
+        resolver: 'none',
+      },
+      sku: {
+        type: 'string',
+        description: 'Stock-keeping unit.',
+        required: false,
+        resolver: 'none',
+      },
+      retailPrice: {
+        type: 'number',
+        description: 'Price charged to the customer.',
+        required: false,
+        resolver: 'money',
+      },
+      unitCost: {
+        type: 'number',
+        description: 'Cost price per unit.',
+        required: false,
+        resolver: 'money',
+      },
+      quantityOnHand: {
+        type: 'number',
+        description: 'Opening stock level.',
+        required: false,
+        resolver: 'none',
+      },
+      locationId: {
+        type: 'string',
+        description: 'Location the stock belongs to.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['add a new shampoo', 'create a retail product'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -897,7 +1448,58 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Change a retail product.',
-    variables: {},
+    // §177 (C2/T1) — identified via `resolveProduct`, then applies whichever
+    // fields are present.
+    variables: {
+      productId: {
+        type: 'string',
+        description: 'Product id — tried first by `resolveProduct`.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product name, used when no id is supplied.',
+        required: true,
+        resolver: 'none',
+      },
+      newName: {
+        type: 'string',
+        description: 'Rename the product.',
+        required: false,
+        resolver: 'none',
+      },
+      sku: {
+        type: 'string',
+        description: 'New stock-keeping unit.',
+        required: false,
+        resolver: 'none',
+      },
+      retailPrice: {
+        type: 'number',
+        description: 'New retail price.',
+        required: false,
+        resolver: 'money',
+      },
+      unitCost: {
+        type: 'number',
+        description: 'New unit cost.',
+        required: false,
+        resolver: 'money',
+      },
+      reorderLevel: {
+        type: 'number',
+        description: 'Stock level at which to reorder.',
+        required: false,
+        resolver: 'none',
+      },
+      isActive: {
+        type: 'boolean',
+        description: 'Activate or deactivate the product.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['change the shampoo price', 'update that product'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -915,7 +1517,21 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Remove a retail product from the catalogue.',
-    variables: {},
+    // §177 (C2/T1) — identification is the whole input.
+    variables: {
+      productId: {
+        type: 'string',
+        description: 'Product id — tried first by `resolveProduct`.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product name, used when no id is supplied.',
+        required: true,
+        resolver: 'none',
+      },
+    },
     examples: ['delete that product', 'remove the old shampoo'],
     confirm: 'always',
     compensation: {
@@ -938,7 +1554,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       // `extractInventoryDeltaFromPrompt`.
       productName: {
         type: 'string',
-        description: 'Product by name. Falls back to a name found in the message.',
+        description:
+          'Product by name. Falls back to a name found in the message.',
         required: false,
         resolver: 'none',
       },
@@ -973,7 +1590,41 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Link a retail product to a service so it can be suggested.',
-    variables: {},
+    // §177 (C2/T1) — both sides of the link are resolved, each with its own
+    // `missing` refusal, plus the quantity consumed per booking.
+    variables: {
+      productId: {
+        type: 'string',
+        description: 'Product id — tried first by `resolveProduct`.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product name, used when no id is supplied.',
+        required: true,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id — tried first by `resolveService`.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service name, used when no id is supplied.',
+        required: true,
+        resolver: 'service',
+      },
+      quantityPerService: {
+        type: 'number',
+        description:
+          'Units of the product consumed by one booking of the service.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: [
       'suggest conditioner after a cut',
       'link that product to the service',
@@ -994,7 +1645,39 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Unlink a retail product from a service.',
-    variables: {},
+    // §177 (C2/T1) — either the link id directly, or both sides to find it.
+    variables: {
+      linkId: {
+        type: 'string',
+        description: 'Product-to-service link id, when known.',
+        required: false,
+        resolver: 'none',
+      },
+      productId: {
+        type: 'string',
+        description: 'Product id — tried first by `resolveProduct`.',
+        required: false,
+        resolver: 'none',
+      },
+      productName: {
+        type: 'string',
+        description: 'Product name, used when no id is supplied.',
+        required: true,
+        resolver: 'none',
+      },
+      serviceId: {
+        type: 'string',
+        description: 'Service id — tried first by `resolveService`.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service name, used when no id is supplied.',
+        required: true,
+        resolver: 'service',
+      },
+    },
     examples: ['stop suggesting that product', 'unlink it from the service'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1012,7 +1695,42 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
     description: 'Set which products are recommended.',
-    variables: {},
+    // §177 (C2/T1) — scoped by service *or* category (`missing: ['serviceName',
+    // 'categoryId']`), and takes the product set by id or by name
+    // (`missing: ['productIds', 'productNames']`).
+    variables: {
+      serviceId: {
+        type: 'string',
+        description: 'Service id — tried first by `resolveService`.',
+        required: false,
+        resolver: 'service',
+      },
+      serviceName: {
+        type: 'string',
+        description: 'Service name, used when no id is supplied.',
+        required: true,
+        resolver: 'service',
+      },
+      categoryId: {
+        type: 'string',
+        description: 'Category scope, as an alternative to a service.',
+        required: false,
+        resolver: 'none',
+      },
+      productIds: {
+        type: 'string[]',
+        description: 'Products to recommend, by id.',
+        required: false,
+        resolver: 'none',
+      },
+      productNames: {
+        type: 'string[]',
+        description:
+          'Products to recommend, by name. One of the two lists is required.',
+        required: false,
+        resolver: 'none',
+      },
+    },
     examples: ['recommend these three products', 'set our recommended items'],
     confirm: 'if-ambiguous',
     compensation: {
@@ -1036,7 +1754,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       // $40 taxi".
       amount: {
         type: 'number',
-        description: 'Expense amount. Falls back to an amount found in the message.',
+        description:
+          'Expense amount. Falls back to an amount found in the message.',
         required: false,
         resolver: 'money',
       },
@@ -1048,7 +1767,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       currency: {
         type: 'string',
-        description: 'Currency of the amount, when it is not the business default.',
+        description:
+          'Currency of the amount, when it is not the business default.',
         required: false,
         resolver: 'none',
       },
@@ -1094,7 +1814,8 @@ export const COMMERCE_COMMAND_SPECS: readonly CommandSpec[] = [
       },
       category: {
         type: 'string',
-        description: 'Narrow to a category when the expense is named indirectly.',
+        description:
+          'Narrow to a category when the expense is named indirectly.',
         required: false,
         resolver: 'none',
       },

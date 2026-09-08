@@ -10,6 +10,7 @@
  * these assert against phrasings users actually sent.
  */
 import {
+  applyAnaphoraToPlan,
   bindAnaphorToReference,
   findAnaphor,
   resolveAnaphora,
@@ -255,5 +256,104 @@ describe('bindAnaphorToReference', () => {
     bindAnaphorToReference(original, 'appointmentId', 's1');
     expect(original.variables).toEqual({ date: 'Friday' });
     expect(original.dependsOn).toEqual([]);
+  });
+});
+
+/**
+ * B4 / e2e-bug.370 — the plan-level pass, and the wiring that finally calls it.
+ *
+ * §49 shipped `resolveAnaphora` and `bindAnaphorToReference` with no caller for
+ * eleven weeks. These cover the loop that uses them: which steps are eligible,
+ * what happens on ambiguity, and — critically — that a plan which already
+ * validates is left completely alone.
+ */
+describe('applyAnaphoraToPlan (B4)', () => {
+  const MESSAGE =
+    'cancel my Swedish massage booking and rebook it for next Friday instead';
+
+  it('binds the anaphor to the earlier step and adds the dependency', () => {
+    const steps = [
+      step('s1', 'appointment.cancel_mine', { service: 'Swedish massage' }),
+      step('s2', 'appointment.create', { date: 'next Friday' }),
+    ];
+    const missing = new Map([['s2', ['appointmentId']]]);
+
+    const out = applyAnaphoraToPlan(MESSAGE, steps, missing, SPECS);
+
+    expect(out.changed).toBe(true);
+    expect(out.ambiguous).toBeNull();
+    expect(out.steps[1].variables.appointmentId).toBe('$s1.id');
+    expect(out.steps[1].dependsOn).toContain('s1');
+    // The referent step is untouched.
+    expect(out.steps[0]).toEqual(steps[0]);
+  });
+
+  it('leaves a plan with nothing missing completely alone', () => {
+    // The safety property: this pass runs on already-failing plans, so it can
+    // turn a clarify into an execution but never the reverse.
+    const steps = [
+      step('s1', 'appointment.cancel_mine', { service: 'Swedish massage' }),
+      step('s2', 'appointment.create', { date: 'next Friday' }),
+    ];
+
+    const out = applyAnaphoraToPlan(MESSAGE, steps, new Map(), SPECS);
+
+    expect(out.changed).toBe(false);
+    expect(out.steps).toEqual(steps);
+  });
+
+  it('does not bind when a step is missing more than one variable', () => {
+    // Nothing in the message says which of the two "it" fills, and a wrongly
+    // bound step executes against the wrong entity.
+    const steps = [
+      step('s1', 'appointment.cancel_mine', { service: 'Swedish massage' }),
+      step('s2', 'appointment.create', {}),
+    ];
+    const missing = new Map([['s2', ['appointmentId', 'date']]]);
+
+    const out = applyAnaphoraToPlan(MESSAGE, steps, missing, SPECS);
+
+    expect(out.changed).toBe(false);
+    expect(out.steps[1].variables).toEqual({});
+  });
+
+  it('returns the resolver’s question when the referent is ambiguous', () => {
+    const steps = [
+      step('s1', 'appointment.cancel_mine', { service: 'Swedish' }),
+      step('s2', 'appointment.cancel_mine', { service: 'Deep tissue' }),
+      step('s3', 'appointment.create', { date: 'Friday' }),
+    ];
+    const missing = new Map([['s3', ['appointmentId']]]);
+
+    const out = applyAnaphoraToPlan(
+      'cancel my Swedish and Deep tissue bookings and rebook it for Friday',
+      steps,
+      missing,
+      SPECS,
+    );
+
+    expect(out.ambiguous).not.toBeNull();
+    expect(out.ambiguous?.status).toBe('ambiguous');
+    expect(out.ambiguous?.candidates.length).toBeGreaterThan(1);
+    // Nothing was bound on the way to finding the ambiguity.
+    expect(out.steps[2].variables.appointmentId).toBeUndefined();
+  });
+
+  it('is a no-op when the message contains no anaphor', () => {
+    const steps = [
+      step('s1', 'appointment.cancel_mine', { service: 'Swedish massage' }),
+      step('s2', 'appointment.create', { date: 'next Friday' }),
+    ];
+    const missing = new Map([['s2', ['appointmentId']]]);
+
+    const out = applyAnaphoraToPlan(
+      'cancel my Swedish massage booking and book a haircut for next Friday',
+      steps,
+      missing,
+      SPECS,
+    );
+
+    expect(out.changed).toBe(false);
+    expect(out.steps[1].variables.appointmentId).toBeUndefined();
   });
 });

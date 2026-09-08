@@ -101,7 +101,13 @@ function extractTaxRate(prompt: string): number | undefined {
   const patterns = [
     /(\d+(?:\.\d+)?)\s*%?\s*(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ|percent|per\s*cent)/i,
     /(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ)(?:\s+rate)?\s*(?:of|at|to)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)?/i,
-    /(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)\b/i,
+    // §174 — the `\b` used to sit after the whole alternation, so a trailing "5%"
+    // could never match: `%` is a non-word character and so is end-of-string, and
+    // `\b` needs a word/non-word transition. "Սահմանել GST տոկոսը 5%" therefore
+    // parsed a tax name and no rate — and because `parseBusinessTaxFromPrompt`
+    // infers `enabled: true` from a rate, it lost both fields. The boundary now
+    // guards only the word spellings, which are the ones that need it.
+    /(\d+(?:\.\d+)?)\s*(?:%|(?:percent|per\s*cent)\b)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
