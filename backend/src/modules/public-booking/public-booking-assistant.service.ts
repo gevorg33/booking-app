@@ -39,7 +39,9 @@ import {
   enrichListServicesParamsFromPrompt,
   stripServiceRoleNoise,
   resolvePublicAssistantSessionServiceFields,
+  fuzzyMatchByName as canonicalFuzzyMatchByName,
 } from '../ai/ai-orchestration.helpers.js';
+import { resolveEntity } from '../ai/ai-entity-resolution.util.js';
 import { normalizeAvailabilityServiceCategory } from '../ai/ai-flexible-availability.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import {
@@ -315,7 +317,13 @@ export interface PublicAssistantNavigate {
     | 'profile'
     | 'packages'
     | 'multi/checkout';
-  query: Record<string, string>;
+  /**
+   * Optional because producers omit it — `E2E277_BOOKING_HELP_GUIDE_ROUNDTRIP`
+   * is `{ path: 'services' }` with no query — and every consumer already reads
+   * it that way: `ai-payments-compound.logic.ts:60` is `navigate?.query?.x`.
+   * The declaration was the only thing requiring it.
+   */
+  query?: Record<string, string>;
 }
 
 export interface PublicAssistantResult {
@@ -2081,9 +2089,29 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     locale: AppLocale,
     prompt = '',
   ): Promise<PublicAssistantResult> {
-    const employee = params.employeeName
-      ? this.fuzzyMatchByName(employees, params.employeeName)
-      : undefined;
+    // tech-debt D5 — a tie filters the catalog to the wrong namesake *and*
+    // names them in the summary ("No services listed for {name}"), so the guest
+    // is told about a specialist they never asked for.
+    const providerVerdict = params.employeeName
+      ? this.resolveProviderVerdict(employees, params.employeeName)
+      : null;
+    if (providerVerdict && providerVerdict.ambiguous.length > 1) {
+      return {
+        success: false,
+        action: 'list_services',
+        summary: t(locale, 'assistant.providerAmbiguous', {
+          name: params.employeeName,
+          options: providerVerdict.ambiguous.map((e) => e.name).join(', '),
+        }),
+        details: {
+          candidates: providerVerdict.ambiguous.map((e) => ({
+            id: e.id,
+            name: e.name,
+          })),
+        },
+      };
+    }
+    const employee = providerVerdict?.match;
 
     const { services: catalog } = await this.publicBookingService.getServices(
       slug,
@@ -4977,8 +5005,69 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     const business = await this.publicBookingService.resolveBusiness(slug);
     const tz = resolveTimezone(business.timezone);
 
+    // tech-debt D5 — a tie here books a guest with the wrong specialist and
+    // tells them it worked. Name-first precedence is preserved deliberately
+    // (see resolveProviderVerdict); only the tie behaviour changes.
+    const providerVerdict = params.employeeName
+      ? this.resolveProviderVerdict(employees, params.employeeName)
+      : null;
+    if (providerVerdict && providerVerdict.ambiguous.length > 1) {
+      return {
+        success: false,
+        action: 'book_appointment',
+        summary: t(locale, 'assistant.providerAmbiguous', {
+          name: params.employeeName,
+          options: providerVerdict.ambiguous.map((e) => e.name).join(', '),
+        }),
+        details: {
+          candidates: providerVerdict.ambiguous.map((e) => ({
+            id: e.id,
+            name: e.name,
+          })),
+        },
+      };
+    }
+    // tech-debt D5-c — the same tie, one level up, on the *list*.
+    //
+    // The singular guard above covers `employeeName`. `providerFallbackNames`
+    // ("book me with Anna or Maria, otherwise anyone") is resolved further down
+    // through `fuzzyMatchByName`, which silently returns the FIRST match and
+    // drops what it cannot resolve. So a guest naming an ambiguous provider was
+    // booked with whichever Anna happened to sort first — the exact defect the
+    // singular path was fixed for, reached by a different parameter.
+    //
+    // The first ambiguous name is named back rather than the whole list, so the
+    // question is about a name the guest actually typed. This mirrors the
+    // dashboard guard in `ai-booking-core.service.ts` (slice 10); the two
+    // surfaces answer this the same way even though their *precedence* rules
+    // deliberately differ.
+    const fallbackNames: string[] = Array.isArray(params.providerFallbackNames)
+      ? params.providerFallbackNames.filter(
+          (n: unknown): n is string => typeof n === 'string' && !!n.trim(),
+        )
+      : [];
+    for (const requested of fallbackNames) {
+      const verdict = this.resolveProviderVerdict(employees, requested);
+      if (verdict.ambiguous.length > 1) {
+        return {
+          success: false,
+          action: 'book_appointment',
+          summary: t(locale, 'assistant.providerAmbiguous', {
+            name: requested,
+            options: verdict.ambiguous.map((e) => e.name).join(', '),
+          }),
+          details: {
+            candidates: verdict.ambiguous.map((e) => ({
+              id: e.id,
+              name: e.name,
+            })),
+          },
+        };
+      }
+    }
+
     const employee = params.employeeName
-      ? this.fuzzyMatchByName(employees, params.employeeName)
+      ? providerVerdict?.match
       : params.employeeId
         ? employees.find((e) => e.id === params.employeeId)
         : undefined;
@@ -5665,8 +5754,13 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     services: Service[],
     locale: AppLocale,
   ): PublicAssistantResult {
+    // tech-debt D5 — this decorates a result that is already built, so it has
+    // nowhere to ask a question. It does not need one: leaving a tie unresolved
+    // makes the line below fall through to `params.employeeName`, so the
+    // session records the words the guest actually typed rather than a guessed
+    // namesake that would then steer later turns.
     const employee = params.employeeName
-      ? this.fuzzyMatchByName(employees, params.employeeName)
+      ? this.resolveProviderVerdict(employees, params.employeeName).match
       : undefined;
 
     const handoff = result.details?.checkProvidersHandoff as
@@ -5708,12 +5802,50 @@ Services: ${services.map((s) => `${s.name} — ${s.durationMinutes} min, ${s.pri
     items: T[],
     name: string,
   ): T | undefined {
-    const lower = name.toLowerCase().trim();
-    return (
-      items.find((item) => item.name.toLowerCase() === lower) ||
-      items.find((item) => item.name.toLowerCase().includes(lower)) ||
-      items.find((item) => lower.includes(item.name.toLowerCase()))
-    );
+    // e2e-bug.446 / e2e-bug.362 — this was a third copy of the tiered matcher
+    // whose last tier was a raw `lower.includes(item.name)`. That returned an
+    // employee called "Al" for "is the salon open" (s-**al**-on) and, worse,
+    // for "book Alice for a haircut" — the wrong colleague, confidently.
+    // e2e-bug.362 anchored the shared version to word boundaries; the fix never
+    // reached the private copies. Delegating rather than re-patching, so the
+    // next fix has one place to land.
+    return canonicalFuzzyMatchByName(items, name);
+  }
+
+  /**
+   * Provider resolution that can say "I don't know which one" (tech-debt D5).
+   *
+   * The guest surface's counterpart to `AiBookingCoreService.resolveNamedVerdict`,
+   * with two differences that are deliberate rather than drift:
+   *
+   * 1. **Name-first precedence is preserved.** This surface resolves
+   *    `employeeName` before `employeeId`, the opposite of the dashboard. That
+   *    is arguably backwards, but flipping it is a separate behaviour change; a
+   *    D5 slice changes the tie and nothing else.
+   * 2. **The clarification is localized.** `resolveEntity.clarification` is
+   *    English-only, and this surface serves en/hy/ru guests. Returning it
+   *    verbatim would be e2e-bug.108 ("raw English error overrides Armenian
+   *    translation") a second time, so the caller uses
+   *    `assistant.providerAmbiguous` via `t()` instead.
+   *
+   * `threshold: 0` and the `not_found` fallback match the dashboard slices:
+   * acceptance is unchanged, only ties are refused.
+   */
+  private resolveProviderVerdict(
+    employees: Employee[],
+    name: string,
+  ): { match?: Employee; ambiguous: Employee[] } {
+    const verdict = resolveEntity(employees, name, {
+      entityLabel: 'provider',
+      threshold: 0,
+    });
+    if (verdict.status === 'ambiguous') {
+      return { ambiguous: verdict.candidates };
+    }
+    return {
+      match: verdict.match ?? this.fuzzyMatchByName(employees, name),
+      ambiguous: [],
+    };
   }
 
   private snapTo10min(hhmm: string): string {

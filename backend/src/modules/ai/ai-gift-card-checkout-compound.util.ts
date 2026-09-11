@@ -113,7 +113,15 @@ export function hasGiftCardCheckoutGiftCue(prompt: string): boolean {
   );
 }
 
-export function isGiftCardCheckoutCompoundPrompt(prompt: string): boolean {
+/**
+ * e2e-bug.353 - renamed from `isGiftCardCheckoutCompoundPrompt`, which
+ * `ai-gift-card-payments-hints.util.ts` also exported. Every call site that used
+ * both already aliased this one to exactly this name, so the codebase had picked
+ * the disambiguation years before the collision was filed; this makes it real.
+ */
+export function isGiftCardCheckApplyBookCompoundPrompt(
+  prompt: string,
+): boolean {
   if (matchGiftCardCheckoutScenario(prompt)) return true;
   const text = prompt.trim();
   if (text.length < 20) return false;
@@ -160,7 +168,7 @@ export function buildGiftCardCheckoutCompoundParams(
 export function decomposeGiftCardCheckoutCompoundPrompt(
   prompt: string,
 ): GiftCardCheckoutCompoundStep[] {
-  if (!isGiftCardCheckoutCompoundPrompt(prompt)) return [];
+  if (!isGiftCardCheckApplyBookCompoundPrompt(prompt)) return [];
 
   const base = buildGiftCardCheckoutCompoundParams(prompt);
 
@@ -188,7 +196,7 @@ export function rescueGiftCardCheckoutCompoundIntent(
   action: string,
 ): { action: 'compound_intent'; rescueReason: string } | null {
   if (action === 'compound_intent') return null;
-  if (!isGiftCardCheckoutCompoundPrompt(prompt)) return null;
+  if (!isGiftCardCheckApplyBookCompoundPrompt(prompt)) return null;
   return {
     action: 'compound_intent',
     rescueReason: 'gift_card_checkout_compound',

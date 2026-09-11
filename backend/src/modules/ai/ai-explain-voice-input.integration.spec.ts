@@ -5,18 +5,20 @@ import {
   EXPLAIN_VOICE_INPUT_RESCUE_SCENARIOS,
 } from './ai-explain-voice-input.fixtures.js';
 import { rescueExplainVoiceInputIntent } from './ai-explain-voice-input.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain voice input integration (ai-cmd-customer-4.19.1)', () => {
   it.each(EXPLAIN_VOICE_INPUT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'explain_voice_input',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_voice_input',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

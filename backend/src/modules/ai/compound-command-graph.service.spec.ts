@@ -3,6 +3,10 @@ import { CommandCompletionPipelineService } from './command-completion.pipeline.
 import { OperationalPlanBuilderService } from './operational-plan-builder.service.js';
 import { CommandOrchestrationService } from './command-orchestration.service.js';
 import type { AgentPlan } from '../../engine/agent/interfaces/agent.interfaces.js';
+import {
+  makeAgentPlan,
+  makeAgentPlanStep,
+} from '../../engine/agent/interfaces/agent.test-fixture.js';
 
 describe('CompoundCommandGraphService (ai-cmd-h2.4)', () => {
   const capturedPlanParams: Record<string, unknown>[] = [];
@@ -50,11 +54,13 @@ describe('CompoundCommandGraphService (ai-cmd-h2.4)', () => {
       params: Record<string, unknown>,
     ): Promise<AgentPlan | null> => {
       capturedPlanParams.push({ action, ...params });
-      return {
+      // No `action` on the plan: `AgentPlan` has no such field (it has `intent`),
+      // nothing downstream of `buildPlan` reads one, and the action is already
+      // recorded by `capturedPlanParams` above.
+      return makeAgentPlan({
         businessId: 'biz-1',
-        action,
-        steps: [{ action, params }],
-      };
+        steps: [makeAgentPlanStep({ action, params })],
+      });
     },
   );
 

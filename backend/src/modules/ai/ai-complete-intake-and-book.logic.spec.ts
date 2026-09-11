@@ -125,7 +125,9 @@ describe('ai-complete-intake-and-book.logic (ai-cmd-customer-4.14.2)', () => {
       payPrompt,
     );
     expect(blocked.success).toBe(false);
-    expect(String(blocked.summary)).toMatch(/Ask to fill the pre-visit intake/i);
+    expect(String(blocked.summary)).toMatch(
+      /Ask to fill the pre-visit intake/i,
+    );
 
     const seeded = await handleCompleteIntakeAndBookLogic(
       buildDeps(),

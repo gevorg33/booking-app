@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleRecoverLostManageLinkLogic } from './ai-recover-lost-manage-link.logic.js';
 import {
   RECOVER_LOST_MANAGE_LINK_PROMPTS,
@@ -9,6 +10,7 @@ import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js'
 import { AI_COMMAND_EVAL_RECOVER_LOST_MANAGE_LINK_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-recover-lost-manage-link integration (ai-cmd-customer-4.17.3)', () => {
   const guestBooking = {
@@ -42,12 +44,30 @@ describe('ai-recover-lost-manage-link integration (ai-cmd-customer-4.17.3)', () 
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     bookingRepo: {
       find: jest.fn(async () => guestBookings),
       findOne: jest.fn(async () => guestBooking),
       save: jest.fn(async (booking: typeof guestBooking) => booking),
+      // `manager.transaction` — the manifest's `mock_missing_transaction` class.
+      // The manage-link path mints a token via `ensureBookingManageToken`,
+      // which opens a transaction and locks the row inside it; with no
+      // `manager` every case died before reaching the behaviour under test.
+      // The locked read serves the same booking this mock already returns.
+      manager: {
+        transaction: async (cb: (m: any) => Promise<unknown>) =>
+          cb({
+            createQueryBuilder: () => ({
+              setLock: () => ({
+                where: () => ({ getOne: async () => guestBooking }),
+              }),
+            }),
+            save: async (_entity: unknown, row: any) => row,
+          }),
+      },
     },
     configService: { get: jest.fn(() => 'http://localhost:3000') },
     notificationsService: {
@@ -71,15 +91,16 @@ describe('ai-recover-lost-manage-link integration (ai-cmd-customer-4.17.3)', () 
   it.each(
     RECOVER_LOST_MANAGE_LINK_PROMPTS.filter((row) => row.email || row.phone),
   )('validates and executes guest $id', async ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'recover_lost_manage_link',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'recover_lost_manage_link',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleRecoverLostManageLinkLogic(

@@ -64,7 +64,8 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
   },
   {
     id: 'dapi-agent-tasks',
-    restPath: 'GET agents/tasks, agents/tasks/pending, agents/tasks/:id/preview',
+    restPath:
+      'GET agents/tasks, agents/tasks/pending, agents/tasks/:id/preview',
     apiModule: 'ai-command',
     coverage: { kind: 'dashboard-ai', intents: ['list_agent_tasks'] },
   },
@@ -76,7 +77,8 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
   },
   {
     id: 'dapi-agent-undo-latest',
-    restPath: 'GET agents/tasks/undo-latest/preview, POST agents/tasks/undo-latest',
+    restPath:
+      'GET agents/tasks/undo-latest/preview, POST agents/tasks/undo-latest',
     apiModule: 'ai-command',
     coverage: { kind: 'dashboard-ai', intents: ['undo_latest_agent_task'] },
   },
@@ -131,7 +133,8 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     apiModule: 'business',
     coverage: {
       kind: 'no-ai',
-      reason: 'Auth bootstrap for an invited user, not an in-session assistant action',
+      reason:
+        'Auth bootstrap for an invited user, not an in-session assistant action',
     },
   },
 
@@ -474,7 +477,11 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     apiModule: 'clinic-test-results',
     coverage: {
       kind: 'dashboard-ai',
-      intents: ['list_test_orders', 'explain_patient_results', 'upload_patient_result'],
+      intents: [
+        'list_test_orders',
+        'explain_patient_results',
+        'upload_patient_result',
+      ],
     },
   },
   {
@@ -496,7 +503,11 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     apiModule: 'clinic-test-results',
     coverage: {
       kind: 'dashboard-ai',
-      intents: ['enter_test_result', 'release_test_result', 'transition_specimen'],
+      intents: [
+        'enter_test_result',
+        'release_test_result',
+        'transition_specimen',
+      ],
     },
   },
   {
@@ -968,7 +979,10 @@ export const DASHBOARD_API_AI_PARITY: readonly DashboardApiParityEntry[] = [
     id: 'dapi-bulk-category-assign',
     restPath: 'Repeated PUT or future bulk-assign API',
     apiModule: 'catalog',
-    coverage: { kind: 'dashboard-ai', intents: ['bulk_assign_services_category'] },
+    coverage: {
+      kind: 'dashboard-ai',
+      intents: ['bulk_assign_services_category'],
+    },
   },
 
   // ai-cmd-dashboard-6.21 — Audit follow-up (rows added after first pass)

@@ -38,8 +38,7 @@ const LIST_PROMOTIONS_CUE =
   /\blist\s+(?:(?:the|all|our)\s+)?(?:public\s+)?promotions?\b/i;
 const LIST_REVIEWS_CUE =
   /\blist\s+(?:(?:the|all|our)\s+)?provider\s+reviews?\b/i;
-const SUGGEST_PACKAGE_BLOCK_CUE =
-  /\bsuggest\s+(?:a\s+)?package\s+block\b/i;
+const SUGGEST_PACKAGE_BLOCK_CUE = /\bsuggest\s+(?:a\s+)?package\s+block\b/i;
 const COMPOUND_GLUE = /\band\b|\bthen\b|;/;
 
 const SHAPE_ACTIONS: Record<
@@ -126,7 +125,10 @@ function detectPublicAssistantCompoundShape(
   if (LIST_PROVIDERS_CUE.test(text) && CHECK_AVAILABILITY_CUE.test(text)) {
     return 'list_providers_check_availability';
   }
-  if (DISCOVER_PACKAGES_CUE.test(text) && RECOMMEND_SPECIALISTS_CUE.test(text)) {
+  if (
+    DISCOVER_PACKAGES_CUE.test(text) &&
+    RECOMMEND_SPECIALISTS_CUE.test(text)
+  ) {
     return 'discover_packages_recommend_specialists';
   }
   if (BOOK_APPOINTMENT_CUE.test(text) && BUSINESS_INFO_CUE.test(text)) {

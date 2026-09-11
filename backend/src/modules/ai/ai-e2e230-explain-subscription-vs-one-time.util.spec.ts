@@ -39,8 +39,7 @@ describe('e2e-bug.230 explain_subscription_vs_one_time vs confirm/choose_payment
       expect(isConfirmMyBookingDetailsPrompt(row.prompt)).toBe(false);
       expect(isAskPaymentOptionsPrompt(row.prompt)).toBe(false);
       expect(
-        rescueExplainSubscriptionVsOneTimeIntent(row.prompt, 'unknown')
-          ?.action,
+        rescueExplainSubscriptionVsOneTimeIntent(row.prompt, 'unknown')?.action,
       ).toBe(row.expectedAction);
       expect(
         rescueExplainSubscriptionVsOneTimeIntent(
@@ -76,15 +75,14 @@ describe('e2e-bug.230 explain_subscription_vs_one_time vs confirm/choose_payment
     },
   );
 
-  it.each(E2E230_NON_EXPLAIN_STILL_MATCHES.map((row) => [row.id, row] as const))(
-    '$id: unrelated confirm/payment-options still match',
-    (_id, row) => {
-      expect(isExplainSubscriptionVsOneTimePrompt(row.prompt)).toBe(false);
-      if (row.kind === 'confirm') {
-        expect(isConfirmMyBookingDetailsPrompt(row.prompt)).toBe(true);
-      } else {
-        expect(isAskPaymentOptionsPrompt(row.prompt)).toBe(true);
-      }
-    },
-  );
+  it.each(
+    E2E230_NON_EXPLAIN_STILL_MATCHES.map((row) => [row.id, row] as const),
+  )('$id: unrelated confirm/payment-options still match', (_id, row) => {
+    expect(isExplainSubscriptionVsOneTimePrompt(row.prompt)).toBe(false);
+    if (row.kind === 'confirm') {
+      expect(isConfirmMyBookingDetailsPrompt(row.prompt)).toBe(true);
+    } else {
+      expect(isAskPaymentOptionsPrompt(row.prompt)).toBe(true);
+    }
+  });
 });

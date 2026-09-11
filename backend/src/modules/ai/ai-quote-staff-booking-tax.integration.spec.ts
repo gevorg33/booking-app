@@ -4,9 +4,10 @@ import { QUOTE_STAFF_BOOKING_TAX_PROMPTS } from './ai-quote-staff-booking-tax.fi
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { Booking } from '../booking/entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai quote staff booking tax integration (ai-cmd-tax-12)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -23,7 +24,7 @@ describe('ai quote staff booking tax integration (ai-cmd-tax-12)', () => {
         ],
       },
     },
-  } as Business;
+  });
 
   const services: Service[] = [
     {

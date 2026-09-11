@@ -234,7 +234,8 @@ describe('provider-booking-today-timeline.util (prov-exp-3.3)', () => {
   });
 
   describe('buildExplainTodayTimelineSummary (ai-cmd-provider-5.1.5)', () => {
-    const formatTime = (iso: string) => new Date(iso).toISOString().slice(11, 16);
+    const formatTime = (iso: string) =>
+      new Date(iso).toISOString().slice(11, 16);
 
     it('returns an empty-day message with no bookings', () => {
       const view = buildProviderTodayTimelineView({

@@ -3,39 +3,45 @@ import {
   handleConfigureClinicServiceLogic,
   handleExplainClinicServicesLogic,
 } from './ai-clinic-service.logic.js';
+import type { OnboardingService } from '../onboarding/onboarding.service.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
+import {
+  makeService,
+  makeServiceCategory,
+} from '../service/entities/service.test-fixture.js';
 
 describe('ai-clinic-service.logic (ai-cmd-clinic-1–3)', () => {
   const services = [
-    {
+    makeService({
       id: 'svc-cbc',
       name: 'CBC',
       metadata: { serviceType: 'lab_test', requiresFasting: true },
-      category: { name: 'Laboratory' },
-    },
-    {
+      category: makeServiceCategory({ name: 'Laboratory' }),
+    }),
+    makeService({
       id: 'svc-lipid',
       name: 'Lipid Panel',
       metadata: { serviceType: 'lab_test' },
-      category: { name: 'Laboratory' },
-    },
-    {
+      category: makeServiceCategory({ name: 'Laboratory' }),
+    }),
+    makeService({
       id: 'svc-gp',
       name: 'GP Consultation',
       metadata: { serviceType: 'consultation' },
-      category: { name: 'General Practice' },
-    },
-    {
+      category: makeServiceCategory({ name: 'General Practice' }),
+    }),
+    makeService({
       id: 'svc-ecg',
       name: 'ECG',
       metadata: { serviceType: 'procedure' },
-      category: { name: 'Cardiology' },
-    },
-    {
+      category: makeServiceCategory({ name: 'Cardiology' }),
+    }),
+    makeService({
       id: 'svc-massage',
       name: 'Relaxation Massage',
       metadata: {},
-      category: { name: 'Spa' },
-    },
+      category: makeServiceCategory({ name: 'Spa' }),
+    }),
   ];
 
   const serviceService = {
@@ -49,22 +55,43 @@ describe('ai-clinic-service.logic (ai-cmd-clinic-1–3)', () => {
   };
 
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-clinic',
-      settings: { businessType: 'polyclinic' },
-    })),
+    findOne: jest.fn(async () =>
+      makeBusiness({
+        id: 'biz-clinic',
+        settings: { businessType: 'polyclinic' },
+      }),
+    ),
   };
 
   const onboardingService = {
-    applyVerticalPlaybook: jest.fn(async () => ({
-      playbookId: 'clinic',
-      categoriesCreated: 4,
-      servicesCreated: 12,
-      slotsCreated: 50,
-      templatesApplied: ['Clinic operating hours'],
-      employeeName: 'Dr. Smith',
-      status: 'configured',
-    })),
+    // Declared against the real return type — `playbookId` is the
+    // `VerticalPlaybookId` union, not `string`.
+    applyVerticalPlaybook: jest.fn(
+      async (): ReturnType<OnboardingService['applyVerticalPlaybook']> => ({
+        playbookId: 'clinic',
+        categoriesCreated: 4,
+        servicesCreated: 12,
+        slotsCreated: 50,
+        templatesApplied: ['Clinic operating hours'],
+        employeeName: 'Dr. Smith',
+        // `status` is the onboarding status *object*, not the string
+        // `'configured'` this used to hold — the logic passes it through as
+        // `details.status`, so a string here was a wrong-typed value, not merely
+        // an incomplete one.
+        status: {
+          completed: true,
+          step: 'done',
+          businessType: 'polyclinic',
+          businessTypeNotes: null,
+          hasCatalog: true,
+          hasSchedule: true,
+          categoryCount: 4,
+          serviceCount: 12,
+          bookingSlug: 'clinic',
+          bookingPath: '/book/clinic',
+        },
+      }),
+    ),
   };
 
   const deps = () => ({ serviceService });
@@ -151,10 +178,12 @@ describe('ai-clinic-service.logic (ai-cmd-clinic-1–3)', () => {
   });
 
   it('rejects clinic playbook for non-clinic business type', async () => {
-    businessRepo.findOne.mockResolvedValueOnce({
-      id: 'biz-salon',
-      settings: { businessType: 'hair_salon' },
-    });
+    businessRepo.findOne.mockResolvedValueOnce(
+      makeBusiness({
+        id: 'biz-salon',
+        settings: { businessType: 'hair_salon' },
+      }),
+    );
     const result = await handleApplyClinicPlaybookLogic(
       playbookDeps(),
       'biz-salon',

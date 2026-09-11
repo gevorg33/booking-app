@@ -34,9 +34,9 @@ describe('e2e-bug.231 check_gift_card_balance by code', () => {
     expect(
       rescuePaymentsIntent(row.prompt, 'apply_gift_card_code')?.action,
     ).toBe('check_gift_card_balance');
-    expect(
-      rescuePaymentsIntent(row.prompt, 'gift_card_balance')?.action,
-    ).toBe('check_gift_card_balance');
+    expect(rescuePaymentsIntent(row.prompt, 'gift_card_balance')?.action).toBe(
+      'check_gift_card_balance',
+    );
   });
 
   it('keeps account wallet balance off code lookup', () => {

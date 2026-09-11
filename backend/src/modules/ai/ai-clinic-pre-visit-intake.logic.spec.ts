@@ -10,21 +10,37 @@ function buildDeps(
 ): ClinicPreVisitIntakeLogicDeps {
   return {
     intakeService: {
-      assignForBooking: jest.fn(async (_businessId: string, _userId: string, bookingId: string, _dto: any) => ({
-        id: 'intake-1',
-        bookingId,
-        status: 'assigned',
-      })),
-      getForBooking: jest.fn(async (_businessId: string, _userId: string, bookingId: string) => ({
-        id: 'intake-1',
-        bookingId,
-        status: 'assigned',
-      })),
-      submitAnswers: jest.fn(async (_businessId: string, _userId: string, intakeId: string, dto: any) => ({
-        id: intakeId,
-        status: 'in_progress',
-        ...dto,
-      })),
+      assignForBooking: jest.fn(
+        async (
+          _businessId: string,
+          _userId: string,
+          bookingId: string,
+          _dto: any,
+        ) => ({
+          id: 'intake-1',
+          bookingId,
+          status: 'assigned',
+        }),
+      ),
+      getForBooking: jest.fn(
+        async (_businessId: string, _userId: string, bookingId: string) => ({
+          id: 'intake-1',
+          bookingId,
+          status: 'assigned',
+        }),
+      ),
+      submitAnswers: jest.fn(
+        async (
+          _businessId: string,
+          _userId: string,
+          intakeId: string,
+          dto: any,
+        ) => ({
+          id: intakeId,
+          status: 'in_progress',
+          ...dto,
+        }),
+      ),
       ...overrides.intakeService,
     },
   } as any;

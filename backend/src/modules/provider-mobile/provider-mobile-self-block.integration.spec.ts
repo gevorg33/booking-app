@@ -1,6 +1,37 @@
 import { ForbiddenException } from '@nestjs/common';
 import { ProviderMobileService } from './provider-mobile.service.js';
 
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * Blocks are created for 2026-08-09 and 2026-08-20, and the self-block
+ * validator rejects anything more than a day in the past.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+const FROZEN_NOW = new Date('2026-08-08T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('ProviderMobileService self block (prov-exp-7.1)', () => {
   const employeeRepo = { findOne: jest.fn(), find: jest.fn(), save: jest.fn() };
   const memberRepo = { find: jest.fn() };

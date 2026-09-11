@@ -34,7 +34,8 @@ export const E2E333_PROMPT_HINT_CASES: readonly E2e333PromptHintCase[] = [
   },
   {
     id: 'first-available-named-provider-no-any-cue',
-    prompt: 'Create a booking for the first available massage slot with Gevorg Gasparyan',
+    prompt:
+      'Create a booking for the first available massage slot with Gevorg Gasparyan',
     expectFirstAvailable: true,
     expectAllProviders: false,
   },

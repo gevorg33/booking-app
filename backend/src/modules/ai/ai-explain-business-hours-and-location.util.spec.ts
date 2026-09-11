@@ -24,9 +24,7 @@ describe('ai-explain-business-hours-and-location.util (ai-cmd-customer-4.1.5)', 
     expect(
       DASHBOARD_EXPLAIN_BUSINESS_HOURS_AND_LOCATION_CLASSIFIER_RULES,
     ).toContain('What are my business hours?');
-    expect(DASHBOARD_INTENT_SCHEMA).toContain(
-      'What are my business hours?',
-    );
+    expect(DASHBOARD_INTENT_SCHEMA).toContain('What are my business hours?');
   });
 
   it('registers explain_business_hours_and_location on dashboard (e2e-bug.137)', () => {

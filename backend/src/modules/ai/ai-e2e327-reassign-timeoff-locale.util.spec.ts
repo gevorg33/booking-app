@@ -36,8 +36,12 @@ describe('e2e-bug.327: explain_reassign_limit / explain_time_off_approval locali
   );
 
   it('EN regression guard: default (no locale, no prompt) stays English', () => {
-    expect(buildExplainReassignLimitSummary().toLowerCase()).toContain('reassign');
-    expect(buildExplainTimeOffApprovalSummary().toLowerCase()).toContain('manager');
+    expect(buildExplainReassignLimitSummary().toLowerCase()).toContain(
+      'reassign',
+    );
+    expect(buildExplainTimeOffApprovalSummary().toLowerCase()).toContain(
+      'manager',
+    );
     expect(buildExplainReassignLimitSummary()).not.toMatch(/[԰-֏]|[Ѐ-ӿ]/);
     expect(buildExplainTimeOffApprovalSummary()).not.toMatch(/[԰-֏]|[Ѐ-ӿ]/);
   });

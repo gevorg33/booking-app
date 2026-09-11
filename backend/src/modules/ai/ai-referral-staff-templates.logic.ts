@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReadWriter,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
@@ -13,7 +16,7 @@ import {
 } from '../provider-mobile/provider-staff-message-templates.util.js';
 
 export interface ReferralStaffTemplatesLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
+  businessRepo: EntityReadWriter<Business>;
 }
 
 function failure(

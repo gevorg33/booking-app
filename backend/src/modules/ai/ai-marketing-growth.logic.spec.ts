@@ -535,11 +535,8 @@ describe('ai-marketing-growth.logic', () => {
     );
     expect(startCheckoutFails.success).toBe(false);
     expect(startCheckoutFails.summary).toContain('not configured');
-    const confirmCheckoutMissingSession = await handleConfirmBillingCheckoutLogic(
-      deps,
-      'biz-1',
-      {},
-    );
+    const confirmCheckoutMissingSession =
+      await handleConfirmBillingCheckoutLogic(deps, 'biz-1', {});
     expect(confirmCheckoutMissingSession.success).toBe(false);
     expect(confirmCheckoutMissingSession.details?.clarify).toBe(true);
     const confirmCheckoutOk = await handleConfirmBillingCheckoutLogic(
@@ -556,7 +553,9 @@ describe('ai-marketing-growth.logic', () => {
       buildDeps({
         billingService: {
           confirmCheckoutSession: jest.fn(async () => {
-            throw new Error('Checkout session does not belong to this business');
+            throw new Error(
+              'Checkout session does not belong to this business',
+            );
           }),
         } as any,
       }),
@@ -1386,5 +1385,67 @@ describe('ai-marketing-growth.logic', () => {
       ).success,
     ).toBe(true);
     partialRangeSpy.mockRestore();
+  });
+});
+
+describe('summarize_new_registrations date window (e2e-bug.466, §218)', () => {
+  // Two defects in one expression. The enum branch closed on the last
+  // millisecond of the end day and the prompt branch on its midnight, so the
+  // identical request under-reported by a whole day when typed as free text.
+  // And both anchored at `T00:00:00.000Z` although `resolveDateRange` had
+  // already computed the day keys in the business timezone, which slid the
+  // window by the UTC offset for every non-UTC business.
+  const build = (count: number) =>
+    ({ customerRepo: { count: jest.fn().mockResolvedValue(count) } }) as never;
+
+  beforeAll(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-15T12:00:00.000Z'));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
+  it('answers the same window whether the range arrives as an enum or as prose', async () => {
+    const viaEnum: any = await handleSummarizeNewRegistrationsLogic(
+      build(7),
+      'biz-1',
+      { dateRange: 'this_month', _timeZone: 'UTC' },
+      '',
+    );
+    const viaPrompt: any = await handleSummarizeNewRegistrationsLogic(
+      build(7),
+      'biz-1',
+      { _timeZone: 'UTC' },
+      'how many new customers signed up this month',
+    );
+
+    expect(viaEnum.details.from).toBe(viaPrompt.details.from);
+    expect(viaEnum.details.to).toBe(viaPrompt.details.to);
+    expect(viaPrompt.details.to).toBe('2026-08-31T23:59:59.999Z');
+  });
+
+  it('closes on the last instant of the final day, not its midnight', async () => {
+    const result: any = await handleSummarizeNewRegistrationsLogic(
+      build(3),
+      'biz-1',
+      { _timeZone: 'UTC' },
+      'registrations this month',
+    );
+    // The whole point: a customer created at 23:30 on the 31st is in range.
+    expect(new Date(result.details.to).getTime()).toBeGreaterThan(
+      new Date('2026-08-31T23:30:00.000Z').getTime(),
+    );
+  });
+
+  it('takes the day boundaries in the business timezone, not UTC', async () => {
+    const result: any = await handleSummarizeNewRegistrationsLogic(
+      build(3),
+      'biz-1',
+      { dateRange: 'this_month', _timeZone: 'Asia/Yerevan' },
+      '',
+    );
+    // Yerevan is UTC+4, so local August starts at 20:00 on 31 July UTC.
+    expect(result.details.from).toBe('2026-07-31T20:00:00.000Z');
+    expect(result.details.to).toBe('2026-08-31T19:59:59.999Z');
   });
 });

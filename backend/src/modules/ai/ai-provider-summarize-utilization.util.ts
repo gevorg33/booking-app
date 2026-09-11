@@ -29,11 +29,17 @@ export function rescueSummarizeUtilizationIntent(
 ): { action: 'summarize_utilization'; rescueReason: string } | null {
   for (const scenario of PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS) {
     if (scenario.prompt === prompt) {
-      return { action: 'summarize_utilization', rescueReason: 'summarize_utilization' };
+      return {
+        action: 'summarize_utilization',
+        rescueReason: 'summarize_utilization',
+      };
     }
   }
   if (isSummarizeUtilizationPrompt(prompt)) {
-    return { action: 'summarize_utilization', rescueReason: 'summarize_utilization' };
+    return {
+      action: 'summarize_utilization',
+      rescueReason: 'summarize_utilization',
+    };
   }
   return null;
 }

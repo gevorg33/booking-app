@@ -1,5 +1,6 @@
 import { resolveLocale, t } from '../../common/i18n/messages.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
+import { isRegistryMutating } from './ai-command-registry.util.js';
 import type { ClassifiedIntent } from './ai-command-routing.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { ValidationIssue } from './command-completion.types.js';
@@ -40,15 +41,28 @@ export type SelfVerifyStageOutcome = {
   clarify?: SelfVerifyClarifyPayload;
 };
 
+/**
+ * AI-ROADMAP Phase 7 — "self-verify blocks execute on fail (not log-only)".
+ *
+ * The confidence clause used to be unconditional, which made the safety check
+ * weakest exactly where it matters: a self-verify failure at confidence ≥ 0.55
+ * was written to the trace and then ignored, so the more sure the classifier
+ * was, the less the check did. A confident wrong answer is the case self-verify
+ * exists to catch.
+ *
+ * Now the confidence gate only applies to reads. When the action mutates, a
+ * failed self-verification blocks whatever the confidence — a wrong read is
+ * recoverable by asking again, a wrong write is not. That is the same
+ * risk-proportionate rule as §39's tier gates rather than a new principle.
+ */
 export function shouldEmitSelfVerifyClarify(
   result: SelfVerifyResult,
   confidence: number,
+  opts: { mutating?: boolean } = {},
 ): boolean {
-  return (
-    !result.passed &&
-    !result.correctedAction &&
-    confidence < SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD
-  );
+  if (result.passed || result.correctedAction) return false;
+  if (opts.mutating) return true;
+  return confidence < SELF_VERIFY_CLARIFY_CONFIDENCE_THRESHOLD;
 }
 
 export function lowerConfidenceAfterSelfVerifyFailure(
@@ -262,7 +276,11 @@ export function resolveSelfVerifyStageOutcome(
   const confidence =
     typeof intent.confidence === 'number' ? intent.confidence : 0;
 
-  if (!shouldEmitSelfVerifyClarify(result, confidence)) {
+  if (
+    !shouldEmitSelfVerifyClarify(result, confidence, {
+      mutating: isRegistryMutating(intent.action),
+    })
+  ) {
     return { intent, result };
   }
 

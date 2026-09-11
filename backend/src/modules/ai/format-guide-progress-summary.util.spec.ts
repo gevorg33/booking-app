@@ -59,12 +59,7 @@ describe('format-guide-progress-summary.util (e2e-bug.219)', () => {
   ])(
     'formatGuideProgressSummary never keeps English Step chrome: $id',
     ({ locale, title, expected, current = 1, total = 3 }) => {
-      const summary = formatGuideProgressSummary(
-        current,
-        total,
-        title,
-        locale,
-      );
+      const summary = formatGuideProgressSummary(current, total, title, locale);
       expect(summary).toBe(expected);
       if (locale !== 'en') {
         expect(summary).not.toMatch(/Step \d+ of \d+/i);

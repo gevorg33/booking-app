@@ -4,9 +4,15 @@ import { AiConversationSummaryService } from './ai-conversation-summary.service.
 import { OpenAiGatewayService } from '../integrations/openai/openai-gateway.service.js';
 
 describe('AiConversationSummaryService', () => {
+  // F1 — typed rather than bare `jest.fn()`. With @types/jest 30 a bare mock
+  // infers an `unknown` return, so `mockResolvedValue(true)` resolves its
+  // parameter to `never` and every call reports
+  // "Argument of type 'true' is not assignable to parameter of type 'never'".
+  // Naming the signature is the fix; casting the object would silence it
+  // without restoring any checking.
   const openAi = {
-    isAvailableForBusiness: jest.fn(),
-    completeJson: jest.fn(),
+    isAvailableForBusiness: jest.fn<(businessId: string) => Promise<boolean>>(),
+    completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
 
   let service: AiConversationSummaryService;

@@ -20,9 +20,7 @@ describe('ai-provider-show-appointments.util', () => {
     expect(
       isShowAppointmentsPrompt('How many appointments do I have tomorrow?'),
     ).toBe(false);
-    expect(isShowAppointmentsPrompt("Who's next across the team?")).toBe(
-      false,
-    );
+    expect(isShowAppointmentsPrompt("Who's next across the team?")).toBe(false);
     expect(isShowAppointmentsPrompt('How much did I make this week?')).toBe(
       false,
     );

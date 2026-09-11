@@ -581,10 +581,11 @@ export async function handlePreviewMultiServiceCartLogic(
 
   const serviceIds = services.map((s) => s.id);
   try {
-    const preview = await deps.publicBookingService.previewMultiServiceSelection(
-      slug,
-      serviceIds,
-    );
+    const preview =
+      await deps.publicBookingService.previewMultiServiceSelection(
+        slug,
+        serviceIds,
+      );
     const totalMinutes = preview.totals?.blockDurationMinutes;
     const totalPrice = preview.totals?.totalPrice;
     const summary =
@@ -981,11 +982,12 @@ export async function handleCancelAllUpcomingBookingsLogic(
       )
     : undefined;
 
-  const result = await deps.publicCustomerBookingService.bulkCancelUpcomingBookings(
-    slug,
-    customerId,
-    { confirm, bookingIds },
-  );
+  const result =
+    await deps.publicCustomerBookingService.bulkCancelUpcomingBookings(
+      slug,
+      customerId,
+      { confirm, bookingIds },
+    );
 
   if (result.requiresConfirmation) {
     if (result.count === 0) {
@@ -1016,7 +1018,8 @@ export async function handleCancelAllUpcomingBookingsLogic(
         count: result.count,
         bookings: result.bookings,
         bookingIds: bookingIdList,
-        sessionContext: buildCancelAllUpcomingPendingSessionContext(bookingIdList),
+        sessionContext:
+          buildCancelAllUpcomingPendingSessionContext(bookingIdList),
       },
     );
   }

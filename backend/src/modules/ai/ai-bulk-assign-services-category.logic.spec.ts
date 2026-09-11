@@ -1,4 +1,6 @@
 import { handleBulkAssignServicesCategoryLogic } from './ai-bulk-assign-services-category.logic.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 
 describe('ai-bulk-assign-services-category.logic', () => {
   const services = [
@@ -27,8 +29,8 @@ describe('ai-bulk-assign-services-category.logic', () => {
 
   const categoryService = {
     findAll: jest.fn(async () => [
-      { id: 'cat-hair', name: 'Hair' },
-      { id: 'cat-massage', name: 'Massage' },
+      makeService({ id: 'cat-hair', name: 'Hair' }),
+      makeService({ id: 'cat-massage', name: 'Massage' }),
     ]),
   };
 

@@ -60,9 +60,7 @@ export function isCreateEmployeePrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   // e2e-bug.292 — catalog category create ≠ add team member (and bare "color"
   // as a category name must not match the old staff keyword list).
-  if (
-    /(?:категор|կատեգորիա|(?:service|catalog)\s+category)/iu.test(prompt)
-  ) {
+  if (/(?:категор|կատեգորիա|(?:service|catalog)\s+category)/iu.test(prompt)) {
     return false;
   }
   // e2e-bug.286 — "Create a booking for the first available…" ≠ create_employee
@@ -253,9 +251,7 @@ export function isUpdateTeamMemberRolePrompt(prompt: string): boolean {
   );
   if (!hasRoleTarget) return false;
   if (/\b(promote|demote)\b/i.test(prompt)) return true;
-  return (
-    /\brole\b/i.test(prompt) && /\b(make|set|change)\b/i.test(prompt)
-  );
+  return /\brole\b/i.test(prompt) && /\b(make|set|change)\b/i.test(prompt);
 }
 
 export function isDeactivateEmployeePrompt(prompt: string): boolean {

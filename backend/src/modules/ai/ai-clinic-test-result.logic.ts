@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Booking } from '../booking/entities/booking.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
@@ -14,9 +18,9 @@ import {
 } from './ai-clinic-test-result.util.js';
 
 export interface ClinicTestResultLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  bookingRepo: Pick<Repository<Booking>, 'find' | 'findOne'>;
-  resultRepo: Pick<Repository<ClinicTestResult>, 'find' | 'findOne'>;
+  businessRepo: EntityReader<Business>;
+  bookingRepo: EntityFinder<Booking> & EntityReader<Booking>;
+  resultRepo: EntityFinder<ClinicTestResult> & EntityReader<ClinicTestResult>;
   clinicTestResultService: Pick<
     ClinicTestResultService,
     'enterManualMeasurement'

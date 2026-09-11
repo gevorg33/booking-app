@@ -8,6 +8,37 @@ import {
 } from './public-booking-test.harness.js';
 import { E2E254_EMPTY_REASON_ASSIGNED_UNSCHEDULED } from './e2e254-assigned-provider-hours.fixtures.js';
 
+/**
+ * e2e-bug.482 — this suite used to hardcode its pattern day (2026-07-29) and a
+ * fixed window (2026-07-31 → 2026-08-20). Materialization only fills *future*
+ * days, so the test passed exactly while a matching weekday fell strictly
+ * inside that window. Jul 29 + 21 days is 2026-08-19: future on the 18th,
+ * "today" on the 19th, and the suite went red overnight with no code change.
+ *
+ * Anchoring to today instead. A weekly pattern seeded 21 days back always has
+ * future occurrences inside a 21-day forward window, whatever day it is run.
+ */
+const DAY_MS = 86_400_000;
+
+function utcMidnightToday(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function dayOffset(days: number): Date {
+  return new Date(utcMidnightToday().getTime() + days * DAY_MS);
+}
+
+/** The pattern day, at a given UTC hour. */
+function patternAt(hour: number): Date {
+  const d = dayOffset(-21);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+}
+
+const isoDay = (d: Date): string => d.toISOString().slice(0, 10);
+
 describe('e2e-bug.254 assigned provider hours roll-forward', () => {
   function createHarness() {
     const business = {
@@ -58,15 +89,15 @@ describe('e2e-bug.254 assigned provider hours roll-forward', () => {
       find: jest.fn().mockResolvedValue([
         {
           type: TemplatePeriodType.SERVICE_BLOCK,
-          startTime: new Date('2026-07-29T09:00:00.000Z'),
-          endTime: new Date('2026-07-29T13:00:00.000Z'),
+          startTime: patternAt(9),
+          endTime: patternAt(13),
           serviceIds: ['svc-face'],
           maxAppointmentCount: 1,
         },
         {
           type: TemplatePeriodType.SERVICE_BLOCK,
-          startTime: new Date('2026-07-29T14:00:00.000Z'),
-          endTime: new Date('2026-07-29T18:00:00.000Z'),
+          startTime: patternAt(14),
+          endTime: patternAt(18),
           serviceIds: ['svc-face'],
           maxAppointmentCount: 1,
         },
@@ -121,8 +152,8 @@ describe('e2e-bug.254 assigned provider hours roll-forward', () => {
       'biz-1',
       { id: 'svc-face' },
       [harness.employee],
-      '2026-07-31',
-      '2026-08-20',
+      isoDay(dayOffset(1)),
+      isoDay(dayOffset(21)),
     );
 
     expect(harness.savedPeriods.length).toBeGreaterThan(0);

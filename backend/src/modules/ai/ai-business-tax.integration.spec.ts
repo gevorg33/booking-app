@@ -16,9 +16,11 @@ import {
 } from './ai-business-tax.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -32,7 +34,7 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
         taxNumber: 'GB123456789',
       },
     },
-  } as Business;
+  });
 
   const services: Service[] = [
     {
@@ -116,21 +118,24 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
       });
       expect(rescued?.action).toBe('configure_business_tax');
 
-      const validation = validateCommand({
-        action: 'configure_business_tax',
-        params: parsed ?? {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_business_tax',
+          params: parsed ?? {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessTaxLogic(
         deps(),
         'biz-1',
-        parsed ?? {},
+        // Spread: the parse result is a declared shape with no index signature,
+        // and these handlers take `Record<string, unknown>`.
+        { ...(parsed ?? {}) },
         prompt,
       );
       expect(result.success).toBe(true);
@@ -153,21 +158,24 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
         expect.objectContaining({ serviceQuery, taxRatePercent }),
       );
 
-      const validation = validateCommand({
-        action: 'set_service_tax_rate',
-        params: parsed ?? {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'set_service_tax_rate',
+          params: parsed ?? {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const preview = await handleSetServiceTaxRateLogic(
         deps(),
         'biz-1',
-        parsed ?? {},
+        // Spread: the parse result is a declared shape with no index signature,
+        // and these handlers take `Record<string, unknown>`.
+        { ...(parsed ?? {}) },
         prompt,
         false,
       );

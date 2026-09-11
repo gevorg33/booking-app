@@ -30,9 +30,9 @@ describe('e2e-bug.232 claim_referral_code must not be stolen by apply_promo_code
   const rescue = new AiIntentRescueService();
 
   it('classifier rules forbid promo steal of referral redeem/apply', () => {
-    expect(CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES).toContain(
-      'NOT claim_referral_code',
-    );
+    expect(
+      CUSTOMER_PUBLIC_APPLY_PROMO_CODE_CHECKOUT_CLASSIFIER_RULES,
+    ).toContain('NOT claim_referral_code');
     expect(REWARDS_AND_REFERRAL_CLAIM_CLASSIFIER_RULES).toContain(
       'Redeem referral code FRIEND10',
     );
@@ -120,8 +120,12 @@ describe('e2e-bug.232 claim_referral_code must not be stolen by apply_promo_code
   );
 
   it('does not treat the word referral as a promo code token', () => {
-    expect(extractApplyPromoCodeFromPrompt('Redeem referral code FRIEND10')).toBeNull();
-    expect(extractApplyPromoCodeFromPrompt('Apply referral code SAVE20')).toBeNull();
+    expect(
+      extractApplyPromoCodeFromPrompt('Redeem referral code FRIEND10'),
+    ).toBeNull();
+    expect(
+      extractApplyPromoCodeFromPrompt('Apply referral code SAVE20'),
+    ).toBeNull();
   });
 
   it('does not let my_profile / CRM steal attach-referral-to-my-account', () => {
@@ -147,9 +151,9 @@ describe('e2e-bug.232 claim_referral_code must not be stolen by apply_promo_code
       'Redeem discount code SPRING15',
     ]) {
       expect(isApplyGiftCardCodePrompt(prompt)).toBe(false);
-      expect(disambiguateGiftCardPaymentsAction(prompt, 'unknown')?.action).not.toBe(
-        'apply_gift_card_code',
-      );
+      expect(
+        disambiguateGiftCardPaymentsAction(prompt, 'unknown')?.action,
+      ).not.toBe('apply_gift_card_code');
       expect(
         rescue.rescue({
           prompt,

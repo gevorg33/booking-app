@@ -157,6 +157,13 @@ export class OpenAiGatewayService {
   async embedText(
     context: AiCallContext,
     text: string,
+    /**
+     * Optional output dimensionality (`text-embedding-3-*` only). Used by the
+     * planner shortlist cache: 696 command vectors at the default 1,536 dims is
+     * a ~10MB checked-in file, and 256 is ample for ranking a few hundred
+     * items. Both sides of a comparison must use the same value.
+     */
+    options: { dimensions?: number } = {},
   ): Promise<number[] | null> {
     const resolved = await this.getClient(context.businessId);
     if (!resolved) return null;
@@ -169,6 +176,7 @@ export class OpenAiGatewayService {
       const response = await resolved.client.embeddings.create({
         model,
         input,
+        ...(options.dimensions ? { dimensions: options.dimensions } : {}),
       });
 
       const usage = response.usage;

@@ -232,9 +232,7 @@ describe('ai-marketing-growth.util', () => {
       expect(switchGuideWithView.summary).toContain(
         'https://app.test/get-app/salon?src=qr&utm_campaign=venue_qr',
       );
-      expect(switchGuideWithView.summary).toContain(
-        "salon's Growth QR",
-      );
+      expect(switchGuideWithView.summary).toContain("salon's Growth QR");
       expect(
         switchGuideWithView.steps.some((step) =>
           step.includes('optischedule://book/salon'),
@@ -443,7 +441,17 @@ describe('ai-marketing-growth.util', () => {
     });
 
     it('covers intent registry and single-segment decomposition', () => {
-      expect(MARKETING_GROWTH_INTENTS.length).toBe(26);
+      // e2e-bug.534 — 26 -> 27. Verified the growth is a real intent and not an
+      // accidental double-add, which is the failure a bare count is actually
+      // guarding against: the list is 27 entries and 27 unique.
+      //
+      // Asserting uniqueness alongside the count says that out loud, so a future
+      // bump only has to confirm the number rather than re-derive what the
+      // number was for.
+      expect(new Set(MARKETING_GROWTH_INTENTS).size).toBe(
+        MARKETING_GROWTH_INTENTS.length,
+      );
+      expect(MARKETING_GROWTH_INTENTS.length).toBe(27);
       expect(isMarketingGrowthIntent('explain_plan_limits')).toBe(true);
       expect(isMarketingGrowthIntent('not_real')).toBe(false);
       expect(decomposeMarketingGrowthCompoundPrompt('')).toEqual([]);

@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ServiceService } from '../service/service.service.js';
 import type { PublicPreVisitIntakeService } from '../public-booking/public-pre-visit-intake.service.js';
@@ -18,9 +21,10 @@ import {
   type ClinicBookingAspect,
   type ParsedExplainClinicBooking,
 } from './ai-clinic-booking.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ClinicBookingLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   serviceService: Pick<ServiceService, 'findAll'>;
   publicPreVisitIntakeService: Pick<
     PublicPreVisitIntakeService,
@@ -52,17 +56,6 @@ function readBusinessType(settings: unknown): string | null {
   const businessType = (settings as { businessType?: unknown } | null)
     ?.businessType;
   return typeof businessType === 'string' ? businessType : null;
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 const FIELD_EXPLANATIONS: Record<
@@ -210,7 +203,7 @@ export async function handleExplainClinicBookingLogic(
   const service = parsed.serviceId
     ? clinicServices.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(clinicServices, parsed.serviceName)
+      ? matchServiceByNameLegacy(clinicServices, parsed.serviceName)
       : undefined;
 
   if (parsed.serviceName && !service) {

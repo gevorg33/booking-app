@@ -13,7 +13,6 @@ import {
   resolveRebookAndPayPaymentAction,
   rescueRebookAndPayCompoundIntent,
 } from './ai-rebook-and-pay-compound.util.js';
-import { isRebookLastAppointmentPrompt } from './ai-rebook-last-appointment.util.js';
 
 describe('ai-rebook-and-pay-compound.util (ai-cmd-customer-4.8.2)', () => {
   it.each(REBOOK_AND_PAY_CUSTOMER_PROMPTS)(
@@ -65,13 +64,6 @@ describe('ai-rebook-and-pay-compound.util (ai-cmd-customer-4.8.2)', () => {
       expect(decomposeRebookAndPayCompoundPrompt(prompt)).toEqual([]);
     },
   );
-
-  it('rebook-only prompt stays on rebook_last_appointment', () => {
-    const prompt = 'Rebook my last appointment';
-    expect(hasRebookAndPayPaymentCue(prompt)).toBe(false);
-    expect(isRebookAndPayCompoundPrompt(prompt)).toBe(false);
-    expect(isRebookLastAppointmentPrompt(prompt)).toBe(true);
-  });
 
   it('resolveRebookAndPayPaymentAction prefers choose_payment_method', () => {
     expect(

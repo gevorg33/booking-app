@@ -5,7 +5,7 @@ import { AiSettingsService } from './ai-settings.service.js';
 
 describe('AiRagService', () => {
   const aiSettings = {
-    getSettings: jest.fn(),
+    getSettings: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
 
   it('constructs through Nest DI', async () => {

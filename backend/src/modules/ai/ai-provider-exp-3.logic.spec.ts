@@ -138,7 +138,9 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
 
   it('fails extend_my_block when no block exists to extend', async () => {
     providerMobile.extendProviderSelfBlock.mockRejectedValue(
-      new Error('No block found to extend. Create one first with "block my lunch".'),
+      new Error(
+        'No block found to extend. Create one first with "block my lunch".',
+      ),
     );
 
     const result = await handleExtendMyBlockLogic(
@@ -198,7 +200,11 @@ describe('ai-provider-exp-3.logic (prov-exp-5.3)', () => {
       startTime: '2026-06-09T14:00:00.000Z',
       customer: { name: 'Jane', phone: '+15551234567' },
       staffMessageTemplates: [
-        { id: 'running-late', label: 'Running late', body: "Hi Jane, I'm running late." },
+        {
+          id: 'running-late',
+          label: 'Running late',
+          body: "Hi Jane, I'm running late.",
+        },
       ],
     });
 

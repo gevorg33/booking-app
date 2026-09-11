@@ -69,11 +69,12 @@ describe('ai-create-intake-draft.logic', () => {
     expect(result.success).toBe(true);
     expect(result.action).toBe('create_intake_draft');
     expect(result.details?.intakeId).toBe('intake-1');
-    expect(deps.publicPreVisitIntakeService.ensureCustomerDraft).toHaveBeenCalledWith(
-      'salon',
-      'cust-1',
-      { serviceId: 'svc-lab-1', questionnaireId: undefined },
-    );
+    expect(
+      deps.publicPreVisitIntakeService.ensureCustomerDraft,
+    ).toHaveBeenCalledWith('salon', 'cust-1', {
+      serviceId: 'svc-lab-1',
+      questionnaireId: undefined,
+    });
   });
 
   it('requires sign-in', async () => {
@@ -190,18 +191,16 @@ describe('ai-submit-intake-answers.logic', () => {
     });
     expect(result.success).toBe(true);
     expect(result.details?.submittedCount).toBe(1);
-    expect(deps.publicPreVisitIntakeService.submitCustomerAnswers).toHaveBeenCalledWith(
-      'salon',
-      'cust-1',
-      'intake-1',
-      { questionId: 'q-1', values: ['no allergies'] },
-    );
+    expect(
+      deps.publicPreVisitIntakeService.submitCustomerAnswers,
+    ).toHaveBeenCalledWith('salon', 'cust-1', 'intake-1', {
+      questionId: 'q-1',
+      values: ['no allergies'],
+    });
   });
 
   it('walks multiple free-text answers in order', async () => {
-    (
-      deps.publicPreVisitIntakeService.submitCustomerAnswers as jest.Mock
-    )
+    (deps.publicPreVisitIntakeService.submitCustomerAnswers as jest.Mock)
       .mockResolvedValueOnce({
         id: 'intake-1',
         status: 'in_progress',
@@ -226,32 +225,30 @@ describe('ai-submit-intake-answers.logic', () => {
     expect(result.success).toBe(true);
     expect(result.details?.submittedCount).toBe(2);
     expect(result.details?.isCompleted).toBe(true);
-    expect(deps.publicPreVisitIntakeService.submitCustomerAnswers).toHaveBeenNthCalledWith(
-      1,
-      'salon',
-      'cust-1',
-      'intake-1',
-      { questionId: 'q-1', values: ["I don't smoke"] },
-    );
-    expect(deps.publicPreVisitIntakeService.submitCustomerAnswers).toHaveBeenNthCalledWith(
-      2,
-      'salon',
-      'cust-1',
-      'intake-1',
-      { questionId: 'q-2', values: ['not on medication'] },
-    );
+    expect(
+      deps.publicPreVisitIntakeService.submitCustomerAnswers,
+    ).toHaveBeenNthCalledWith(1, 'salon', 'cust-1', 'intake-1', {
+      questionId: 'q-1',
+      values: ["I don't smoke"],
+    });
+    expect(
+      deps.publicPreVisitIntakeService.submitCustomerAnswers,
+    ).toHaveBeenNthCalledWith(2, 'salon', 'cust-1', 'intake-1', {
+      questionId: 'q-2',
+      values: ['not on medication'],
+    });
   });
 
   it('stops early once the intake is completed', async () => {
-    (deps.publicPreVisitIntakeService.getCustomerFlow as jest.Mock).mockResolvedValueOnce(
-      {
-        id: 'intake-1',
-        status: 'completed',
-        isCompleted: true,
-        questionnaire: { title: 'Lab Intake' },
-        nextQuestion: null,
-      },
-    );
+    (
+      deps.publicPreVisitIntakeService.getCustomerFlow as jest.Mock
+    ).mockResolvedValueOnce({
+      id: 'intake-1',
+      status: 'completed',
+      isCompleted: true,
+      questionnaire: { title: 'Lab Intake' },
+      nextQuestion: null,
+    });
     const result = await handleSubmitIntakeAnswersLogic(deps, 'biz-1', {
       sessionCustomerId: 'cust-1',
       intakeId: 'intake-1',
@@ -259,7 +256,9 @@ describe('ai-submit-intake-answers.logic', () => {
     });
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
-    expect(deps.publicPreVisitIntakeService.submitCustomerAnswers).not.toHaveBeenCalled();
+    expect(
+      deps.publicPreVisitIntakeService.submitCustomerAnswers,
+    ).not.toHaveBeenCalled();
   });
 
   it('clarifies when no answers are given', async () => {

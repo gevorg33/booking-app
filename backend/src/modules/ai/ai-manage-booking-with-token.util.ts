@@ -20,9 +20,9 @@ export const MANAGE_BOOKING_WITH_TOKEN_CLASSIFIER_RULES = `- explain_manage_book
 export function isManageBookingWithTokenIntent(
   action: string,
 ): action is ManageBookingWithTokenIntent {
-  return (
-    MANAGE_BOOKING_WITH_TOKEN_INTENTS as readonly string[]
-  ).includes(action);
+  return (MANAGE_BOOKING_WITH_TOKEN_INTENTS as readonly string[]).includes(
+    action,
+  );
 }
 
 /**
@@ -170,7 +170,10 @@ export function rescueManageBookingWithTokenIntent(
       rescueReason: 'reschedule_booking_with_token',
     };
   }
-  if (explainOrPolicy || /\b(this\s+booking|this\s+appointment)\b/i.test(prompt)) {
+  if (
+    explainOrPolicy ||
+    /\b(this\s+booking|this\s+appointment)\b/i.test(prompt)
+  ) {
     if (action === 'explain_manage_booking_context') return null;
     return {
       action: 'explain_manage_booking_context',

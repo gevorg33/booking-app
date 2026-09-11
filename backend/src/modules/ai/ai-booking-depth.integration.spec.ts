@@ -155,6 +155,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         prompt:
           'Book Maria for nail care using her subscription credit tomorrow 10am',
         action: 'create_booking',
+        surface: 'dashboard',
         params: {},
         employees: employees.map((e) => ({ id: e.id, name: e.name })),
       });
@@ -166,6 +167,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
       const result = rescue.rescue({
         prompt: 'Book walk-in haircut tomorrow 3pm pay at venue',
         action: 'create_booking',
+        surface: 'dashboard',
         params: {},
         employees: [],
       });
@@ -177,6 +179,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'Book spa day package for James Friday 2pm',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -186,6 +189,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'Book haircut and beard trim Tuesday 10am with Anna',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: employees.map((e) => ({ id: e.id, name: e.name })),
         })?.action,
@@ -197,6 +201,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'Show pay at venue appointments today',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -205,6 +210,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'list package visits this week',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -213,6 +219,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'show multi-service groups today',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -221,6 +228,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'cancel package visit for booking b1',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -229,6 +237,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'cancel multi-service appointment b2',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -237,6 +246,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'reschedule package visit to Friday 10am',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -245,6 +255,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'move multi-service to 3pm',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -253,6 +264,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'mark booking b1 paid',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -261,6 +273,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'assign room 2 to the 2pm facial',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -269,6 +282,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'Can this customer still cancel?',
           action: 'unknown',
+          surface: 'dashboard',
           params: {},
           employees: [],
         })?.action,
@@ -280,6 +294,7 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
         rescue.rescue({
           prompt: 'mark booking paid',
           action: 'mark_paid',
+          surface: 'dashboard',
           params: {},
           employees: [],
         }),
@@ -457,6 +472,67 @@ describe('Sprint 26 dashboard booking AI scenarios', () => {
           )
         ).success,
       ).toBe(true);
+    });
+  });
+
+  /**
+   * e2e-bug.505 — a secondary surface must not answer for the caller's.
+   *
+   * Two separate things were wrong. This suite is named "dashboard scenarios"
+   * but passed no `surface` in any of its 15 rescue calls, and an absent
+   * surface is the permissive value, so a public rescue won. Supplying the
+   * surface then exposed the real defect: the availability disambiguator tries
+   * the caller's surface first and, failing there, loops over the *other*
+   * surfaces and returns the first candidate any of them produces. On a
+   * dashboard `create_booking` the customer surface answers with
+   * `book_appointment`, the phase stops, and the pipeline's surface filter then
+   * discards it — so the dashboard's own rescue, sitting further down the same
+   * phase, never runs. The caller gets no rescue at all rather than a wrong one.
+   */
+  describe('e2e-bug.505 — cross-surface candidates respect the caller surface', () => {
+    it('a dashboard prompt reaches its dashboard rescue', () => {
+      // Before the fix this returned null: the customer surface claimed the
+      // prompt and the result was filtered out.
+      expect(
+        rescue.rescue({
+          prompt: 'Book walk-in haircut tomorrow 3pm pay at venue',
+          action: 'create_booking',
+          surface: 'dashboard',
+          params: {},
+          employees: [],
+        })?.action,
+      ).toBe('create_booking_cash');
+    });
+
+    it('the subscription-credit prompt is not taken by the decomposer', () => {
+      // Filed as a second, independent layer (a decomposer over-claim, and
+      // e2e-bug.426 recurring). It was not: once the surface is honoured this
+      // resolves to the single command outright, and `compound_intent` was only
+      // reachable because the correct rescue had been pre-empted.
+      expect(
+        rescue.rescue({
+          prompt:
+            'Book Maria for nail care using her subscription credit tomorrow 10am',
+          action: 'create_booking',
+          surface: 'dashboard',
+          params: {},
+          employees: employees.map((e) => ({ id: e.id, name: e.name })),
+        })?.action,
+      ).toBe('create_booking_subscription_credit');
+    });
+
+    it('does not hand a dashboard-only action to a customer surface', () => {
+      // The gate must not have been widened into a different leak: these
+      // booking-depth intents are staff-only, so the customer surface must
+      // still never receive one.
+      const result = rescue.rescue({
+        prompt: 'Book walk-in haircut tomorrow 3pm pay at venue',
+        action: 'create_booking',
+        surface: 'customer',
+        params: {},
+        employees: [],
+      });
+      expect(result?.action).not.toBe('create_booking_cash');
     });
   });
 });

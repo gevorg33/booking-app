@@ -1,3 +1,4 @@
+import { isConfigurePrivacyRetentionPrompt } from './ai-business-compliance.util.js';
 import {
   isTopStaffRevenuePrompt,
   isTotalEarningsPrompt,
@@ -10,7 +11,11 @@ import { isConfigureOnlineBookingPrompt } from './ai-staff-operations.util.js';
 
 /** e2e-bug.137 — browse/filter customer list (not rankings). */
 export function isListCustomersPrompt(prompt: string): boolean {
-  if (/\b(rank|top\s+\d+|most\s+(?:bookings?|no-?shows?|spend)|vip\s+ranking)\b/i.test(prompt)) {
+  if (
+    /\b(rank|top\s+\d+|most\s+(?:bookings?|no-?shows?|spend)|vip\s+ranking)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   if (isCustomerRetentionPrompt(prompt)) return false;
@@ -27,6 +32,14 @@ export function isListCustomersPrompt(prompt: string): boolean {
 
 /** e2e-bug.137 — retention / repeat-rate → summarize_customers at_risk segment. */
 export function isCustomerRetentionPrompt(prompt: string): boolean {
+  // e2e-bug.432 — "retention" is two different words.
+  //
+  // Customer retention is an analytics question ("what is our retention
+  // rate?"). Data retention is a configuration one ("set customer PII retention
+  // to 730 days"). The second clause below needs only `retention` plus the word
+  // `customer`, so a privacy-retention *setting* read as a request to summarise
+  // customers.
+  if (isConfigurePrivacyRetentionPrompt(prompt)) return false;
   return (
     /\b(retention|repeat)\s+rate\b/i.test(prompt) ||
     (/\bretention\b/i.test(prompt) &&
@@ -67,10 +80,7 @@ export function extractLookupCustomerNameFromPrompt(
   ];
   for (const re of patterns) {
     const m = prompt.match(re);
-    if (
-      m?.[1] &&
-      !/^(Customer|Client|Profile|Service|Provider)$/i.test(m[1])
-    ) {
+    if (m?.[1] && !/^(Customer|Client|Profile|Service|Provider)$/i.test(m[1])) {
       return m[1].trim();
     }
   }

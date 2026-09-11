@@ -4,6 +4,7 @@ import {
   describeOpenaiIntegrationPatch,
   parseConfigureOpenaiIntegrationFromPrompt,
 } from './ai-openai-integration.util.js';
+import { redactSecretDetailFields } from '../../common/utils/phi-ai-guard.util.js';
 
 export interface ConfigureOpenaiIntegrationLogicDeps {
   openAiIntegrationService: OpenAiIntegrationService;
@@ -100,7 +101,7 @@ export async function handleConfigureOpenaiIntegrationLogic(
         : 'OpenAI integration updated.',
       {
         settings,
-        patch: parsed,
+        patch: redactSecretDetailFields(parsed),
         navigate,
         steps: buildSetupSteps(settings.usingPlatformDefault),
       },
@@ -113,7 +114,7 @@ export async function handleConfigureOpenaiIntegrationLogic(
       {
         navigate,
         steps: buildSetupSteps(parsed.usePlatformDefault),
-        patch: parsed,
+        patch: redactSecretDetailFields(parsed),
       },
     );
   }

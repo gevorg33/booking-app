@@ -39,8 +39,7 @@ export function isRewardsLoyaltyReferralDomainPrompt(prompt: string): boolean {
   return (
     /\b(rewards?\s+wallet|loyalty\s+(?:points?|program|rewards?))\b/i.test(
       trimmed,
-    ) &&
-    /\b(explain|how|what|balance|earn|worth|claim|redeem)\b/i.test(trimmed)
+    ) && /\b(explain|how|what|balance|earn|worth|claim|redeem)\b/i.test(trimmed)
   );
 }
 

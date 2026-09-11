@@ -523,7 +523,8 @@ describe('ai service discovery public integration — section D flagship (discov
         currency: 'USD',
       })),
       maxPrice: enriched.maxPrice,
-      serviceCategory: 'facial',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services.map((service) => service.id)).toEqual([
@@ -612,9 +613,12 @@ describe('ai service discovery public integration — section E provider + budge
     const enriched = runPublicDiscoveryEnrichment(scenario);
     expect(isProviderRankDiscoveryPrompt(scenario.prompt)).toBe(true);
     expect(enriched.serviceRank).toBeUndefined();
+    // §231 — the enrichment keeps the raw `cut` on purpose (e2e-bug.323); the
+    // catalog below is still filtered on the taxonomy value 'haircut', which is
+    // exactly the pair this scenario exists to exercise.
     expect(enriched).toMatchObject({
       maxPrice: 60,
-      serviceCategory: 'haircut',
+      serviceCategory: 'cut',
     });
 
     const haircutCatalog = SERVICE_DISCOVERY_INTEGRATION_CATALOG.filter(
@@ -743,7 +747,8 @@ describe('ai service discovery public integration — section F journey (discove
         currency: 'USD',
       })),
       maxPrice: turn1.maxPrice,
-      serviceCategory: 'hair',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services.map((service) => service.id)).toEqual([
@@ -821,7 +826,8 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
         currency: 'EUR',
       })),
       maxPrice: publicEnriched.maxPrice,
-      serviceCategory: 'facial',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services).toHaveLength(0);
@@ -1066,8 +1072,9 @@ describe('ai service discovery public integration — section H negatives (disco
       scenario.classifierParams ?? {},
       scenario.prompt,
     );
+    // §231 — "premium cut tomorrow" enriches to the raw `cut` (e2e-bug.323).
     expect(enriched).toEqual({
-      serviceCategory: 'haircut',
+      serviceCategory: 'cut',
       date: 'tomorrow',
     });
     expect(

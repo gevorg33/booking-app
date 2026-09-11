@@ -20,9 +20,13 @@ describe('AiOnboardingService (ai-cmd-dashboard-6.2)', () => {
         businessType: 'salon',
       })),
       applyCatalog: jest.fn(async (_businessId: string, _dto: any) => ({})),
-      applyDefaultSchedule: jest.fn(async (_businessId: string, _userId: string) => ({})),
+      applyDefaultSchedule: jest.fn(
+        async (_businessId: string, _userId: string) => ({}),
+      ),
       skipScheduleStep: jest.fn(async (_businessId: string) => ({})),
-      applyVerticalPlaybook: jest.fn(async (_businessId: string, _userId: string) => ({})),
+      applyVerticalPlaybook: jest.fn(
+        async (_businessId: string, _userId: string) => ({}),
+      ),
       completeOnboarding: jest.fn(async (_businessId: string) => ({})),
     };
     const service = new AiOnboardingService(onboardingService as any);
@@ -90,12 +94,12 @@ describe('AiOnboardingService (ai-cmd-dashboard-6.2)', () => {
 
   it('exposes rescue + detector passthroughs', () => {
     const { service } = buildService();
-    expect(service.rescueOnboardingIntent('finish onboarding', 'unknown')).toEqual(
-      { action: 'complete_onboarding', rescueReason: 'complete' },
-    );
     expect(
-      service.isExplainOnboardingStatusPrompt('onboarding status'),
-    ).toBe(true);
+      service.rescueOnboardingIntent('finish onboarding', 'unknown'),
+    ).toEqual({ action: 'complete_onboarding', rescueReason: 'complete' });
+    expect(service.isExplainOnboardingStatusPrompt('onboarding status')).toBe(
+      true,
+    );
     expect(service.isSetBusinessTypePrompt('we are a spa')).toBe(true);
     expect(service.isRecommendCatalogPrompt('recommend a catalog')).toBe(true);
     expect(
@@ -107,9 +111,9 @@ describe('AiOnboardingService (ai-cmd-dashboard-6.2)', () => {
     expect(
       service.isSkipOnboardingSchedulePrompt('skip the schedule step'),
     ).toBe(true);
-    expect(
-      service.isApplyOnboardingPlaybookPrompt('apply the playbook'),
-    ).toBe(true);
+    expect(service.isApplyOnboardingPlaybookPrompt('apply the playbook')).toBe(
+      true,
+    );
     expect(service.isCompleteOnboardingPrompt('finish onboarding')).toBe(true);
   });
 });

@@ -1,4 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type {
+  AmbiguityReport,
+  OnAmbiguousName,
+} from './ai-name-resolution.types.js';
 import { DASHBOARD_INTENT_SCHEMA } from './ai-command-intent-schema.build.js';
 import { commandSurfaceToAiUsageSurface } from './ai-usage-surface.util.js';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -180,7 +184,16 @@ import {
   isClearSchedulePrompt,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
+  fuzzyMatchByName as canonicalFuzzyMatchByName,
 } from './ai-orchestration.helpers.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
+// e2e-bug.487 — the single source of truth for which compound steps must not be
+// skipped silently. Imported, not restated: two copies of this rule is the drift
+// e2e-bug.409 and e2e-bug.446 were both about.
+import {
+  MUST_NOT_SILENTLY_SKIP_ACTIONS,
+  COMPOUND_MUTATE_ACTION_LABELS,
+} from './compound-command-graph.service.js';
 import {
   enrichDiscoveryParamsFromPrompt,
   enrichServiceDiscoveryFromPrompt,
@@ -231,6 +244,7 @@ import {
 import { shouldBlockLowConfidencePipelineMutate } from './command-pipeline-mutating-actions.util.js';
 import {
   CommandResult,
+  type BusinessCatalog,
   type PipelineTrace,
 } from './command-completion.types.js';
 import { buildUnwiredDashboardIntentResult } from './ai-command-unwired-intent.util.js';
@@ -321,8 +335,8 @@ import type { PlanTierId } from '../billing/plan-limits.js';
 import {
   buildExecutionConfirmationResult,
   isExecutionConfirmed,
-  requiresDashboardExecutionConfirmation,
 } from './ai-execution-confirm.util.js';
+import { shouldConfirmBeforeExecute } from './ai-planner-confirmation.util.js';
 import {
   isMetaProductGuideIntent,
   runMetaProductGuideIntent,
@@ -379,6 +393,7 @@ import {
   handleOfferWaitlistSlotLogic,
 } from './ai-waitlist-dashboard.logic.js';
 import { enrichCompoundSubStepBookingHints } from './ai-compound-booking-hints.util.js';
+import { attachCompoundStepAttribution } from './ai-compound-step-outcome.util.js';
 import {
   applyBookingRescheduleActionHints,
   buildRescheduleFirstAvailableNoSlotMessage,
@@ -569,17 +584,31 @@ export class AiCommandService {
 
     const timeZone = await this.resolveCommandTimezone(businessId, session);
 
-    const [employees, services, customers, templates] = await Promise.all([
-      this.employeeRepo.find({ where: { businessId, isActive: true } }),
-      this.serviceRepo.find({ where: { businessId } }),
-      this.customerRepo.find({ where: { businessId, isActive: true } }),
-      this.templateRepo.find({
-        where: { businessId, isDeleted: false },
-        order: { name: 'ASC' },
-      }),
-    ]);
+    const [employees, services, customers, templates, locations] =
+      await Promise.all([
+        this.employeeRepo.find({ where: { businessId, isActive: true } }),
+        this.serviceRepo.find({ where: { businessId } }),
+        this.customerRepo.find({ where: { businessId, isActive: true } }),
+        this.templateRepo.find({
+          where: { businessId, isDeleted: false },
+          order: { name: 'ASC' },
+        }),
+        // e2e-bug.460 — joins the existing parallel batch rather than adding a
+        // round trip: the rescue chain runs synchronously and needs to know
+        // whether a name like "Downtown" is a place before it claims the prompt.
+        this.locations.listLocations(businessId),
+      ]);
 
-    const catalog = { employees, services, customers, templates };
+    const catalog = {
+      employees,
+      services,
+      customers,
+      templates,
+      locations: locations.map((location) => ({
+        id: location.id,
+        name: location.name,
+      })),
+    };
     const aiConfig = await this.aiSettings.getSettings(businessId);
     const business = await this.businessRepo.findOne({
       where: { id: businessId },
@@ -806,7 +835,8 @@ export class AiCommandService {
           sessionCustomerId: session?.context?.customerId as string | undefined,
         },
         scopedCatalog.customers,
-        (list, name) => this.resolveCustomer(list, name),
+        (list, name, onAmbiguous) =>
+          this.resolveCustomerStrict(list, name, onAmbiguous),
         userId,
       );
       if (crmCompound.success || crmCompound.details?.failedStep) {
@@ -821,8 +851,24 @@ export class AiCommandService {
         {},
         scopedCatalog.services,
         scopedCatalog.customers,
-        (list, name) => this.resolveCustomer(list, name),
+        (list, name, onAmbiguous) =>
+          this.resolveCustomerStrict(list, name, onAmbiguous),
         userId,
+        // e2e-bug.448(b) — "Turn on online payment for everything" is the tail
+        // of both e2e-bug.348's and e2e-bug.349's reported prompts. It is a
+        // payments action, not a catalog one, so it used to hit the catalog
+        // executor's `default` branch and fail the *whole* compound on top of
+        // catalog work that had already succeeded. Injected here because this
+        // is the frame that has both services; the catalog module gains no
+        // payments dependency.
+        (bId, stepParams, stepPrompt, svcs, uid) =>
+          this.payments.handleConfigureServiceOnlinePayment(
+            bId,
+            stepParams,
+            stepPrompt,
+            svcs,
+            uid,
+          ),
       );
       if (catalogCompound.success || catalogCompound.details?.failedStep) {
         return catalogCompound;
@@ -846,9 +892,8 @@ export class AiCommandService {
         sessionWithRoute?.context as Record<string, unknown> | undefined,
       );
       if (resume) {
-        const clarifyFields = extractClarifyFieldsFromFollowUpPrompt(
-          effectivePrompt,
-        );
+        const clarifyFields =
+          extractClarifyFieldsFromFollowUpPrompt(effectivePrompt);
         return this.executeCompoundIntents(
           businessId,
           resume.confirmationPrompt || effectivePrompt,
@@ -1036,12 +1081,10 @@ export class AiCommandService {
     effectivePrompt: string,
     userId: string | undefined,
     session: CommandSessionOptions | undefined,
-    catalog: {
-      employees: Employee[];
-      services: Service[];
-      customers: Customer[];
-      templates: ScheduleTemplate[];
-    },
+    // §216 — the shared type, so the `locations` roster this object actually
+    // carries (`e2e-bug.460`) is visible to the compiler at every hop rather
+    // than surviving only by structural pass-through.
+    catalog: BusinessCatalog,
     timeZone: string,
     aiConfig: Awaited<ReturnType<AiSettingsService['getSettings']>>,
     playbook: ReturnType<AiSettingsService['matchPlaybook']>,
@@ -1591,9 +1634,24 @@ export class AiCommandService {
 
     // e2e-bug.161 / e2e-bug.164 — high-risk mutates always require confirmation
     // when not yet confirmed (registry-driven policy, not ad hoc inline lists).
+    //
+    // e2e-bug.404 — planner-routed actions answer to the spec model as well.
+    // `DASHBOARD_EXECUTION_CONFIRM_ACTIONS` covers 59 of the 210 commands
+    // `CommandSpec` says must be confirmed, so the action-name list alone would
+    // let the planner execute `appointment.mark_paid` (T2, money) silently. The
+    // requirement is re-derived from the registry rather than carried from
+    // `decidePlannerRoute`, so it cannot be dropped in transport and fail open.
+    //
+    // Scoped to `candidateSource === 'planner'` on purpose: applying the spec
+    // model to detector traffic is `e2e-bug.405`, a product decision about 13
+    // dashboard commands, and settling it here as a side effect would start
+    // interrupting users on flows that never asked.
     if (
-      requiresDashboardExecutionConfirmation(parsed.action) &&
-      !confirmed
+      shouldConfirmBeforeExecute({
+        action: parsed.action,
+        candidateSource: traceCtx.candidateSource,
+        alreadyConfirmed: confirmed,
+      })
     ) {
       const confirmResult = buildExecutionConfirmationResult(
         parsed.action,
@@ -1626,7 +1684,8 @@ export class AiCommandService {
       services,
       customers,
       session,
-      resolveCustomer: (list, name) => this.resolveCustomer(list, name),
+      resolveCustomer: (list, name, onAmbiguous) =>
+          this.resolveCustomerStrict(list, name, onAmbiguous),
       isExecutionConfirmed,
     });
     if (coreResult != null) {
@@ -1651,9 +1710,7 @@ export class AiCommandService {
           userId,
           actorEmail: session?.context?.userEmail as string | undefined,
           actorName: session?.context?.userName as string | undefined,
-          sessionCustomerId: session?.context?.customerId as
-            | string
-            | undefined,
+          sessionCustomerId: session?.context?.customerId as string | undefined,
         });
         if (integrationsResult != null) {
           result = integrationsResult;
@@ -1681,11 +1738,11 @@ export class AiCommandService {
                 userId,
                 employeeId,
                 sessionLastPush: session?.context?.lastPush,
-                sessionOfflineQueueCount:
-                  session?.context?.offlineQueueCount,
+                sessionOfflineQueueCount: session?.context?.offlineQueueCount,
                 sessionOnline: session?.context?.online,
-                sessionScopedEmployeeId: session?.context
-                  ?.scopedEmployeeId as string | undefined,
+                sessionScopedEmployeeId: session?.context?.scopedEmployeeId as
+                  | string
+                  | undefined,
                 sessionCustomerId: session?.context?.customerId as
                   | string
                   | undefined,
@@ -1693,25 +1750,23 @@ export class AiCommandService {
             if (pushNotificationsResult != null) {
               result = pushNotificationsResult;
             } else {
-              const bookingCoreResult = await this.bookingCore.dispatchIntent(
-                {
-                  businessId,
-                  action: parsed.action,
-                  params,
-                  prompt: effectivePrompt,
-                  userId,
-                  employeeId,
-                  resolvedEmployeeName: resolvedEmployee?.name,
-                  employees,
-                  services,
-                  customers,
-                  templates,
-                  timeZone,
-                  lookupCustomerAccessContext:
-                    (session?.context?._accessTier as string | undefined) ??
-                    (session?.context?._actorRole as string | undefined),
-                },
-              );
+              const bookingCoreResult = await this.bookingCore.dispatchIntent({
+                businessId,
+                action: parsed.action,
+                params,
+                prompt: effectivePrompt,
+                userId,
+                employeeId,
+                resolvedEmployeeName: resolvedEmployee?.name,
+                employees,
+                services,
+                customers,
+                templates,
+                timeZone,
+                lookupCustomerAccessContext:
+                  (session?.context?._accessTier as string | undefined) ??
+                  (session?.context?._actorRole as string | undefined),
+              });
               if (bookingCoreResult != null) {
                 result = bookingCoreResult;
               } else {
@@ -1727,21 +1782,24 @@ export class AiCommandService {
                     customers,
                     timeZone,
                     sessionDate:
-                      typeof (session?.context as Record<string, unknown> | undefined)
-                        ?.date === 'string'
-                        ? ((session?.context as Record<string, unknown>).date as string)
+                      typeof (
+                        session?.context as Record<string, unknown> | undefined
+                      )?.date === 'string'
+                        ? ((session?.context as Record<string, unknown>)
+                            .date as string)
                         : undefined,
                     calendarRoute:
-                      typeof (session?.context as Record<string, unknown> | undefined)
-                        ?.route === 'string'
-                        ? ((session?.context as Record<string, unknown>).route as string)
+                      typeof (
+                        session?.context as Record<string, unknown> | undefined
+                      )?.route === 'string'
+                        ? ((session?.context as Record<string, unknown>)
+                            .route as string)
                         : undefined,
-                    resolveEmployee: (list, name) =>
-                      this.resolveEmployee(list, name),
-                    resolveServices: (list, p) =>
-                      this.resolveServices(list, p),
-                    resolveCustomer: (list, name) =>
-                      this.resolveCustomer(list, name),
+                    resolveEmployee: (list, name, onAmbiguous) =>
+                      this.resolveEmployeeStrict(list, name, onAmbiguous),
+                    resolveServices: (list, p) => this.resolveServices(list, p),
+                    resolveCustomer: (list, name, onAmbiguous) =>
+                      this.resolveCustomerStrict(list, name, onAmbiguous),
                     resolveBusinessRow: () =>
                       this.businessRepo.findOne({ where: { id: businessId } }),
                   });
@@ -1781,8 +1839,8 @@ export class AiCommandService {
                           params,
                           prompt: effectivePrompt,
                           customers,
-                          resolveCustomer: (list, name) =>
-                            this.resolveCustomer(list, name),
+                          resolveCustomer: (list, name, onAmbiguous) =>
+                            this.resolveCustomerStrict(list, name, onAmbiguous),
                           sessionCustomerId: session?.context?.customerId,
                         });
                       if (customerCrmResult != null) {
@@ -1848,61 +1906,52 @@ export class AiCommandService {
                                     businessId,
                                     action: parsed.action,
                                     params,
-                                    membershipRole:
-                                      session?.context?._membershipRole as
-                                        | string
-                                        | undefined,
+                                    membershipRole: session?.context
+                                      ?._membershipRole as string | undefined,
                                   });
                                 if (metaOpsResult != null) {
                                   result = metaOpsResult;
                                 } else {
-                                const operationsResult =
-                                  await this.operations.dispatchIntent({
-                                    businessId,
-                                    action: parsed.action,
-                                    params,
-                                    prompt: effectivePrompt,
-                                    employees,
-                                    services,
-                                    timeZone,
-                                    userId,
-                                  });
-                                if (operationsResult != null) {
-                                  result = operationsResult;
-                                } else {
-                                  const onboardingResult =
-                                    await this.onboarding.dispatchIntent({
+                                  const operationsResult =
+                                    await this.operations.dispatchIntent({
                                       businessId,
                                       action: parsed.action,
                                       params,
+                                      prompt: effectivePrompt,
+                                      employees,
+                                      services,
+                                      timeZone,
                                       userId,
                                     });
-                                  if (onboardingResult != null) {
-                                    result = onboardingResult;
+                                  if (operationsResult != null) {
+                                    result = operationsResult;
                                   } else {
-                                    const businessDateFormatResult =
-                                      await this.businessDateFormat.dispatchIntent(
-                                        {
-                                          businessId,
-                                          action: parsed.action,
-                                          params,
-                                          prompt: effectivePrompt,
-                                          confirmed:
-                                            isExecutionConfirmed(session),
-                                        },
-                                      );
-                                    if (businessDateFormatResult != null) {
-                                      result = businessDateFormatResult;
+                                    const onboardingResult =
+                                      await this.onboarding.dispatchIntent({
+                                        businessId,
+                                        action: parsed.action,
+                                        params,
+                                        userId,
+                                      });
+                                    if (onboardingResult != null) {
+                                      result = onboardingResult;
                                     } else {
-                                      const clinicTestCatalogResult =
-                                        await this.clinicTestCatalog.dispatchIntent(
-                                          { businessId, action: parsed.action, params, userId },
+                                      const businessDateFormatResult =
+                                        await this.businessDateFormat.dispatchIntent(
+                                          {
+                                            businessId,
+                                            action: parsed.action,
+                                            params,
+                                            prompt: effectivePrompt,
+                                            confirmed:
+                                              isExecutionConfirmed(session),
+                                          },
                                         );
-                                      if (clinicTestCatalogResult != null) {
-                                        result = clinicTestCatalogResult;
+                                      if (businessDateFormatResult != null) {
+                                        result = businessDateFormatResult;
                                       } else {
-                                        const patientClinicalMutationsResult =
-                                          await this.patientClinicalMutations.dispatchIntent(
+                                        const clinicTestCatalogResult =
+                                          await this.clinicTestCatalog.dispatchIntent(
                                             {
                                               businessId,
                                               action: parsed.action,
@@ -1910,216 +1959,283 @@ export class AiCommandService {
                                               userId,
                                             },
                                           );
-                                        if (patientClinicalMutationsResult != null) {
-                                          result = patientClinicalMutationsResult;
+                                        if (clinicTestCatalogResult != null) {
+                                          result = clinicTestCatalogResult;
                                         } else {
-                                          const tourServiceResult =
-                                            await this.tourService.dispatchIntent(
+                                          const patientClinicalMutationsResult =
+                                            await this.patientClinicalMutations.dispatchIntent(
                                               {
                                                 businessId,
                                                 action: parsed.action,
                                                 params,
-                                                prompt: effectivePrompt,
                                                 userId,
                                               },
                                             );
-                                          if (tourServiceResult != null) {
-                                            result = tourServiceResult;
+                                          if (
+                                            patientClinicalMutationsResult !=
+                                            null
+                                          ) {
+                                            result =
+                                              patientClinicalMutationsResult;
                                           } else {
-                                            const businessTaxResult =
-                                              await this.businessTax.dispatchIntent(
+                                            const tourServiceResult =
+                                              await this.tourService.dispatchIntent(
                                                 {
                                                   businessId,
                                                   action: parsed.action,
                                                   params,
                                                   prompt: effectivePrompt,
+                                                  userId,
                                                 },
                                               );
-                                            if (businessTaxResult != null) {
-                                              result = businessTaxResult;
+                                            if (tourServiceResult != null) {
+                                              result = tourServiceResult;
                                             } else {
-                                              const businessCurrencyResult =
-                                                await this.businessCurrency.dispatchIntent(
+                                              const businessTaxResult =
+                                                await this.businessTax.dispatchIntent(
                                                   {
                                                     businessId,
                                                     action: parsed.action,
                                                     params,
                                                     prompt: effectivePrompt,
-                                                    confirmed:
-                                                      isExecutionConfirmed(
-                                                        session,
-                                                      ),
                                                   },
                                                 );
-                                              if (businessCurrencyResult != null) {
-                                                result = businessCurrencyResult;
+                                              if (businessTaxResult != null) {
+                                                result = businessTaxResult;
                                               } else {
-                                                const agentOpsResult =
-                                                  await this.agentOps.dispatchIntent(
+                                                const businessCurrencyResult =
+                                                  await this.businessCurrency.dispatchIntent(
                                                     {
                                                       businessId,
                                                       action: parsed.action,
                                                       params,
-                                                      userId,
+                                                      prompt: effectivePrompt,
+                                                      confirmed:
+                                                        isExecutionConfirmed(
+                                                          session,
+                                                        ),
                                                     },
                                                   );
-                                                if (agentOpsResult != null) {
-                                                  result = agentOpsResult;
+                                                if (
+                                                  businessCurrencyResult != null
+                                                ) {
+                                                  result =
+                                                    businessCurrencyResult;
                                                 } else {
-                                                  const recommendationProductResult =
-                                                    await this.recommendationProduct.dispatchIntent(
+                                                  const agentOpsResult =
+                                                    await this.agentOps.dispatchIntent(
                                                       {
                                                         businessId,
                                                         action: parsed.action,
                                                         params,
-                                                        prompt: effectivePrompt,
+                                                        userId,
                                                       },
                                                     );
-                                                  if (recommendationProductResult != null) {
-                                                    result = recommendationProductResult;
+                                                  if (agentOpsResult != null) {
+                                                    result = agentOpsResult;
                                                   } else {
-                                                    const smallServicesResult =
-                                                      await this.dispatchSmallServices(
-                                                        businessId,
-                                                        parsed.action,
-                                                        params,
-                                                        effectivePrompt,
-                                                        userId,
-                                                        employees,
-                                                        services,
-                                                        customers,
-                                                        session,
+                                                    const recommendationProductResult =
+                                                      await this.recommendationProduct.dispatchIntent(
+                                                        {
+                                                          businessId,
+                                                          action: parsed.action,
+                                                          params,
+                                                          prompt:
+                                                            effectivePrompt,
+                                                        },
                                                       );
-                                                    if (smallServicesResult != null) {
-                                                      result = smallServicesResult;
-                                                    } else
-                                                      switch (parsed.action) {
-          case 'explain_app_feature':
-          case 'guide_user_flow':
-          case 'explain_current_screen':
-            result = await this.dispatchProductGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-            );
-            break;
-          case 'explain_ai_settings':
-          case 'explain_ai_suggestions':
-          case 'explain_assistant_approval':
-            result = await this.dispatchMetaProductGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-              userId,
-            );
-            break;
-          case 'explain_visibility_block':
-          case 'explain_empty_catalog':
-          case 'explain_stripe_not_connected':
-            result = await this.dispatchEmptyStateGuideIntent(
-              parsed.action,
-              businessId,
-              params,
-              effectivePrompt,
-              session,
-            );
-            break;
-          case 'create_service': {
-            const createParams = { ...params };
-            enrichCreateServiceParamsFromPrompt(
-              createParams,
-              effectivePrompt,
-              services,
-            );
-            if (
-              Array.isArray(createParams.services) &&
-              createParams.services.length > 1
-            ) {
-              result = await this.handleCreateServices(
-                businessId,
-                createParams,
-                services,
-                userId,
-                effectivePrompt,
-              );
-            } else {
-              result = await this.handleCreateService(
-                businessId,
-                createParams,
-                services,
-                userId,
-                effectivePrompt,
-              );
-            }
-            break;
-          }
-          case 'create_services': {
-            const bulkCreateParams = { ...params };
-            enrichCreateServicesParamsFromPrompt(
-              bulkCreateParams,
-              effectivePrompt,
-            );
-            result = await this.handleCreateServices(
-              businessId,
-              bulkCreateParams,
-              services,
-              userId,
-              effectivePrompt,
-            );
-            break;
-          }
-          case 'optimize_schedule':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                // e2e-bug.150 — canonical action, not the raw user prompt.
-                action: 'optimize_schedule',
-                agentType: AgentType.SCHEDULING_OPTIMIZATION,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          case 'resolve_conflicts':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                action: 'resolve_conflicts',
-                agentType: AgentType.CONFLICT_RESOLUTION,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          case 'reassign_cancelled':
-            result = this.toCommandResult(
-              await this.orchestration.runOrchestrationIntent({
-                businessId,
-                intent: effectivePrompt,
-                action: 'reassign_cancelled',
-                agentType: AgentType.CANCELLATION_RECOVERY,
-                userId,
-                date: params.date,
-                employeeId,
-              }),
-            );
-            break;
-          default:
-            result = buildUnwiredDashboardIntentResult(parsed.action, {
-              reasoning: parsed.reasoning,
-              parsed: parsed as unknown as Record<string, unknown>,
-            });
-            break;
-        }
-                                                  }
+                                                    if (
+                                                      recommendationProductResult !=
+                                                      null
+                                                    ) {
+                                                      result =
+                                                        recommendationProductResult;
+                                                    } else {
+                                                      const smallServicesResult =
+                                                        await this.dispatchSmallServices(
+                                                          businessId,
+                                                          parsed.action,
+                                                          params,
+                                                          effectivePrompt,
+                                                          userId,
+                                                          employees,
+                                                          services,
+                                                          customers,
+                                                          session,
+                                                        );
+                                                      if (
+                                                        smallServicesResult !=
+                                                        null
+                                                      ) {
+                                                        result =
+                                                          smallServicesResult;
+                                                      } else
+                                                        switch (parsed.action) {
+                                                          case 'explain_app_feature':
+                                                          case 'guide_user_flow':
+                                                          case 'explain_current_screen':
+                                                            result =
+                                                              await this.dispatchProductGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                              );
+                                                            break;
+                                                          case 'explain_ai_settings':
+                                                          case 'explain_ai_suggestions':
+                                                          case 'explain_assistant_approval':
+                                                            result =
+                                                              await this.dispatchMetaProductGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                                userId,
+                                                              );
+                                                            break;
+                                                          case 'explain_visibility_block':
+                                                          case 'explain_empty_catalog':
+                                                          case 'explain_stripe_not_connected':
+                                                            result =
+                                                              await this.dispatchEmptyStateGuideIntent(
+                                                                parsed.action,
+                                                                businessId,
+                                                                params,
+                                                                effectivePrompt,
+                                                                session,
+                                                              );
+                                                            break;
+                                                          case 'create_service': {
+                                                            const createParams =
+                                                              { ...params };
+                                                            enrichCreateServiceParamsFromPrompt(
+                                                              createParams,
+                                                              effectivePrompt,
+                                                              services,
+                                                            );
+                                                            if (
+                                                              Array.isArray(
+                                                                createParams.services,
+                                                              ) &&
+                                                              createParams
+                                                                .services
+                                                                .length > 1
+                                                            ) {
+                                                              result =
+                                                                await this.handleCreateServices(
+                                                                  businessId,
+                                                                  createParams,
+                                                                  services,
+                                                                  userId,
+                                                                  effectivePrompt,
+                                                                );
+                                                            } else {
+                                                              result =
+                                                                await this.handleCreateService(
+                                                                  businessId,
+                                                                  createParams,
+                                                                  services,
+                                                                  userId,
+                                                                  effectivePrompt,
+                                                                );
+                                                            }
+                                                            break;
+                                                          }
+                                                          case 'create_services': {
+                                                            const bulkCreateParams =
+                                                              { ...params };
+                                                            enrichCreateServicesParamsFromPrompt(
+                                                              bulkCreateParams,
+                                                              effectivePrompt,
+                                                            );
+                                                            result =
+                                                              await this.handleCreateServices(
+                                                                businessId,
+                                                                bulkCreateParams,
+                                                                services,
+                                                                userId,
+                                                                effectivePrompt,
+                                                              );
+                                                            break;
+                                                          }
+                                                          case 'optimize_schedule':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    // e2e-bug.150 — canonical action, not the raw user prompt.
+                                                                    action:
+                                                                      'optimize_schedule',
+                                                                    agentType:
+                                                                      AgentType.SCHEDULING_OPTIMIZATION,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          case 'resolve_conflicts':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    action:
+                                                                      'resolve_conflicts',
+                                                                    agentType:
+                                                                      AgentType.CONFLICT_RESOLUTION,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          case 'reassign_cancelled':
+                                                            result =
+                                                              this.toCommandResult(
+                                                                await this.orchestration.runOrchestrationIntent(
+                                                                  {
+                                                                    businessId,
+                                                                    intent:
+                                                                      effectivePrompt,
+                                                                    action:
+                                                                      'reassign_cancelled',
+                                                                    agentType:
+                                                                      AgentType.CANCELLATION_RECOVERY,
+                                                                    userId,
+                                                                    date: params.date,
+                                                                    employeeId,
+                                                                  },
+                                                                ),
+                                                              );
+                                                            break;
+                                                          default:
+                                                            result =
+                                                              buildUnwiredDashboardIntentResult(
+                                                                parsed.action,
+                                                                {
+                                                                  reasoning:
+                                                                    parsed.reasoning,
+                                                                  parsed:
+                                                                    parsed as unknown as Record<
+                                                                      string,
+                                                                      unknown
+                                                                    >,
+                                                                },
+                                                              );
+                                                            break;
+                                                        }
+                                                    }
                                                   }
                                                 }
                                               }
@@ -2139,7 +2255,7 @@ export class AiCommandService {
                   }
                 }
               }
-              }
+            }
           }
         }
       }
@@ -2614,8 +2730,7 @@ export class AiCommandService {
         params,
         prompt,
       });
-    if (businessHoursLocationResult != null)
-      return businessHoursLocationResult;
+    if (businessHoursLocationResult != null) return businessHoursLocationResult;
 
     const referralStaffTemplatesResult =
       await this.referralStaffTemplates.dispatchIntent({
@@ -2657,8 +2772,7 @@ export class AiCommandService {
             ? session.context.locale
             : undefined,
       });
-    if (packageLocalizedNamesResult != null)
-      return packageLocalizedNamesResult;
+    if (packageLocalizedNamesResult != null) return packageLocalizedNamesResult;
 
     const openaiIntegrationResult = await this.openaiIntegration.dispatchIntent(
       { businessId, action, params, prompt },
@@ -2715,14 +2829,16 @@ export class AiCommandService {
           enrichOfferWaitlistSlotParams(prompt, params),
         );
       case 'create_booking_subscription_credit': {
-        const prepared = await this.bookingDepth.prepareSubscriptionCreditParams(
-          businessId,
-          params,
-          customers,
-          services,
-          (list, name) => this.resolveCustomer(list, name),
-          (list, name) => this.resolveService(list, name) ?? undefined,
-        );
+        const prepared =
+          await this.bookingDepth.prepareSubscriptionCreditParams(
+            businessId,
+            params,
+            customers,
+            services,
+            (list, name, onAmbiguous) =>
+          this.resolveCustomerStrict(list, name, onAmbiguous),
+            (list, name) => this.resolveService(list, name) ?? undefined,
+          );
         if (!prepared.ok) return prepared.result;
         const bookingResult = await this.bookingCore.handleCreateBooking(
           businessId,
@@ -2770,6 +2886,119 @@ export class AiCommandService {
     name: string,
   ): Employee | undefined {
     return this.fuzzyMatchByName(employees, name);
+  }
+
+  /**
+   * Name resolution that can say "I don't know which one" (tech-debt D5).
+   *
+   * Third copy of the pattern, after `AiBookingCoreService` and
+   * `PublicBookingAssistantService`, because this service also carries its own
+   * private `fuzzyMatchByName` rather than importing the shared one.
+   *
+   * Same two constraints as the other two: `threshold: 0`, so acceptance is
+   * unchanged and only ties are refused, and a `not_found` fallback to the
+   * local matcher. That fallback deliberately preserves this file's copy of the
+   * e2e-bug.446 substring defect — fixing it here would be a separate change,
+   * and e2e-bug.447 shows it cannot be fixed by simply importing the shared
+   * export.
+   */
+  private resolveNamedVerdict<T extends { id: string; name: string }>(
+    items: T[],
+    name: string,
+    entityLabel: 'customer' | 'provider',
+  ): { match?: T; ambiguous: T[]; clarification: string } {
+    const verdict = resolveEntity(items, name, { entityLabel, threshold: 0 });
+    if (verdict.status === 'ambiguous') {
+      return {
+        ambiguous: verdict.candidates,
+        clarification:
+          verdict.clarification ??
+          `Which ${entityLabel} did you mean by "${name}"?`,
+      };
+    }
+    return {
+      match: verdict.match ?? this.fuzzyMatchByName(items, name),
+      ambiguous: [],
+      clarification: '',
+    };
+  }
+
+  /**
+   * tech-debt D5-b — the injected-callback form of customer resolution.
+   *
+   * The compound services (CRM, catalog, subscription-credit) resolve names
+   * they parse out of the prompt themselves, so the caller cannot guard them
+   * the way D5-a's handlers guard theirs: it does not know the names yet. The
+   * callback signature is `(list, name) => Customer | undefined`, and the row
+   * for this item concluded the callees' signatures had to change before a tie
+   * could be refused.
+   *
+   * They do not. `undefined` is not silence on these paths — every callee
+   * already answers it with a clarify (`ai-customer-crm.logic.ts`:
+   * `failure(..., 'Specify which customer …', { clarify: true, missing:
+   * ['customerName'] })`). That is the same "use the channel that already
+   * exists" move that closed D5-a's `buildCreateBookingPlanOnly`.
+   *
+   * So a tie returns `undefined` and the user is asked which customer, instead
+   * of the compound mutating whichever namesake sorted first.
+   *
+   * **What this deliberately does not do:** name the tied candidates. The
+   * callee's message is generic because `undefined` carries no candidates.
+   * Naming them is the contract change this item is really about, and it is
+   * worth doing — but it is a strictly better message on top of correct
+   * behaviour, not a prerequisite for it.
+   */
+  /**
+   * tech-debt D5-b — the provider half, migrated only after its callees were
+   * checked one by one. They do not agree, which is why this is separate.
+   *
+   * `ai-booking-depth.logic.ts` consumes this callback in three places. Two
+   * answer `undefined` with a clarify (`'Specify provider, date, and block
+   * start time…'`, `'Provider "X" not found.'`). The third — the package
+   * line loop — answered it with a bare `continue`, silently dropping that
+   * appointment while still reporting "Booked N appointment(s)".
+   *
+   * Migrating into that third site would have traded "booked with the wrong
+   * provider" for "silently not booked, and not told" — a partial success,
+   * which is the e2e-bug.448(a) defect. So the `continue` was made to record
+   * and report what it skipped **first**; only then is refusing a tie here an
+   * improvement on every path rather than two out of three.
+   */
+  /** e2e-bug.488 — verdict -> the shape an injected callee can render. */
+  private toAmbiguityReport(verdict: {
+    ambiguous: { id: string; name: string }[];
+    clarification: string;
+  }): AmbiguityReport {
+    return {
+      candidates: verdict.ambiguous.map((c) => ({ id: c.id, name: c.name })),
+      clarification: verdict.clarification,
+    };
+  }
+
+  private resolveEmployeeStrict(
+    employees: Employee[],
+    name: string,
+    onAmbiguous?: OnAmbiguousName,
+  ): Employee | undefined {
+    const verdict = this.resolveNamedVerdict(employees, name, 'provider');
+    if (verdict.ambiguous.length > 1) {
+      onAmbiguous?.(this.toAmbiguityReport(verdict));
+      return undefined;
+    }
+    return verdict.match;
+  }
+
+  private resolveCustomerStrict(
+    customers: Customer[],
+    name: string,
+    onAmbiguous?: OnAmbiguousName,
+  ): Customer | undefined {
+    const verdict = this.resolveNamedVerdict(customers, name, 'customer');
+    if (verdict.ambiguous.length > 1) {
+      onAmbiguous?.(this.toAmbiguityReport(verdict));
+      return undefined;
+    }
+    return verdict.match;
   }
 
   private resolveService(
@@ -2820,12 +3049,14 @@ export class AiCommandService {
     items: T[],
     name: string,
   ): T | undefined {
-    const lower = name.toLowerCase().trim();
-    return (
-      items.find((item) => item.name.toLowerCase() === lower) ||
-      items.find((item) => item.name.toLowerCase().includes(lower)) ||
-      items.find((item) => lower.includes(item.name.toLowerCase()))
-    );
+    // e2e-bug.446 / e2e-bug.362 — this was a third copy of the tiered matcher
+    // whose last tier was a raw `lower.includes(item.name)`. That returned an
+    // employee called "Al" for "is the salon open" (s-**al**-on) and, worse,
+    // for "book Alice for a haircut" — the wrong colleague, confidently.
+    // e2e-bug.362 anchored the shared version to word boundaries; the fix never
+    // reached the private copies. Delegating rather than re-patching, so the
+    // next fix has one place to land.
+    return canonicalFuzzyMatchByName(items, name);
   }
 
   /** Snap HH:mm down to nearest 10-minute boundary (matches booking UI). */
@@ -2984,12 +3215,10 @@ export class AiCommandService {
       params: Record<string, any>;
       reasoning: string;
     }>,
-    catalog: {
-      employees: Employee[];
-      services: Service[];
-      customers: Customer[];
-      templates: ScheduleTemplate[];
-    },
+    // §216 — the shared type, so the `locations` roster this object actually
+    // carries (`e2e-bug.460`) is visible to the compiler at every hop rather
+    // than surviving only by structural pass-through.
+    catalog: BusinessCatalog,
     confidenceThresholds: { low: number; high: number },
     timeZone: string,
     resume?: { resumePlans?: AgentPlan[]; resumeStepIndex?: number },
@@ -3013,8 +3242,17 @@ export class AiCommandService {
 
     let pendingCancelBookingIds: string[] | undefined;
     const compoundActions = subIntents.map((s) => s.action);
+    // AI-ROADMAP Phase 1 — per-step telemetry. `mergePlans` copies sub-plan
+    // steps with their ids intact, so recording the ids each sub-intent
+    // contributed makes attribution exact rather than matched by action name
+    // (one message often repeats an action: "cancel Mary's, cancel John's").
+    const planStepIdsByIndex: string[][] = subIntents.map(() => []);
 
-    for (let stepIndex = startIndex; stepIndex < subIntents.length; stepIndex++) {
+    for (
+      let stepIndex = startIndex;
+      stepIndex < subIntents.length;
+      stepIndex++
+    ) {
       const sub = subIntents[stepIndex];
       const parsedParams: Record<string, any> = {
         ...this.completionPipeline.mergeSessionContext(
@@ -3117,6 +3355,11 @@ export class AiCommandService {
       );
 
       if (handoff.status === 'clarify') {
+        attachCompoundStepAttribution(handoff.result, {
+          actions: compoundActions,
+          planStepIdsByIndex,
+          clarifiedAtIndex: stepIndex,
+        });
         // e2e-bug.304 / 305 — attach resume whenever a later step clarifies.
         if (stepIndex > 0) {
           return attachCompoundResumeToClarifyResult(handoff.result, {
@@ -3165,6 +3408,7 @@ export class AiCommandService {
 
       if (plan) {
         plans.push(plan);
+        planStepIdsByIndex[stepIndex] = plan.steps.map((s) => s.id);
         if (parsed.action === 'cancel_bookings') {
           const cancelStep = plan.steps.find(
             (s) => s.action === 'cancel_bookings',
@@ -3173,16 +3417,48 @@ export class AiCommandService {
             | string[]
             | undefined;
         }
+      } else if (MUST_NOT_SILENTLY_SKIP_ACTIONS.has(parsed.action)) {
+        // e2e-bug.487 — this `else` did not exist, so a mutating step whose
+        // plan could not be built was dropped **silently** and the compound
+        // reported on the steps that did build. Only `plans.length === 0`
+        // produced a message, so "cancel my 2pm and rebook it Friday" could
+        // cancel and then quietly not rebook.
+        //
+        // e2e-bug.329 fixed exactly this in `compound-command-graph.service.ts`
+        // and never here; the two paths have disagreed since. The rule set and
+        // labels are now imported from there rather than restated, because two
+        // copies of "which actions must not be skipped" is the drift this
+        // codebase keeps paying for (e2e-bug.409, e2e-bug.446).
+        const actionLabel =
+          COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ??
+          parsed.action.replace(/_/g, ' ');
+        return {
+          success: false,
+          action: parsed.action,
+          summary: `I couldn't ${actionLabel} — ${parsed.reasoning || "the details didn't match an existing booking"}. Please confirm the customer, date, time, or service and try again.`,
+          details: {
+            needsClarification: true,
+            compoundStep: parsed.action,
+            compoundActions,
+            compoundStepIndex: stepIndex,
+            decomposed: true,
+          },
+        };
       }
     }
 
     if (plans.length === 0) {
-      return {
+      const noPlanResult: CommandResult = {
         success: false,
         action: 'compound_intent',
         summary: 'Could not build a plan from the compound command.',
         details: { subIntents },
       };
+      attachCompoundStepAttribution(noPlanResult, {
+        actions: compoundActions,
+        planStepIdsByIndex,
+      });
+      return noPlanResult;
     }
 
     const merged = this.planBuilder.mergePlans(
@@ -3218,6 +3494,10 @@ export class AiCommandService {
       subIntents: subIntents.map((s) => s.action),
       decomposed: true,
     };
+    attachCompoundStepAttribution(result, {
+      actions: compoundActions,
+      planStepIdsByIndex,
+    });
     return result;
   }
 
@@ -3227,17 +3507,23 @@ export class AiCommandService {
     action: string,
     params: Record<string, any>,
     employeeId: string | undefined,
-    catalog: {
-      employees: Employee[];
-      services: Service[];
-      customers: Customer[];
-      templates: ScheduleTemplate[];
-    },
+    // §216 — the shared type, so the `locations` roster this object actually
+    // carries (`e2e-bug.460`) is visible to the compiler at every hop rather
+    // than surviving only by structural pass-through.
+    catalog: BusinessCatalog,
     userId?: string,
     _pendingCancelBookingIds?: string[],
   ): Promise<AgentPlan | null> {
     switch (action) {
       case 'create_booking': {
+        // §235 — `buildCreateBookingPlanOnly` is the twin slice 8 recorded as
+        // return-shape blocked. The helper is; this caller is not. Same `null`
+        // as the other two plan sites.
+        if (
+          this.bookingCore.providerNameGuard(action, params, catalog.employees)
+        ) {
+          return null;
+        }
         const plan = await this.bookingCore.buildCreateBookingPlanOnly(
           businessId,
           params,
@@ -3439,6 +3725,22 @@ export class AiCommandService {
         });
       }
       case 'payment_sweep': {
+        // e2e-bug.512 / §230 — third plan-building site, found by the wiring
+        // assertion rather than by reading. This method returns
+        // `AgentPlan | null`, so it cannot carry the guard's refusal message
+        // the way the two `planOnly` branches can — the return-shape block D5
+        // keeps running into. Returning `null` is still the right answer: no
+        // plan beats a plan built over the wrong namesake's bookings, and the
+        // executing path refuses with the message a moment later.
+        if (
+          this.bookingCore.providerNameGuard(
+            'payment_sweep',
+            params,
+            catalog.employees,
+          )
+        ) {
+          return null;
+        }
         const rawBookings = await this.bookingCore.findUnpaidBookingsForSweep(
           businessId,
           params,
@@ -3480,6 +3782,15 @@ export class AiCommandService {
         });
       }
       case 'setup_week_schedule': {
+        // §235 — `AgentPlan | null` here, so no message is possible; `null` is
+        // still the right answer, as §230 established for `payment_sweep`. No
+        // plan beats a plan built over the wrong namesake, and the executing
+        // path (§233) refuses with the reason immediately after.
+        if (
+          this.bookingCore.providerNameGuard(action, params, catalog.employees)
+        ) {
+          return null;
+        }
         const cascadeResult =
           await this.scheduleHandlers.prepareTemplateCascadePlan(
             businessId,
@@ -3595,22 +3906,43 @@ export class AiCommandService {
     effectivePrompt: string,
     action: string,
     params: Record<string, any>,
-    catalog: {
-      employees: Employee[];
-      services: Service[];
-      customers: Customer[];
-      templates: ScheduleTemplate[];
-    },
+    // §216 — the shared type, so the `locations` roster this object actually
+    // carries (`e2e-bug.460`) is visible to the compiler at every hop rather
+    // than surviving only by structural pass-through.
+    catalog: BusinessCatalog,
     timeZone: string,
     _userId?: string,
   ): Promise<CommandResult | null> {
     params._timeZone = timeZone;
     const employeeId = params.employeeId as string | undefined;
+    // tech-debt D5 — this dispatches the provider-scoped reads below, so a tie
+    // lists the wrong namesake's bookings under a heading bearing their name.
+    // An explicit id still wins outright, as on the other dashboard callers.
+    const employeeVerdict =
+      !employeeId && params.employeeName
+        ? this.resolveNamedVerdict(
+            catalog.employees,
+            params.employeeName as string,
+            'provider',
+          )
+        : null;
+    if (employeeVerdict && employeeVerdict.ambiguous.length > 1) {
+      return {
+        success: false,
+        action,
+        summary: employeeVerdict.clarification,
+        details: {
+          params,
+          candidates: employeeVerdict.ambiguous.map((e) => ({
+            id: e.id,
+            name: e.name,
+          })),
+        },
+      };
+    }
     const resolvedEmployee = employeeId
       ? catalog.employees.find((e) => e.id === employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(catalog.employees, params.employeeName)
-        : undefined;
+      : (employeeVerdict?.match ?? undefined);
 
     switch (action) {
       case 'list_bookings':
@@ -3654,7 +3986,11 @@ export class AiCommandService {
           resolvedEmployee?.name,
         );
       case 'analyze_services':
-        return this.bookingCore.handleAnalyzeServices(businessId, effectivePrompt, params);
+        return this.bookingCore.handleAnalyzeServices(
+          businessId,
+          effectivePrompt,
+          params,
+        );
       case 'summarize_staff':
         return this.bookingCore.handleSummarizeStaff(
           businessId,
@@ -3663,7 +3999,11 @@ export class AiCommandService {
           catalog.employees,
         );
       case 'lookup_customer':
-        return this.bookingCore.handleLookupCustomer(businessId, params, catalog.customers);
+        return this.bookingCore.handleLookupCustomer(
+          businessId,
+          params,
+          catalog.customers,
+        );
       case 'summarize_waitlist':
         return this.bookingCore.handleSummarizeWaitlist(businessId, params);
       case 'lookup_service_assignment':
@@ -3715,12 +4055,10 @@ export class AiCommandService {
     prompt: string,
     action: string,
     params: any,
-    catalog: {
-      employees: Employee[];
-      services: Service[];
-      customers: Customer[];
-      templates: ScheduleTemplate[];
-    },
+    // §216 — the shared type, so the `locations` roster this object actually
+    // carries (`e2e-bug.460`) is visible to the compiler at every hop rather
+    // than surviving only by structural pass-through.
+    catalog: BusinessCatalog,
     employeeId: string | undefined,
     userId: string | undefined,
     options?: { planOnly?: boolean },
@@ -3751,6 +4089,16 @@ export class AiCommandService {
         break;
       case 'apply_schedule':
         if (options?.planOnly) {
+          // e2e-bug.512 / §235 — the executing handler guards (§233); this
+          // preview reached the plan builder directly. `dispatchMutatingIntent`
+          // returns a `CommandResult`, so unlike the two sites below this one
+          // can say *why*.
+          const providerIssue = this.bookingCore.providerNameGuard(
+            action,
+            params,
+            catalog.employees,
+          );
+          if (providerIssue) return providerIssue;
           const plan = await this.scheduleHandlers.prepareApplySchedulePlan(
             businessId,
             prompt,
@@ -3889,6 +4237,16 @@ export class AiCommandService {
         break;
       case 'create_direct_schedule': {
         if (options?.planOnly) {
+          // e2e-bug.512 / §234 — same shape as the sweep and visibility
+          // previews: the executing handler guards, the preview reached the
+          // plan builder directly and so previewed the wrong namesake's
+          // schedule.
+          const providerIssue = this.bookingCore.providerNameGuard(
+            action,
+            params,
+            catalog.employees,
+          );
+          if (providerIssue) return providerIssue;
           const plan = await this.scheduleHandlers.prepareDirectSchedulePlan(
             businessId,
             prompt,
@@ -3943,6 +4301,7 @@ export class AiCommandService {
           params,
           catalog.services,
           catalog.employees,
+          catalog.customers,
           employeeId,
           userId,
         );
@@ -4013,7 +4372,10 @@ export class AiCommandService {
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
           const statuses =
-            this.bookingCore.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+            this.bookingCore.resolveCalendarVisibilityStatusFilters(
+              params,
+              'hide',
+            ) ?? [];
           const plan = this.planBuilder.buildHideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4042,21 +4404,32 @@ export class AiCommandService {
       }
       case 'unhide_appointments_from_calendar': {
         if (options?.planOnly) {
-          const bookings = await this.bookingCore.findBookingsForCalendarVisibility(
-            businessId,
+          // e2e-bug.512 / §230 — the executing handler guards this; the
+          // plan-only preview reached the finder directly, so an ambiguous
+          // provider name built a plan over the wrong namesake's bookings.
+          const providerIssue = this.bookingCore.providerNameGuard(
+            action,
             params,
-            catalog.services,
             catalog.employees,
-            catalog.customers,
-            employeeId,
-            'unhide',
           );
+          if (providerIssue) return providerIssue;
+          const bookings =
+            await this.bookingCore.findBookingsForCalendarVisibility(
+              businessId,
+              params,
+              catalog.services,
+              catalog.employees,
+              catalog.customers,
+              employeeId,
+              'unhide',
+            );
           if (!bookings.length)
             return { success: false, action, summary: '', details: {} };
-          const statuses = this.bookingCore.resolveCalendarVisibilityStatusFilters(
-            params,
-            'unhide',
-          );
+          const statuses =
+            this.bookingCore.resolveCalendarVisibilityStatusFilters(
+              params,
+              'unhide',
+            );
           const plan = this.planBuilder.buildUnhideAppointmentsPlan(
             businessId,
             bookings.map((b) => b.id),
@@ -4146,6 +4519,15 @@ export class AiCommandService {
       }
       case 'payment_sweep': {
         if (options?.planOnly) {
+          // e2e-bug.512 / §230 — the executing handler guards this; the
+          // plan-only preview reached the finder directly, so an ambiguous
+          // provider name built a plan over the wrong namesake's bookings.
+          const providerIssue = this.bookingCore.providerNameGuard(
+            action,
+            params,
+            catalog.employees,
+          );
+          if (providerIssue) return providerIssue;
           const bookings = await this.bookingCore.findUnpaidBookingsForSweep(
             businessId,
             params,
@@ -4214,6 +4596,7 @@ export class AiCommandService {
           params,
           catalog.services,
           catalog.employees,
+          catalog.customers,
           employeeId,
           userId,
         );
@@ -4575,5 +4958,4 @@ export class AiCommandService {
     }
     return undefined;
   }
-
 }

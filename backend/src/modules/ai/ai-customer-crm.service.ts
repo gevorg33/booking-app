@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -121,7 +122,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleListCustomerSubscriptionsLogic(
       this.deps,
@@ -136,7 +137,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleSubscriptionUsageHistoryLogic(
       this.deps,
@@ -151,7 +152,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleExtendSubscriptionLogic(
       this.deps,
@@ -166,7 +167,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleCancelSubscriptionAdminLogic(
       this.deps,
@@ -181,7 +182,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleListCustomerGiftCardsLogic(
       this.deps,
@@ -200,7 +201,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleListCustomerBookingsLogic(
       this.deps,
@@ -215,7 +216,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleCustomerNoShowHistoryLogic(
       this.deps,
@@ -230,7 +231,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleTagCustomerLogic(
       this.deps,
@@ -245,7 +246,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleUpdateCustomerLogic(
       this.deps,
@@ -260,7 +261,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleExportCustomerDataLogic(
       this.deps,
@@ -275,7 +276,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleDeleteCustomerDataLogic(
       this.deps,
@@ -290,7 +291,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleSendReengagementMessageLogic(
       this.deps,
@@ -305,7 +306,7 @@ export class AiCustomerCrmService {
     businessId: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleMergeCustomersLogic(
       this.deps,
@@ -448,7 +449,7 @@ export class AiCustomerCrmService {
     prompt: string,
     params: Record<string, any>,
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
     userId?: string,
   ): Promise<CommandResult> {
     return handleCrmCompoundLogic(

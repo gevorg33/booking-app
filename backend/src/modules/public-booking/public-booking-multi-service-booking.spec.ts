@@ -4,6 +4,7 @@ import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('PublicBookingService bookMultiService same_visit', () => {
   const bookingService = {
@@ -54,7 +55,7 @@ describe('PublicBookingService bookMultiService same_visit', () => {
     schedulingPeriodRepo: { find: jest.fn() },
   });
 
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -76,7 +77,7 @@ describe('PublicBookingService bookMultiService same_visit', () => {
         },
       },
     },
-  } as Business;
+  });
 
   const serviceLines = [
     {

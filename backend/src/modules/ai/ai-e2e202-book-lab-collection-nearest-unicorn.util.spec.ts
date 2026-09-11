@@ -38,9 +38,7 @@ describe('e2e-bug.202 book_lab_collection_nearest named panel abort', () => {
         row.prompt,
       );
       expect(steps).toHaveLength(2);
-      expect(steps[1]?.params.testName).toBe(
-        row.expectTestName ?? undefined,
-      );
+      expect(steps[1]?.params.testName).toBe(row.expectTestName ?? undefined);
       expect(
         parseBookLabCollectionFromPrompt(row.prompt, steps[1]?.params ?? {})
           ?.testName,

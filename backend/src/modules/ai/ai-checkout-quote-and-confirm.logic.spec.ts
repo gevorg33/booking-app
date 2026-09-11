@@ -128,9 +128,9 @@ describe('ai-payments.logic — checkout quote and confirm', () => {
     });
 
     it('fails gracefully when the quote call rejects', async () => {
-      (deps.publicBookingService.quoteCheckout as jest.Mock).mockRejectedValueOnce(
-        new Error('Invalid promo code'),
-      );
+      (
+        deps.publicBookingService.quoteCheckout as jest.Mock
+      ).mockRejectedValueOnce(new Error('Invalid promo code'));
       const result = await handleGetBookingQuoteLogic(deps, 'biz-1', {
         serviceName: 'Massage',
         promoCode: 'BAD',
@@ -149,9 +149,15 @@ describe('ai-payments.logic — checkout quote and confirm', () => {
 
       expect(result.success).toBe(true);
       expect(result.details?.packageId).toBe('pkg-1');
-      expect(deps.publicBookingService.quotePackageCheckout).toHaveBeenCalledWith(
+      expect(
+        deps.publicBookingService.quotePackageCheckout,
+      ).toHaveBeenCalledWith(
         'salon',
-        { packageId: 'pkg-1', promoCode: undefined, loyaltyPointsToRedeem: undefined },
+        {
+          packageId: 'pkg-1',
+          promoCode: undefined,
+          loyaltyPointsToRedeem: undefined,
+        },
         undefined,
       );
     });
@@ -161,7 +167,9 @@ describe('ai-payments.logic — checkout quote and confirm', () => {
         packageId: 'pkg-1',
       });
       expect(result.success).toBe(true);
-      expect(deps.publicBookingService.getPublicPackages).not.toHaveBeenCalled();
+      expect(
+        deps.publicBookingService.getPublicPackages,
+      ).not.toHaveBeenCalled();
     });
 
     it('clarifies when no package is named', async () => {

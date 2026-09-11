@@ -69,7 +69,16 @@ export const UPLOAD_PATIENT_RESULT_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_PATIENT_RESULTS_PROMPTS = [
+/** Distinct from `ClinicTestResultExtPromptFixture` above, which carries
+ * `expectedAction` / `expectedParams` these prompts do not have. */
+export type ExplainPatientResultsPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  orderId?: string;
+};
+
+export const EXPLAIN_PATIENT_RESULTS_PROMPTS: readonly ExplainPatientResultsPromptFixture[] = [
   {
     id: 'explain-maria',
     prompt: "Explain Maria's lab results in plain language",
@@ -125,7 +134,7 @@ export const EXPLAIN_PATIENT_RESULTS_PROMPTS = [
     prompt: 'Can you explain lab results for patient Maria?',
     customerName: 'Maria',
   },
-] as const;
+];
 
 export const CONFIGURE_TEST_REFERENCE_RANGE_PROMPTS = [
   {

@@ -6,6 +6,9 @@ describe('GiftCardOrderService', () => {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
+    // Declared here rather than bolted on in `beforeEach`: the service calls it,
+    // so the mock is only a stand-in for the repository if it carries it.
+    create: jest.fn(),
   };
   const changeRequestRepo = {
     save: jest.fn(),

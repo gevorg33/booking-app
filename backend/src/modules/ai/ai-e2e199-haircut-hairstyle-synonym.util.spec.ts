@@ -64,7 +64,15 @@ describe('e2e-bug.199 haircut ↔ hairstyle catalog synonym', () => {
     expect(expandServiceLookupQueries('haircut')).toEqual(
       expect.arrayContaining(['haircut', 'hairstyle', 'haircuts']),
     );
-    expect(expandServiceLookupQueries('massage')).toEqual(['massage']);
+    // e2e-bug.320 made bare "massage" a synonym-group member on purpose: without
+    // it, `findServiceLookupSynonymTokenInPrompt` never fired for "show me
+    // massage", the multi-match family guard was skipped, and the query
+    // collapsed onto whichever catalog service tie-broke first. This assertion
+    // predates that and asserted the old, deliberately-removed behaviour.
+    expect(expandServiceLookupQueries('massage')).toEqual([
+      'massage',
+      'massages',
+    ]);
   });
 
   it('fuzzy + matchServicesByQuery map haircut → hairstyle', () => {
@@ -80,10 +88,9 @@ describe('e2e-bug.199 haircut ↔ hairstyle catalog synonym', () => {
 
   it('session fields persist canonical hairstyle for haircut input', () => {
     expect(
-      resolvePublicAssistantSessionServiceFields(
-        { serviceName: 'haircut' },
-        [...E2E199_SALON_CATALOG],
-      ),
+      resolvePublicAssistantSessionServiceFields({ serviceName: 'haircut' }, [
+        ...E2E199_SALON_CATALOG,
+      ]),
     ).toEqual({ serviceName: 'hairstyle', serviceCategory: null });
   });
 
@@ -125,9 +132,7 @@ describe('e2e-bug.199 haircut ↔ hairstyle catalog synonym', () => {
     // findServiceByExactName must stay synonym-free — covered in helpers.spec;
     // assert resolve still synonym-matches while exact name remains absent.
     expect(
-      E2E199_SALON_CATALOG.some(
-        (s) => s.name.toLowerCase() === 'haircut',
-      ),
+      E2E199_SALON_CATALOG.some((s) => s.name.toLowerCase() === 'haircut'),
     ).toBe(false);
     expect(
       resolveServicesFromCatalogParams([...E2E199_SALON_CATALOG], {

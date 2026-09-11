@@ -995,8 +995,7 @@ export async function handleCheckProvidersForServiceLogic(
   if (!service) {
     return failure(
       'check_providers_for_service',
-      noMatchSummary?.trim() ||
-        'Specify which service to check providers for.',
+      noMatchSummary?.trim() || 'Specify which service to check providers for.',
       {
         clarify: !noMatchSummary,
         missing: noMatchSummary ? undefined : ['serviceName'],
@@ -1422,7 +1421,11 @@ export async function handleBuyGiftCardLogic(
         deliveryMethod,
         navigate: {
           path: 'gift-cards/checkout' as const,
-          query: { cardType: 'monetary', amount: String(amount), deliveryMethod },
+          query: {
+            cardType: 'monetary',
+            amount: String(amount),
+            deliveryMethod,
+          },
         },
       },
     );
@@ -1452,7 +1455,10 @@ export async function handleGetGiftCardQuoteLogic(
     extractAmountFromPrompt((params._prompt as string) ?? prompt ?? '') ??
     catalog.settings?.presetAmounts?.[0];
 
-  if (cardType === 'monetary' && (!amount || !Number.isFinite(Number(amount)))) {
+  if (
+    cardType === 'monetary' &&
+    (!amount || !Number.isFinite(Number(amount)))
+  ) {
     return failure(
       'get_gift_card_quote',
       'Specify a gift card amount to quote (e.g. "$50 gift card").',
@@ -1465,23 +1471,19 @@ export async function handleGetGiftCardQuoteLogic(
   }
 
   try {
-    const quote = await deps.giftCardPurchaseService.quotePurchase(
-      businessId,
-      {
-        cardType: cardType as PurchaseGiftCardInput['cardType'],
-        amount: amount != null ? Number(amount) : undefined,
-        serviceId: params.serviceId as string | undefined,
-        serviceIds: params.serviceIds as string[] | undefined,
-        packageId: params.packageId as string | undefined,
-        subscriptionPlanId: params.subscriptionPlanId as string | undefined,
-        bundleId: params.bundleId as string | undefined,
-        deliveryMethod,
-        shippingMethodId: params.shippingMethodId as string | undefined,
-        purchaserEmail:
-          (params.purchaserEmail as string) ?? 'guest@example.com',
-        purchaserName: params.purchaserName as string | undefined,
-      },
-    );
+    const quote = await deps.giftCardPurchaseService.quotePurchase(businessId, {
+      cardType: cardType as PurchaseGiftCardInput['cardType'],
+      amount: amount != null ? Number(amount) : undefined,
+      serviceId: params.serviceId as string | undefined,
+      serviceIds: params.serviceIds as string[] | undefined,
+      packageId: params.packageId as string | undefined,
+      subscriptionPlanId: params.subscriptionPlanId as string | undefined,
+      bundleId: params.bundleId as string | undefined,
+      deliveryMethod,
+      shippingMethodId: params.shippingMethodId as string | undefined,
+      purchaserEmail: (params.purchaserEmail as string) ?? 'guest@example.com',
+      purchaserName: params.purchaserName as string | undefined,
+    });
     return success(
       'get_gift_card_quote',
       `${quote.label} — total $${quote.total.toFixed(2)}${
@@ -1695,14 +1697,17 @@ export async function handleGetPackageQuoteLogic(
         { clarify: true, missing: ['packageName'] },
       );
     }
-    const { packages } = await deps.publicBookingService.getPublicPackages(
-      slug,
-    );
+    const { packages } =
+      await deps.publicBookingService.getPublicPackages(slug);
     const match = resolveByName(packages, name);
     if (!match) {
-      return failure('get_package_quote', `I couldn't find a package named ${name}.`, {
-        packageName: name,
-      });
+      return failure(
+        'get_package_quote',
+        `I couldn't find a package named ${name}.`,
+        {
+          packageName: name,
+        },
+      );
     }
     packageId = match.id;
     packageName = match.name;

@@ -170,7 +170,9 @@ export function parseNotifyWhenResultsReadyFromPrompt(
     return {
       aspect: aspectFromParams,
       channel:
-        channelFromParams ?? extractNotifyChannelFromPrompt(prompt) ?? undefined,
+        channelFromParams ??
+        extractNotifyChannelFromPrompt(prompt) ??
+        undefined,
       testName:
         testNameFromParams ??
         extractTestNameFromResultsPrompt(prompt) ??

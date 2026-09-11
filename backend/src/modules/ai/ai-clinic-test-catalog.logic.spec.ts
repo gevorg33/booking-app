@@ -70,7 +70,12 @@ describe('ai-clinic-test-catalog.logic (ai-cmd-dashboard-6.9)', () => {
   describe('handleCreateTestTypeLogic', () => {
     it('clarifies when title missing', async () => {
       const deps = buildDeps();
-      const result = await handleCreateTestTypeLogic(deps, 'biz-1', 'user-1', {});
+      const result = await handleCreateTestTypeLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
       expect(result.success).toBe(false);
       expect(result.details.clarify).toBe(true);
     });
@@ -178,18 +183,28 @@ describe('ai-clinic-test-catalog.logic (ai-cmd-dashboard-6.9)', () => {
   describe('handleSetTestPanelItemsLogic', () => {
     it('clarifies when no test types are given', async () => {
       const deps = buildDeps();
-      const result = await handleSetTestPanelItemsLogic(deps, 'biz-1', 'user-1', {
-        panelId: 'p1',
-      });
+      const result = await handleSetTestPanelItemsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          panelId: 'p1',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('sets panel items by testTypeIds', async () => {
       const deps = buildDeps();
-      const result = await handleSetTestPanelItemsLogic(deps, 'biz-1', 'user-1', {
-        panelId: 'p1',
-        testTypeIds: ['tt1'],
-      });
+      const result = await handleSetTestPanelItemsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          panelId: 'p1',
+          testTypeIds: ['tt1'],
+        },
+      );
       expect(result.success).toBe(true);
       expect(deps.catalogService.upsertPanelItems).toHaveBeenCalledWith(
         'biz-1',
@@ -201,10 +216,15 @@ describe('ai-clinic-test-catalog.logic (ai-cmd-dashboard-6.9)', () => {
 
     it('resolves panel items by testTypeNames', async () => {
       const deps = buildDeps();
-      const result = await handleSetTestPanelItemsLogic(deps, 'biz-1', 'user-1', {
-        panelId: 'p1',
-        testTypeNames: ['CBC'],
-      });
+      const result = await handleSetTestPanelItemsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          panelId: 'p1',
+          testTypeNames: ['CBC'],
+        },
+      );
       expect(result.success).toBe(true);
       expect(deps.catalogService.upsertPanelItems).toHaveBeenCalledWith(
         'biz-1',
@@ -216,10 +236,15 @@ describe('ai-clinic-test-catalog.logic (ai-cmd-dashboard-6.9)', () => {
 
     it('fails when names do not match the catalog', async () => {
       const deps = buildDeps();
-      const result = await handleSetTestPanelItemsLogic(deps, 'biz-1', 'user-1', {
-        panelId: 'p1',
-        testTypeNames: ['Nonexistent'],
-      });
+      const result = await handleSetTestPanelItemsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          panelId: 'p1',
+          testTypeNames: ['Nonexistent'],
+        },
+      );
       expect(result.success).toBe(false);
     });
   });

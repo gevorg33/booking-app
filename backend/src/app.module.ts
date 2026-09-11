@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from './config/config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { FirebaseAdminModule } from './common/firebase/firebase-admin.module.js';
+import { SchedulerLockModule } from './common/scheduler-lock/scheduler-lock.module.js';
 
 // Domain modules
 import { AuthModule } from './modules/auth/auth.module.js';
@@ -126,6 +127,7 @@ import { WebSocketModule } from './websocket/websocket.module.js';
     WorkflowModule,
     PolicyModule,
     AgentModule,
+    SchedulerLockModule,
   ],
 })
 export class AppModule {}

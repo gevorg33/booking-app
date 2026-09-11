@@ -81,6 +81,7 @@ describe('PatientEncounterPhiService', () => {
       { id: 'encounter-1', businessId: 'biz-1', ...encrypted },
       { userId: 'user-1', role: MemberRole.STAFF, employeeId: 'emp-2' },
       { hasAssignedBooking: false },
+      'encounter-1',
     );
     expect(decrypted.visitNote).toBeNull();
     expect(phiAccessAudit.logBatch).not.toHaveBeenCalled();

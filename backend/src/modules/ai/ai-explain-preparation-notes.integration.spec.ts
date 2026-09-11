@@ -6,6 +6,7 @@ import {
 } from './ai-explain-preparation-notes.fixtures.js';
 import { rescueExplainPreparationNotesIntent } from './ai-explain-preparation-notes.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain preparation notes integration (ai-cmd-customer-4.3.4)', () => {
   const bookingRepo = { findOne: jest.fn(), find: jest.fn() };
@@ -42,15 +43,16 @@ describe('ai explain preparation notes integration (ai-cmd-customer-4.3.4)', () 
   it.each(EXPLAIN_PREPARATION_NOTES_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand({
-        action: 'explain_preparation_notes',
-        params: { aspect, bookingId: 'book-1' },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_preparation_notes',
+          params: { aspect, bookingId: 'book-1' },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPreparationNotesLogic(

@@ -116,7 +116,8 @@ export function isMarkShippedPrompt(prompt: string): boolean {
 /** ai-cmd-provider-5.20.4 — bare "Mark delivered" (no gift card/order noun) is still unambiguous on its own. */
 export function isMarkDeliveredPrompt(prompt: string): boolean {
   return (
-    /\bmark\b/i.test(prompt) && /\b(delivered|delivery\s+complete)\b/i.test(prompt)
+    /\bmark\b/i.test(prompt) &&
+    /\b(delivered|delivery\s+complete)\b/i.test(prompt)
   );
 }
 
@@ -165,8 +166,7 @@ export function isStartCardPreparationPrompt(prompt: string): boolean {
 
 /** ai-cmd-provider-5.20.2 — supports "mark card GC-123 ready for pickup" (id breaks card/ready adjacency) and "Card printed — ready" (no "mark" verb). */
 export function isMarkCardReadyPrompt(prompt: string): boolean {
-  const hasCardAndReady =
-    /\bcard\b/i.test(prompt) && /\bready\b/i.test(prompt);
+  const hasCardAndReady = /\bcard\b/i.test(prompt) && /\bready\b/i.test(prompt);
   if (/\bmark\b/i.test(prompt) && hasCardAndReady) return true;
   if (/\bprinted\b/i.test(prompt) && hasCardAndReady) return true;
   return (
@@ -702,3 +702,22 @@ export function decomposeFulfillmentCompoundPrompt(
   }
   return steps;
 }
+
+/**
+ * The reads inside this list — e2e-bug.376, second wave.
+ *
+ * The registry binding passes the whole intent list as its own `mutateIntents`,
+ * so every member is registered `mutating: true`. §110 fixed that pattern for
+ * `PROVIDER_PAYMENTS_INTENTS` and checked the other bindings for reads by
+ * looking for read *verbs* (`explain_`, `list_`, `get_`, `summarize_`). These
+ * are named as nouns — `revenue_forecast`, `staff_service_matrix`,
+ * `delivery_queue` — so the check missed them.
+ *
+ * Excluded from the mutate list rather than removed from the intent list: they
+ * are real commands on this surface, they simply do not write.
+ */
+export const PROVIDER_GIFT_FULFILLMENT_READ_INTENTS: readonly string[] = [
+  'explain_gift_card_order_details',
+  'delivery_queue',
+  'gift_card_creation_queue',
+];

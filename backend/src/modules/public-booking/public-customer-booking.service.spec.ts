@@ -41,7 +41,20 @@ describe('PublicCustomerBookingService', () => {
     packagePurchaseRepo as any,
   );
 
-  const futureStart = new Date(Date.now() + 72 * 60 * 60 * 1000);
+  /**
+   * Anchored to a fixed time of day — same reason as
+   * `public-customer-booking.integration.spec.ts`. The package-visit cases lay
+   * sequential lines an hour apart from `futureStart + 24h`, so inheriting the
+   * current time of day made them fail within ~2 hours of midnight UTC with
+   * "All package services must be scheduled on the same day". Clock-dependent
+   * failures belong to nobody's change and turn the shared known-failures gate
+   * red at random. Same defect class as e2e-bug.482.
+   */
+  const futureStart = (() => {
+    const d = new Date(Date.now() + 72 * 60 * 60 * 1000);
+    d.setUTCHours(10, 0, 0, 0);
+    return d;
+  })();
 
   const bookingId = '22222222-2222-4222-8222-222222222222';
   const baseBooking = {

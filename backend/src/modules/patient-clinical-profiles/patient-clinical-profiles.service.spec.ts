@@ -32,7 +32,11 @@ describe('PatientClinicalProfilesService', () => {
     auditProfilePhiWrite: jest.fn(async () => undefined),
   };
   const externalDoctorsService = {
-    resolveActiveReferringDoctor: jest.fn(async () => null),
+    // Declared return, not inferred: `async () => null` infers `Promise<null>`,
+    // which rejects every row the tests below resolve through it.
+    resolveActiveReferringDoctor: jest.fn(
+      async (): Promise<Record<string, unknown> | null> => null,
+    ),
   };
 
   const service = new PatientClinicalProfilesService(

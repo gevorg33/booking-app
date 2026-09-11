@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Booking } from '../booking/entities/booking.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicTestPanel } from '../clinic-test-results/entities/clinic-test-panel.entity.js';
@@ -19,10 +23,10 @@ import {
 } from './ai-clinic-test-order.util.js';
 
 export interface ClinicTestOrderLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  bookingRepo: Pick<Repository<Booking>, 'find' | 'findOne'>;
-  testTypeRepo: Pick<Repository<ClinicTestType>, 'find'>;
-  testPanelRepo: Pick<Repository<ClinicTestPanel>, 'find'>;
+  businessRepo: EntityReader<Business>;
+  bookingRepo: EntityFinder<Booking> & EntityReader<Booking>;
+  testTypeRepo: EntityFinder<ClinicTestType>;
+  testPanelRepo: EntityFinder<ClinicTestPanel>;
   clinicTestOrderService: Pick<
     ClinicTestOrderService,
     'createCatalogOrderForBooking' | 'listLabQueue' | 'listOrdersForBooking'

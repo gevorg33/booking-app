@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   CHECK_WAITLIST_STATUS_PROMPTS,
   CUSTOMER_WAITLIST_RESCUE_SCENARIOS,
@@ -12,6 +13,7 @@ import { rescueCustomerWaitlistIntent } from './ai-customer-waitlist.util.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_CUSTOMER_WAITLIST_CASES } from './eval/ai-command-eval.cases.js';
 import { buildCustomerWaitlistRequest } from '../../common/utils/customer-waitlist.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   const request = buildCustomerWaitlistRequest({
@@ -21,7 +23,9 @@ describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     serviceRepo: {
       createQueryBuilder: jest.fn(() => ({
@@ -53,15 +57,16 @@ describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   it.each(JOIN_WAITLIST_PROMPTS)(
     'validates and executes join waitlist $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand({
-        action: 'join_waitlist',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'join_waitlist',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();
@@ -82,15 +87,16 @@ describe('ai-customer-waitlist integration (ai-cmd-customer-4.4.7)', () => {
   it.each(CHECK_WAITLIST_STATUS_PROMPTS)(
     'validates and executes check waitlist status $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
-        action: 'check_waitlist_status',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'check_waitlist_status',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

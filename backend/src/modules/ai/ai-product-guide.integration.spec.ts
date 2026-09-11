@@ -1,3 +1,4 @@
+import { isIntentAllowed } from './ai-capability.matrix.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { PRODUCT_GUIDE_MISROUTE_SCENARIOS } from './ai-product-guide.fixtures.js';
 import { AiProductGuideService } from './ai-product-guide.service.js';
@@ -77,9 +78,13 @@ describe('ai-product-guide integration (ai-guide-1.2.1–1.2.3)', () => {
       ]);
       expect(entry?.handler).toBe('AiProductGuideService');
       expect(entry?.mutating).toBe(false);
-      expect(entry?.tiers).toContain('staff');
-      expect(entry?.tiers).toContain('owner');
-      expect(entry?.tiers).toContain('client');
+      // e2e-bug.355 — `entry.tiers` was the dead flat permission model and has
+      // been deleted. The live answer is per-surface and comes from
+      // `CommandSpec.tiers` via `isIntentAllowed`, so assert that instead of a
+      // field that could never express "staff on dashboard, client on customer".
+      expect(isIntentAllowed('dashboard', 'staff', intent)).toBe(true);
+      expect(isIntentAllowed('dashboard', 'owner', intent)).toBe(true);
+      expect(isIntentAllowed('customer', 'client', intent)).toBe(true);
     }
   });
 

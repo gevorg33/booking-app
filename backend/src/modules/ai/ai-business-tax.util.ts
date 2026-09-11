@@ -1,3 +1,8 @@
+import { isSummarizeCustomerTaxPaidPrompt } from './ai-summarize-customer-tax-paid.util.js';
+import { isExplainStripeTaxChargePrompt } from './ai-stripe-tax-charge.util.js';
+import { isLookupBookingTaxMetadataPrompt } from './ai-lookup-booking-tax-metadata.util.js';
+import { isExplainAppointmentTaxPrompt } from './ai-appointment-tax.util.js';
+import { isQuoteStaffBookingTaxPrompt } from './ai-quote-staff-booking-tax.util.js';
 import {
   normalizeTaxPricingModel,
   normalizeTaxRatePercent,
@@ -96,7 +101,13 @@ function extractTaxRate(prompt: string): number | undefined {
   const patterns = [
     /(\d+(?:\.\d+)?)\s*%?\s*(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ|percent|per\s*cent)/i,
     /(?:vat|gst|sales\s*tax|tax|ндс|налог|հարկ)(?:\s+rate)?\s*(?:of|at|to)?\s*(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)?/i,
-    /(\d+(?:\.\d+)?)\s*(?:%|percent|per\s*cent)\b/i,
+    // §174 — the `\b` used to sit after the whole alternation, so a trailing "5%"
+    // could never match: `%` is a non-word character and so is end-of-string, and
+    // `\b` needs a word/non-word transition. "Սահմանել GST տոկոսը 5%" therefore
+    // parsed a tax name and no rate — and because `parseBusinessTaxFromPrompt`
+    // infers `enabled: true` from a rate, it lost both fields. The boundary now
+    // guards only the word spellings, which are the ones that need it.
+    /(\d+(?:\.\d+)?)\s*(?:%|(?:percent|per\s*cent)\b)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
@@ -367,6 +378,28 @@ export function isExplainBusinessTaxPrompt(prompt: string): boolean {
   if (isSetServiceTaxRatePrompt(prompt)) return false;
   if (isExplainStackedTaxPrompt(prompt)) return false;
   if (isConfigureBusinessTaxPrompt(prompt)) return false;
+  // e2e-bug.431 — "how much tax has Jane paid" is about a customer, not the
+  // business's tax settings.
+  //
+  // The three exclusions above already keep this detector out of its siblings'
+  // territory; `summarize_customer_tax_paid` was simply missing from the list,
+  // and took all five of its eval cases. The guard below (line ~372) looks like
+  // it should have caught them — it declines appointment-scoped prompts — but
+  // it tests `\bappointment\b`, which does not match "appointments".
+  if (isSummarizeCustomerTaxPaidPrompt(prompt)) return false;
+
+  // e2e-bug.436 — the same omission as e2e-bug.431, four more times. Every
+  // sibling below owns a *narrower* tax question than "what are our tax
+  // settings", each has a detector that fires only on its own prompts, and each
+  // was missing from this list — so `explain_business_tax` answered a question
+  // about one booking's VAT with the business's tax configuration.
+  //
+  // Ordered most specific first: a Stripe-charge question is also an
+  // appointment-tax question, and the narrower reading is the right one.
+  if (isExplainStripeTaxChargePrompt(prompt)) return false;
+  if (isLookupBookingTaxMetadataPrompt(prompt)) return false;
+  if (isQuoteStaffBookingTaxPrompt(prompt)) return false;
+  if (isExplainAppointmentTaxPrompt(prompt)) return false;
 
   if (
     /\b(appointment|provider\s+app|payment\s+breakdown|mark(?:ed)?\s+paid|collected)\b/i.test(

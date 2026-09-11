@@ -326,10 +326,14 @@ export async function handleExplainClientIntakeLogic(
     resolved.bookingId,
   );
 
-  return success('explain_client_intake', formatProviderClientIntakeText(summary), {
-    bookingId: resolved.bookingId,
-    intake: summary,
-  });
+  return success(
+    'explain_client_intake',
+    formatProviderClientIntakeText(summary),
+    {
+      bookingId: resolved.bookingId,
+      intake: summary,
+    },
+  );
 }
 
 export async function handleExplainPackageVisitContextLogic(

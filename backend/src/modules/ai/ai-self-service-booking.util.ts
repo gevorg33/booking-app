@@ -468,33 +468,46 @@ export function isRescheduleMyBookingPrompt(prompt: string): boolean {
     );
   return (
     (datedCancelRebook ||
-      ((/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
         /\b(my|this|upcoming|next)\b/i.test(prompt) &&
         /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
-        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-          /\b(to|for)\b/i.test(prompt) &&
-          /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
-            prompt,
-          )) ||
-        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-          /\b(without\s+calling|no\s+need\s+to\s+call)\b/i.test(prompt)) ||
-        (/\b(move|reschedule|change|shift)\b/i.test(prompt) &&
-          /\bmy\b/i.test(prompt) &&
-          /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
-            prompt,
-          )) ||
-        (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
-          /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
-        (/\b(need\s+to|want\s+to)\b/i.test(prompt) &&
-          /\b(move|reschedule|change)\b/i.test(prompt) &&
-          /\b(my|this)\b/i.test(prompt) &&
-          /\b(appointment|booking|visit)\b/i.test(prompt)) ||
-        (/վերամրագր/i.test(prompt) &&
-          /(իմ|այս)/i.test(prompt) &&
-          /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
-        (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
-          /(мою|моя|мой|эту|это)/i.test(prompt) &&
-          /(запис|визит|бронь|бронирован)/i.test(prompt)))) &&
+      // C3 / e2e-bug.360 — this command's own example is "can I push my booking
+      // to 4pm instead", and `push` was in none of the verb sets.
+      //
+      // Given its own branch rather than added to the shared verb alternation:
+      // `push` is the one verb here that has a strong unrelated sense on this
+      // platform — `configure_push_recipients` and `test_push` are real
+      // commands — so it carries guards the others do not need. It requires a
+      // possessive *and* a booking noun, and refuses anything mentioning
+      // notifications or recipients.
+      (/\bpush\b/i.test(prompt) &&
+        !/\bnotifications?\b|\brecipients?\b/i.test(prompt) &&
+        /\b(my|this|upcoming|next)\b/i.test(prompt) &&
+        /\b(booking|appointment|visit|reservation)\b/i.test(prompt)) ||
+      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+        /\b(to|for)\b/i.test(prompt) &&
+        /\b(tomorrow|today|tonight|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(
+          prompt,
+        )) ||
+      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+        /\b(without\s+calling|no\s+need\s+to\s+call)\b/i.test(prompt)) ||
+      (/\b(move|reschedule|change|shift)\b/i.test(prompt) &&
+        /\bmy\b/i.test(prompt) &&
+        /\b(massage|haircut|facial|color|manicure|blowdry|service)\b/i.test(
+          prompt,
+        )) ||
+      (/\b(reschedule|move|change|shift)\b/i.test(prompt) &&
+        /\b(massage|haircut|facial|color|manicure|blowdry)\b/i.test(prompt)) ||
+      (/\b(need\s+to|want\s+to)\b/i.test(prompt) &&
+        /\b(move|reschedule|change)\b/i.test(prompt) &&
+        /\b(my|this)\b/i.test(prompt) &&
+        /\b(appointment|booking|visit)\b/i.test(prompt)) ||
+      (/վերամրագր/i.test(prompt) &&
+        /(իմ|այս)/i.test(prompt) &&
+        /(amրag|amrag|visit|booking|appointment|ամրագր)/i.test(prompt)) ||
+      (/(перенес|перенести|измен|изменить|перенос)/i.test(prompt) &&
+        /(мою|моя|мой|эту|это)/i.test(prompt) &&
+        /(запис|визит|бронь|бронирован)/i.test(prompt))) &&
     !/\bpackage\s+visit\b/i.test(prompt) &&
     !/\bspa\s+day\b/i.test(prompt) &&
     (!hasDashboardCustomerReference(prompt) ||
@@ -556,7 +569,8 @@ export function isListMyPackageVisitsCustomerPrompt(prompt: string): boolean {
     (/\bbundle\b/i.test(prompt) &&
       /\b(my|next|facial|spa\s+day)\b/i.test(prompt)) ||
     (/այց/i.test(prompt) && /\bbundle\b/i.test(prompt)) ||
-    (/визит/i.test(prompt) && (/пакет/i.test(prompt) || /\bbundle\b/i.test(prompt)));
+    (/визит/i.test(prompt) &&
+      (/пакет/i.test(prompt) || /\bbundle\b/i.test(prompt)));
 
   // Armenian/Cyrillic script alone implies self-scope here: this domain has no
   // dashboard-admin equivalent phrased in those scripts, and the earlier

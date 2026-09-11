@@ -70,6 +70,7 @@ import {
   promotionEvalIdTargetsCustomerSurface,
 } from './ai-customer-intent-promotion-coverage.util.js';
 import { COMPOUND_DECOMPOSITION_SCENARIOS } from './intent-decomposition.fixtures.js';
+import { collectFixtureSurfaceBindings } from './ai-registry-nl-fixture-coverage.util.js';
 
 const CUSTOMER_INTENT_META = new Set([
   'unknown',
@@ -457,6 +458,17 @@ function addGiftCardCheckoutFixtureIntents(covered: Set<string>): void {
 
 export function collectCustomerFixtureIntents(): Set<string> {
   const covered = new Set<string>();
+
+  // e2e-bug.502 / §221 — the enumerated collections below are a *hardcoded*
+  // list, so an intent covered in its own `ai-<intent>.fixtures.ts` was
+  // invisible here and reported as "missing customer fixture" however many
+  // customer scenarios it declared. §220 measured all 24 reported intents to be
+  // of exactly that kind. Scan every fixture file first, then let the specific
+  // collections below add anything the generic scan cannot see (compound steps,
+  // ordered action lists), rather than replacing them.
+  for (const binding of collectFixtureSurfaceBindings()) {
+    if (binding.surface === 'customer') covered.add(binding.intent);
+  }
 
   for (const scenario of COMPOUND_DECOMPOSITION_SCENARIOS) {
     if (scenario.surface !== 'customer') continue;

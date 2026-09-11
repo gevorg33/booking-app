@@ -2,6 +2,7 @@ import {
   handleSubmitReviewWithTokenLogic,
   type SubmitReviewWithTokenLogicDeps,
 } from './ai-submit-review-with-token.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function buildDeps(
   overrides: Partial<SubmitReviewWithTokenLogicDeps> = {},
@@ -26,7 +27,9 @@ function buildDeps(
       })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   } as SubmitReviewWithTokenLogicDeps;
@@ -53,10 +56,14 @@ describe('handleSubmitReviewWithTokenLogic', () => {
   });
 
   it('requires bookingId and token', async () => {
-    const result = await handleSubmitReviewWithTokenLogic(buildDeps(), 'biz-1', {
-      slug: 'salon',
-      rating: 5,
-    });
+    const result = await handleSubmitReviewWithTokenLogic(
+      buildDeps(),
+      'biz-1',
+      {
+        slug: 'salon',
+        rating: 5,
+      },
+    );
     expect(result.success).toBe(false);
     expect(result.details?.clarify).toBe(true);
   });
@@ -82,7 +89,7 @@ describe('handleSubmitReviewWithTokenLogic', () => {
           serviceName: 'Haircut',
           customerName: 'Guest',
           appointmentDate: '2026-06-01T10:00:00.000Z',
-        appointmentEndDate: '2026-06-01T11:00:00.000Z',
+          appointmentEndDate: '2026-06-01T11:00:00.000Z',
           alreadySubmitted: true,
         })),
         submitPublic: jest.fn(),

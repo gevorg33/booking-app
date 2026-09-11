@@ -28,10 +28,18 @@ export const E2E137_ROUTING_RESCUE_SCENARIOS = [
     rescueReason: 'commission_report',
   },
   {
+    // §171 — was `customer_retention`. This fixture is from 2026-07-20; on
+    // 2026-08-02 the service gained a second, earlier-running retention producer
+    // that answers through the metric resolvers with `customer_retention_rate`.
+    // It is the better answer for a prompt asking about a *rate*: the older
+    // branch sets `customerMetric: 'at_risk'`, the newer one sets `'retention'`.
+    // The action was never wrong — only this label. Nothing went red at the time
+    // because `ai-e2e137-routing.util.spec.ts` asserts against its own private
+    // copy of the chain rather than the service (`e2e-bug.458`).
     id: 'customer-retention-rate',
     prompt: 'What is my customer retention rate?',
     expectedAction: 'summarize_customers',
-    rescueReason: 'customer_retention',
+    rescueReason: 'customer_retention_rate',
   },
   {
     id: 'sales-tax-rate-configured',
@@ -58,10 +66,17 @@ export const E2E137_ROUTING_RESCUE_SCENARIOS = [
     rescueReason: 'professional_profile',
   },
   {
+    // §171 — this row and `e2e153-how-many-customers` carry the *identical*
+    // prompt and asserted opposite things, both shipped 2026-07-20. e2e-bug.153
+    // is the deliberate design and it wins on the evidence: `resolveUnscopedCustomerCount`
+    // lists `list_customers` in its own `steerable` set, so overriding it is the
+    // stated intent, and the resolver answers with `customerMetric: 'overview'`,
+    // which is what a count question wants. Aligned rather than deleted so the
+    // corpus keeps the row; the duplication itself is `e2e-bug.459`.
     id: 'list-customers-how-many',
     prompt: 'How many customers do I have?',
-    expectedAction: 'list_customers',
-    rescueReason: 'list_customers',
+    expectedAction: 'summarize_customers',
+    rescueReason: 'unscoped_customer_count',
   },
   {
     id: 'owner-business-hours',

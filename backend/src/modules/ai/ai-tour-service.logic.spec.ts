@@ -3,19 +3,22 @@ import {
   handleConfigureTourServiceLogic,
   handleExplainTourServicesLogic,
 } from './ai-tour-service.logic.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 
 describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
   const services = [
-    {
+    makeService({
       id: 'svc-city',
       name: 'City Tour',
       metadata: {},
       durationMinutes: 480,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-1',
       name: 'Full Day City Tour',
       metadata: {
@@ -24,8 +27,8 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
         coverImage: '/placeholders/tours/city-day.jpg',
       },
       durationMinutes: 480,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-2',
       name: '3-Day Mountain Trek',
       metadata: {
@@ -34,21 +37,24 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
         maxGroupSize: 8,
       },
       durationMinutes: 4320,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-3',
       name: 'Sunset Coastal Drive',
       metadata: {},
       durationMinutes: 300,
-    },
+    }),
   ];
 
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 7);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 7, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const bookingService = {
+    // `findOne` is required by the deps interface because this object is
+    // forwarded to the tour-booking-record and meeting-point logic, which call it.
+    findOne: jest.fn(async () => makeBooking({ id: 'bk-1' })),
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-2',
         status: BookingStatus.CONFIRMED,
@@ -59,12 +65,12 @@ describe('ai-tour-service.logic (ai-cmd-tour-1)', () => {
           tourStartDate,
           tourEndDate,
         },
-        service: {
+        service: makeService({
           name: '3-Day Mountain Trek',
           metadata: { serviceType: 'tour' },
-        },
-        customer: { name: 'Anna Guest' },
-      },
+        }),
+        customer: makeCustomer({ name: 'Anna Guest' }),
+      }),
     ]),
   };
 

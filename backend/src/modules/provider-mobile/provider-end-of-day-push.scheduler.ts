@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { SchedulerLockService } from '../../common/scheduler-lock/scheduler-lock.service.js';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, Not, Repository } from 'typeorm';
@@ -23,10 +24,21 @@ export class ProviderEndOfDayPushScheduler {
     private periodRepo: Repository<SchedulingPeriod>,
     private pushService: PushService,
     private providerMobileService: ProviderMobileService,
+
+    private readonly schedulerLock: SchedulerLockService,
   ) {}
 
   /** Runs hourly; sends end-of-day summary at 20:00 UTC for providers with bookings today. */
   @Cron(CronExpression.EVERY_HOUR)
+  async sendEndOfDaySummariesScheduled(): Promise<void> {
+    // e2e-bug.497 — the cron entry point; `sendEndOfDaySummaries` stays callable directly
+    // (and is what the specs drive) so the lock wraps scheduling, not the work.
+    await this.schedulerLock.runExclusively(
+      'provider-end-of-day-push.sendEndOfDaySummaries',
+      () => this.sendEndOfDaySummaries(),
+    );
+  }
+
   async sendEndOfDaySummaries(): Promise<void> {
     if (!this.pushService.isConfigured) return;
 

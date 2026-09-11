@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicTestOrderBookingRequestService } from '../clinic-test-results/order/clinic-test-order-booking-request.service.js';
 import type {
@@ -24,7 +27,7 @@ import {
 } from './ai-clinic-lab-booking.util.js';
 
 export interface ClinicLabBookingLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   clinicTestOrderService: Pick<ClinicTestOrderService, 'listLabQueue'>;
   clinicTestOrderBookingRequestService: Pick<
     ClinicTestOrderBookingRequestService,

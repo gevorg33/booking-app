@@ -8,7 +8,7 @@ export type RankDiscoverAndBookCompoundFixture = {
   misclassifiedAction?: string;
 };
 
-export const RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS = [
+export const RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS: readonly RankDiscoverAndBookCompoundFixture[] = [
   {
     id: 'rank-discover-book-premium-facial-e2e-en',
     prompt:
@@ -179,7 +179,7 @@ export const RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS = [
       bookingFirstAvailable: true,
     },
   },
-] as const satisfies readonly RankDiscoverAndBookCompoundFixture[];
+] satisfies readonly RankDiscoverAndBookCompoundFixture[];
 
 export const RANK_DISCOVER_AND_BOOK_EN_SCENARIO_IDS =
   RANK_DISCOVER_AND_BOOK_COMPOUND_PROMPTS.map((row) => row.id);

@@ -119,7 +119,8 @@ const MINUS_ONE_FEEDBACK_PROMPT = new RegExp(
   'iu',
 );
 
-const WRONG_DATE_CUE = /\bwrong\s+date|wrong\s+day|picked\s+the\s+wrong\s+date\b/i;
+const WRONG_DATE_CUE =
+  /\bwrong\s+date|wrong\s+day|picked\s+the\s+wrong\s+date\b/i;
 
 const WRONG_SERVICE_CUE = /\bwrong\s+service|wrong\s+treatment\b/i;
 
@@ -175,7 +176,10 @@ export function parseGiveProviderAiFeedbackRating(
   ) {
     return 'down';
   }
-  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+  if (
+    PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    POSITIVE_CUE.test(prompt)
+  ) {
     return 'up';
   }
   return undefined;
@@ -206,7 +210,10 @@ export function parseGiveProviderAiFeedbackAspect(
   ) {
     return 'negative';
   }
-  if (PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) || POSITIVE_CUE.test(prompt)) {
+  if (
+    PLUS_ONE_FEEDBACK_PROMPT.test(prompt.trim()) ||
+    POSITIVE_CUE.test(prompt)
+  ) {
     return 'positive';
   }
   return 'generic';
@@ -232,7 +239,10 @@ export function isGiveProviderAiFeedbackPrompt(prompt: string): boolean {
   if (/^that\s+was\s+helpful\b/i.test(text)) return true;
   if (/^good\s+answer\b/i.test(text)) return true;
   // e2e-bug.300 — shorthand +1 / -1 (whole prompt only).
-  if (PLUS_ONE_FEEDBACK_PROMPT.test(text) || MINUS_ONE_FEEDBACK_PROMPT.test(text)) {
+  if (
+    PLUS_ONE_FEEDBACK_PROMPT.test(text) ||
+    MINUS_ONE_FEEDBACK_PROMPT.test(text)
+  ) {
     return true;
   }
 

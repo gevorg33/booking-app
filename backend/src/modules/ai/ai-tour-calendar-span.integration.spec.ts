@@ -1,11 +1,13 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import { EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS } from './ai-tour-calendar-span.fixtures.js';
 import { handleExplainTourCalendarSpanLogic } from './ai-tour-calendar-span.logic.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour calendar span integration (ai-cmd-tour-11)', () => {
-  const trekBooking = {
+  const trekBooking = makeBooking({
     id: 'bk-tour-1',
     businessId: 'biz-tour',
     serviceId: 'svc-trek',
@@ -23,7 +25,7 @@ describe('ai tour calendar span integration (ai-cmd-tour-11)', () => {
       metadata: { serviceType: 'tour', maxGroupSize: 8 },
     },
     customer: { name: 'John Doe' },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [trekBooking]),
@@ -47,19 +49,20 @@ describe('ai tour calendar span integration (ai-cmd-tour-11)', () => {
       });
       expect(rescued?.action).toBe('explain_tour_calendar_span');
 
-      const validation = validateCommand({
-        action: 'explain_tour_calendar_span',
-        params: {
-          ...(aspect ? { aspect } : {}),
-          ...(serviceName ? { serviceName } : {}),
-          weekStartDate: '2026-06-08',
-        },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_calendar_span',
+          params: {
+            ...(aspect ? { aspect } : {}),
+            ...(serviceName ? { serviceName } : {}),
+            weekStartDate: '2026-06-08',
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourCalendarSpanLogic(

@@ -137,9 +137,14 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
     expect(evalCase.expect.compoundRecipeId).toBe(
       'customer_self_service_compound',
     );
+    // §230 — the scenario was corrected to `apply_promo_code_checkout` and this
+    // mirror of it was not. The prompt is "Book spa day package for me and
+    // **apply promo code** SPRING25": applying a named code at checkout is a
+    // mutation, not the `promo_code_help` explainer, and the step's own
+    // paramCheck pins `promoCode: 'SPRING25'`.
     expect(evalCase.expect.compoundSteps).toEqual([
       'book_package',
-      'promo_code_help',
+      'apply_promo_code_checkout',
     ]);
     expect(evalCase.expect.compoundStepParams).toEqual([
       { stepIndex: 1, paramsPartial: { promoCode: 'SPRING25' } },
@@ -651,7 +656,9 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every configure business tax eval case (ai-cmd-tax-1)', () => {
-    expect(AI_COMMAND_EVAL_CONFIGURE_BUSINESS_TAX_CASES.length).toBe(6);
+    // §230 — 6 → 7: a case was added. The count is a deliberate tripwire
+    // against accidental deletion, so it is updated rather than relaxed.
+    expect(AI_COMMAND_EVAL_CONFIGURE_BUSINESS_TAX_CASES.length).toBe(7);
     for (const evalCase of AI_COMMAND_EVAL_CONFIGURE_BUSINESS_TAX_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);
@@ -675,7 +682,8 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('maps business tax multilingual prompts for EN/HY/RU (ai-cmd-tax-4)', () => {
-    expect(AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.length).toBe(32);
+    // §230 — 32 → 33, same reason.
+    expect(AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.length).toBe(33);
     const configureCases =
       AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
         (entry) => entry.expect.rescuedAction === 'configure_business_tax',
@@ -693,7 +701,8 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
     const ruCases = AI_COMMAND_EVAL_BUSINESS_TAX_MULTILINGUAL_CASES.filter(
       (entry) => entry.locale === 'ru',
     );
-    expect(configureCases.length).toBe(12);
+    // §230 — 12 → 13, a case added.
+    expect(configureCases.length).toBe(13);
     expect(setServiceCases.length).toBe(10);
     expect(explainCases.length).toBe(10);
     expect(hyCases.length).toBe(7);
@@ -764,7 +773,8 @@ describe('ai-command-eval.cases (ai-cmd-0.4)', () => {
   });
 
   it('passes every explain appointment tax eval case (ai-cmd-tax-11)', () => {
-    expect(AI_COMMAND_EVAL_EXPLAIN_APPOINTMENT_TAX_CASES.length).toBe(6);
+    // §230 — 6 → 8, two cases added.
+    expect(AI_COMMAND_EVAL_EXPLAIN_APPOINTMENT_TAX_CASES.length).toBe(8);
     for (const evalCase of AI_COMMAND_EVAL_EXPLAIN_APPOINTMENT_TAX_CASES) {
       const result = evaluateDeterministicEvalCase(evalCase);
       expect(result.passed).toBe(true);

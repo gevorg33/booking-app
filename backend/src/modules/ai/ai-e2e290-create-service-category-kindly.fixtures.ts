@@ -16,8 +16,7 @@ export const E2E290_KINDLY_CATEGORY_CASES: readonly E2e290KindlyCategoryCase[] =
   [
     {
       id: 'e290-kindly-please-canonical',
-      prompt:
-        'add catalog category named KindlyCat E2E290-abc kindly please',
+      prompt: 'add catalog category named KindlyCat E2E290-abc kindly please',
       expectedCategoryName: 'KindlyCat E2E290-abc',
       classifierCategoryName: 'KindlyCat E2E290-abc kindly',
       forbidInName: /\bkindly\b/i,
@@ -45,7 +44,8 @@ export const E2E290_KINDLY_CATEGORY_CASES: readonly E2e290KindlyCategoryCase[] =
     },
     {
       id: 'e290-kindly-thanks',
-      prompt: 'Add a new catalog category called Wellness E2E290-kt kindly thanks',
+      prompt:
+        'Add a new catalog category called Wellness E2E290-kt kindly thanks',
       expectedCategoryName: 'Wellness E2E290-kt',
       classifierCategoryName: 'Wellness',
       forbidInName: /\bkindly\b|\bthanks\b/i,
@@ -65,8 +65,7 @@ export const E2E290_KINDLY_CATEGORY_CASES: readonly E2e290KindlyCategoryCase[] =
     },
     {
       id: 'e290-appreciate-it',
-      prompt:
-        'Add a new catalog category named Makeup E2E290-ap appreciate it',
+      prompt: 'Add a new catalog category named Makeup E2E290-ap appreciate it',
       expectedCategoryName: 'Makeup E2E290-ap',
       classifierCategoryName: 'Makeup',
       forbidInName: /\bappreciate\b/i,

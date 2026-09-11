@@ -40,7 +40,20 @@ const STYLIST_ONLY_PICK_BLOCK = new RegExp(
 );
 
 const EXPLICIT_REBOOK_CUE = new RegExp(
-  String.raw`\b(?:rebook(?:\s+my)?\s+last|book same again|repeat(?:\s+my)?\s+last|same as last|book my last)\b` +
+  // e2e-bug.450 — "Rebook the same stylist as last time".
+  //
+  // `same as last` requires the two words to be adjacent, so any noun between
+  // them ("same **stylist** as last") missed. The weak fallback did not rescue
+  // it either: that gates on `\bbook\b`, which does not match "Re**book**"
+  // (no word boundary inside the word), so the phrasing reached nothing.
+  //
+  // The noun is bounded and **contact fields are excluded**, reusing the
+  // e2e-bug.362 carve-out: without that, "use the same email as last time"
+  // would become an explicit rebook cue, which is the guest-checkout steal
+  // that `hasPriorVisitCue` exists to prevent — widening a rebook cue is how
+  // that bug happened in the first place.
+  String.raw`\b(?:rebook(?:\s+my)?\s+last|book same again|repeat(?:\s+my)?\s+last|same as last|book my last` +
+    String.raw`|same\s+(?!(?:phone|mobile|e-?mail|number|address|contact|details?|info(?:rmation)?)\b)\w{2,20}\s+as\s+last)\b` +
     String.raw`|повторн.{0,20}запис|как\s+в\s+прошлый|снова\s+как` +
     String.raw`|[\u054E\u057E]\u0565\u0580\u0561\u0574\u0561\u0572\u0580.{0,24}(?:\u057E\u0565\u0580\u057B\u056B\u0576|last)` +
     String.raw`|\u0576\u0578\u0572\u0576.{0,20}(?:\u0561\u0576\u0581\u0561\u0574|\u0061mr|\u0561\u0575\u0581)` +
@@ -91,6 +104,51 @@ function isArmenianRebookCue(prompt: string): boolean {
   );
 }
 
+/**
+ * What "same" has to be referring to for this to be a prior-visit cue.
+ *
+ * The weak fallback below fires on `book` + `last|same|again|repeat`, meaning
+ * "book the same *appointment* as before". But `same` attaches to plenty of
+ * things that are not a previous visit — most importantly the contact details a
+ * guest types at checkout: "book as a guest with the **same phone** as my
+ * profile" is an `explain_guest_checkout_fields` question. D1/e2e-bug.358: two
+ * of that intent's four corpus failures were stolen here. (The two that passed
+ * did so only because they say "book**ing**", a noun `\bbook\b` misses — an
+ * accident of wording, not a distinction the code was drawing.)
+ *
+ * **This is a whitelist, deliberately.** The first fix here excluded a list of
+ * contact nouns instead, which repaired the two corpus prompts and nothing else:
+ * "same cell", "same telephone", "same login", "same account", "same WhatsApp"
+ * were all still stolen. The set of ways to name a contact field is open-ended,
+ * so a blacklist can only ever chase it. The set of things you rebook is small
+ * and closed, so naming *that* is what generalises.
+ *
+ * Unknown nouns therefore fall through to "not a rebook cue". That is the safe
+ * direction: every confident path — `matchRebookScenario`, `REBOOK_LAST_CUE`,
+ * `EXPLICIT_REBOOK_CUE`, the Armenian and Cyrillic cues — has already returned
+ * `true` above, so this branch is a last resort, and a false positive here
+ * routes a *question* into a booking action.
+ *
+ * Members are taken from the rebook fixtures, where `same` modifies: `as`
+ * ("same as last time"), `service`, `again`, `time`, `appointment`.
+ *
+ * Provider nouns (`stylist`, `barber`, …) are deliberately **absent**:
+ * `STYLIST_ONLY_PICK_BLOCK` above already routes "book the same stylist" to
+ * provider-pick rather than rebook, so listing them here would be dead and would
+ * misdescribe what this function does.
+ */
+const SAME_PRIOR_VISIT =
+  /\bsame\s+(?:appointment|booking|visit|service|treatment|session|slot|time)\b/i;
+
+/** "the same as last time", "same as before" — `same` with no noun of its own. */
+const SAME_AS_BEFORE = /\bsame\s+as\b/i;
+
+function hasPriorVisitCue(prompt: string): boolean {
+  if (/\b(?:last|again|repeat)\b/i.test(prompt)) return true;
+  if (!/\bsame\b/i.test(prompt)) return false;
+  return SAME_PRIOR_VISIT.test(prompt) || SAME_AS_BEFORE.test(prompt);
+}
+
 export function hasRebookLastAppointmentCoreCue(prompt: string): boolean {
   if (isLeaveVisitReviewPrompt(prompt)) return false;
   if (
@@ -127,7 +185,7 @@ export function hasRebookLastAppointmentCoreCue(prompt: string): boolean {
 
   if (
     /\b(book|schedule)\b/i.test(prompt) &&
-    /\b(last|same|again|repeat)\b/i.test(prompt) &&
+    hasPriorVisitCue(prompt) &&
     !/\b(new|different|another service)\b/i.test(prompt)
   ) {
     return true;
@@ -162,13 +220,6 @@ function shouldDeferToRebookAndPayCompound(prompt: string): boolean {
   if (isBookWithGiftCardCompoundPrompt(prompt)) return false;
   if (isGiftCardCheckoutCompoundPrompt(prompt)) return false;
   return false;
-}
-
-export function isRebookLastAppointmentPrompt(prompt: string): boolean {
-  if (isExplainHomeScreenWidgetPrompt(prompt)) return false;
-  if (shouldDeferToRebookAndPayCompound(prompt)) return false;
-  if (shouldDeferToResultsThenRebookCompound(prompt)) return false;
-  return hasRebookLastAppointmentCoreCue(prompt);
 }
 
 export function isRebookLastAppointmentIntent(

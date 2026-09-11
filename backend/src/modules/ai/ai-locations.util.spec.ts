@@ -41,10 +41,10 @@ describe('ai-locations.util (e2e-bug.146)', () => {
 
   it('does not treat hours/directions as location mutates', () => {
     expect(isCreateLocationPrompt('Where are you located?')).toBe(false);
-    expect(isUpdateLocationPrompt('What are your Saturday hours?')).toBe(
-      false,
-    );
-    expect(rescueLocationsIntent('Where are you located?', 'unknown')).toBeNull();
+    expect(isUpdateLocationPrompt('What are your Saturday hours?')).toBe(false);
+    expect(
+      rescueLocationsIntent('Where are you located?', 'unknown'),
+    ).toBeNull();
   });
 
   it('resolves main/default to the default location', () => {

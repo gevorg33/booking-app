@@ -36,7 +36,9 @@ describe('e2e-bug.283 my_stats product-guide no-steal', () => {
       });
       expect(rescued.action).toBe(row.expectAction);
       expect(rescued.action).not.toBe('guide_user_flow');
-      expect(rescued.action).not.toMatch(/^explain_app_feature$|^explain_current_screen$/);
+      expect(rescued.action).not.toMatch(
+        /^explain_app_feature$|^explain_current_screen$/,
+      );
     },
   );
 

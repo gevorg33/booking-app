@@ -3,7 +3,20 @@
  * collapse into check_providers_for_service / guest-checkout / specialty-topic
  * clarify / $0-budget / fake serviceName from "Is X available…".
  */
-export const E2E93_PROVIDER_NAME_EXTRACTION_SCENARIOS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type E2e93ProviderNameExtractionScenario = {
+  id: string;
+  prompt: string;
+  surface: 'customer' | 'public';
+  misclassifiedAction?: string;
+  expectedAction?: string;
+  expectEmployeeName?: string;
+  expectProviderName?: string;
+  keepAction?: string;
+  expectAspect?: string;
+};
+
+export const E2E93_PROVIDER_NAME_EXTRACTION_SCENARIOS: readonly E2e93ProviderNameExtractionScenario[] = [
   {
     id: 'e2e93-mariam-available',
     prompt: 'When is Mariam available this week?',
@@ -105,7 +118,17 @@ export const E2E93_PROVIDER_NAME_EXTRACTION_SCENARIOS = [
 ] as const;
 
 /** Live / unit edge cases that assert enrichment side-effects (not only rescue). */
-export const E2E93_PROVIDER_NAME_ENRICHMENT_SCENARIOS = [
+/** Declared so the array is one type, not a union of three literal shapes. */
+export type E2e93ProviderNameEnrichmentScenario = {
+  id: string;
+  prompt: string;
+  expectEmployeeName: string;
+  forbidMaxPrice?: number;
+  expectServiceName?: string;
+  forbidServiceNameIncludes?: string;
+};
+
+export const E2E93_PROVIDER_NAME_ENRICHMENT_SCENARIOS: readonly E2e93ProviderNameEnrichmentScenario[] = [
   {
     id: 'e2e93-enrich-karo-not-budget-zero',
     prompt: 'Is Karo Mazmanyan free tomorrow for Face Plasma?',

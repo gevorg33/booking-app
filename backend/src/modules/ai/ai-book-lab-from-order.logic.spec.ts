@@ -7,12 +7,13 @@ import {
 } from './ai-book-lab-from-order.fixtures.js';
 import { rescueBookLabFromOrderIntent } from './ai-book-lab-from-order.util.js';
 import type { ClinicLabBookingLogicDeps } from './ai-clinic-lab-booking.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-1',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 function buildDeps(overrides: Partial<ClinicLabBookingLogicDeps> = {}) {
   return {

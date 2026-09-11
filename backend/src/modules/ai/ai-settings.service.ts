@@ -1,3 +1,4 @@
+import { stripSharedEntityMemoryPii } from './ai-entity-memory.util.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -163,7 +164,13 @@ export class AiSettingsService {
     for (const [alias, entry] of Object.entries(aliases)) {
       const key = alias.toLowerCase().trim();
       if (!key) continue;
-      merged[key] = { ...(merged[key] ?? {}), ...entry };
+      // e2e-bug.371 — the shared map is per-business and carries no user
+      // dimension, so a customer's name learned in one conversation would be
+      // served to every other user of the business.
+      merged[key] = {
+        ...(merged[key] ?? {}),
+        ...stripSharedEntityMemoryPii(entry),
+      };
     }
 
     business.settings = {

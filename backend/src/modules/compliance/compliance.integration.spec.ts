@@ -7,9 +7,10 @@ import { MemberRole } from '../business/entities/business-member.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { DataBreachIncident } from './entities/data-breach-incident.entity.js';
 import type { PhiAccessAuditLog } from './entities/phi-access-audit-log.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 const clinicBusiness = (settings: Record<string, unknown> = {}): Business =>
-  ({
+  makeBusiness({
     id: 'biz-clinic',
     name: 'City Clinic',
     settings: {
@@ -23,7 +24,7 @@ const clinicBusiness = (settings: Record<string, unknown> = {}): Business =>
       },
       ...settings,
     },
-  }) as Business;
+  });
 
 describe('Sprint 37 — compliance breach + PHI', () => {
   const incidentRepo = {

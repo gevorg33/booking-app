@@ -25,13 +25,28 @@ export function buildClinicQuestionnaireLogicDispatchMap(): ReadonlyMap<
   const map = new Map<string, ClinicQuestionnaireLogicDispatchHandler>();
 
   map.set('create_questionnaire', async (deps, ctx) =>
-    handleCreateQuestionnaireLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleCreateQuestionnaireLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
   map.set('update_questionnaire', async (deps, ctx) =>
-    handleUpdateQuestionnaireLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleUpdateQuestionnaireLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
   map.set('publish_questionnaire', async (deps, ctx) =>
-    handlePublishQuestionnaireLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handlePublishQuestionnaireLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
 
   return map;

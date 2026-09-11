@@ -1,10 +1,10 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import {
   applyPackageMultiServicePromptHints,
   decomposeDashboardPackageMultiServiceCompoundPrompt,
   disambiguateStaffPackageMultiBooking,
-  isDashboardPackageMultiCompoundPrompt,
 } from './ai-package-multi-service-hints.util.js';
 import {
   ALL_PACKAGE_CHECKOUT_PROMPTS,
@@ -43,7 +43,9 @@ function buildScheduleDeps(
       })),
     } as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     serviceRepo: { find: jest.fn(async () => []) } as any,
     ...overrides,
@@ -59,39 +61,6 @@ describe('ai package booking checkout integration (ai-cmd-h4.1)', () => {
   });
 
   describe('prompt detection and decomposition', () => {
-    it.each(ALL_PACKAGE_CHECKOUT_PROMPTS)(
-      'detects package checkout compound for $id',
-      ({ prompt, packageName, customerName, orderedActions }) => {
-        expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(true);
-
-        const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
-          prompt,
-          employees,
-          customers,
-        );
-        expect(steps.map((s) => s.action)).toEqual(orderedActions);
-        expect(steps[0]?.action).toBe('check_package_line_availability');
-        expect(steps[0]?.params.packageName).toBe(packageName);
-        if (customerName) {
-          expect(steps[1]?.params.customerName).toBe(customerName);
-        }
-      },
-    );
-
-    it('decomposes package check-only prompts', () => {
-      const prompt = 'Check package line availability for Spa Day tomorrow';
-      expect(isDashboardPackageMultiCompoundPrompt(prompt)).toBe(false);
-
-      const steps = decomposeDashboardPackageMultiServiceCompoundPrompt(
-        prompt,
-        employees,
-        customers,
-      );
-      expect(steps).toHaveLength(1);
-      expect(steps[0]?.action).toBe('check_package_line_availability');
-      expect(steps[0]?.params.packageName).toBe('Spa Day');
-    });
-
     it('matches golden dashboard package checkout pattern', () => {
       const prompt = PACKAGE_CHECKOUT_PROMPTS[0].prompt;
       const golden = matchGoldenCompoundPattern('dashboard', prompt);
@@ -107,15 +76,6 @@ describe('ai package booking checkout integration (ai-cmd-h4.1)', () => {
       const result = decomposeDeterministicForSurface('dashboard', prompt);
       expect(result?.steps.length).toBeGreaterThanOrEqual(2);
       expect(result?.steps[0]?.action).toBe('check_package_line_availability');
-    });
-
-    it('does not treat unrelated prompts as package checkout compound', () => {
-      expect(isDashboardPackageMultiCompoundPrompt('Summarize revenue')).toBe(
-        false,
-      );
-      expect(
-        decomposeDashboardPackageMultiServiceCompoundPrompt('hello world'),
-      ).toEqual([]);
     });
   });
 

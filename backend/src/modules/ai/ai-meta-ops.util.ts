@@ -51,7 +51,11 @@ export function isSummarizeAiSettingsPrompt(prompt: string): boolean {
 
 /** e2e-bug.162 — plan capabilities + monthly AI-command quota remaining. */
 export function isExplainAiCapabilitiesPrompt(prompt: string): boolean {
-  if (/\b(how\s+do\s+i|where\s+(?:do|can)\s+i|walk\s+me\s+through)\b/i.test(prompt)) {
+  if (
+    /\b(how\s+do\s+i|where\s+(?:do|can)\s+i|walk\s+me\s+through)\b/i.test(
+      prompt,
+    )
+  ) {
     return false;
   }
   // e2e-bug.129 — bare "on my plan" / visits-left is customer membership, not AI quota.

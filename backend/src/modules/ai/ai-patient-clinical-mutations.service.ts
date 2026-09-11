@@ -54,7 +54,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleUpdateClinicalProfileLogic(this.deps, businessId, userId, params);
+    return handleUpdateClinicalProfileLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleDismissPatientAlert(
@@ -62,7 +67,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleDismissPatientAlertLogic(this.deps, businessId, userId, params);
+    return handleDismissPatientAlertLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleReleasePatientDocument(
@@ -70,7 +80,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleReleasePatientDocumentLogic(this.deps, businessId, userId, params);
+    return handleReleasePatientDocumentLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleCreateEncounterAddendum(
@@ -78,7 +93,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleCreateEncounterAddendumLogic(this.deps, businessId, userId, params);
+    return handleCreateEncounterAddendumLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleUpdateEncounterByBooking(
@@ -86,7 +106,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleUpdateEncounterByBookingLogic(this.deps, businessId, userId, params);
+    return handleUpdateEncounterByBookingLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleListCustomerStaffNotes(
@@ -94,7 +119,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleListCustomerStaffNotesLogic(this.deps, businessId, userId, params);
+    return handleListCustomerStaffNotesLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleAddCustomerStaffNote(
@@ -102,7 +132,12 @@ export class AiPatientClinicalMutationsService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleAddCustomerStaffNoteLogic(this.deps, businessId, userId, params);
+    return handleAddCustomerStaffNoteLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a patient-clinical-mutations intent. */

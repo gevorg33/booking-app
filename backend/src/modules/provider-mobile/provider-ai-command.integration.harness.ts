@@ -1,5 +1,6 @@
 import { ProviderAiCommandService } from './provider-ai-command.service.js';
 import type { ProviderUnderstandDeps } from '../ai/command-understanding-adapter.types.js';
+import { buildProviderClassifierContext } from '../ai/command-understanding-provider.util.js';
 import { AiProductGuideService } from '../ai/ai-product-guide.service.js';
 import { createMockGuideTelemetryService } from '../ai/guide/guide-telemetry.mock.js';
 
@@ -52,9 +53,23 @@ const noopAsync = async () => ({
 function buildProviderUnderstandMock() {
   return {
     understand: jest.fn(async (deps: ProviderUnderstandDeps) => {
+      // e2e-bug.423 — build the real classifier context rather than a literal.
+      //
+      // Context construction moved into `ProviderCommandUnderstandingAdapter`
+      // when the provider surface was delegated to the understand pipeline, and
+      // this stub did not follow. It passed a fixed string, so any test
+      // asserting on the classifier prompt was asserting on the stub: the
+      // intelligence blocks (`_entityMemoryBlock`, `_conversationSummary`,
+      // `_ragContextBlock`) are assembled by `buildProviderClassifierAppendix`
+      // inside this builder and could never appear.
       const classified = await deps.classify(
         deps.effectivePrompt,
-        'Harness provider classifier context',
+        buildProviderClassifierContext({
+          providerName: deps.providerName,
+          viewMode: deps.viewMode,
+          sessionContext: deps.sessionContext,
+          pipelineContext: { classifierContext: null },
+        } as never),
       );
       if (!classified?.action) {
         return {

@@ -73,7 +73,7 @@ export const PROVIDER_MY_STATS_TIPS_SCENARIOS = [
       },
       {
         status: 'confirmed',
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         metadata: { payment: { tipAmount: 20 } },
       },
     ],

@@ -256,7 +256,8 @@ describe('Gift card end-to-end integration', () => {
     creditRepo as any,
     redemptionRepo as any,
     expirationAuditRepo as any,
-  );
+  
+    undefined as never);
   const orderService = new GiftCardOrderService(
     giftCardRepo as any,
     changeRequestRepo as any,

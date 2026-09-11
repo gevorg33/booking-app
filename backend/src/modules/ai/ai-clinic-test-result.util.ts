@@ -418,7 +418,10 @@ export function rescueClinicTestResultIntent(
   prompt: string,
   action: string,
 ): {
-  action: ClinicTestResultExtIntent | 'enter_test_result' | 'release_test_result';
+  action:
+    | ClinicTestResultExtIntent
+    | 'enter_test_result'
+    | 'release_test_result';
   rescueReason: string;
 } | null {
   const extMisclassified =

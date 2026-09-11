@@ -38,7 +38,9 @@ async function resolveBusinessSlug(
 
 type IntakeAnswerInput = string | { questionId?: string; value: string };
 
-function normalizeAnswers(params: Record<string, unknown>): IntakeAnswerInput[] {
+function normalizeAnswers(
+  params: Record<string, unknown>,
+): IntakeAnswerInput[] {
   if (Array.isArray(params.answers)) {
     return params.answers as IntakeAnswerInput[];
   }
@@ -91,7 +93,9 @@ export async function handleSubmitIntakeAnswersLogic(
   }
 
   let flow: Awaited<
-    ReturnType<ClinicBookingLogicDeps['publicPreVisitIntakeService']['getCustomerFlow']>
+    ReturnType<
+      ClinicBookingLogicDeps['publicPreVisitIntakeService']['getCustomerFlow']
+    >
   >;
   try {
     flow = await deps.publicPreVisitIntakeService.getCustomerFlow(

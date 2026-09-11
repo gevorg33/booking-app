@@ -8,6 +8,7 @@ import { rescueExplainCancelPolicyIntent } from './ai-explain-cancel-policy.util
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_EXPLAIN_CANCEL_POLICY_CASES } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-explain-cancel-policy integration (ai-cmd-customer-4.4.4)', () => {
   const deps = () => ({
@@ -40,15 +41,16 @@ describe('ai-explain-cancel-policy integration (ai-cmd-customer-4.4.4)', () => {
   it.each(EXPLAIN_CANCEL_POLICY_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
-        action: 'explain_cancel_policy',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_cancel_policy',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainCancelPolicyLogic(

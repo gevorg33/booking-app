@@ -254,15 +254,67 @@ export function parseRebalanceSlotCount(
   return 1;
 }
 
+/**
+ * e2e-bug.528 — a closure range is closure dates.
+ *
+ * `holiday_mode` reads `closeDates` / `holidayDates`, both enumerated lists.
+ * But the command describes itself as *"Close the business for a **period**"*,
+ * and its own failure message tells the user *"Specify closure dates (e.g. Dec
+ * 24-26)"* — a range. So a user who says exactly what they were asked for, and
+ * whose phrasing the classifier renders as `dateFrom`/`dateTo`, was asked to
+ * restate dates they had already given. The command's documentation and its
+ * error message both promised this; only the parser did not.
+ *
+ * **Additive, and only consulted when the list is empty**: an enumerated
+ * `closeDates` still wins outright, so acceptance can widen and never narrow —
+ * the same constraint the D5 slices used, and the reason widening is safe here
+ * rather than the way e2e-bug.362 happened.
+ *
+ * Bounded on purpose. This is a T3 command that blocks all booking, so a
+ * mis-parsed year ("2026" read as a date) must not close a decade: a range
+ * longer than `MAX_CLOSURE_RANGE_DAYS` is refused entirely rather than
+ * truncated, because a silently shortened closure is a business open on a day
+ * it believes it is closed.
+ */
+const MAX_CLOSURE_RANGE_DAYS = 366;
+
+export function expandClosureDateRange(
+  params: Record<string, unknown>,
+): string[] {
+  const from =
+    typeof params.dateFrom === 'string' ? toIsoDay(params.dateFrom) : null;
+  const to = typeof params.dateTo === 'string' ? toIsoDay(params.dateTo) : null;
+  // Both ends required: a lone `dateFrom` is what the completion validator
+  // already refuses (§306), because "closed from Dec 24" names no end.
+  if (!from || !to || to < from) return [];
+
+  const dates: string[] = [];
+  let cursor = from;
+  while (cursor <= to) {
+    dates.push(cursor);
+    if (dates.length > MAX_CLOSURE_RANGE_DAYS) return [];
+    // 'UTC' because both ends are already `YYYY-MM-DD` date keys: this walks
+    // calendar days, it does not convert an instant, so the zone cannot shift
+    // the result. Reusing the shared helper rather than writing a third date
+    // walk is the point of e2e-bug.367.
+    cursor = addDaysToDateKey(cursor, 1, 'UTC');
+  }
+  return dates;
+}
+
 export function parseHolidayModeDates(params: Record<string, unknown>): {
   closeDates: string[];
   extendDate?: string;
   extendTimeFrom?: string;
   extendTimeTo?: string;
 } {
-  const closeDates = parseIsoDatesList(
+  const enumerated = parseIsoDatesList(
     params.closeDates ?? params.holidayDates,
   );
+  // e2e-bug.528 — fall back to an explicit range only when nothing was listed.
+  const closeDates = enumerated.length
+    ? enumerated
+    : expandClosureDateRange(params);
   const extendDate =
     typeof params.extendDate === 'string'
       ? toIsoDay(params.extendDate)

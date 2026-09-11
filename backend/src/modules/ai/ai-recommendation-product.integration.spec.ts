@@ -1,4 +1,6 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeProduct } from '../inventory/entities/product.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import {
   handleConfigureRecommendationProductLogic,
@@ -15,29 +17,29 @@ import {
   parseExplainRecommendationSetupFromPrompt,
   parseLinkRecommendedProductsFromPrompt,
 } from './ai-recommendation-product.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
   const products = [
-    {
-      id: 'prod-shampoo',
-      businessId: 'biz-1',
-      name: 'Shampoo',
-      description: null,
-      imageUrl: null,
-      externalLink: null,
-      retailPrice: 0,
-      isActive: true,
-    },
+    makeProduct(
+      makeProduct({
+        id: 'prod-shampoo',
+        businessId: 'biz-1',
+        name: 'Shampoo',
+        description: null,
+        imageUrl: null,
+        externalLink: null,
+        retailPrice: 0,
+        isActive: true,
+      }),
+    ),
   ];
 
   const inventoryService = {
     listProducts: jest.fn(async () => [...products]),
     createProduct: jest.fn(
-      async (_businessId: string, dto: Record<string, unknown>) => ({
-        id: 'prod-new',
-        businessId: 'biz-1',
-        ...dto,
-      }),
+      async (_businessId: string, dto: Record<string, unknown>) =>
+        makeProduct({ id: 'prod-new', businessId: 'biz-1', ...dto }),
     ),
     updateProduct: jest.fn(
       async (
@@ -79,15 +81,16 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
     const parsed = parseConfigureRecommendationProductFromPrompt(prompt);
     expect(parsed?.productName?.toLowerCase()).toContain('shampoo');
 
-    const validation = validateCommand({
-      action: 'configure_recommendation_product',
-      params: parsed ?? {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'configure_recommendation_product',
+        params: parsed ?? {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.ok).toBe(false);
     expect(validation.issues.map((issue) => issue.field)).toEqual(
       expect.arrayContaining(['imageUrl', 'externalLink']),
@@ -98,15 +101,17 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
     const entry = CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS.find(
       (item) => item.id === 'mask-with-urls',
     )!;
-    const validation = validateCommand({
-      action: 'configure_recommendation_product',
-      params: parseConfigureRecommendationProductFromPrompt(entry.prompt) ?? {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt: entry.prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'configure_recommendation_product',
+        params:
+          parseConfigureRecommendationProductFromPrompt(entry.prompt) ?? {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: entry.prompt,
+      }),
+    );
     expect(validation.ok).toBe(true);
 
     const result = await handleConfigureRecommendationProductLogic(
@@ -122,43 +127,73 @@ describe('ai recommendation product integration (ai-cmd-rec-1)', () => {
 
 describe('ai recommendation link integration (ai-cmd-rec-2)', () => {
   const products = [
-    {
+    makeProduct({
       id: 'prod-shampoo',
       businessId: 'biz-1',
       name: 'Shampoo',
       isActive: true,
-    },
-    {
+    }),
+    makeProduct({
       id: 'prod-conditioner',
       businessId: 'biz-1',
       name: 'Conditioner',
       isActive: true,
-    },
-    {
+    }),
+    makeProduct({
       id: 'prod-mask',
       businessId: 'biz-1',
       name: 'Repair Mask',
       isActive: true,
-    },
-    {
+    }),
+    makeProduct({
       id: 'prod-oil',
       businessId: 'biz-1',
       name: 'Bond Oil',
       isActive: true,
-    },
+    }),
   ];
 
   const services = [
-    { id: 'svc-haircut', name: 'Haircut', businessId: 'biz-1', isActive: true },
-    { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
-    { id: 'svc-keratin', name: 'keratin', businessId: 'biz-1', isActive: true },
-    { id: 'svc-blowout', name: 'Blowout', businessId: 'biz-1', isActive: true },
-    {
-      id: 'svc-highlights',
-      name: 'highlights',
-      businessId: 'biz-1',
-      isActive: true,
-    },
+    makeService(
+      makeService({
+        id: 'svc-haircut',
+        name: 'Haircut',
+        businessId: 'biz-1',
+        isActive: true,
+      }),
+    ),
+    makeService(
+      makeService({
+        id: 'svc-color',
+        name: 'Color',
+        businessId: 'biz-1',
+        isActive: true,
+      }),
+    ),
+    makeService(
+      makeService({
+        id: 'svc-keratin',
+        name: 'keratin',
+        businessId: 'biz-1',
+        isActive: true,
+      }),
+    ),
+    makeService(
+      makeService({
+        id: 'svc-blowout',
+        name: 'Blowout',
+        businessId: 'biz-1',
+        isActive: true,
+      }),
+    ),
+    makeService(
+      makeService({
+        id: 'svc-highlights',
+        name: 'highlights',
+        businessId: 'biz-1',
+        isActive: true,
+      }),
+    ),
   ];
 
   const categories = [{ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }];
@@ -228,15 +263,16 @@ describe('ai recommendation link integration (ai-cmd-rec-2)', () => {
       (item) => item.id === 'shampoo-conditioner-after-haircut',
     )!;
     const parsed = parseLinkRecommendedProductsFromPrompt(entry.prompt);
-    const validation = validateCommand({
-      action: 'link_recommended_products',
-      params: parsed ?? {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt: entry.prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'link_recommended_products',
+        params: parsed ?? {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: entry.prompt,
+      }),
+    );
     expect(validation.ok).toBe(true);
 
     const result = await handleLinkRecommendedProductsLogic(
@@ -257,13 +293,27 @@ describe('ai recommendation explain integration (ai-cmd-rec-3)', () => {
   };
 
   const products = [
-    { id: 'prod-shampoo', name: 'Shampoo', isActive: true },
-    { id: 'prod-conditioner', name: 'Conditioner', isActive: true },
+    makeProduct({ id: 'prod-shampoo', name: 'Shampoo', isActive: true }),
+    makeProduct({
+      id: 'prod-conditioner',
+      name: 'Conditioner',
+      isActive: true,
+    }),
   ];
 
   const services = [
-    { id: 'svc-haircut', name: 'Haircut', businessId: 'biz-1', isActive: true },
-    { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
+    makeService({
+      id: 'svc-haircut',
+      name: 'Haircut',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
+    makeService({
+      id: 'svc-color',
+      name: 'Color',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
   ];
 
   const categories = [{ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }];

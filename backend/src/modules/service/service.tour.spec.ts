@@ -44,7 +44,8 @@ describe('ServiceService tour metadata', () => {
     businessRepo as any,
     { publish: jest.fn() } as any,
     stripeIntegrationService as any,
-  );
+  
+    undefined as never);
 
   beforeEach(() => {
     services.length = 0;

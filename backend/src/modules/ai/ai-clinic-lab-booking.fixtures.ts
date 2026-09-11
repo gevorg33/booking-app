@@ -29,7 +29,15 @@ export const PUBLIC_CLINIC_LAB_BOOKING_CLASSIFIER_APPENDIX = `- list_my_lab_book
 export const PROVIDER_CLINIC_LAB_BOOKING_CLASSIFIER_RULES = `- list_patient_pending_lab_requests: READ — clinic only: list patients on your schedule with lab orders awaiting patient self-booking (pushed, no collection booked). Triggers: patients waiting to book lab|pending lab booking requests|who still needs to book collection. NOT list_my_collection_queue (specimen draw queue), NOT list_test_orders (dashboard-wide).
 - notify_patient_book_lab: MUTATE — clinic only: send/remind a patient (SMS/email/push) to self-book their lab collection for an existing lab order. Requires customerName or orderId. Triggers: remind patient to book collection, nudge pending lab self-book. NOT list_patient_pending_lab_requests (read-only list).`;
 
-export const PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type PushLabBookingToPatientPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  orderId?: string;
+};
+
+export const PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS: readonly PushLabBookingToPatientPromptFixture[] = [
   {
     id: 'push-maria-cbc',
     prompt: 'Push lab collection booking to Maria for her CBC order',
@@ -87,7 +95,15 @@ export const PUSH_LAB_BOOKING_TO_PATIENT_PROMPTS = [
   },
 ] as const;
 
-export const STAFF_BOOK_LAB_COLLECTION_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type StaffBookLabCollectionPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  orderId?: string;
+};
+
+export const STAFF_BOOK_LAB_COLLECTION_PROMPTS: readonly StaffBookLabCollectionPromptFixture[] = [
   {
     id: 'book-maria-tomorrow',
     prompt: 'Book lab collection for Maria tomorrow at 9am',
@@ -226,7 +242,14 @@ export const LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS = [
   { id: 'list-awaiting-book', prompt: 'List patients awaiting lab booking' },
 ] as const;
 
-export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS = [
+/** Only one of the three prompts names a patient, hence the optional field. */
+export type NotifyPatientBookLabPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+};
+
+export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS: readonly NotifyPatientBookLabPromptFixture[] = [
   {
     id: 'remind-patient-book-collection',
     prompt: 'Remind patient to book collection',
@@ -240,7 +263,7 @@ export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS = [
     prompt: 'Remind Maria to book her lab collection',
     customerName: 'Maria',
   },
-] as const;
+];
 
 export const AWAITING_PATIENT_BOOKING_LIST_PROMPTS = [
   {

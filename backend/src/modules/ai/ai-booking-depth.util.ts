@@ -61,7 +61,15 @@ export function isBookingDepthIntent(
 export function isSubscriptionCreditBookingPrompt(prompt: string): boolean {
   return (
     /\b(subscription|plan)\s+(credit|visit|appointment)/i.test(prompt) ||
-    /\busing\s+(her|his|their|a)\s+subscription/i.test(prompt) ||
+    // e2e-bug.426 — "membership" and "plan" are the same thing to a user, and
+    // `create_booking_subscription_credit`'s own documented example is "book
+    // them using their membership". Only "subscription" was listed, so the
+    // command's canonical phrasing did not reach it and fell through to plain
+    // `create_booking`. This was masked until the compound over-claim above it
+    // was removed.
+    /\busing\s+(?:her|his|their|my|our|the|a)\s+(?:subscription|membership|plan)\b/i.test(
+      prompt,
+    ) ||
     /\bwith\s+subscription\s+credit/i.test(prompt)
   );
 }
@@ -162,10 +170,55 @@ export function isMarkPaidPrompt(prompt: string): boolean {
     return true;
   }
   if (/\bin[\s-]?progress\b/i.test(prompt)) return false;
-  return (
-    /\bmark\b/i.test(prompt) &&
-    /\b(done|complete|completed|finished)\b/i.test(prompt)
-  );
+
+  // C3 / e2e-bug.360 — this command's own example is a past-tense statement,
+  // *"Sarah paid cash for today's massage"*, which names no imperative verb and
+  // so reached none of the branches above.
+  //
+  // **Why this does not reopen A7/§163.** That narrowing removed the branch
+  // that fired on `mark` + `done` with **no mention of money anywhere**; its
+  // own note says the remaining branches "already cover every phrasing that
+  // names payment". This one requires an explicit payment *method*, so
+  // `update_bookings`' examples — "mark Karo's 10am as completed", "mark the
+  // 3pm massage as done" — still do not match. Those two are pinned as tests.
+  //
+  // Genuine interrogatives are excluded — "has Sarah paid cash?" is a read, and
+  // this is a T2 write. The spec is `surfaces: ['dashboard', 'provider']`, so a
+  // customer saying "I paid cash" cannot reach it either.
+  //
+  // **The exclusion is a leading auxiliary only, deliberately.** A first version
+  // also rejected a trailing `?` and a leading `can|could|will|should`, and the
+  // Phase 2 paraphrase gate immediately reported two breaks
+  // (`can_you_prefix`, `question_mark`) against a baseline of 0: those are
+  // exactly the transforms it applies, and recognition must not change under
+  // them. Politeness framing and a stray question mark do not turn a statement
+  // into a question; a leading `has`/`was`/`did` does.
+  if (
+    /\bpaid\b/i.test(prompt) &&
+    /\b(?:cash|card|bank\s+transfer|transfer|cheque|check)\b/i.test(prompt) &&
+    !/^\s*(?:did|does|has|have|was|were|is|are|who|what|when|why|how)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+
+  // tech-debt A7 / e2e-bug.380 — this used to end with
+  //
+  //   return /\bmark\b/ && /\b(done|complete|completed|finished)\b/
+  //
+  // i.e. "mark X as done" with **no mention of money anywhere** routed to
+  // `mark_paid`, which is T2 and writes a financial record. It was stealing
+  // `update_bookings`' own documented examples — *"mark Karo's 10am as
+  // completed"* and *"mark the 3pm massage as done"* — which are status
+  // changes, not payments.
+  //
+  // The branches above already cover every phrasing that names payment
+  // ("mark it paid", "set it done and paid"), so this only ever added the
+  // no-payment case. Marking a visit finished is not a claim that the customer
+  // handed over money, and guessing that it is on a T2 command is the wrong
+  // direction to be wrong in.
+  return false;
 }
 
 const POSSESSIVE_APPOINTMENT_RE =

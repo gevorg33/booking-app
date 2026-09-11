@@ -11,18 +11,33 @@ import { matchCustomerOwnedBooking } from './ai-cancel-my-booking.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 describe('customer-ai-command reschedule_my_booking integration (e2e-bug.237)', () => {
+  /**
+   * e2e-bug.491's class — these bookings expired on a calendar.
+   *
+   * `buildRescheduleOwnedBookingMatchParams` only matches **upcoming** visits,
+   * so once today passed 2026-08-18 both fixtures fell out of range and the
+   * match returned nothing. The symptom is an assertion (an empty id list), not
+   * a crash, which is why an error-class triage does not surface it.
+   *
+   * Relative to now, preserving the original 20-day gap and their order.
+   */
+  const inDays = (n: number): Date =>
+    new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+  const earlierVisit = inDays(10);
+  const laterVisit = inDays(30);
+
   const upcomingSwedish = [
     {
       id: 'book-jul-29',
       status: BookingStatus.CONFIRMED,
-      startTime: new Date('2026-07-29T10:00:00.000Z'),
+      startTime: earlierVisit,
       service: { name: 'Swedish massage' },
       employee: { name: 'Gevorg' },
     },
     {
       id: 'book-aug-18',
       status: BookingStatus.CONFIRMED,
-      startTime: new Date('2026-08-18T10:00:00.000Z'),
+      startTime: laterVisit,
       service: { name: 'Swedish massage' },
       employee: { name: 'Gevorg' },
     },

@@ -39,7 +39,7 @@ describe('Sprint 17 AI dashboard depth integration', () => {
     ]);
 
     const orchestrator = {
-      processPlan: jest.fn(),
+      processPlan: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       buildPlanDiff,
     };
     const orchestration = new CommandOrchestrationService(
@@ -90,7 +90,7 @@ describe('Sprint 17 AI dashboard depth integration', () => {
 
   it('maps execution timeline on failed tasks', async () => {
     const orchestrator = {
-      processPlan: jest.fn(),
+      processPlan: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
       buildPlanDiff: jest.fn(),
     };
     const orchestration = new CommandOrchestrationService(

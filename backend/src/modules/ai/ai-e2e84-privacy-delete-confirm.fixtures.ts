@@ -51,7 +51,8 @@ export const E2E84_LIVE_CASES = [
   },
   {
     id: 'first-turn-previews',
-    description: 'Signed-in first turn previews; DB unchanged; pending in sessionContext',
+    description:
+      'Signed-in first turn previews; DB unchanged; pending in sessionContext',
   },
   {
     id: 'bare-yes-without-pending-no-op',
@@ -59,7 +60,8 @@ export const E2E84_LIVE_CASES = [
   },
   {
     id: 'yes-with-pending-context-erases',
-    description: 'yes + privacyDeletePending context executes erasure (e2e-bug.257)',
+    description:
+      'yes + privacyDeletePending context executes erasure (e2e-bug.257)',
   },
   {
     id: 'yes-with-history-erases',

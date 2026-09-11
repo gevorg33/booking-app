@@ -7,12 +7,13 @@ import {
 } from './ai-list-my-documents.fixtures.js';
 import { rescueListMyDocumentsIntent } from './ai-list-my-documents.util.js';
 import type { ListMyDocumentsLogicDeps } from './ai-list-my-documents.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-1',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 const sampleDocument: PatientReleasedDocumentCustomerView = {
   id: 'doc-1',

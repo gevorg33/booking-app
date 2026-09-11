@@ -4,6 +4,7 @@ import {
   describeWhatsappIntegrationPatch,
   parseConfigureWhatsappIntegrationFromPrompt,
 } from './ai-whatsapp-integration.util.js';
+import { redactSecretDetailFields } from '../../common/utils/phi-ai-guard.util.js';
 
 export interface ConfigureWhatsappIntegrationLogicDeps {
   whatsappIntegrationService: WhatsAppIntegrationService;
@@ -105,7 +106,7 @@ export async function handleConfigureWhatsappIntegrationLogic(
         : 'WhatsApp integration updated.',
       {
         settings,
-        patch: parsed,
+        patch: redactSecretDetailFields(parsed),
         navigate,
         steps: buildSetupSteps(settings.usingPlatformDefault),
       },
@@ -118,7 +119,7 @@ export async function handleConfigureWhatsappIntegrationLogic(
       {
         navigate,
         steps: buildSetupSteps(parsed.usePlatformDefault),
-        patch: parsed,
+        patch: redactSecretDetailFields(parsed),
       },
     );
   }

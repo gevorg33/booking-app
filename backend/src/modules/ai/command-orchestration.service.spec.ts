@@ -141,3 +141,92 @@ describe('CommandOrchestrationService (e2e-bug.150)', () => {
     ).toBe('optimize_schedule');
   });
 });
+
+/**
+ * e2e-bug.486 — a failed orchestration names the writes that already landed.
+ *
+ * This is the live execution path and it has **no compensation and no
+ * transaction boundary**: when a middle step fails, the earlier steps have
+ * already written and stay written. The failure summary listed only the failed
+ * steps, so "Orchestration failed (1/3 step(s) failed)" was all the user saw
+ * while a schedule had been rewritten.
+ *
+ * Reporting is deliberately all this does. Undoing the writes needs the §47
+ * saga model, which hangs off an executor with no production callers
+ * (e2e-bug.368); naming them needs only the step statuses already on the task,
+ * and is what makes the state recoverable by hand until then.
+ */
+describe('e2e-bug.486 — stranded writes are named on failure', () => {
+  // Constructed locally: `buildService` above is scoped to its own describe.
+  const service = new CommandOrchestrationService(
+    {
+      processIntent: jest.fn(),
+      processPlan: jest.fn(),
+      buildPlanDiff: jest.fn(() => []),
+      approveAndExecute: jest.fn(),
+      retryFailedStep: jest.fn(),
+    } as any,
+    { build: jest.fn() } as any,
+    { emitAlert: jest.fn() } as any,
+  );
+  const summarize = (task: any) =>
+    (service as any).summarizeExecutionFailure(task);
+
+  const task = {
+    plan: {
+      steps: [
+        {
+          id: 's1',
+          description: 'Add Monday schedule',
+          action: 'add_schedule',
+        },
+        { id: 's2', description: 'Create booking', action: 'create_booking' },
+        { id: 's3', description: 'Charge deposit', action: 'charge' },
+      ],
+    },
+    result: {
+      steps: [
+        { stepId: 's1', status: 'completed' },
+        { stepId: 's2', status: 'completed' },
+        { stepId: 's3', status: 'failed', error: 'card declined' },
+      ],
+    },
+  };
+
+  it('says which steps were applied and not undone', () => {
+    const summary = summarize(task);
+    expect(summary).toContain('NOT undone');
+    expect(summary).toContain('Add Monday schedule');
+    expect(summary).toContain('Create booking');
+  });
+
+  it('still reports the failure itself', () => {
+    // The addition must not displace what the summary already said.
+    const summary = summarize(task);
+    expect(summary).toContain('Orchestration failed');
+    expect(summary).toContain('card declined');
+  });
+
+  it('says nothing extra when the first step failed', () => {
+    // Nothing landed, so there is nothing to warn about — a blanket warning
+    // would train users to ignore it.
+    const summary = summarize({
+      plan: { steps: [{ id: 's1', description: 'Add schedule' }] },
+      result: { steps: [{ stepId: 's1', status: 'failed', error: 'boom' }] },
+    });
+    expect(summary).not.toContain('NOT undone');
+  });
+
+  it('falls back to the action or step id when a description is missing', () => {
+    const summary = summarize({
+      plan: { steps: [{ id: 's1', action: 'create_booking' }, { id: 's2' }] },
+      result: {
+        steps: [
+          { stepId: 's1', status: 'completed' },
+          { stepId: 's2', status: 'failed', error: 'x' },
+        ],
+      },
+    });
+    expect(summary).toContain('create_booking');
+  });
+});

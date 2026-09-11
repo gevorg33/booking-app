@@ -161,7 +161,10 @@ export function isExplainProfessionalProfilePrompt(prompt: string): boolean {
   if (matchExplainProfessionalProfileScenario(prompt)) return true;
   if (SPECIALTY_MATCH_BLOCK.test(prompt)) return false;
   // e2e-bug.93 — allow tell-me-about when profile/experience cues are present.
-  if (TELL_ME_ABOUT_BLOCK.test(prompt) && !PROFILE_EXPERIENCE_CUE.test(prompt)) {
+  if (
+    TELL_ME_ABOUT_BLOCK.test(prompt) &&
+    !PROFILE_EXPERIENCE_CUE.test(prompt)
+  ) {
     return false;
   }
   if (PICK_PROVIDER_BLOCK.test(prompt)) return false;

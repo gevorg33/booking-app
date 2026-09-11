@@ -7,12 +7,12 @@ import {
 import { ProviderPushActionService } from './provider-push-action.service.js';
 
 describe('ProviderPushActionService sprint20', () => {
-  const pushService = { sendToUser: jest.fn() };
-  const bookingRepo = { findOne: jest.fn() };
-  const bookingService = { update: jest.fn() };
+  const pushService = { sendToUser: jest.fn<(...args: unknown[]) => Promise<unknown>>() };
+  const bookingRepo = { findOne: jest.fn<(...args: unknown[]) => Promise<unknown>>() };
+  const bookingService = { update: jest.fn<(...args: unknown[]) => Promise<unknown>>() };
   const providerMobile = {
-    resolveMobileAccess: jest.fn(),
-    getScopedEmployeeId: jest.fn(),
+    resolveMobileAccess: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    getScopedEmployeeId: jest.fn<(...args: unknown[]) => unknown>(),
   };
   const service = new ProviderPushActionService(
     bookingRepo as any,

@@ -30,7 +30,12 @@ export const POST_FAILURE_GUIDE_FALLBACK_SCENARIOS = [
       summary: 'Which booking should I mark as paid?',
       details: { needsClarification: true },
     },
-    expectSnippet: true,
+    // AI-ROADMAP Phase 6 (AI-TODO): this fixture encoded the bug. The command
+    // is known (`mark_paid`) and the summary is already a precise question —
+    // "Which booking should I mark as paid?" — so appending a product-guide
+    // tour answers a question the user did not ask instead of the one the
+    // assistant did. A clarify-needed command now yields the question alone.
+    expectSnippet: false,
   },
   {
     id: 'customer-handler-failure',

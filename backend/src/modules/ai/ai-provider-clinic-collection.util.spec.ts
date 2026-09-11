@@ -61,9 +61,9 @@ describe('ai-provider-clinic-collection.util', () => {
     expect(
       isExplainSpecimenRecollectPrompt('Mark specimen collected for Maria'),
     ).toBe(false);
-    expect(isExplainSpecimenRecollectPrompt('Show my collection queue today')).toBe(
-      false,
-    );
+    expect(
+      isExplainSpecimenRecollectPrompt('Show my collection queue today'),
+    ).toBe(false);
   });
 
   it('formats specimen recollect text', () => {

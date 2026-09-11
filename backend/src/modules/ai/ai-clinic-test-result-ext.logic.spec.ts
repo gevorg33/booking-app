@@ -1,4 +1,15 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
+import { makeClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.test-fixture.js';
+import { makeClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.test-fixture.js';
+import type { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.entity.js';
+import type { ClinicTestTypeView } from '../clinic-test-results/catalog/clinic-test-catalog.service.js';
+import {
+  makeClinicTestResultMeasurement,
+  makeClinicTestType,
+} from '../clinic-test-results/entities/clinic-test-catalog.test-fixture.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   handleConfigureTestReferenceRangeLogic,
@@ -6,74 +17,107 @@ import {
   handleListAbnormalResultsLogic,
   handleUploadPatientResultLogic,
 } from './ai-clinic-test-result-ext.logic.js';
+import type { ClinicTestResultExtLogicDeps } from './ai-clinic-test-result-ext.logic.js';
 
 describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
   const bookingRepo = {
     find: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'booking-1',
         businessId: 'biz-1',
         customerId: 'cust-maria',
         status: BookingStatus.CONFIRMED,
-        customer: { id: 'cust-maria', name: 'Maria Lopez' },
-      },
+        customer: makeCustomer({ id: 'cust-maria', name: 'Maria Lopez' }),
+      }),
     ]),
   };
   const resultRepo = {
     find: jest.fn(async () => [
-      {
+      makeClinicTestResult({
         id: 'result-1',
         businessId: 'biz-1',
         customerId: 'cust-maria',
         orderId: 'order-abc123',
         status: 'Released',
         measurements: [
-          {
-            testType: { code: 'WBC', name: 'WBC' },
+          makeClinicTestResultMeasurement({
+            testType: makeClinicTestType({ code: 'WBC' }),
             value: '12.5',
-            measurementFlag: 'H',
-          },
-          {
-            testType: { code: 'glucose', name: 'glucose' },
+            measurementFlag: 'High',
+          }),
+          makeClinicTestResultMeasurement({
+            testType: makeClinicTestType({ code: 'glucose' }),
             value: '95',
             measurementFlag: 'Normal',
-          },
+          }),
         ],
-      },
-      {
+      }),
+      makeClinicTestResult({
         id: 'result-2',
         businessId: 'biz-1',
         customerId: 'cust-other',
         orderId: 'order-xyz',
         status: 'Reviewed',
         measurements: [
-          {
-            testType: { code: 'sodium', name: 'sodium' },
+          makeClinicTestResultMeasurement({
+            testType: makeClinicTestType({ code: 'sodium' }),
             value: '130',
-            measurementFlag: 'L',
-          },
+            measurementFlag: 'Low',
+          }),
         ],
-      },
+      }),
     ]),
   };
   const orderRepo = {
-    findOne: jest.fn(async () => null),
-    find: jest.fn(async () => []),
+    // Declared returns, not inferred: `async () => null` infers `Promise<null>`
+    // and `async () => []` infers `Promise<never[]>`, both of which reject every
+    // order the tests below resolve through them.
+    findOne: jest.fn(async (): Promise<ClinicTestOrder | null> => null),
+    find: jest.fn(async (): Promise<ClinicTestOrder[]> => []),
   };
   const deps = {
     bookingRepo,
     resultRepo,
     orderRepo,
-    clinicTestResultService: {},
+    // `clinicTestResultService: {}` used to sit here — an empty object for a dep
+    // the logic never reads. It has been removed from the interface entirely.
+    //
+    // These three were absent, so this object was not a stand-in for the type it
+    // is passed as. Inert stubs: no test here reaches a handler that calls them,
+    // and one that does will now fail on an assertion rather than on
+    // `undefined is not a function`.
+    clinicLabChangeHistoryService: {
+      listResultChangeHistory: jest.fn(async () => []),
+    } as unknown as ClinicTestResultExtLogicDeps['clinicLabChangeHistoryService'],
+    specimenService: {
+      listSpecimens: jest.fn(async () => []),
+    } as unknown as ClinicTestResultExtLogicDeps['specimenService'],
+    specimenStatusService: {
+      transitionSpecimenStatus: jest.fn(),
+    } as unknown as ClinicTestResultExtLogicDeps['specimenStatusService'],
     clinicCatalogService: {
-      updateReferenceRangeByCode: jest.fn(async () => ({
-        id: 'type-wbc',
-        code: 'WBC',
-        normalLow: 4,
-        normalHigh: 11,
-      })),
+      updateReferenceRangeByCode: jest.fn(
+        async (): Promise<ClinicTestTypeView> => ({
+          id: 'type-wbc',
+          businessId: 'biz-1',
+          code: 'WBC',
+          title: 'WBC',
+          price: 0,
+          requiresFasting: false,
+          isActive: true,
+          normalLow: 4,
+          normalHigh: 11,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      ),
     },
     clinicLabAccessService: {
+      // `assertResultLabAccess` / `assertSpecimenLabAccess` were absent — both are
+      // required by the interface and both throw to deny. No-op stubs allow, which
+      // is what these tests assume.
+      assertResultLabAccess: jest.fn(),
+      assertSpecimenLabAccess: jest.fn(),
       resolveStaffContext: jest.fn(async () => ({
         userId: 'user-1',
         membershipRole: 'owner',
@@ -95,11 +139,13 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
     );
     expect(missing.success).toBe(false);
 
-    orderRepo.findOne.mockResolvedValueOnce({
-      id: 'order-abc123',
-      businessId: 'biz-1',
-      bookingId: 'booking-1',
-    });
+    orderRepo.findOne.mockResolvedValueOnce(
+      makeClinicTestOrder({
+        id: 'order-abc123',
+        businessId: 'biz-1',
+        bookingId: 'booking-1',
+      }),
+    );
     const guided = await handleUploadPatientResultLogic(
       deps,
       'biz-1',
@@ -143,7 +189,11 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
   it('upload handoff resolves order id prefix from recent orders', async () => {
     orderRepo.findOne.mockResolvedValueOnce(null);
     orderRepo.find.mockResolvedValueOnce([
-      { id: 'order-abc123-full', businessId: 'biz-1', bookingId: 'booking-9' },
+      makeClinicTestOrder({
+        id: 'order-abc123-full',
+        businessId: 'biz-1',
+        bookingId: 'booking-9',
+      }),
     ]);
     const guided = await handleUploadPatientResultLogic(
       deps,
@@ -201,13 +251,13 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
 
   it('reports no released results when queue is empty', async () => {
     resultRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestResult({
         id: 'result-3',
         businessId: 'biz-1',
         customerId: 'cust-maria',
         status: 'Reviewed',
         measurements: [],
-      },
+      }),
     ]);
     const result = await handleExplainPatientResultsLogic(
       deps,
@@ -313,7 +363,12 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
     const result = await handleListAbnormalResultsLogic(deps, 'biz-1', {});
     expect(result.success).toBe(true);
     expect(result.summary).toContain('WBC');
-    expect(result.summary).toContain('[H]');
+    // `[High]`, not `[H]`: `ClinicResultMeasurementFlag` is
+    // Normal/Abnormal/High/Low/… — `'H'` is not a value the column can hold, so
+    // this used to pin a rendering production could never produce. The
+    // abnormality filter is `flag && flag !== 'Normal'`, so the count is
+    // unaffected; only the rendered string changes.
+    expect(result.summary).toContain('[High]');
     expect(result.details?.count).toBe(2);
   });
 
@@ -327,17 +382,17 @@ describe('ai-clinic-test-result-ext.logic (ai-cmd-ext-2.1–2.4)', () => {
 
   it('reports empty abnormal list when only normal flags exist', async () => {
     resultRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestResult({
         id: 'result-4',
         businessId: 'biz-1',
         measurements: [
-          {
-            testType: { code: 'glucose', name: 'glucose' },
+          makeClinicTestResultMeasurement({
+            testType: makeClinicTestType({ code: 'glucose' }),
             value: '90',
             measurementFlag: 'Normal',
-          },
+          }),
         ],
-      },
+      }),
     ]);
     const result = await handleListAbnormalResultsLogic(deps, 'biz-1', {});
     expect(result.success).toBe(true);

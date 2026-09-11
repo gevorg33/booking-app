@@ -1,4 +1,7 @@
 import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleSwitchProviderSameTimeLogic } from './ai-switch-provider-same-time.logic.js';
 import { SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_SCENARIOS } from './ai-switch-provider-same-time-multilingual.fixtures.js';
 import {
@@ -166,18 +169,15 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
 
   const employeeRepo = {
     find: jest.fn(async () => [
-      { id: 'emp-marco', name: 'Marco', businessId: 'biz-1', isActive: true },
-      { id: 'emp-anna', name: 'Anna', businessId: 'biz-1', isActive: true },
-      { id: 'emp-maria', name: 'Maria', businessId: 'biz-1', isActive: true },
+      makeEmployee({ id: 'emp-marco', name: 'Marco', businessId: 'biz-1' }),
+      makeEmployee({ id: 'emp-anna', name: 'Anna', businessId: 'biz-1' }),
+      makeEmployee({ id: 'emp-maria', name: 'Maria', businessId: 'biz-1' }),
     ]),
   };
   const serviceRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'svc-haircut',
-      name: 'Haircut',
-      businessId: 'biz-1',
-      isActive: true,
-    })),
+    findOne: jest.fn(async () =>
+      makeService({ id: 'svc-haircut', name: 'Haircut', businessId: 'biz-1' }),
+    ),
   };
   const publicBookingService = {
     getServiceDaySlots: jest.fn(async () => ({
@@ -201,7 +201,7 @@ describe('ai-switch-provider-same-time.logic (ai-cmd-customer-4.11.4)', () => {
     })),
   };
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    findOne: jest.fn(async () => makeBusiness({ id: 'biz-1', slug: 'salon' })),
   };
   const switchDeps = () => ({
     employeeRepo,

@@ -77,7 +77,8 @@ const MANUAL_GOLDEN_COMPOUND_PROMPTS: Record<string, string> = {
   customer_guest_pay_cash_manage:
     'Book as guest, pay at visit, email manage link',
   customer_guest_book_and_manage: 'Book as guest and email me the manage link',
-  customer_guest_manage_visit: 'Cancel my haircut, my email is john@example.com',
+  customer_guest_manage_visit:
+    'Cancel my haircut, my email is john@example.com',
   customer_physical_gift_card_handoff:
     'Buy physical gift card $100 and track my order',
   dashboard_clinic_order_notify:
@@ -184,7 +185,21 @@ export const COMPOUND_RESCUE_SCENARIOS = [
     prompt: 'Buy physical gift card $75',
     action: 'buy_gift_card',
     expectedAction: 'buy_gift_card_physical',
-    rescueReason: 'digital_to_physical_gift_card',
+    // e2e-bug.531 — two rescues answer this prompt with the **same action** via
+    // the **same predicate** (`isBuyGiftCardPhysicalPrompt`), differing only in
+    // the reason they record:
+    //   ai-gift-card-payments-hints  -> 'digital_to_physical_gift_card'
+    //   resolveBudgetMisrouteAction  -> 'buy_gift_card_physical'
+    // The budget path wins because '$75' is a price signal and that rescue runs
+    // first — deliberately, its gift-card ordering being curated across
+    // e2e-bug.130 / 124 / 80. So the outcome the customer gets is correct and
+    // was never in doubt; only the provenance label differs.
+    //
+    // Recording the reason that actually fires rather than reordering a curated
+    // chain for a diagnostic string. The more informative label is genuinely
+    // unreachable for this prompt, which is worth knowing but is not worth the
+    // blast radius of moving the budget rescue.
+    rescueReason: 'buy_gift_card_physical',
   },
 ] as const;
 

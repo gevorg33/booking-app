@@ -36,7 +36,6 @@ import {
   isCatalogCompoundPrompt,
   parseServiceLinesFromText,
   decomposeCatalogCompoundPrompt,
-  isCatalogCompoundPrompt,
   extractDiscountFromPrompt,
   extractPresetAmounts,
   extractExpiresAtFromPrompt,
@@ -157,9 +156,9 @@ describe('ai-catalog.util', () => {
         expect(extractDeactivateServiceNameFromPrompt(prompt)).toBe(
           serviceName,
         );
-        expect(rescueCatalogIntent(prompt, 'remove_service_from_cart')?.action).toBe(
-          'deactivate_service',
-        );
+        expect(
+          rescueCatalogIntent(prompt, 'remove_service_from_cart')?.action,
+        ).toBe('deactivate_service');
         expect(
           rescueCatalogIntent(prompt, 'unassign_employee_services')?.action,
         ).toBe('deactivate_service');
@@ -194,9 +193,7 @@ describe('ai-catalog.util', () => {
     it('e2e-bug.251 — catalog category named X is create_service_category', () => {
       const prompt = 'Add a new catalog category named QA Nails';
       expect(isCreateServiceCategoryPrompt(prompt)).toBe(true);
-      expect(
-        rescueCatalogIntent(prompt, 'import_services_from_menu'),
-      ).toEqual({
+      expect(rescueCatalogIntent(prompt, 'import_services_from_menu')).toEqual({
         action: 'create_service_category',
         rescueReason: 'service_category',
       });
@@ -785,5 +782,148 @@ describe('ai-catalog.util', () => {
         );
       },
     );
+  });
+});
+
+/**
+ * C3 / e2e-bug.360 — `catalog.list_subscription_plans`'s own documented example
+ * did not reach it. Two independent causes: the verb list was `list|show` and
+ * the example says *offer*, and the noun demanded a literal `plans` after
+ * `subscription` so the bare plural never matched.
+ *
+ * Chosen from the gap list because it was the only one with **no competitor** —
+ * measured, not assumed: `isListSubscriptionPlansPrompt` and
+ * `isDiscoverSubscriptionPlansPrompt` both returned false for it, so widening
+ * could not steal from anything. The two `catalog.list_packages` examples on the
+ * same list are already claimed by `isDiscoverPackagesPrompt` and were left
+ * alone for exactly that reason.
+ */
+describe('C3 — list_subscription_plans recognises its own documented example', () => {
+  it.each([
+    'what subscriptions do we offer',
+    'what memberships do we sell',
+    'list subscription plans',
+    'show subscription plans',
+    'show me our memberships',
+  ])('claims the catalogue question: %s', (prompt) => {
+    expect(isListSubscriptionPlansPrompt(prompt)).toBe(true);
+  });
+
+  it.each([
+    // The regression the first version of this fix caused. A possessive *name*
+    // is not covered by a pronoun list, and this belongs to
+    // `list_customer_subscriptions`. Caught by
+    // `ai-customer-crm.integration.spec.ts`, which is why it is pinned here.
+    ["List Anna's subscriptions", 'possessive name'],
+    ['List my subscriptions', 'possessive pronoun'],
+    ['show her memberships', 'possessive pronoun'],
+    ['list subscriptions for Anna', 'for <Name>'],
+    ['show the customer subscriptions', 'explicit customer scope'],
+  ])('leaves one person’s subscriptions alone (%s — %s)', (prompt) => {
+    expect(isListSubscriptionPlansPrompt(prompt)).toBe(false);
+  });
+});
+
+/**
+ * C3 / e2e-bug.360 — `catalog.deactivate_service`'s own example,
+ * `"stop offering hot stone massage"`, reached no verb set: the predicate knew
+ * `hide|deactivate|disable|remove|delete` and nothing else.
+ *
+ * **Both halves were needed.** `extractDeactivateServiceNameFromPrompt` had no
+ * pattern for this shape either, so widening only the predicate would have
+ * lowered the paraphrase ratchet while leaving the command unable to name the
+ * service it was asked to deactivate — D3's "routes correctly, produces no
+ * draft", and a metric moved without the defect being fixed.
+ */
+describe('C3 — deactivate_service understands "stop offering X"', () => {
+  it('claims the documented example and extracts the service', () => {
+    expect(isDeactivateServicePrompt('stop offering hot stone massage')).toBe(
+      true,
+    );
+    expect(
+      extractDeactivateServiceNameFromPrompt('stop offering hot stone massage'),
+    ).toBe('hot stone massage');
+  });
+
+  it.each([
+    // The steal this branch invites, and the one that actually happened. The
+    // `isConfigureServiceOnlinePaymentPrompt` guard at the top of the predicate
+    // recognises the *enable* phrasings and does NOT match this, so without an
+    // explicit exclusion the sentence deactivates a service called "online
+    // payment for haircut". Found by probing, not by reading the guard.
+    ['stop offering online payment for haircut', 'online payment'],
+    ['stop offering card payments', 'card payments'],
+    // Catalogue products with their own commands.
+    ['stop offering gift cards', 'gift cards'],
+    ['stop offering memberships', 'memberships'],
+  ])('does not claim %s (%s)', (prompt) => {
+    expect(isDeactivateServicePrompt(prompt)).toBe(false);
+  });
+
+  it('leaves the existing verb sets working', () => {
+    expect(isDeactivateServicePrompt('Hide balayage from public booking')).toBe(
+      true,
+    );
+    expect(
+      extractDeactivateServiceNameFromPrompt(
+        'delete the service called Balayage',
+      ),
+    ).toBe('Balayage');
+  });
+});
+
+/**
+ * C3 / e2e-bug.360 — `catalog.create_package`'s own example,
+ * `"bundle haircut and beard trim at 15% off"`, matched none of the detector's
+ * branches: every one demanded the literal word *package*.
+ *
+ * **The extractor had to move with it — and here that mattered more than for
+ * `deactivate_service`.** `extractPackageServiceNames` falls back to treating
+ * the whole prompt as the service list, so before this change the example
+ * yielded `["beard trim at"]`: *haircut* dropped entirely, the price clause
+ * glued onto the survivor. `create_package` **mutates**, so widening only the
+ * detector would have created a real package containing one garbage service —
+ * strictly worse than not routing at all.
+ */
+describe('C3 — create_package understands "bundle X and Y"', () => {
+  it('claims the documented example and extracts both services', () => {
+    expect(
+      isCreatePackagePrompt('bundle haircut and beard trim at 15% off'),
+    ).toBe(true);
+    expect(
+      extractPackageServiceNames('bundle haircut and beard trim at 15% off'),
+    ).toEqual(['haircut', 'beard trim']);
+  });
+
+  it.each([
+    // `bundle` must be used as a verb joining two things. A passing mention of
+    // the noun is not a create instruction.
+    ['this package is a bundle of services', 'noun, not a verb'],
+    ['bundle', 'bare verb, nothing to join'],
+  ])('does not claim %s (%s)', (prompt) => {
+    expect(isCreatePackagePrompt(prompt)).toBe(false);
+  });
+
+  it.each([
+    'please bundle haircut and beard trim at 15% off',
+    'can you bundle haircut and beard trim at 15% off',
+    'I want to bundle haircut and beard trim',
+  ])('survives politeness and question framing: %s', (prompt) => {
+    // The first version of this branch was anchored with `^\s*bundle`, so a
+    // politeness prefix broke it — four natural-phrasing breaks against a
+    // `NATURAL_BREAK_BASELINE` of 0, caught by the Phase 2 paraphrase gate and
+    // not by any test written here. Pinned so the anchor cannot come back.
+    expect(isCreatePackagePrompt(prompt)).toBe(true);
+  });
+
+  it('leaves the existing package phrasings and their parsing intact', () => {
+    expect(
+      extractPackageServiceNames(
+        'create a package called Groom combining haircut and beard trim',
+      ),
+    ).toEqual(['haircut', 'beard trim']);
+    expect(
+      extractPackageServiceNames('add a Spa package with massage and facial'),
+    ).toEqual(['massage', 'facial']);
   });
 });

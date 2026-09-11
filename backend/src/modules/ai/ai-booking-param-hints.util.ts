@@ -21,13 +21,12 @@ import { enrichRankSessionPickFromPrompt } from './ai-rank-session-pick.util.js'
 import { isFirstAvailableBookingPrompt } from './booking-first-available.semantic.util.js';
 import { isTeamWideProviderAvailabilityQuery } from './team-wide-availability.semantic.util.js';
 import { isAnyProviderBookingPrompt } from './any-provider-booking.semantic.util.js';
-import { isRecommendSpecialistsPrompt } from './recommend-specialists.semantic.util.js';
 import { extractServiceFromPrompt } from './ai-structural-extractors.js';
 import { normalizeAvailabilityServiceCategory } from './ai-flexible-availability.util.js';
 import { stripLeadingServiceRankAdjectives } from './ai-service-rank-discovery.util.js';
 import { findServiceLookupSynonymTokenInPrompt } from './ai-service-lookup-synonyms.util.js';
 
-export { isAnyProviderBookingPrompt, isRecommendSpecialistsPrompt };
+export { isAnyProviderBookingPrompt };
 
 const PUBLIC_ASSISTANT_SERVICE_ACTIONS = new Set([
   'check_availability',
@@ -50,6 +49,54 @@ function scrubPollutedServiceNameParams(
 }
 
 /** Current prompt service overrides stale session / classifier inheritance (public assistant). */
+// e2e-bug.525 — a clarify turn narrows a family; it does not browse it.
+//
+// The family-browse branch below exists so 'show me facials' lists the whole
+// family instead of pinning the first row, and to do that it clears serviceName.
+// But 'basic cut' is the *second* turn of a journey: the customer has already
+// seen 'Haircut basic' and 'Haircut standard' and is choosing between them.
+// 'cut' still matches all three catalog rows, so the browse branch fired and
+// threw away the one word that mattered.
+//
+// Word order is why the existing exact-name check misses it: the catalog row is
+// 'Haircut basic' and the prompt says 'basic cut', so the substring test fails
+// (and would fail for the natural 'basic haircut' too).
+//
+// Deliberately conservative — it narrows only when the leftover words pick out
+// EXACTLY ONE member of the family. 'show me facials' leaves no leftover word,
+// and 'cheapest haircut under $50' leaves words that match no row, so both keep
+// browsing exactly as before.
+const FAMILY_NARROWING_STOPWORDS = new Set([
+  'show', 'me', 'the', 'a', 'an', 'my', 'you', 'your', 'got', 'have', 'want',
+  'need', 'please', 'some', 'any', 'one', 'book', 'get', 'for', 'of', 'and',
+  'or', 'is', 'it', 'that', 'this', 'to', 'with', 'under', 'below', 'over',
+]);
+
+function narrowFamilyMatchByPromptDiscriminator(
+  prompt: string,
+  familyToken: string,
+  familyMatches: Array<{ id: string; name: string }>,
+): { id: string; name: string } | null {
+  const familyWords = new Set(familyToken.toLowerCase().split(/\s+/));
+  const leftover = prompt
+    .toLowerCase()
+    .split(/[^a-z0-9']+/)
+    .filter(
+      (word) =>
+        word.length >= 3 &&
+        !familyWords.has(word) &&
+        !FAMILY_NARROWING_STOPWORDS.has(word) &&
+        !/^\d+$/.test(word),
+    );
+  if (leftover.length === 0) return null;
+
+  const hits = familyMatches.filter((service) => {
+    const name = service.name.toLowerCase();
+    return leftover.every((word) => name.includes(word));
+  });
+  return hits.length === 1 ? hits[0]! : null;
+}
+
 export function applyPromptMentionedServiceOverrideToParams(
   prompt: string,
   params: Record<string, unknown>,
@@ -80,16 +127,49 @@ export function applyPromptMentionedServiceOverrideToParams(
     const familyMatchToken = synonymToken === 'cuts' ? 'cut' : synonymToken;
     const familyMatches = matchServicesByQuery(services, familyMatchToken);
     if (familyMatches.length > 1) {
+      // e2e-bug.525 — see above: prefer a discriminator over a browse.
+      const narrowed = narrowFamilyMatchByPromptDiscriminator(
+        prompt,
+        familyMatchToken,
+        familyMatches,
+      );
+      if (narrowed) {
+        const pinned: Record<string, unknown> = {
+          ...base,
+          serviceNames: null,
+          serviceName: narrowed.name,
+          serviceId: narrowed.id,
+          serviceCategory: null,
+        };
+        return pinned;
+      }
       const next: Record<string, unknown> = {
         ...base,
         serviceNames: null,
         serviceName: null,
-        serviceCategory: normalizeAvailabilityServiceCategory(
-          familyMatchToken,
-        ),
+        serviceCategory: normalizeAvailabilityServiceCategory(familyMatchToken),
       };
       delete next.serviceId;
-      delete next.serviceRank;
+      // e2e-bug.500 — keep an EXPLICIT price rank through family browse.
+      //
+      // This branch exists so "show me facials" browses the family instead of
+      // pinning one row, and it cleared `serviceRank` because e2e-bug.260 found
+      // discovery rank-extraction *inventing* a rank from words like "rated" /
+      // "specialists". But "cheapest haircut under $50" states its rank
+      // outright, and "haircut" is a synonym family with several catalog rows,
+      // so this branch fired and threw the real rank away — the customer asked
+      // for the cheapest and got unordered results.
+      //
+      // `lowest_price` / `highest_price` are only ever produced by explicit
+      // price wording, so they are exactly the ranks that must survive;
+      // anything else is the inferred kind e2e-bug.260 was about and is still
+      // dropped.
+      if (
+        base.serviceRank !== 'lowest_price' &&
+        base.serviceRank !== 'highest_price'
+      ) {
+        delete next.serviceRank;
+      }
       delete next.rankedServiceIds;
       return next;
     }

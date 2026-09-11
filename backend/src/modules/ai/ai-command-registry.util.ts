@@ -63,18 +63,6 @@ export function isIntentAllowedOnSurface(
   return Boolean(entry?.surfaces.includes(surface));
 }
 
-export function isIntentAllowedForTier(
-  intentId: string,
-  tier: AccessTier,
-  surface?: CommandSurface,
-): boolean {
-  const entry = getCommandEntry(intentId);
-  if (!entry) return false;
-  if (!entry.tiers.includes(tier)) return false;
-  if (surface && !entry.surfaces.includes(surface)) return false;
-  return true;
-}
-
 export function canAppearInCompound(intentId: string): boolean {
   return getCommandEntry(intentId)?.compoundStep ?? false;
 }

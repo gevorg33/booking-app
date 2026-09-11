@@ -28,11 +28,15 @@ describe('ServicePackagesService', () => {
   const bookingRepo = {
     createQueryBuilder: jest.fn(),
   };
+  // Open `settings`: tests below add `enabledLocales` / `defaultLocale`, which
+  // the type inferred from this one default would not admit.
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-1',
-      settings: { currency: 'AMD' },
-    })),
+    findOne: jest.fn(
+      async (): Promise<{ id: string; settings: Record<string, unknown> }> => ({
+        id: 'biz-1',
+        settings: { currency: 'AMD' },
+      }),
+    ),
   };
 
   const catalogAnnouncement = {

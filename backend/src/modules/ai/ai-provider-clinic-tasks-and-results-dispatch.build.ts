@@ -21,7 +21,10 @@ export function buildProviderClinicTasksAndResultsLogicDispatchMap(): ReadonlyMa
   string,
   ProviderClinicTasksAndResultsLogicDispatchHandler
 > {
-  const map = new Map<string, ProviderClinicTasksAndResultsLogicDispatchHandler>();
+  const map = new Map<
+    string,
+    ProviderClinicTasksAndResultsLogicDispatchHandler
+  >();
 
   map.set('list_booking_lab_summaries', async (deps, ctx) =>
     handleListBookingLabSummariesLogic(

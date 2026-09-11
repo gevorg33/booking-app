@@ -5,18 +5,20 @@ import {
   EXPLAIN_RTL_LAYOUT_RESCUE_SCENARIOS,
 } from './ai-explain-rtl-layout.fixtures.js';
 import { rescueExplainRtlLayoutIntent } from './ai-explain-rtl-layout.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain RTL layout integration (ai-cmd-customer-4.19.4)', () => {
   it.each(EXPLAIN_RTL_LAYOUT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'explain_rtl_layout',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_rtl_layout',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

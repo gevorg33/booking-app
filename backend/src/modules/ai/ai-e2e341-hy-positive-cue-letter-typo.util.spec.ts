@@ -20,13 +20,14 @@ describe('e2e-bug.341: POSITIVE_CUE Armenian "was helpful" letter typo (Ե → �
     },
   );
 
-  it.each(
-    E2E341_NEGATIVE_CONTROL_CASES.map((row) => [row.id, row] as const),
-  )('%s — sibling negative cue unaffected', (_id, row) => {
-    expect(isGiveAiFeedbackPrompt(row.prompt)).toBe(
-      row.expectIsFeedbackPrompt,
-    );
-    expect(parseGiveAiFeedbackRating(row.prompt)).toBe(row.expectRating);
-    expect(parseGiveAiFeedbackAspect(row.prompt)).toBe(row.expectAspect);
-  });
+  it.each(E2E341_NEGATIVE_CONTROL_CASES.map((row) => [row.id, row] as const))(
+    '%s — sibling negative cue unaffected',
+    (_id, row) => {
+      expect(isGiveAiFeedbackPrompt(row.prompt)).toBe(
+        row.expectIsFeedbackPrompt,
+      );
+      expect(parseGiveAiFeedbackRating(row.prompt)).toBe(row.expectRating);
+      expect(parseGiveAiFeedbackAspect(row.prompt)).toBe(row.expectAspect);
+    },
+  );
 });

@@ -2,10 +2,7 @@ import {
   PROVIDER_CHECK_IN_ELIGIBILITY_SCENARIOS,
   PROVIDER_FLOOR_STATUS_SCENARIOS,
 } from './provider-booking-check-in.fixtures.js';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   buildProviderCheckInEligibility,
   buildProviderCheckInPushMessage,
@@ -25,7 +22,10 @@ function mockClaimBookingRepo(booking: Record<string, unknown> | null) {
     },
   );
   const findOne = jest.fn(
-    async (entity: unknown, opts?: { lock?: { mode?: string }; relations?: unknown }) => {
+    async (
+      entity: unknown,
+      opts?: { lock?: { mode?: string }; relations?: unknown },
+    ) => {
       if (opts?.relations && booking) {
         return {
           ...booking,
@@ -145,10 +145,13 @@ describe('provider-booking-check-in.util (prov-exp-3.1)', () => {
     );
     // e2e-bug.184 residual — lock call must not request relations
     expect(findOne.mock.calls[0]?.[1]).not.toHaveProperty('relations');
-    expect(save).toHaveBeenCalledWith(Booking, expect.objectContaining({
-      id: 'bk-1',
-      checkedInAt: expect.any(Date),
-    }));
+    expect(save).toHaveBeenCalledWith(
+      Booking,
+      expect.objectContaining({
+        id: 'bk-1',
+        checkedInAt: expect.any(Date),
+      }),
+    );
   });
 
   it('claimProviderBookingCheckIn rejects when already checked in', async () => {

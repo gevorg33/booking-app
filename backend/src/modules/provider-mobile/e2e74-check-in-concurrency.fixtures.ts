@@ -22,11 +22,13 @@ export const E2E74_LOCK_SOURCE_RULES = [
 export const E2E74_LIVE_CASES = [
   {
     id: 'first-check-in-succeeds',
-    description: 'First POST .../check-in returns 201 with checkedInAt + floorStatus checked_in',
+    description:
+      'First POST .../check-in returns 201 with checkedInAt + floorStatus checked_in',
   },
   {
     id: 'sequential-second-rejected',
-    description: 'Second sequential check-in returns 400 Client is already checked in',
+    description:
+      'Second sequential check-in returns 400 Client is already checked in',
   },
   {
     id: 'concurrent-five-only-one-succeeds',

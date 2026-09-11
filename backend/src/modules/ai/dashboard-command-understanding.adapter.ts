@@ -65,7 +65,7 @@ export function buildDashboardClassifyCallbacks(
 export function buildDashboardUnderstandInput(
   deps: DashboardUnderstandDeps,
 ): PipelineUnderstandInput {
-  const { employees, customers } = deps.catalog;
+  const { employees, customers, locations } = deps.catalog;
   const confidenceThresholds = resolveConfidenceGateThresholds(
     deps.confidence,
     deps.sessionConfidenceHigh,
@@ -93,6 +93,9 @@ export function buildDashboardUnderstandInput(
       id: customer.id,
       name: customer.name,
     })),
+    // e2e-bug.460 — absent on catalogs that do not load them, in which case the
+    // staff rescue keeps its claim exactly as before.
+    locations: locations ?? [],
     sessionContext: deps.sessionContext,
     promptNorm: deps.promptNorm,
     resolveRoute: deps.resolveRoute,

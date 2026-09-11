@@ -156,6 +156,53 @@ export function isExplainPreparationNotesPrompt(prompt: string): boolean {
   return READ_CUE.test(prompt) && VISIT_BOOKING_CONTEXT.test(prompt);
 }
 
+/**
+ * e2e-bug.503 — the question's own words are not a service name.
+ *
+ * `extractServiceNameFromPrompt` is a shared extractor tuned for payment
+ * prompts ("pay for my Swedish massage"), where the text after the verb really
+ * is a catalog name. Preparation questions are phrased as questions, so it
+ * returns the interrogative span instead: 6 of the 11 fixture prompts for this
+ * intent produced one, including `"I need to fast"` from "Do I need to fast?",
+ * `"we meet for my appointment"`, and the bare word `"visit"`. The one prompt
+ * that does name a real service, "What should I bring to my City Tour
+ * appointment?", returns null.
+ *
+ * That value is not cosmetic: it reaches `resolveByName` in
+ * `resolveServiceForPreparationNotes`, where a needle no catalog entry contains
+ * turns a normal "here are your prep notes" into a service-not-found.
+ *
+ * Filtered here rather than in the shared extractor, whose other callers are
+ * payment and booking prompts that this intent's phrasing tells us nothing
+ * about — narrowing it for them would be a much larger change than this defect
+ * justifies. Same family as e2e-bug.101's "most expensive massage" pollution.
+ */
+function isQuestionTextNotServiceName(candidate: string): boolean {
+  const value = candidate.trim();
+  if (!value) return true;
+  // First/second-person spans are the asker talking about themselves, never a
+  // catalog entry: "I need to fast", "we meet for my appointment".
+  if (/\b(?:i|we|you|my|me)\b/i.test(value)) return true;
+  // A bare visit noun names the appointment, not what it is for. Left alone
+  // when qualified ("lab test", "blood draw"), which are real service words.
+  if (/^(?:visit|appointment|booking|tour|session|slot)$/i.test(value)) {
+    return true;
+  }
+  return false;
+}
+
+/** Service name from params, or from the prompt when it is actually a name. */
+function resolvePreparationNotesServiceName(
+  params: Record<string, unknown>,
+  prompt: string,
+): string | undefined {
+  const fromParams = params.serviceName as string | undefined;
+  if (fromParams) return fromParams;
+  const extracted = extractServiceNameFromPrompt(prompt);
+  if (!extracted || isQuestionTextNotServiceName(extracted)) return undefined;
+  return extracted;
+}
+
 export function enrichExplainPreparationNotesParamsFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
@@ -163,10 +210,7 @@ export function enrichExplainPreparationNotesParamsFromPrompt(
   const aspect =
     (params.aspect as PreparationNotesAspect | undefined) ??
     inferPreparationNotesAspect(prompt);
-  const serviceName =
-    (params.serviceName as string | undefined) ??
-    extractServiceNameFromPrompt(prompt) ??
-    undefined;
+  const serviceName = resolvePreparationNotesServiceName(params, prompt);
   return {
     ...params,
     aspect,
@@ -196,10 +240,7 @@ export function parseExplainPreparationNotesFromPrompt(
     (params.bookingId as string | undefined) ??
     (params.sessionBookingId as string | undefined);
 
-  const serviceName =
-    (params.serviceName as string | undefined) ??
-    extractServiceNameFromPrompt(prompt) ??
-    undefined;
+  const serviceName = resolvePreparationNotesServiceName(params, prompt);
 
   return {
     aspect: aspectFromParams ?? inferPreparationNotesAspect(prompt),

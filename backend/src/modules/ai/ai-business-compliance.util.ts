@@ -1753,7 +1753,11 @@ export function parseExplainEnterpriseTrustFromPrompt(
     return { aspect: params.aspect as 'settings' | 'documents' | 'security' };
   }
   if (!isExplainEnterpriseTrustPrompt(prompt)) return null;
-  if (/\b(dpa|data\s+processing\s+agreement|privacy\s+policy|documents?)\b/i.test(prompt)) {
+  if (
+    /\b(dpa|data\s+processing\s+agreement|privacy\s+policy|documents?)\b/i.test(
+      prompt,
+    )
+  ) {
     return { aspect: 'documents' };
   }
   if (/\bsecurity\s+one[- ]?pager\b/i.test(prompt)) {

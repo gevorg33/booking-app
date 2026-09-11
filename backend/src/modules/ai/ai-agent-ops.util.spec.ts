@@ -33,12 +33,12 @@ describe('ai-agent-ops.util (ai-cmd-dashboard-6.1)', () => {
 
   describe('isRebookAllFromAgentTaskPrompt', () => {
     it('matches rebook-all phrasing', () => {
-      expect(isRebookAllFromAgentTaskPrompt('rebook all from task abc123')).toBe(
-        true,
-      );
-      expect(isRebookAllFromAgentTaskPrompt('rebook everyone from this task')).toBe(
-        true,
-      );
+      expect(
+        isRebookAllFromAgentTaskPrompt('rebook all from task abc123'),
+      ).toBe(true);
+      expect(
+        isRebookAllFromAgentTaskPrompt('rebook everyone from this task'),
+      ).toBe(true);
     });
 
     it('does not match a single rebooking', () => {
@@ -66,9 +66,9 @@ describe('ai-agent-ops.util (ai-cmd-dashboard-6.1)', () => {
 
   describe('extractAgentTaskIdFromPrompt', () => {
     it('extracts a task id from prompt text', () => {
-      expect(
-        extractAgentTaskIdFromPrompt('preview task abc12345-def6'),
-      ).toBe('abc12345-def6');
+      expect(extractAgentTaskIdFromPrompt('preview task abc12345-def6')).toBe(
+        'abc12345-def6',
+      );
     });
 
     it('returns null when no id present', () => {
@@ -93,13 +93,16 @@ describe('ai-agent-ops.util (ai-cmd-dashboard-6.1)', () => {
     it('rescues undo-latest phrasing from unknown', () => {
       expect(
         rescueAgentOpsIntent('undo the last agent action', 'unknown'),
-      ).toEqual({ action: 'undo_latest_agent_task', rescueReason: 'undo_latest' });
+      ).toEqual({
+        action: 'undo_latest_agent_task',
+        rescueReason: 'undo_latest',
+      });
     });
 
     it('rescues list-tasks phrasing from unknown', () => {
-      expect(rescueAgentOpsIntent('show pending agent tasks', 'unknown')).toEqual(
-        { action: 'list_agent_tasks', rescueReason: 'list_tasks' },
-      );
+      expect(
+        rescueAgentOpsIntent('show pending agent tasks', 'unknown'),
+      ).toEqual({ action: 'list_agent_tasks', rescueReason: 'list_tasks' });
     });
 
     it('e2e-bug.152 — exact pending AI agent tasks phrasing', () => {
@@ -118,7 +121,9 @@ describe('ai-agent-ops.util (ai-cmd-dashboard-6.1)', () => {
     });
 
     it('returns null for unrelated prompts', () => {
-      expect(rescueAgentOpsIntent('cancel all appointments today', 'unknown')).toBeNull();
+      expect(
+        rescueAgentOpsIntent('cancel all appointments today', 'unknown'),
+      ).toBeNull();
     });
   });
 });

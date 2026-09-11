@@ -1,10 +1,7 @@
 /** prov-exp-3.1 — provider mobile client check-in. */
 
 import type { EntityManager, Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 
 export type ProviderBookingFloorStatus =
   | 'waiting'
@@ -160,7 +157,8 @@ export async function claimProviderBookingCheckIn(
       return {
         ok: false,
         code: 'not_allowed',
-        reason: eligibility.reason ?? 'Check-in is not allowed for this booking',
+        reason:
+          eligibility.reason ?? 'Check-in is not allowed for this booking',
       };
     }
 

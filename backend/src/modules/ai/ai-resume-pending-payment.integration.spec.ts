@@ -6,6 +6,7 @@ import {
   RESUME_PENDING_PAYMENT_HANDLER_FIXTURES,
 } from './ai-resume-pending-payment.fixtures.js';
 import { rescueResumePendingPaymentIntent } from './ai-resume-pending-payment.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai resume pending payment integration (ai-cmd-customer-4.2.3)', () => {
   const draftRepo = { findOne: jest.fn() };
@@ -30,15 +31,16 @@ describe('ai resume pending payment integration (ai-cmd-customer-4.2.3)', () => 
   });
 
   it.each(RESUME_PENDING_PAYMENT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'resume_pending_payment',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'resume_pending_payment',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

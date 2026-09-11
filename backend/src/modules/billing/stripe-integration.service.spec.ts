@@ -156,7 +156,8 @@ describe('StripeIntegrationService', () => {
       service = new StripeIntegrationService(
         businessRepo as never,
         stripeService as unknown as StripeService,
-      );
+      
+    undefined as never);
       await expect(
         service.createConnectOAuthLink('biz-1'),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -222,7 +223,8 @@ describe('StripeIntegrationService', () => {
       service = new StripeIntegrationService(
         businessRepo as never,
         stripeService as unknown as StripeService,
-      );
+      
+    undefined as never);
       await expect(
         service.completeConnectOAuth('biz-1', 'code'),
       ).rejects.toBeInstanceOf(BadRequestException);

@@ -43,15 +43,67 @@ function pickGuideCorpusMessages(full: MessageTree): MessageTree {
   };
 }
 
+// e2e-bug.526 — `guide.flows` is backend-owned and must survive the rebuild.
+//
+// This sync reconstructs the snapshot from the frontend catalogs alone
+// (`pickGuideCorpusMessages` takes only `guide` and `helpCenter`), but the
+// committed snapshot also carries a 924-line `guide.flows` subtree that the
+// frontend has **never** defined — `git log -S 'flows:'` on en.ts returns
+// nothing. It is read at runtime by `loadGuideCorpusSnapshot` and walked by
+// guide-flow-customer-public-i18n.util (the e2e-bug.46 full-corpus gate, 20
+// topicIds).
+//
+// So running the documented sync *deleted* live data, and the drift gate below
+// then demanded exactly that deletion — the gate was unsatisfiable without data
+// loss, which is why it sat in the known-failures manifest instead of being
+// regenerated. Re-attaching the backend-owned subtree makes both correct.
+//
+// Acknowledged trade-off: the gate cannot police `guide.flows`, because there is
+// no frontend source to compare it against. It still compares everything the
+// frontend does own, which is what it was built to catch.
+function readCommittedSnapshot():
+  | Record<GuideCorpusLocale, MessageTree>
+  | undefined {
+  if (!existsSync(SNAPSHOT_PATH)) return undefined;
+  return JSON.parse(readFileSync(SNAPSHOT_PATH, 'utf8')) as Record<
+    GuideCorpusLocale,
+    MessageTree
+  >;
+}
+
+function preserveBackendOwnedFlows(
+  committed: Record<GuideCorpusLocale, MessageTree> | undefined,
+  locale: GuideCorpusLocale,
+  tree: MessageTree,
+): MessageTree {
+  const flows = (committed?.[locale]?.guide as MessageTree | undefined)?.flows;
+  if (flows === undefined) return tree;
+  const guide = (tree.guide ?? {}) as MessageTree;
+  return { ...tree, guide: { ...guide, flows } };
+}
+
 function buildGuideCorpusI18nSnapshot(): Record<
   GuideCorpusLocale,
   MessageTree
 > {
   const enTree = en;
+  const committed = readCommittedSnapshot();
   return {
-    en: pickGuideCorpusMessages(enTree),
-    hy: pickGuideCorpusMessages(deepMergeMessages(enTree, hy)),
-    ru: pickGuideCorpusMessages(deepMergeMessages(enTree, ru)),
+    en: preserveBackendOwnedFlows(
+      committed,
+      'en',
+      pickGuideCorpusMessages(enTree),
+    ),
+    hy: preserveBackendOwnedFlows(
+      committed,
+      'hy',
+      pickGuideCorpusMessages(deepMergeMessages(enTree, hy)),
+    ),
+    ru: preserveBackendOwnedFlows(
+      committed,
+      'ru',
+      pickGuideCorpusMessages(deepMergeMessages(enTree, ru)),
+    ),
   };
 }
 

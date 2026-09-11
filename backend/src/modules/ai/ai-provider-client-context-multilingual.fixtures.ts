@@ -655,9 +655,7 @@ function buildProviderClientContextMultilingualScenarios(): ProviderClientContex
       i18n,
     );
   }
-  for (const [enScenarioId, i18n] of Object.entries(
-    PAYMENT_BREAKDOWN_I18N,
-  )) {
+  for (const [enScenarioId, i18n] of Object.entries(PAYMENT_BREAKDOWN_I18N)) {
     pushClientContextMultilingualRows(
       rows,
       enScenarioId,
@@ -665,9 +663,7 @@ function buildProviderClientContextMultilingualScenarios(): ProviderClientContex
       i18n,
     );
   }
-  for (const [enScenarioId, i18n] of Object.entries(
-    DEPOSIT_BALANCE_DUE_I18N,
-  )) {
+  for (const [enScenarioId, i18n] of Object.entries(DEPOSIT_BALANCE_DUE_I18N)) {
     pushClientContextMultilingualRows(
       rows,
       enScenarioId,

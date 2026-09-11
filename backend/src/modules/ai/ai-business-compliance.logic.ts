@@ -1,4 +1,4 @@
-import type { Repository } from 'typeorm';
+import type { EntityFinder, EntityReadWriter } from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { CustomerPrivacyService } from '../customer/customer-privacy.service.js';
@@ -69,15 +69,24 @@ import {
 } from './ai-data-rights.util.js';
 
 export interface BusinessComplianceLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
-  customerRepo: Pick<Repository<Customer>, 'find'>;
+  businessRepo: EntityReadWriter<Business>;
+  customerRepo: EntityFinder<Customer>;
   customerPrivacyService: Pick<CustomerPrivacyService, 'deleteCustomerData'>;
   complianceBreachService: Pick<
     ComplianceBreachService,
     'reportBreach' | 'listIncidents' | 'sendBreachNotification'
   >;
   phiAccessAuditService: Pick<PhiAccessAuditService, 'listForOwner'>;
-  businessService: Pick<BusinessService, 'ensureOwner'>;
+  /**
+   * Called only for its throwing side effect — all three call sites are a bare
+   * `await deps.businessService.ensureOwner(...)` and discard the result. Saying
+   * `Promise<unknown>` rather than `Pick<BusinessService, 'ensureOwner'>` states
+   * that, and stops the declaration from demanding a `BusinessMember` no caller
+   * reads. The real `BusinessService` still satisfies it.
+   */
+  businessService: {
+    ensureOwner(businessId: string, userId: string): Promise<unknown>;
+  };
   enterpriseTrustService: Pick<
     EnterpriseTrustService,
     'getSettings' | 'updateSettings' | 'renderDocuments' | 'getSecurityOnePager'
@@ -1422,10 +1431,7 @@ export async function handleExplainEnterpriseTrustLogic(
   }
 
   const effectivePrompt = String(prompt ?? params._prompt ?? '');
-  const parsed = parseExplainEnterpriseTrustFromPrompt(
-    effectivePrompt,
-    params,
-  );
+  const parsed = parseExplainEnterpriseTrustFromPrompt(effectivePrompt, params);
   if (!parsed) {
     return failure(
       'explain_enterprise_trust',
@@ -1437,9 +1443,8 @@ export async function handleExplainEnterpriseTrustLogic(
   const settings = await deps.enterpriseTrustService.getSettings(businessId);
 
   if (parsed.aspect === 'documents') {
-    const documents = await deps.enterpriseTrustService.renderDocuments(
-      businessId,
-    );
+    const documents =
+      await deps.enterpriseTrustService.renderDocuments(businessId);
     return success(
       'explain_enterprise_trust',
       `${documents.length} trust document(s) available: ${documents

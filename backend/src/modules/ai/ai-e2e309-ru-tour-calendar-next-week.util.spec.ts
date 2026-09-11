@@ -56,8 +56,11 @@ describe('e2e-bug.309 RU next/last week tour calendar list', () => {
           params: {},
           surface: 'dashboard',
         });
-        expect(result.action).toBe(row.expectedAction);
-        expect(result.action).not.toBe('list_upcoming_tour_departures');
+        // See the note in ai-e2e286: a declined rescue returns null, and the
+        // `not.toBe` below would pass vacuously if reached through `?.`.
+        expect(result).not.toBeNull();
+        expect(result!.action).toBe(row.expectedAction);
+        expect(result!.action).not.toBe('list_upcoming_tour_departures');
       },
     );
   });

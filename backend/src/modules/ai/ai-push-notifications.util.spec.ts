@@ -8,7 +8,7 @@ import {
   isOfflineQueueStatusPrompt,
   isRetryOfflineActionPrompt,
   isDismissPushPrompt,
-  isEndOfDaySummaryPrompt,
+  isEndOfDaySummaryPushPrompt,
   isNewBookingPushActionsPrompt,
   isConfigurePushRecipientsPrompt,
   isTestPushPrompt,
@@ -74,7 +74,7 @@ describe('ai-push-notifications.util', () => {
         true,
       );
       expect(isDismissPushPrompt('Dismiss this push alert')).toBe(true);
-      expect(isEndOfDaySummaryPrompt('Show end of day summary push')).toBe(
+      expect(isEndOfDaySummaryPushPrompt('Show end of day summary push')).toBe(
         true,
       );
       expect(
@@ -83,16 +83,16 @@ describe('ai-push-notifications.util', () => {
         ),
       ).toBe(true);
       expect(isSummarizeDayOnlyPrompt('Summarize my day today')).toBe(true);
-      expect(isEndOfDaySummaryPrompt('Summarize my day today')).toBe(false);
+      expect(isEndOfDaySummaryPushPrompt('Summarize my day today')).toBe(false);
     });
 
     it('detects mark_all/mark_booking/list_push_notifications prompts (ai-cmd-provider-6.8)', () => {
       expect(
         isMarkAllNotificationsReadPrompt('Mark all notifications as read'),
       ).toBe(true);
-      expect(
-        isMarkAllNotificationsReadPrompt('Mark everything as read'),
-      ).toBe(true);
+      expect(isMarkAllNotificationsReadPrompt('Mark everything as read')).toBe(
+        true,
+      );
       expect(isMarkAllNotificationsReadPrompt('Clear all notifications')).toBe(
         false,
       );
@@ -103,14 +103,10 @@ describe('ai-push-notifications.util', () => {
         ),
       ).toBe(true);
       expect(
-        isMarkBookingNotificationsReadPrompt(
-          'Mark all notifications as read',
-        ),
+        isMarkBookingNotificationsReadPrompt('Mark all notifications as read'),
       ).toBe(false);
 
-      expect(isListPushNotificationsPrompt('Show my notifications')).toBe(
-        true,
-      );
+      expect(isListPushNotificationsPrompt('Show my notifications')).toBe(true);
       expect(isListPushNotificationsPrompt('Open notification center')).toBe(
         true,
       );
@@ -526,7 +522,7 @@ describe('ai-push-notifications.util', () => {
         ),
       ).toBe(true);
       expect(
-        isEndOfDaySummaryPrompt('what does the end of day push mean'),
+        isEndOfDaySummaryPushPrompt('what does the end of day push mean'),
       ).toBe(true);
       expect(
         isNewBookingPushActionsPrompt('booking push buttons confirm'),
@@ -667,9 +663,7 @@ describe('ai-push-notifications.util', () => {
     });
 
     it('does not treat mark-as-read prompts as dismiss', () => {
-      expect(isDismissPushPrompt('Mark all notifications as read')).toBe(
-        false,
-      );
+      expect(isDismissPushPrompt('Mark all notifications as read')).toBe(false);
     });
   });
 
@@ -728,7 +722,10 @@ describe('ai-push-notifications.util', () => {
 
   describe('offline_queue_status (ai-cmd-provider-5.13.1)', () => {
     it.each(
-      PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_OFFLINE_QUEUE_STATUS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('detects and rescues %s', (_id, prompt) => {
       expect(isOfflineQueueStatusPrompt(prompt)).toBe(true);
       expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
@@ -740,7 +737,10 @@ describe('ai-push-notifications.util', () => {
 
   describe('retry_offline_action (ai-cmd-provider-5.13.2)', () => {
     it.each(
-      PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_RETRY_OFFLINE_ACTION_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('detects and rescues %s', (_id, prompt) => {
       expect(isRetryOfflineActionPrompt(prompt)).toBe(true);
       expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
@@ -752,7 +752,10 @@ describe('ai-push-notifications.util', () => {
 
   describe('explain_offline_mode — provider surface (ai-cmd-provider-5.13.3)', () => {
     it.each(
-      PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_EXPLAIN_OFFLINE_MODE_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('detects and rescues %s', (_id, prompt) => {
       expect(isProviderExplainOfflineModePrompt(prompt)).toBe(true);
       expect(rescuePushNotificationsIntent(prompt, 'unknown')).toMatchObject({
@@ -762,9 +765,9 @@ describe('ai-push-notifications.util', () => {
     });
 
     it('does not fire on bare "why offline" without provider-app context', () => {
-      expect(isProviderExplainOfflineModePrompt('Why does it say offline?')).toBe(
-        false,
-      );
+      expect(
+        isProviderExplainOfflineModePrompt('Why does it say offline?'),
+      ).toBe(false);
     });
 
     it('formats a provider offline-mode summary', () => {
@@ -838,32 +841,31 @@ describe('ai-push-notifications.util', () => {
   });
 
   describe('e2e-bug.159 — owner cancel alert vs customer notify', () => {
-    it.each([
-      ...E2E159_OWNER_CANCEL_ALERT_SCENARIOS,
-    ])('$id rescues to business email toggle', (row) => {
-      expect(isToggleBusinessEmailOnCustomerChangePrompt(row.prompt)).toBe(
-        true,
-      );
-      expect(
-        extractBusinessEmailOnCustomerChangeToggleFromPrompt(row.prompt),
-      ).toBe(row.enabled);
-      expect(
-        rescuePushNotificationsIntent(row.prompt, 'unknown')?.action,
-      ).toBe(row.expectedAction);
-      expect(
-        rescuePushNotificationsIntent(row.prompt, 'react_agent')?.action,
-      ).toBe(row.expectedAction);
-      const segment = classifyPushNotificationsSegment(row.prompt);
-      expect(segment?.action).toBe(row.expectedAction);
-      expect(segment?.params.enabled).toBe(row.enabled);
-    });
+    it.each([...E2E159_OWNER_CANCEL_ALERT_SCENARIOS])(
+      '$id rescues to business email toggle',
+      (row) => {
+        expect(isToggleBusinessEmailOnCustomerChangePrompt(row.prompt)).toBe(
+          true,
+        );
+        expect(
+          extractBusinessEmailOnCustomerChangeToggleFromPrompt(row.prompt),
+        ).toBe(row.enabled);
+        expect(
+          rescuePushNotificationsIntent(row.prompt, 'unknown')?.action,
+        ).toBe(row.expectedAction);
+        expect(
+          rescuePushNotificationsIntent(row.prompt, 'react_agent')?.action,
+        ).toBe(row.expectedAction);
+        const segment = classifyPushNotificationsSegment(row.prompt);
+        expect(segment?.action).toBe(row.expectedAction);
+        expect(segment?.params.enabled).toBe(row.enabled);
+      },
+    );
 
     it.each([...E2E159_CUSTOMER_OUTBOUND_NOTIFY_NEGATIVE])(
       'does not treat customer-outbound notify as owner alert: %s',
       (prompt) => {
-        expect(isToggleBusinessEmailOnCustomerChangePrompt(prompt)).toBe(
-          false,
-        );
+        expect(isToggleBusinessEmailOnCustomerChangePrompt(prompt)).toBe(false);
         expect(
           rescuePushNotificationsIntent(prompt, 'unknown')?.action,
         ).not.toBe('toggle_business_email_on_customer_change');

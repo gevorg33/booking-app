@@ -14,15 +14,16 @@ import {
   isAssignCategoryToProviderPrompt,
   resolveAssignEmployeeServicesInput,
 } from './ai-category-assignment.util.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
 
 describe('category assignment AI integration', () => {
   const rescue = new AiIntentRescueService();
   const employees = [
-    { id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s4'] },
-    { id: 'e2', name: 'Maria Lopez', serviceIds: [] },
-    { id: 'e3', name: 'Anna Smith', serviceIds: [] },
-    { id: 'e4', name: 'Mary Torgomyan', serviceIds: [] },
-    { id: 'e5', name: 'James', serviceIds: [] },
+    makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s4'] }),
+    makeEmployee({ id: 'e2', name: 'Maria Lopez', serviceIds: [] }),
+    makeEmployee({ id: 'e3', name: 'Anna Smith', serviceIds: [] }),
+    makeEmployee({ id: 'e4', name: 'Mary Torgomyan', serviceIds: [] }),
+    makeEmployee({ id: 'e5', name: 'James', serviceIds: [] }),
   ];
   const categoryNames = [
     'Color',

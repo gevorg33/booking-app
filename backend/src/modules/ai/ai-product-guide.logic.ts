@@ -198,11 +198,7 @@ function buildDeterministicFlowGuideResult(
     deterministic: true,
     playbookTopicId: best.topicId,
   };
-  return initializeGuideMultiTurnResult(
-    result,
-    input.session?.context,
-    locale,
-  );
+  return initializeGuideMultiTurnResult(result, input.session?.context, locale);
 }
 
 function resolveGuideMatch(
@@ -279,11 +275,7 @@ function buildDeterministicGuideResult(
     retrievalPath,
     deterministic: true,
   };
-  return initializeGuideMultiTurnResult(
-    result,
-    input.session?.context,
-    locale,
-  );
+  return initializeGuideMultiTurnResult(result, input.session?.context, locale);
 }
 
 /**
@@ -465,11 +457,7 @@ export async function handleProductGuideIntentLogicAsync(
     deterministic: false,
     llmPolished: true,
   };
-  return initializeGuideMultiTurnResult(
-    result,
-    input.session?.context,
-    locale,
-  );
+  return initializeGuideMultiTurnResult(result, input.session?.context, locale);
 }
 
 export function buildProductGuideLogicDeps(

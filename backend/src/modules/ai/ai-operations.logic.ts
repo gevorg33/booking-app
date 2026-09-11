@@ -1,4 +1,8 @@
 import { Between, In, Not, Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
@@ -49,9 +53,12 @@ import {
 } from './ai-operations-plan.util.js';
 
 export interface OperationsLogicDeps {
-  bookingRepo: Pick<Repository<Booking>, 'find'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  orchestration: Pick<CommandOrchestrationService, 'executePlan' | 'approveTask'>;
+  bookingRepo: EntityFinder<Booking>;
+  businessRepo: EntityReader<Business>;
+  orchestration: Pick<
+    CommandOrchestrationService,
+    'executePlan' | 'approveTask'
+  >;
   planBuilder: OperationalPlanBuilderService;
 }
 

@@ -422,12 +422,13 @@ describe('ai-schedule-resources.logic', () => {
         );
       expect(misclassifiedPartialCaseInsensitive.success).toBe(true);
 
-      const misclassifiedNoMatch = await handleSetServiceResourceRequirementsLogic(
-        buildDeps(),
-        'biz-1',
-        { serviceName: 'Massage', resourceIds: ['QA Massage Table'] },
-        services,
-      );
+      const misclassifiedNoMatch =
+        await handleSetServiceResourceRequirementsLogic(
+          buildDeps(),
+          'biz-1',
+          { serviceName: 'Massage', resourceIds: ['QA Massage Table'] },
+          services,
+        );
       expect(misclassifiedNoMatch.success).toBe(false);
       expect(misclassifiedNoMatch.summary).not.toMatch(/invalid input syntax/i);
       expect(misclassifiedNoMatch.summary).not.toMatch(/uuid/i);

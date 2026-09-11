@@ -53,13 +53,15 @@ describe('provider AI offline queue & app health (ai-cmd-provider-5.13)', () => 
       handleProviderExplainOfflineMode: jest.fn(async () => ({
         success: true,
         action: 'explain_offline_mode',
-        summary: 'The provider app shows offline when your device loses network connectivity.',
+        summary:
+          'The provider app shows offline when your device loses network connectivity.',
         details: { online: false, queuedCount: 0, providerOffline: true },
       })),
       handleProviderExplainAppUpdateGate: jest.fn(async () => ({
         success: true,
         action: 'explain_app_update_gate',
-        summary: 'The provider app checks your installed build against the platform minimum version.',
+        summary:
+          'The provider app checks your installed build against the platform minimum version.',
         details: { providerAppGate: true },
       })),
     };

@@ -7,6 +7,7 @@ import {
 import { PICK_PROVIDER_FOR_SERVICE_MULTILINGUAL_SCENARIOS } from './ai-pick-provider-for-service-multilingual.fixtures.js';
 import { handlePickProviderForServiceLogic } from './ai-pick-provider-for-service.logic.js';
 import { rescuePickProviderForServiceIntent } from './ai-pick-provider-for-service.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai pick provider for service integration (ai-cmd-customer-4.11.2)', () => {
   const employeeRepo = {
@@ -82,19 +83,20 @@ describe('ai pick provider for service integration (ai-cmd-customer-4.11.2)', ()
     );
     expect(directRescue?.action).toBe('pick_provider_for_service');
 
-    const validation = validateCommand({
-      action: 'pick_provider_for_service',
-      params: {
-        mode: row.mode,
-        ...(row.providerName ? { providerName: row.providerName } : {}),
-        ...(row.serviceName ? { serviceName: row.serviceName } : {}),
-      },
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt: row.prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'pick_provider_for_service',
+        params: {
+          mode: row.mode,
+          ...(row.providerName ? { providerName: row.providerName } : {}),
+          ...(row.serviceName ? { serviceName: row.serviceName } : {}),
+        },
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: row.prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handlePickProviderForServiceLogic(

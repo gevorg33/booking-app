@@ -1,4 +1,9 @@
 import { type Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReadWriter,
+  EntityWriter,
+} from './ai-logic-repo.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { ServiceCategory } from '../service/entities/service-category.entity.js';
@@ -30,10 +35,10 @@ import {
 } from './ai-business-languages.util.js';
 
 export interface BusinessLanguagesLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
-  serviceRepo?: Pick<Repository<Service>, 'find' | 'save'>;
-  categoryRepo?: Pick<Repository<ServiceCategory>, 'find' | 'save'>;
-  packageRepo?: Pick<Repository<ServicePackage>, 'find' | 'save'>;
+  businessRepo: EntityReadWriter<Business>;
+  serviceRepo?: EntityFinder<Service> & EntityWriter<Service>;
+  categoryRepo?: EntityFinder<ServiceCategory> & EntityWriter<ServiceCategory>;
+  packageRepo?: EntityFinder<ServicePackage> & EntityWriter<ServicePackage>;
 }
 
 interface DisabledLocaleTranslationStats {

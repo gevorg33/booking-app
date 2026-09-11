@@ -6,7 +6,6 @@ import {
   isMultilingualBookNearestPrompt,
   isMultilingualCheckProvidersPrompt,
   isMultilingualFindSoonestAppointmentPrompt,
-  isMultilingualFirstAvailableBookingPrompt,
   parseMultilingualTimeOfDayWindow,
   promptMentionsMultilingualTomorrow,
 } from './ai-check-and-book-multilingual.util.js';
@@ -51,12 +50,6 @@ describe('ai-check-and-book-multilingual.util', () => {
     )('detects flexible book phrasing: $id', ({ prompt }) => {
       expect(isMultilingualBookNearestPrompt(prompt)).toBe(true);
       expect(isBookNearestSlotPrompt(prompt)).toBe(true);
-      expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
-    });
-
-    it('detects ru OR + book verb as first-available (discover-ru-or-book-en)', () => {
-      const prompt = 'Стрижка завтра вечером или в субботу — забронируй';
-      expect(isMultilingualFirstAvailableBookingPrompt(prompt)).toBe(true);
       expect(isFirstAvailableBookingPrompt(prompt)).toBe(true);
     });
 

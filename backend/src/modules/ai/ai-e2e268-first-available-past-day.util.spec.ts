@@ -25,9 +25,7 @@ describe('e2e-bug.268 first-available never starts on past calendar days', () =>
         // otherwise subtract 30 days).
         const candidate = String(row.requestedDate);
         requested =
-          candidate < today
-            ? candidate
-            : addDaysToDateKey(today, -30, tz);
+          candidate < today ? candidate : addDaysToDateKey(today, -30, tz);
       } else if (row.kind === 'today') {
         requested = today;
       } else if (row.kind === 'future') {
@@ -77,9 +75,9 @@ describe('e2e-bug.268 first-available never starts on past calendar days', () =>
   it('resolveNearestBookableSlotStartDateKey clamps past params.date', () => {
     const today = getTodayDateKey(tz);
     const past = addDaysToDateKey(today, -40, tz);
-    expect(
-      resolveNearestBookableSlotStartDateKey({ date: past }, '', tz),
-    ).toBe(today);
+    expect(resolveNearestBookableSlotStartDateKey({ date: past }, '', tz)).toBe(
+      today,
+    );
   });
 
   it('resolveNearestBookableSlotStartDateKey tomorrow is ≥ today', () => {

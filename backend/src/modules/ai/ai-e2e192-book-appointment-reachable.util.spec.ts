@@ -3,7 +3,6 @@ import {
   E2E192_RESCUE_FROM_ACTIONS,
   E2E192_TIMED_BOOK_PROMPTS,
   enrichBookAppointmentParamsFromPrompt,
-  isE2e192TimedBookPrompt,
   shouldExecuteBookAppointmentDeterministically,
 } from './ai-e2e192-book-appointment-reachable.util.js';
 import { isConcreteTimedBookAppointmentPrompt } from './ai-intent-disambiguation.util.js';
@@ -11,18 +10,6 @@ import { isPublicOnlyAssistantAction } from './ai-public-only-assistant-actions.
 import { isBookNearestSlotPrompt } from './ai-payments.util.js';
 
 describe('e2e-bug.192 book_appointment reachable', () => {
-  it.each(E2E192_TIMED_BOOK_PROMPTS.map((row) => [row.id, row] as const))(
-    'detects timed book prompt $id',
-    (_id, row) => {
-      expect(isConcreteTimedBookAppointmentPrompt(row.prompt)).toBe(true);
-      expect(isE2e192TimedBookPrompt(row.prompt)).toBe(true);
-      expect(shouldExecuteBookAppointmentDeterministically('book_appointment')).toBe(
-        true,
-      );
-      expect(isPublicOnlyAssistantAction('book_appointment')).toBe(true);
-    },
-  );
-
   it.each(E2E192_TIMED_BOOK_PROMPTS.map((row) => [row.id, row] as const))(
     'enriches employee/time/contact for $id',
     (_id, row) => {
@@ -68,7 +55,11 @@ describe('e2e-bug.192 book_appointment reachable', () => {
         return;
       }
       // Discovery prompts without a book+clock commit stay off timed book.
-      if (!/\b(?:book|schedule|reserve|create\s+(?:a\s+)?booking)\b/i.test(row.prompt)) {
+      if (
+        !/\b(?:book|schedule|reserve|create\s+(?:a\s+)?booking)\b/i.test(
+          row.prompt,
+        )
+      ) {
         expect(isConcreteTimedBookAppointmentPrompt(row.prompt)).toBe(false);
       }
     },

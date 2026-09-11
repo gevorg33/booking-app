@@ -17,6 +17,8 @@ export interface ClassifierCatalog {
   services: Service[];
   customers: Customer[];
   templates: ScheduleTemplate[];
+  /** Location roster for staff-vs-location disambiguation (e2e-bug.460). */
+  locations?: Array<{ id: string; name: string }>;
 }
 
 export interface ComplexityRouteResolver {

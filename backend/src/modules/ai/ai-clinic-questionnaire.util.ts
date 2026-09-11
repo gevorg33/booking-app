@@ -36,7 +36,8 @@ export function resolveClinicQuestionnaireFromList<
   if (id) return questionnaires.find((entry) => entry.id === id);
 
   const name =
-    typeof params.questionnaireCode === 'string' && params.questionnaireCode.trim()
+    typeof params.questionnaireCode === 'string' &&
+    params.questionnaireCode.trim()
       ? params.questionnaireCode.trim()
       : typeof params.questionnaireName === 'string' &&
           params.questionnaireName.trim()
@@ -51,8 +52,6 @@ export function resolveClinicQuestionnaireFromList<
       (entry) => entry.internalName.toLowerCase() === needle,
     ) ??
     questionnaires.find((entry) => entry.title.toLowerCase() === needle) ??
-    questionnaires.find((entry) =>
-      entry.title.toLowerCase().includes(needle),
-    )
+    questionnaires.find((entry) => entry.title.toLowerCase().includes(needle))
   );
 }

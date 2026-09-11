@@ -90,6 +90,32 @@ export const EXPLAIN_PREPARATION_NOTES_PROMPTS: readonly ExplainPreparationNotes
       rescueReason: 'preparation_notes',
     },
     {
+      // The `meeting_point` aspect is declared by this intent and by
+      // `inferPreparationNotesAspect`, but until e2e-bug.503 no fixture on
+      // either surface exercised it — the aspect was reachable only through a
+      // caller passing `params.aspect` explicitly.
+      id: 'meeting-point-customer',
+      prompt: 'Where do we meet for my appointment?',
+      surface: 'customer',
+      expectedAction: 'explain_preparation_notes',
+      aspect: 'meeting_point',
+      rescueReason: 'preparation_notes',
+    },
+    {
+      // e2e-bug.503 — naming the service used to make the question stop being
+      // recognised: `hasTourExplainSurface` matches a bare `tour`, so this was
+      // claimed by `explain_tour_services` (a catalog intent) and the
+      // preparation parser, which treats that detector as a blocker, returned
+      // null. "What should I bring to my appointment?" worked; adding the
+      // service name broke it.
+      id: 'bring-named-service-customer',
+      prompt: 'What should I bring to my City Tour appointment?',
+      surface: 'customer',
+      expectedAction: 'explain_preparation_notes',
+      aspect: 'what_to_bring',
+      rescueReason: 'preparation_notes',
+    },
+    {
       id: 'need-to-fast-public',
       prompt: 'Do I need to fast?',
       surface: 'public',
@@ -159,6 +185,32 @@ export const EXPLAIN_PREPARATION_NOTES_PROMPTS: readonly ExplainPreparationNotes
       surface: 'public',
       expectedAction: 'explain_preparation_notes',
       aspect: 'preparation',
+      rescueReason: 'preparation_notes',
+    },
+    {
+      // The `meeting_point` aspect is declared by this intent and by
+      // `inferPreparationNotesAspect`, but until e2e-bug.503 no fixture on
+      // either surface exercised it — the aspect was reachable only through a
+      // caller passing `params.aspect` explicitly.
+      id: 'meeting-point-public',
+      prompt: 'Where do we meet for my appointment?',
+      surface: 'public',
+      expectedAction: 'explain_preparation_notes',
+      aspect: 'meeting_point',
+      rescueReason: 'preparation_notes',
+    },
+    {
+      // e2e-bug.503 — naming the service used to make the question stop being
+      // recognised: `hasTourExplainSurface` matches a bare `tour`, so this was
+      // claimed by `explain_tour_services` (a catalog intent) and the
+      // preparation parser, which treats that detector as a blocker, returned
+      // null. "What should I bring to my appointment?" worked; adding the
+      // service name broke it.
+      id: 'bring-named-service-public',
+      prompt: 'What should I bring to my City Tour appointment?',
+      surface: 'public',
+      expectedAction: 'explain_preparation_notes',
+      aspect: 'what_to_bring',
       rescueReason: 'preparation_notes',
     },
   ] as const;

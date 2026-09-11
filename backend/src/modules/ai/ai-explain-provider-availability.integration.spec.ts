@@ -7,6 +7,7 @@ import {
 import { EXPLAIN_PROVIDER_AVAILABILITY_MULTILINGUAL_SCENARIOS } from './ai-explain-provider-availability-multilingual.fixtures.js';
 import { wrapCheckAvailabilityAsExplainProviderAvailability } from './ai-explain-provider-availability.logic.js';
 import { rescueExplainProviderAvailabilityIntent } from './ai-explain-provider-availability.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain provider availability integration (ai-cmd-customer-4.11.3)', () => {
   let rescue: AiIntentRescueService;
@@ -34,15 +35,16 @@ describe('ai explain provider availability integration (ai-cmd-customer-4.11.3)'
       );
       expect(directRescue?.action).toBe('explain_provider_availability');
 
-      const validation = validateCommand({
-        action: 'explain_provider_availability',
-        params: { aspect },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_provider_availability',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const wrapped = wrapCheckAvailabilityAsExplainProviderAvailability(

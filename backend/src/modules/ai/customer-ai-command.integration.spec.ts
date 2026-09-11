@@ -107,21 +107,29 @@ function createCustomerIntegrationHarness(
         if (prop === 'isPushNotificationsCompound') return () => false;
         if (prop === 'isFulfillmentCompound') return () => false;
         if (prop === 'dispatchIntent') {
-          const mock = jest.fn(async ({ action, params }: { action: string; params?: Record<string, unknown> }) => ({
-            success: true,
-            action,
-            summary: `${action} ok`,
-            details: {
-              bookingId: 'bk-1',
-              packageId: params?.packageId ?? 'pkg-1',
-              manageUrl: 'https://example.com/manage/bk-1',
-              sessionContext: {
-                serviceName: 'Spa Day',
-                serviceCategory: params?.serviceCategory,
-                availabilityWindows: params?.availabilityWindows,
+          const mock = jest.fn(
+            async ({
+              action,
+              params,
+            }: {
+              action: string;
+              params?: Record<string, unknown>;
+            }) => ({
+              success: true,
+              action,
+              summary: `${action} ok`,
+              details: {
+                bookingId: 'bk-1',
+                packageId: params?.packageId ?? 'pkg-1',
+                manageUrl: 'https://example.com/manage/bk-1',
+                sessionContext: {
+                  serviceName: 'Spa Day',
+                  serviceCategory: params?.serviceCategory,
+                  availabilityWindows: params?.availabilityWindows,
+                },
               },
-            },
-          }));
+            }),
+          );
           handlerMocks.set(prop, mock);
           return mock;
         }
@@ -329,7 +337,6 @@ describe('customer-ai-command integration (ai-cmd-0.5)', () => {
       action: 'discover_packages',
       params: {},
       reasoning: 'browse packages',
-      confidence: 0.88,
     });
     const result = await service.executeCommand(
       'biz-1',

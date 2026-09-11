@@ -1,3 +1,5 @@
+import { isConfigureBusinessLanguagesPrompt } from './ai-business-languages.util.js';
+import { isConfigurePackageLocalizedNamesPrompt } from './ai-package-localized-names.util.js';
 export const MY_LOCALE_INTENTS = ['get_my_locale', 'update_my_locale'] as const;
 
 export type MyLocaleIntent = (typeof MY_LOCALE_INTENTS)[number];
@@ -52,11 +54,20 @@ export function isUpdateMyLocalePrompt(prompt: string): boolean {
   const text = prompt.trim();
   if (!text) return false;
   if (!LANGUAGE_SURFACE.test(text)) return false;
+  // e2e-bug.437 — this is the *personal* locale command, and it had no sibling
+  // declines at all: a language word plus a change verb was enough. So the two
+  // admin locale operations, which necessarily contain both, were answered by
+  // changing the asking user's own account language instead:
+  //
+  //   "Switch default locale to Russian"        → the business default
+  //   "Update English display name for … package" → a package's localised name
+  //
+  // Same omission as e2e-bug.431/436. Both siblings fire only on their own
+  // prompts, so declining them cannot cost this detector anything.
+  if (isConfigureBusinessLanguagesPrompt(text)) return false;
+  if (isConfigurePackageLocalizedNamesPrompt(text)) return false;
   // "what/which language is my account set to?" is get, not update.
-  if (
-    /\b(what|which)\b/i.test(text) &&
-    /\b(set\s+to|setting)\b/i.test(text)
-  ) {
+  if (/\b(what|which)\b/i.test(text) && /\b(set\s+to|setting)\b/i.test(text)) {
     return false;
   }
   return (

@@ -246,10 +246,7 @@ describe('ProviderMobileService check-in (prov-exp-3.1)', () => {
       await acquire();
       try {
         return await cb({
-          findOne: async (
-            _entity: unknown,
-            opts?: { relations?: unknown },
-          ) => {
+          findOne: async (_entity: unknown, opts?: { relations?: unknown }) => {
             if (opts?.relations) {
               return { ...bookingRecord, checkedInAt };
             }

@@ -204,10 +204,7 @@ export class AiSelfServiceBookingService {
     return handleUseSubscriptionCreditLogic(this.deps, businessId, params);
   }
 
-  handleCancelMySubscription(
-    businessId: string,
-    params: Record<string, any>,
-  ) {
+  handleCancelMySubscription(businessId: string, params: Record<string, any>) {
     return handleCancelMySubscriptionLogic(this.deps, businessId, params);
   }
 

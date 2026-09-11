@@ -4,7 +4,15 @@ import { ServiceService } from './service.service.js';
 import { createPublicBookingServiceHarness } from '../public-booking/public-booking-test.harness.js';
 
 describe('Service localized names integration', () => {
-  const business = {
+  // Open `settings`: tests below reassign it with `enabledLocales` /
+  // `defaultLocale`, which the inferred literal type would not admit.
+  const business: {
+    id: string;
+    slug: string;
+    isActive: boolean;
+    timezone: string;
+    settings: Record<string, unknown>;
+  } = {
     id: 'biz-1',
     slug: 'salon',
     isActive: true,
@@ -94,7 +102,8 @@ describe('Service localized names integration', () => {
     businessRepo as any,
     { publish: jest.fn() } as any,
     stripeIntegrationService as any,
-  );
+  
+    undefined as never);
 
   const publicBookingService = createPublicBookingServiceHarness({
     businessService: businessService,

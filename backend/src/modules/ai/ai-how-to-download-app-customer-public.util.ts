@@ -28,9 +28,3 @@ export function detectHowToDownloadAppCustomerPublicAction(
     null
   );
 }
-
-export function isHowToDownloadAppCustomerPublicPrompt(
-  prompt: string,
-): boolean {
-  return isHowToDownloadAppPrompt(prompt);
-}

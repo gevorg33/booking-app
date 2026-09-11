@@ -135,8 +135,7 @@ export async function handleCancelBookingWithTokenLogic(
 ): Promise<CommandResult> {
   const effectivePrompt = prompt || String(params._prompt ?? '');
   const slug = await resolveBusinessSlug(deps, businessId);
-  if (!slug)
-    return failure('cancel_booking_with_token', 'Business not found.');
+  if (!slug) return failure('cancel_booking_with_token', 'Business not found.');
 
   const creds = requireCredentials(
     'cancel_booking_with_token',
@@ -146,11 +145,12 @@ export async function handleCancelBookingWithTokenLogic(
   if ('success' in creds) return creds;
 
   try {
-    const { booking } = await deps.publicCustomerBookingService.cancelBookingWithToken(
-      slug,
-      creds.bookingId,
-      creds.manageToken,
-    );
+    const { booking } =
+      await deps.publicCustomerBookingService.cancelBookingWithToken(
+        slug,
+        creds.bookingId,
+        creds.manageToken,
+      );
     return success(
       'cancel_booking_with_token',
       `Cancelled your ${booking.service?.name ?? 'appointment'} — you're all set.`,
@@ -207,15 +207,16 @@ export async function handleRescheduleBookingWithTokenLogic(
   }
 
   try {
-    const { booking } = await deps.publicCustomerBookingService.rescheduleBookingWithToken(
-      slug,
-      creds.bookingId,
-      creds.manageToken,
-      {
-        startTime,
-        employeeId: enriched.employeeId as string | undefined,
-      },
-    );
+    const { booking } =
+      await deps.publicCustomerBookingService.rescheduleBookingWithToken(
+        slug,
+        creds.bookingId,
+        creds.manageToken,
+        {
+          startTime,
+          employeeId: enriched.employeeId as string | undefined,
+        },
+      );
     return success(
       'reschedule_booking_with_token',
       `Moved your ${booking.service?.name ?? 'appointment'} — you're all set.`,

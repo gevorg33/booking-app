@@ -93,7 +93,10 @@ describe('ai-confirm-my-booking-details.logic (ai-cmd-customer-4.3.1)', () => {
       const result = await handleConfirmMyBookingDetailsLogic(
         deps,
         'biz-1',
-        { bookingId: 'book-1', manageToken: '00000000-0000-0000-0000-000000000000' },
+        {
+          bookingId: 'book-1',
+          manageToken: '00000000-0000-0000-0000-000000000000',
+        },
         'what is this booking',
       );
       expect(result.success).toBe(false);

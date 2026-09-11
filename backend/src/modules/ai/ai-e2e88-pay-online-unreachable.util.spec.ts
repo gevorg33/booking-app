@@ -35,9 +35,9 @@ describe('e2e-bug.88 pay_online must not be stolen by booking-read rescues', () 
   );
 
   it('normal booking-detail reads still match confirm_my_booking_details', () => {
-    expect(isConfirmMyBookingDetailsPrompt('What time is my appointment?')).toBe(
-      true,
-    );
+    expect(
+      isConfirmMyBookingDetailsPrompt('What time is my appointment?'),
+    ).toBe(true);
     expect(
       isListMyUpcomingAppointmentsPrompt('Show my upcoming appointments'),
     ).toBe(true);

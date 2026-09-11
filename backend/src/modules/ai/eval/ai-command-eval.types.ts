@@ -240,6 +240,20 @@ export interface AiCommandEvalCase {
   expect: AiCommandEvalExpectation;
   /** When true, case is documented for live LLM eval only (skipped in CI) */
   requiresLlm?: boolean;
+  /**
+   * The roster this case presupposes — e2e-bug.470.
+   *
+   * Defaults to the runner's `SAMPLE_EMPLOYEES` (three people). That default is
+   * fine for the overwhelming majority of cases, which never mention a
+   * colleague by name, but it silently caps anything that resolves a *name*
+   * against real data: §188 measured a roster-aware routing rule as "16 of 33
+   * `update_employee` cases fail", when the real cause was that those cases name
+   * people the fixed roster has never heard of. A rule cannot be scored against
+   * a corpus that cannot express its inputs.
+   *
+   * Set it when the case's meaning depends on who exists — or on who does not.
+   */
+  employees?: Array<{ id: string; name: string }>;
 }
 
 export interface AiEvalCaseResult {

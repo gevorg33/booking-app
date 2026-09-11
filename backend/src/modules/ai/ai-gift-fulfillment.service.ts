@@ -152,7 +152,10 @@ export class AiGiftFulfillmentService {
     return handleExtendCancelWindowLogic(this.deps, businessId, params, prompt);
   }
 
-  handleUpdateGiftCardSettings(businessId: string, params: Record<string, any>) {
+  handleUpdateGiftCardSettings(
+    businessId: string,
+    params: Record<string, any>,
+  ) {
     return handleUpdateGiftCardSettingsLogic(this.deps, businessId, params);
   }
 

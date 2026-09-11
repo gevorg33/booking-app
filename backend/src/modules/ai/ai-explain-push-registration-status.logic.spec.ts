@@ -28,11 +28,9 @@ describe('handleExplainPushRegistrationStatusLogic', () => {
     expect(result.success).toBe(true);
     expect(result.action).toBe('explain_push_registration_status');
     expect(result.summary).toContain('on');
-    expect(deps.consumerPushTokenService.getNativePushStatus).toHaveBeenCalledWith(
-      'cust-1',
-      'biz-1',
-      'ios',
-    );
+    expect(
+      deps.consumerPushTokenService.getNativePushStatus,
+    ).toHaveBeenCalledWith('cust-1', 'biz-1', 'ios');
   });
 
   it('reports unregistered status', async () => {

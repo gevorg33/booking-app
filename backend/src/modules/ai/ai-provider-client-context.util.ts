@@ -87,7 +87,7 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
         prompt,
       )) ||
     (containsCyrillicScript(prompt) &&
-      /(кратко|расскаж|об этом клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
+      /(кратко|расскаж|обзор|об этом клиент|что мне нужно знать|снимок\s+клиент|сколько\s+раз)/i.test(
         prompt,
       )) ||
     /\bhow many times has [A-Z]/i.test(prompt);
@@ -105,10 +105,25 @@ export function isSummarizeClientPrompt(prompt: string): boolean {
     (containsCyrillicScript(prompt) &&
       /(клиент|лояльн|визит|referral|no-show)/i.test(prompt));
 
-  const marketingSnapshot =
+  // acc-2.4 / §225 — both halves must accept non-Latin scripts.
+  //
+  // The subject words (marketing, referral, loyalty, no-show) are borrowed
+  // verbatim into hy and ru, so the first half already matched — but the second
+  // half only knew the English words for "client", so
+  // «Этот клиент согласен на marketing email?» and
+  // «Այս հաճախորդին referral-ով եկե՞լ է մեկը» failed on the half that was
+  // already spelled out in `clientCue` a few lines above. Reusing that instead
+  // of a second, narrower copy is what keeps the two from drifting again.
+  const marketingSubject =
     /\b(marketing|opted in|opt in|referral|loyalty|no[\s-]?shows?)\b/i.test(
       lower,
-    ) && /\b(client|customer|this customer|guest)\b/i.test(lower);
+    ) ||
+    (containsArmenianScript(prompt) &&
+      /(լոյալ|referral|marketing)/i.test(prompt)) ||
+    (containsCyrillicScript(prompt) &&
+      /(лояльн|referral|marketing|no-show)/i.test(prompt));
+
+  const marketingSnapshot = marketingSubject && clientCue;
 
   if (
     marketingSnapshot &&
@@ -193,7 +208,9 @@ export function isListClientStaffNotesPrompt(prompt: string): boolean {
         prompt,
       )) ||
     (containsCyrillicScript(prompt) &&
-      /(\u043f\u043e\u043a\u0430\u0436\u0438.*\u0437\u0430\u043c\u0435\u0442\u043a|\u043a\u0430\u043a\u0438\u0435\s+\u0437\u0430\u043c\u0435\u0442\u043a|\u0437\u0430\u043c\u0435\u0442\u043a\u0438\s+\u043e)/i.test(prompt))
+      /(\u043f\u043e\u043a\u0430\u0436\u0438.*\u0437\u0430\u043c\u0435\u0442\u043a|\u043a\u0430\u043a\u0438\u0435\s+\u0437\u0430\u043c\u0435\u0442\u043a|\u0437\u0430\u043c\u0435\u0442\u043a\u0438\s+\u043e)/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -212,9 +229,14 @@ export function isExplainClientIntakePrompt(prompt: string): boolean {
     /\b(intake|pre-?visit (?:form|questionnaire|answers)|questionnaire)\b/i.test(
       lower,
     ) ||
-    (containsArmenianScript(prompt) && /(\u0570\u0561\u0580\u0581\u0561\u0577\u0561\u0580|intake)/i.test(prompt)) ||
+    (containsArmenianScript(prompt) &&
+      /(\u0570\u0561\u0580\u0581\u0561\u0577\u0561\u0580|intake)/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
-      /(\u0430\u043d\u043a\u0435\u0442|\u043e\u043f\u0440\u043e\u0441\u043d\u0438\u043a|intake)/i.test(prompt));
+      /(\u0430\u043d\u043a\u0435\u0442|\u043e\u043f\u0440\u043e\u0441\u043d\u0438\u043a|intake)/i.test(
+        prompt,
+      ));
   if (!intakeCue) return false;
 
   return (
@@ -222,9 +244,13 @@ export function isExplainClientIntakePrompt(prompt: string): boolean {
       lower,
     ) ||
     (containsArmenianScript(prompt) &&
-      /(\u056b\u0576\u0579|\u0581\u0578\u0582\u0575\u0581\s+\u057f\u0578\u0582\u0580|\u0562\u0561\u0581\u0561\u057f\u0580\u056b\u0580|\u057a\u0561\u057f\u0561\u057d\u056d\u0561\u0576)/i.test(prompt)) ||
+      /(\u056b\u0576\u0579|\u0581\u0578\u0582\u0575\u0581\s+\u057f\u0578\u0582\u0580|\u0562\u0561\u0581\u0561\u057f\u0580\u056b\u0580|\u057a\u0561\u057f\u0561\u057d\u056d\u0561\u0576)/i.test(
+        prompt,
+      )) ||
     (containsCyrillicScript(prompt) &&
-      /(\u0447\u0442\u043e|\u043f\u043e\u043a\u0430\u0436\u0438|\u043e\u0431\u044a\u044f\u0441\u043d\u0438|\u043e\u0442\u0432\u0435\u0442)/i.test(prompt))
+      /(\u0447\u0442\u043e|\u043f\u043e\u043a\u0430\u0436\u0438|\u043e\u0431\u044a\u044f\u0441\u043d\u0438|\u043e\u0442\u0432\u0435\u0442)/i.test(
+        prompt,
+      ))
   );
 }
 
@@ -293,7 +319,9 @@ export function isExplainMultiServiceTimelinePrompt(prompt: string): boolean {
 }
 
 /** ai-cmd-provider-5.3.3 — full payment breakdown (discounts/deposit/retail/total), not just tax lines or paid/pending status. */
-export function isExplainBookingPaymentBreakdownPrompt(prompt: string): boolean {
+export function isExplainBookingPaymentBreakdownPrompt(
+  prompt: string,
+): boolean {
   const lower = prompt.toLowerCase();
   if (/\b(tax|vat|gst|pst|hst|inclusive|exclusive)\b/i.test(lower)) {
     return false;
@@ -302,9 +330,7 @@ export function isExplainBookingPaymentBreakdownPrompt(prompt: string): boolean 
   // X% deposit") owns "deposit" + "booking" co-occurrence — not a breakdown query.
   if (
     /\bonline\s+payment\b/i.test(lower) ||
-    /\b(accept|enable|require|decline|disable|turn\s+(?:on|off))\b/i.test(
-      lower,
-    )
+    /\b(accept|enable|require|decline|disable|turn\s+(?:on|off))\b/i.test(lower)
   ) {
     return false;
   }
@@ -336,23 +362,15 @@ export function isExplainBookingPaymentBreakdownPrompt(prompt: string): boolean 
 
   if (
     containsArmenianScript(prompt) &&
-    /(մանրամասն|վերլուծ|բաժան)/i.test(
-      prompt,
-    ) &&
-    /(վճար|գին)/i.test(
-      prompt,
-    )
+    /(մանրամասն|վերլուծ|բաժան)/i.test(prompt) &&
+    /(վճար|գին)/i.test(prompt)
   ) {
     return true;
   }
   if (
     containsCyrillicScript(prompt) &&
-    /(разбивк|разбей|детализ)/i.test(
-      prompt,
-    ) &&
-    /(оплат|плат|цен)/i.test(
-      prompt,
-    )
+    /(разбивк|разбей|детализ)/i.test(prompt) &&
+    /(оплат|плат|цен)/i.test(prompt)
   ) {
     return true;
   }
@@ -368,9 +386,7 @@ export function isExplainDepositBalanceDuePrompt(prompt: string): boolean {
   }
   if (
     /\bonline\s+payment\b/i.test(lower) ||
-    /\b(accept|enable|require|decline|disable|turn\s+(?:on|off))\b/i.test(
-      lower,
-    )
+    /\b(accept|enable|require|decline|disable|turn\s+(?:on|off))\b/i.test(lower)
   ) {
     return false;
   }
@@ -536,8 +552,11 @@ export function isExplainCancelPolicyForClientPrompt(prompt: string): boolean {
 
   const loseKeepCue = /\b(?:lose|forfeit|keep|refund(?:able)?)\b/i;
   if (
-    (/\bdeposit\b/i.test(lower) &&
-      new RegExp(`${loseKeepCue.source}.*\\bdeposit\\b|\\bdeposit\\b.*${loseKeepCue.source}`, 'i').test(lower)) &&
+    /\bdeposit\b/i.test(lower) &&
+    new RegExp(
+      `${loseKeepCue.source}.*\\bdeposit\\b|\\bdeposit\\b.*${loseKeepCue.source}`,
+      'i',
+    ).test(lower) &&
     /\bcancel/i.test(lower)
   ) {
     return true;
@@ -1008,7 +1027,9 @@ export function formatProviderDepositBalanceDueText(
   }
 
   const collectedNote =
-    summary.cashPaid > 0 ? ` (${money(summary.cashPaid)} already collected)` : '';
+    summary.cashPaid > 0
+      ? ` (${money(summary.cashPaid)} already collected)`
+      : '';
   return `${customerName} owes ${money(remaining)} of ${money(summary.grandTotal)}${collectedNote}.`;
 }
 

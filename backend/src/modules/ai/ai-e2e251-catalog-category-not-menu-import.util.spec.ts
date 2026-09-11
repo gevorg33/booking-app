@@ -29,9 +29,7 @@ describe('e2e-bug.251 catalog category ≠ import_services_from_menu', () => {
       action: 'create_service_category',
       rescueReason: 'service_category',
     });
-    expect(
-      rescueOperationsIntent(row.prompt, 'unknown', {}),
-    ).toBeNull();
+    expect(rescueOperationsIntent(row.prompt, 'unknown', {})).toBeNull();
 
     if (row.categoryName) {
       const params: Record<string, unknown> = {};
@@ -41,7 +39,10 @@ describe('e2e-bug.251 catalog category ≠ import_services_from_menu', () => {
         row.prompt,
       );
       expect(String(params.categoryName)).toMatch(
-        new RegExp(row.categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+        new RegExp(
+          row.categoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          'i',
+        ),
       );
     }
   });
@@ -51,9 +52,9 @@ describe('e2e-bug.251 catalog category ≠ import_services_from_menu', () => {
     (_id, row) => {
       expect(isImportServicesFromMenuPrompt(row.prompt)).toBe(true);
       expect(isCreateServiceCategoryPrompt(row.prompt)).toBe(false);
-      expect(
-        rescueOperationsIntent(row.prompt, 'unknown', {})?.action,
-      ).toBe('import_services_from_menu');
+      expect(rescueOperationsIntent(row.prompt, 'unknown', {})?.action).toBe(
+        'import_services_from_menu',
+      );
     },
   );
 });

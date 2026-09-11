@@ -4,6 +4,7 @@ import {
   E2E78_NON_CONFIRM,
   E2E78_PREVIEW_SUMMARY,
 } from './ai-e2e78-cancel-all-confirm.fixtures.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   enrichCancelAllUpcomingConfirmFromPrompt,
   isCancelAllUpcomingAffirmativePrompt,
@@ -58,7 +59,9 @@ describe('e2e-bug.78 cancel_all_upcoming_bookings confirm turn', () => {
       ),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     },
   });
 

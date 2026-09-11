@@ -14,9 +14,7 @@ describe('ai-provider-mark-visit-complete.util', () => {
   it('does not misdetect mark_paid (payment status, not visit status)', () => {
     expect(isMarkVisitCompletePrompt('Mark payment as paid')).toBe(false);
     expect(isMarkVisitCompletePrompt('Payment done')).toBe(false);
-    expect(isMarkVisitCompletePrompt("Mark Sam's payment as paid")).toBe(
-      false,
-    );
+    expect(isMarkVisitCompletePrompt("Mark Sam's payment as paid")).toBe(false);
   });
 
   it('does not misdetect other update_bookings statuses', () => {

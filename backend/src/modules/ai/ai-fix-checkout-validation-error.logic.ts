@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import { readBusinessPrivacySettings } from '../../common/utils/business-compliance.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -10,7 +13,7 @@ import {
 } from './ai-fix-checkout-validation-error.util.js';
 
 export interface FixCheckoutValidationErrorLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 const TROUBLESHOOTING: Record<

@@ -115,22 +115,65 @@ export function isUpdateMyProfileIntent(
   return (UPDATE_MY_PROFILE_INTENTS as readonly string[]).includes(action);
 }
 
+/** e2e-bug.441 — a supplied value, trimmed, or undefined. */
+function readProfileParam(
+  params: Record<string, unknown>,
+  key: 'name' | 'phone' | 'email',
+): string | undefined {
+  const raw = params[key];
+  return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
+}
+
+/**
+ * e2e-bug.441 — `params` was not read at all, so a caller that stated the new
+ * name or phone had it silently dropped and only what the regexes found in the
+ * message was ever saved.
+ *
+ * Two rules, both matching `parseConfigureOpenaiIntegrationFromPrompt` and
+ * `parseClaimGiftCardBalanceFromPrompt`:
+ *
+ * 1. a supplied value **wins** over one extracted from the message — that is
+ *    what "explicitly stated" means;
+ * 2. explicit params satisfy the prompt gate on their own, so a value supplied
+ *    against a message the regexes do not recognise is still honoured.
+ */
 export function parseUpdateMyProfileFromPrompt(
   prompt: string,
+  params: Record<string, unknown> = {},
 ): ParsedUpdateMyProfile | null {
-  if (!isUpdateMyProfilePrompt(prompt)) return null;
-  const field = inferUpdateMyProfileField(prompt);
+  const name = readProfileParam(params, 'name') ?? extractProfileNameFromPrompt(prompt);
+  const phone =
+    readProfileParam(params, 'phone') ?? extractProfilePhoneFromPrompt(prompt);
+  const email =
+    readProfileParam(params, 'email') ?? extractProfileEmailFromPrompt(prompt);
+
+  const hasExplicitParams = Boolean(
+    readProfileParam(params, 'name') ??
+      readProfileParam(params, 'phone') ??
+      readProfileParam(params, 'email'),
+  );
+  if (!isUpdateMyProfilePrompt(prompt) && !hasExplicitParams) return null;
+
+  // The message decides the field when it names one; otherwise a supplied
+  // value does, so "update my profile" + `phone` reports the phone rather than
+  // the generic 'profile'.
+  const inferred = inferUpdateMyProfileField(prompt);
+  const field =
+    inferred !== 'profile'
+      ? inferred
+      : name
+        ? 'name'
+        : phone
+          ? 'phone'
+          : email
+            ? 'email'
+            : inferred;
+
   return {
     field,
-    ...(extractProfileNameFromPrompt(prompt)
-      ? { name: extractProfileNameFromPrompt(prompt) }
-      : {}),
-    ...(extractProfilePhoneFromPrompt(prompt)
-      ? { phone: extractProfilePhoneFromPrompt(prompt) }
-      : {}),
-    ...(extractProfileEmailFromPrompt(prompt)
-      ? { email: extractProfileEmailFromPrompt(prompt) }
-      : {}),
+    ...(name ? { name } : {}),
+    ...(phone ? { phone } : {}),
+    ...(email ? { email } : {}),
   };
 }
 
@@ -202,7 +245,7 @@ export function enrichUpdateMyProfileParamsFromPrompt(
   params: Record<string, unknown>,
   prompt: string,
 ): Record<string, unknown> {
-  const parsed = parseUpdateMyProfileFromPrompt(prompt);
+  const parsed = parseUpdateMyProfileFromPrompt(prompt, params);
   if (!parsed) return params;
   return {
     ...params,

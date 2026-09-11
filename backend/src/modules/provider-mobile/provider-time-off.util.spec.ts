@@ -12,6 +12,32 @@ import {
   validateProviderTimeOffRange,
 } from './provider-time-off.util.js';
 
+/**
+ * e2e-bug.422 — the clock is frozen because these fixtures name real dates.
+ *
+ * `validateProviderTimeOffRange` (and its self-block sibling) reject anything
+ * more than a day in the past, measured against `Date.now()`. The fixtures were
+ * written with `2026-06-20`, which was comfortably in the future then and is not
+ * now, so every scenario started returning "Cannot request time off in the
+ * past" — and `buildBlockScheduleDtoFromTimeOffRequest` returns `null` on a
+ * validation error, which is why the assertions saw `undefined` rather than a
+ * date complaint.
+ *
+ * Freezing rather than rewriting the fixtures to relative dates: the literal
+ * dates are what make the expected ISO strings readable, and a fixture computed
+ * from `Date.now()` cannot express "a range spanning a month boundary" without
+ * becoming a second implementation of the thing under test.
+ */
+const FROZEN_NOW = new Date('2026-06-01T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({ now: FROZEN_NOW, doNotFake: ['nextTick'] });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('provider-time-off.util (prov-exp-7.2)', () => {
   it.each(PROVIDER_TIME_OFF_SETTINGS_SCENARIOS.map((s) => [s.id, s]))(
     'reads settings for %s',

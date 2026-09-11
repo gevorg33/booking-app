@@ -9,15 +9,16 @@ import {
 import { isCheckProvidersForServicePrompt } from './ai-payments.util.js';
 
 describe('e2e-bug.334: indefinite pronouns are never resolved as a provider name', () => {
-  it.each(
-    E2E334_INDEFINITE_PRONOUN_CASES.map((row) => [row.id, row] as const),
-  )('%s', (_id, scenario) => {
-    expect(
-      extractProviderNameForAvailabilityPrompt(scenario.prompt),
-    ).toBeNull();
-    expect(isExplainProviderAvailabilityPrompt(scenario.prompt)).toBe(false);
-    expect(isCheckProvidersForServicePrompt(scenario.prompt)).toBe(true);
-  });
+  it.each(E2E334_INDEFINITE_PRONOUN_CASES.map((row) => [row.id, row] as const))(
+    '%s',
+    (_id, scenario) => {
+      expect(
+        extractProviderNameForAvailabilityPrompt(scenario.prompt),
+      ).toBeNull();
+      expect(isExplainProviderAvailabilityPrompt(scenario.prompt)).toBe(false);
+      expect(isCheckProvidersForServicePrompt(scenario.prompt)).toBe(true);
+    },
+  );
 
   it.each(
     E2E334_NAMED_PROVIDER_REGRESSION_CASES.map((row) => [row.id, row] as const),

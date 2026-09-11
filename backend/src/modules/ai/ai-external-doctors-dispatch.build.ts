@@ -25,13 +25,28 @@ export function buildExternalDoctorsLogicDispatchMap(): ReadonlyMap<
   const map = new Map<string, ExternalDoctorsLogicDispatchHandler>();
 
   map.set('create_external_doctor', async (deps, ctx) =>
-    handleCreateExternalDoctorLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleCreateExternalDoctorLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
   map.set('update_external_doctor', async (deps, ctx) =>
-    handleUpdateExternalDoctorLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleUpdateExternalDoctorLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
   map.set('list_external_doctors', async (deps, ctx) =>
-    handleListExternalDoctorsLogic(deps, ctx.businessId, ctx.userId, ctx.params),
+    handleListExternalDoctorsLogic(
+      deps,
+      ctx.businessId,
+      ctx.userId,
+      ctx.params,
+    ),
   );
 
   return map;

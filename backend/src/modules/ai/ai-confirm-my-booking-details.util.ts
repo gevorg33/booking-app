@@ -1,4 +1,7 @@
-import { extractServiceNameFromPrompt, isBookNearestSlotPrompt } from './ai-payments.util.js';
+import {
+  extractServiceNameFromPrompt,
+  isBookNearestSlotPrompt,
+} from './ai-payments.util.js';
 import { isExplicitPayOnlinePrompt } from './ai-pay-online-checkout.util.js';
 import { isBookAnotherServicePrompt } from './ai-book-another-service.util.js';
 import { isShareMyBookingPrompt } from './ai-share-my-booking.util.js';
@@ -240,9 +243,7 @@ export function isConfirmMyBookingDetailsPrompt(prompt: string): boolean {
   if (/\bpackage\s+visit\s+status\b/i.test(prompt)) return false;
   if (
     /\bpackage\s+visits?\b/i.test(prompt) &&
-    /\b(status|progress|left|remaining|still\s+have|how\s+many)\b/i.test(
-      prompt,
-    )
+    /\b(status|progress|left|remaining|still\s+have|how\s+many)\b/i.test(prompt)
   ) {
     return false;
   }

@@ -30,9 +30,9 @@ describe('rescueProviderAiIntent', () => {
     expect(
       rescueProviderAiIntent('Mark no-shows for today', 'list_bookings'),
     ).toBe('mark_no_shows');
-    expect(
-      rescueProviderAiIntent('No-shows today', 'list_bookings'),
-    ).toBe('mark_no_shows');
+    expect(rescueProviderAiIntent('No-shows today', 'list_bookings')).toBe(
+      'mark_no_shows',
+    );
   });
 
   it('preserves classified actions when no rescue match', () => {
@@ -54,9 +54,9 @@ describe('rescueProviderAiIntent', () => {
     expect(
       rescueProviderAiIntent('Give me a rundown of today', 'unknown'),
     ).toBe('summarize_day');
-    expect(
-      rescueProviderAiIntent('Any no-shows yet today?', 'unknown'),
-    ).toBe('summarize_day');
+    expect(rescueProviderAiIntent('Any no-shows yet today?', 'unknown')).toBe(
+      'summarize_day',
+    );
   });
 
   it('maps utilization phrases to summarize_utilization (prov-exp-1 / ai-cmd-provider-5.1.6)', () => {
@@ -64,10 +64,7 @@ describe('rescueProviderAiIntent', () => {
       'summarize_utilization',
     );
     expect(
-      rescueProviderAiIntent(
-        'What percent of my slots are booked?',
-        'unknown',
-      ),
+      rescueProviderAiIntent('What percent of my slots are booked?', 'unknown'),
     ).toBe('summarize_utilization');
   });
 
@@ -84,9 +81,9 @@ describe('rescueProviderAiIntent', () => {
   });
 
   it('maps who-is-next phrases to show_appointments (ai-cmd-provider-5.1.4)', () => {
-    expect(
-      rescueProviderAiIntent("Who's my next client?", 'unknown'),
-    ).toBe('show_appointments');
+    expect(rescueProviderAiIntent("Who's my next client?", 'unknown')).toBe(
+      'show_appointments',
+    );
     expect(rescueProviderAiIntent("Who's up next?", 'unknown')).toBe(
       'show_appointments',
     );
@@ -96,9 +93,9 @@ describe('rescueProviderAiIntent', () => {
   });
 
   it('maps day-walkthrough phrases to explain_today_timeline (ai-cmd-provider-5.1.5)', () => {
-    expect(
-      rescueProviderAiIntent('Walk me through my day', 'unknown'),
-    ).toBe('explain_today_timeline');
+    expect(rescueProviderAiIntent('Walk me through my day', 'unknown')).toBe(
+      'explain_today_timeline',
+    );
     expect(rescueProviderAiIntent('Gaps between clients?', 'unknown')).toBe(
       'explain_today_timeline',
     );

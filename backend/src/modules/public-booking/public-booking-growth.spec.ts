@@ -3,6 +3,7 @@ import { createPublicBookingServiceHarness } from './public-booking-test.harness
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { encryptSecret } from '../../common/utils/secret.util.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('PublicBookingService growth profile fields', () => {
   const stripeIntegrationService = {
@@ -33,7 +34,7 @@ describe('PublicBookingService growth profile fields', () => {
     scheduleTemplateRepo,
   });
 
-  const baseBusiness: Business = {
+  const baseBusiness: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -44,7 +45,7 @@ describe('PublicBookingService growth profile fields', () => {
       branding: { primaryColor: '#000' },
       publicBooking: { enabled: true },
     },
-  } as Business;
+  });
 
   it('omits growth fields when integrations disabled', () => {
     const profile = service.toPublicProfile(baseBusiness);

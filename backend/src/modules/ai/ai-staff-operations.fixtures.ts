@@ -10,7 +10,7 @@ export type StaffOperationsPromptFixture = {
   expectedParams?: Record<string, unknown>;
 };
 
-export const CREATE_EMPLOYEE_PROMPTS = [
+export const CREATE_EMPLOYEE_PROMPTS: StaffOperationsPromptFixture[] = [
   {
     id: 'staff-create-anna-en',
     prompt: 'Add stylist Anna to the team',
@@ -79,7 +79,7 @@ export const CREATE_EMPLOYEE_PROMPTS = [
   },
 ] as const;
 
-export const UPDATE_EMPLOYEE_PROMPTS = [
+export const UPDATE_EMPLOYEE_PROMPTS: StaffOperationsPromptFixture[] = [
   {
     id: 'staff-update-rename-anna-en',
     prompt: 'Rename stylist Anna to Maria',
@@ -148,7 +148,7 @@ export const UPDATE_EMPLOYEE_PROMPTS = [
   },
 ] as const;
 
-export const INVITE_STAFF_MEMBER_PROMPTS = [
+export const INVITE_STAFF_MEMBER_PROMPTS: StaffOperationsPromptFixture[] = [
   {
     id: 'staff-invite-email-en',
     prompt: 'Invite anna@salon.com to the provider app',
@@ -216,7 +216,7 @@ export const INVITE_STAFF_MEMBER_PROMPTS = [
   },
 ] as const;
 
-export const DEACTIVATE_EMPLOYEE_PROMPTS = [
+export const DEACTIVATE_EMPLOYEE_PROMPTS: StaffOperationsPromptFixture[] = [
   {
     id: 'staff-deactivate-gevorg-en',
     prompt: 'Deactivate employee Gevorg',
@@ -285,7 +285,7 @@ export const DEACTIVATE_EMPLOYEE_PROMPTS = [
   },
 ] as const;
 
-export const CONFIGURE_ONLINE_BOOKING_PROMPTS = [
+export const CONFIGURE_ONLINE_BOOKING_PROMPTS: StaffOperationsPromptFixture[] = [
   {
     id: 'staff-enable-booking-en',
     prompt: 'Enable online booking on our public page',

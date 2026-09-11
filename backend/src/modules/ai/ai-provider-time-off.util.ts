@@ -79,9 +79,7 @@ export function isCancelTimeOffRequestPrompt(prompt: string): boolean {
   }
   if (
     containsCyrillicScript(prompt) &&
-    /(отмен).*(time\s*off|pto|отпуск)/i.test(
-      prompt,
-    )
+    /(отмен).*(time\s*off|pto|отпуск)/i.test(prompt)
   ) {
     return true;
   }

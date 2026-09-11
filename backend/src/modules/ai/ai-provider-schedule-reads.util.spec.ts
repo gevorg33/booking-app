@@ -33,7 +33,9 @@ describe('extractDaysFromPrompt', () => {
   });
 
   it('returns undefined with no day cue', () => {
-    expect(extractDaysFromPrompt('Give me a schedule overview')).toBeUndefined();
+    expect(
+      extractDaysFromPrompt('Give me a schedule overview'),
+    ).toBeUndefined();
   });
 });
 
@@ -82,9 +84,7 @@ describe('isGetCalendarMonthPrompt', () => {
   });
 
   it('does not match unrelated prompts', () => {
-    expect(isGetCalendarMonthPrompt('Give me a schedule overview')).toBe(
-      false,
-    );
+    expect(isGetCalendarMonthPrompt('Give me a schedule overview')).toBe(false);
   });
 
   it('does not match the calendar-bands FAQ phrasing', () => {
@@ -104,9 +104,7 @@ describe('isListScheduleGapsPrompt', () => {
   });
 
   it('does not match unrelated prompts', () => {
-    expect(isListScheduleGapsPrompt('Give me a schedule overview')).toBe(
-      false,
-    );
+    expect(isListScheduleGapsPrompt('Give me a schedule overview')).toBe(false);
   });
 
   it('does not match fill/waitlist gap actions', () => {
@@ -126,7 +124,10 @@ describe('isListScheduleGapsPrompt', () => {
 describe('rescueProviderScheduleReadsIntent', () => {
   it('rescues to list_upcoming_bookings', () => {
     expect(
-      rescueProviderScheduleReadsIntent("What's coming up this week?", 'unknown'),
+      rescueProviderScheduleReadsIntent(
+        "What's coming up this week?",
+        'unknown',
+      ),
     ).toEqual({
       action: 'list_upcoming_bookings',
       rescueReason: 'list_upcoming_bookings',
@@ -135,7 +136,10 @@ describe('rescueProviderScheduleReadsIntent', () => {
 
   it('rescues to get_schedule_summary', () => {
     expect(
-      rescueProviderScheduleReadsIntent('Give me a schedule overview', 'unknown'),
+      rescueProviderScheduleReadsIntent(
+        'Give me a schedule overview',
+        'unknown',
+      ),
     ).toEqual({
       action: 'get_schedule_summary',
       rescueReason: 'get_schedule_summary',

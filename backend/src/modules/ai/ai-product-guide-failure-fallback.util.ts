@@ -25,6 +25,7 @@ import { resolveProductGuideSessionContext } from './ai-product-guide-session.ut
 import type { GuideFlowRoleScope } from './guide/guide-flow.types.js';
 import type { AccessTier } from './access-control.matrix.js';
 import { isAppGuideIntent } from './ai-product-guide.util.js';
+import { CLARIFY_REQUEST_DETAIL_KEY } from './ai-clarify.util.js';
 
 export const POST_FAILURE_GUIDE_FALLBACK_PIPE_MARKER = 'ai-guide-1.8.3';
 
@@ -108,9 +109,29 @@ export function shouldAppendPostFailureGuideFallback(
     return false;
   if (isAppGuideIntent(action)) return false;
 
+  // AI-ROADMAP Phase 6 — a command that knows what to ask must ask it.
+  //
+  // `needsClarification` used to sit in the "offer a tour" list below, so
+  // "which customer did you mean?" was answered with a product-guide walkthrough
+  // instead of the question. That is the AI-TODO Phase 6 item, and it is the
+  // reason clarify has never been a first-class outcome: it was being swallowed
+  // one layer down.
+  //
+  // `action === 'unknown'` still offers the tour, and correctly: there the
+  // platform has no question to ask, so pointing at documentation is the most
+  // useful thing left.
+  // Scoped to a *known* command on purpose. `action === 'unknown'` with
+  // `needsClarification` is the other shape: there the platform has no question
+  // worth asking, so pointing at documentation is the most useful thing left,
+  // and those fixtures still expect a tour.
+  const hasAnswerableQuestion =
+    action !== 'unknown' &&
+    (details.needsClarification === true ||
+      Boolean(details[CLARIFY_REQUEST_DETAIL_KEY]));
+  if (hasAnswerableQuestion) return false;
+
   if (
     action === 'unknown' ||
-    details.needsClarification === true ||
     details.pipelineStage === 'unknown_intent_clarify' ||
     details.pipelineStage === 'self_verify_clarify'
   ) {
@@ -120,12 +141,44 @@ export function shouldAppendPostFailureGuideFallback(
   return result.success === false;
 }
 
+/**
+ * Guide topic titles are noun phrases as often as verb phrases — "Packages",
+ * "Step 1", "Online payments" — but the template says "Here's how to <label> on
+ * this page", which needs a verb. That produced "Here's how to packages on this
+ * page" (AI-TODO Phase 6).
+ *
+ * Rather than trying to conjugate a noun, the fix detects the shape and picks a
+ * frame that works for it: a label starting with a verb keeps the "how to"
+ * form; anything else gets a frame that reads correctly with a noun.
+ */
+const VERB_LEADING = new RegExp(
+  '^(add|apply|assign|book|cancel|change|check|choose|configure|confirm|connect|create|' +
+    'delete|disable|edit|enable|find|fix|get|invite|manage|mark|move|open|pick|refund|' +
+    'remove|rename|reschedule|resend|review|schedule|see|select|send|set|share|show|' +
+    'start|switch|turn|update|upload|view)\\b',
+  'i',
+);
+
+export function looksLikeVerbPhrase(label: string): boolean {
+  return VERB_LEADING.test(label.trim());
+}
+
 function formatPostFailureGuideLine(
   locale: AppLocale,
   taskLabel: string,
   stepBody: string,
 ): string {
   const trimmedBody = stepBody.trim();
+  if (!looksLikeVerbPhrase(taskLabel)) {
+    // Noun-shaped label: "Here's what to do with packages on this page: …"
+    if (locale === 'hy') {
+      return `Ահա ինչ անել «${taskLabel}» բաժնում. ${trimmedBody}`;
+    }
+    if (locale === 'ru') {
+      return `Вот что делать в разделе «${taskLabel}»: ${trimmedBody}`;
+    }
+    return `Here's what to do with ${taskLabel} on this page: ${trimmedBody}`;
+  }
   if (locale === 'hy') {
     return `Ահա ինչպես ${taskLabel} այս էջում. ${trimmedBody}`;
   }

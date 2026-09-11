@@ -59,10 +59,7 @@ export function enrichClaimReferralCodeParamsFromPrompt(
   prompt: string,
   params: Record<string, unknown> = {},
 ): Record<string, unknown> {
-  if (
-    typeof params.referralCode === 'string' &&
-    params.referralCode.trim()
-  ) {
+  if (typeof params.referralCode === 'string' && params.referralCode.trim()) {
     return params;
   }
   const referralCode = extractReferralCodeFromPrompt(prompt);

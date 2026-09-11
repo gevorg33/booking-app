@@ -265,7 +265,12 @@ describe('CommandUnderstandingPipelineService (integration pipe-1.0.5)', () => {
   });
 
   it('mocked classify with parallel resolveRoute: classify stage records route', async () => {
-    const route: ComplexityRoute = { tier: 'read_only', reason: 'list query' };
+    // `reasoning`, not `reason` — same typo as the unit spec had; `ComplexityRoute`
+    // has no `reason`, so the value was silently discarded.
+    const route: ComplexityRoute = {
+      tier: 'read_only',
+      reasoning: 'list query',
+    };
     const resolveRoute = jest.fn().mockResolvedValue(route);
     classifyMock.mockResolvedValue({
       action: 'show_appointments',

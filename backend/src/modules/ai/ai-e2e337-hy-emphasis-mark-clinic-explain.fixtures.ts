@@ -13,33 +13,32 @@ export type E2e337EmphasisMarkCase = {
   expectHoursExplain: boolean;
 };
 
-export const E2E337_CLINIC_EMPHASIS_CASES: readonly E2e337EmphasisMarkCase[] =
-  [
-    {
-      id: 'e337-hy-emphasis-bare-clinic-services',
-      prompt: 'Բացատրի՛ր մեր կլինիկական ծառայությունները',
-      expectClinicExplain: true,
-      expectHoursExplain: false,
-    },
-    {
-      id: 'e337-hy-emphasis-clinic-services-and-departments',
-      prompt: 'Բացատրի՛ր մեր կլինիկական ծառայությունները և բաժինները',
-      expectClinicExplain: true,
-      expectHoursExplain: false,
-    },
-    {
-      id: 'e337-hy-no-emphasis-clinic-services-regression',
-      prompt: 'Բացատրիր մեր կլինիկական ծառայությունները և բաժինները',
-      expectClinicExplain: true,
-      expectHoursExplain: false,
-    },
-    {
-      id: 'e337-en-regression-clinic-services',
-      prompt: 'Explain our clinic services and department counts',
-      expectClinicExplain: true,
-      expectHoursExplain: false,
-    },
-  ] as const;
+export const E2E337_CLINIC_EMPHASIS_CASES: readonly E2e337EmphasisMarkCase[] = [
+  {
+    id: 'e337-hy-emphasis-bare-clinic-services',
+    prompt: 'Բացատրի՛ր մեր կլինիկական ծառայությունները',
+    expectClinicExplain: true,
+    expectHoursExplain: false,
+  },
+  {
+    id: 'e337-hy-emphasis-clinic-services-and-departments',
+    prompt: 'Բացատրի՛ր մեր կլինիկական ծառայությունները և բաժինները',
+    expectClinicExplain: true,
+    expectHoursExplain: false,
+  },
+  {
+    id: 'e337-hy-no-emphasis-clinic-services-regression',
+    prompt: 'Բացատրիր մեր կլինիկական ծառայությունները և բաժինները',
+    expectClinicExplain: true,
+    expectHoursExplain: false,
+  },
+  {
+    id: 'e337-en-regression-clinic-services',
+    prompt: 'Explain our clinic services and department counts',
+    expectClinicExplain: true,
+    expectHoursExplain: false,
+  },
+] as const;
 
 /** Controls — real hours questions and unrelated imperatives must be unaffected. */
 export const E2E337_HOURS_AND_OTHER_IMPERATIVE_CONTROL_CASES: readonly E2e337EmphasisMarkCase[] =

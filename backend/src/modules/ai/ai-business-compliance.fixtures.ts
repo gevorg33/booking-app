@@ -61,7 +61,14 @@ export const BUSINESS_COMPLIANCE_CLASSIFIER_RULES = `- configure_privacy_retenti
   - "Accept the HIPAA business associate agreement" → accept_hipaa_baa
   - "Sign BAA to enable HIPAA mode" → accept_hipaa_baa, enableHipaa=true`;
 
-export const ACCEPT_HIPAA_BAA_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type AcceptHipaaBaaPromptFixture = {
+  id: string;
+  prompt: string;
+  enableHipaa?: boolean;
+};
+
+export const ACCEPT_HIPAA_BAA_PROMPTS: readonly AcceptHipaaBaaPromptFixture[] = [
   {
     id: 'accept-hipaa-baa',
     prompt: 'Accept the HIPAA business associate agreement',
@@ -81,7 +88,14 @@ export const ACCEPT_HIPAA_BAA_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS = [
+/** Two of the four prompts name a field; the other two ask in general. */
+export type ExplainPhiEncryptionStatusPromptFixture = {
+  id: string;
+  prompt: string;
+  fieldName?: string;
+};
+
+export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS: readonly ExplainPhiEncryptionStatusPromptFixture[] = [
   {
     id: 'is-hipaa-encryption-on',
     prompt: 'Is HIPAA encryption on?',
@@ -100,7 +114,7 @@ export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS = [
     prompt: 'Are patient notes encrypted at rest?',
     fieldName: 'notes',
   },
-] as const;
+];
 
 export const EXPLAIN_MINIMUM_NECESSARY_PHI_ACCESS_PROMPTS = [
   {
@@ -153,7 +167,14 @@ export const OPEN_COMPLIANCE_DASHBOARD_PROMPTS = [
   },
 ] as const;
 
-export const SEND_BREACH_NOTIFICATION_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type SendBreachNotificationPromptFixture = {
+  id: string;
+  prompt: string;
+  incidentRef: string;
+};
+
+export const SEND_BREACH_NOTIFICATION_PROMPTS: readonly SendBreachNotificationPromptFixture[] = [
   {
     id: 'email-affected-customers-br42',
     prompt: 'Email affected customers about breach BR-42',
@@ -194,7 +215,15 @@ export const LIST_BREACH_INCIDENTS_PROMPTS = [
   },
 ] as const;
 
-export const VIEW_PHI_ACCESS_AUDIT_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type ViewPhiAccessAuditPromptFixture = {
+  id: string;
+  prompt: string;
+  fieldName?: string;
+  daysBack?: number;
+};
+
+export const VIEW_PHI_ACCESS_AUDIT_PROMPTS: readonly ViewPhiAccessAuditPromptFixture[] = [
   {
     id: 'who-accessed-patient-notes',
     prompt: 'Who accessed patient notes?',
@@ -230,7 +259,14 @@ export const VIEW_PHI_ACCESS_AUDIT_PROMPTS = [
   },
 ] as const;
 
-export const REPORT_DATA_BREACH_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type ReportDataBreachPromptFixture = {
+  id: string;
+  prompt: string;
+  affectedCustomerCount?: number;
+};
+
+export const REPORT_DATA_BREACH_PROMPTS: readonly ReportDataBreachPromptFixture[] = [
   {
     id: 'report-data-breach',
     prompt: 'Report a data breach',
@@ -330,7 +366,15 @@ export const CONFIGURE_HIPAA_SESSION_TIMEOUT_PROMPTS = [
   },
 ] as const;
 
-export const ENABLE_HIPAA_MODE_PROMPTS = [
+/** Declared so the array is one type, not a union of five literal shapes. */
+export type EnableHipaaModePromptFixture = {
+  id: string;
+  prompt: string;
+  enabled?: boolean;
+  sessionTimeoutMinutes?: number;
+};
+
+export const ENABLE_HIPAA_MODE_PROMPTS: readonly EnableHipaaModePromptFixture[] = [
   {
     id: 'enable-hipaa-safeguards',
     prompt: 'Enable HIPAA safeguards',
@@ -358,7 +402,14 @@ export const ENABLE_HIPAA_MODE_PROMPTS = [
   },
 ] as const;
 
-export const LIST_SUB_PROCESSORS_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type ListSubProcessorsPromptFixture = {
+  id: string;
+  prompt: string;
+  article28?: boolean;
+};
+
+export const LIST_SUB_PROCESSORS_PROMPTS: readonly ListSubProcessorsPromptFixture[] = [
   {
     id: 'who-are-data-sub-processors',
     prompt: 'Who are our data sub-processors?',
@@ -424,7 +475,17 @@ export const EXPLAIN_COMPLIANCE_STATUS_PROMPTS = [
   },
 ] as const;
 
-export const CONFIGURE_PRIVACY_RETENTION_PROMPTS = [
+/** Declared so the array is one type, not a union of six literal shapes. */
+export type ConfigurePrivacyRetentionPromptFixture = {
+  id: string;
+  prompt: string;
+  customerPiiDays?: number;
+  cookieBannerEnabled?: boolean;
+  bookingHistoryDays?: number;
+  auditLogsDays?: number;
+};
+
+export const CONFIGURE_PRIVACY_RETENTION_PROMPTS: readonly ConfigurePrivacyRetentionPromptFixture[] = [
   {
     id: 'keep-customer-data-3-years',
     prompt: 'Keep customer data for 3 years',
@@ -457,7 +518,15 @@ export const CONFIGURE_PRIVACY_RETENTION_PROMPTS = [
   },
 ] as const;
 
-export const CONFIGURE_GRANULAR_CONSENT_PROMPTS = [
+/** Declared so the array is one type, not a union of six literal shapes. */
+export type ConfigureGranularConsentPromptFixture = {
+  id: string;
+  prompt: string;
+  requireAiProcessing?: boolean;
+  requireThirdPartyIntegrations?: boolean;
+};
+
+export const CONFIGURE_GRANULAR_CONSENT_PROMPTS: readonly ConfigureGranularConsentPromptFixture[] = [
   {
     id: 'require-ai-processing-checkout',
     prompt: 'Require AI processing consent at checkout',

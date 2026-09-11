@@ -1,0 +1,3 @@
+
+# F1/e2e-bug.359 — jest transform cache (persisted in CI, never committed)
+.jest-cache/

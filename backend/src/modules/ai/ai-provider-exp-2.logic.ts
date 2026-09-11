@@ -219,7 +219,9 @@ export async function handleExplainReviewsInboxLogic(
   );
   const scope: 'mine' | 'team' = access.viewMode === 'team' ? 'team' : 'mine';
   const employeeId =
-    scope === 'mine' ? deps.providerMobile.getScopedEmployeeId(access) : undefined;
+    scope === 'mine'
+      ? deps.providerMobile.getScopedEmployeeId(access)
+      : undefined;
   const period = inferReviewsInboxPeriodFromPrompt(prompt ?? '', params);
   const ratingFilter = inferReviewsInboxRatingFilterFromPrompt(
     prompt ?? '',
@@ -230,10 +232,16 @@ export async function handleExplainReviewsInboxLogic(
   const { start, end } = reviewsInboxDateRange(period, new Date());
   const reviews = allReviews.filter((review) => {
     if (review.createdAt < start || review.createdAt >= end) return false;
-    if (ratingFilter?.minRating != null && review.rating < ratingFilter.minRating) {
+    if (
+      ratingFilter?.minRating != null &&
+      review.rating < ratingFilter.minRating
+    ) {
       return false;
     }
-    if (ratingFilter?.maxRating != null && review.rating > ratingFilter.maxRating) {
+    if (
+      ratingFilter?.maxRating != null &&
+      review.rating > ratingFilter.maxRating
+    ) {
       return false;
     }
     return true;
@@ -272,7 +280,10 @@ export async function handleExplainReviewsInboxLogic(
       scope: view.scope,
       period: view.period,
       ratingFilter: ratingFilter
-        ? { minRating: ratingFilter.minRating, maxRating: ratingFilter.maxRating }
+        ? {
+            minRating: ratingFilter.minRating,
+            maxRating: ratingFilter.maxRating,
+          }
         : undefined,
       averageRating: view.averageRating,
       reviewCount: view.reviewCount,
@@ -723,7 +734,11 @@ export async function handleReassignBookingSameDayLogic(
     return failure(
       'reassign_booking_same_day',
       'Say which provider to reassign this appointment to.',
-      { clarify: true, missing: ['employeeName'], bookingId: resolved.bookingId },
+      {
+        clarify: true,
+        missing: ['employeeName'],
+        bookingId: resolved.bookingId,
+      },
     );
   }
 
@@ -802,10 +817,7 @@ export async function handleListTeamUnpaidTodayLogic(
     );
   }
 
-  const view = await deps.providerMobile.getTeamUnpaidToday(
-    businessId,
-    userId,
-  );
+  const view = await deps.providerMobile.getTeamUnpaidToday(businessId, userId);
   const business = await deps.businessService.findOne(businessId);
   const settings = (business?.settings ?? {}) as Record<string, unknown>;
 
@@ -827,7 +839,14 @@ export async function dispatchProviderExp2Intent(
 ): Promise<CommandResult | null> {
   switch (action) {
     case 'my_stats':
-      return handleMyStatsLogic(deps, businessId, userId, params, prompt, context);
+      return handleMyStatsLogic(
+        deps,
+        businessId,
+        userId,
+        params,
+        prompt,
+        context,
+      );
     case 'team_floor_status':
       return handleTeamFloorStatusLogic(deps, businessId, userId);
     case 'list_team_unpaid_today':

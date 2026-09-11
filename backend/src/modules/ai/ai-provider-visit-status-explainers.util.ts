@@ -98,7 +98,7 @@ export function buildExplainBookingStatusBadgeSummary(): string {
 
 export function buildExplainFloorStatusSummary(): string {
   return [
-    'The floor strip shows where each of today\'s clients is right now.',
+    "The floor strip shows where each of today's clients is right now.",
     'Waiting / checked in: the client has arrived but their service has not started.',
     'In service: a provider is actively working with them.',
     'Done: their visit is complete and they have left the floor.',
@@ -108,15 +108,24 @@ export function buildExplainFloorStatusSummary(): string {
 export function rescueVisitStatusExplainersIntent(
   prompt: string,
   action: string,
-): { action: 'explain_booking_status_badge' | 'explain_floor_status'; rescueReason: string } | null {
-  if (isExplainBookingStatusBadgePrompt(prompt) && action !== 'explain_booking_status_badge') {
+): {
+  action: 'explain_booking_status_badge' | 'explain_floor_status';
+  rescueReason: string;
+} | null {
+  if (
+    isExplainBookingStatusBadgePrompt(prompt) &&
+    action !== 'explain_booking_status_badge'
+  ) {
     return {
       action: 'explain_booking_status_badge',
       rescueReason: 'explain_booking_status_badge',
     };
   }
   if (isExplainFloorStatusPrompt(prompt) && action !== 'explain_floor_status') {
-    return { action: 'explain_floor_status', rescueReason: 'explain_floor_status' };
+    return {
+      action: 'explain_floor_status',
+      rescueReason: 'explain_floor_status',
+    };
   }
   return null;
 }

@@ -60,7 +60,10 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
   it('stops (does not advance to the next leg) when a fresh compound reschedule step fails to build a plan', async () => {
     const buildPlan = jest.fn(
-      async (action: string, params: Record<string, unknown>): Promise<AgentPlan | null> => {
+      async (
+        action: string,
+        params: Record<string, unknown>,
+      ): Promise<AgentPlan | null> => {
         if (action === 'reschedule_booking') return null;
         return {
           businessId: 'biz-1',
@@ -72,7 +75,8 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
     const result = await graph.run({
       businessId: 'biz-1',
-      prompt: "Move Anna's appointment to Friday; then book a massage with Gevorg",
+      prompt:
+        "Move Anna's appointment to Friday; then book a massage with Gevorg",
       sessionContext: {},
       subIntents: [
         {
@@ -104,7 +108,10 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
   it('reproduces the exact e2e-bug.329 resume-with-empty-plans condition without silently skipping to the create leg', async () => {
     const buildPlan = jest.fn(
-      async (action: string, params: Record<string, unknown>): Promise<AgentPlan | null> => {
+      async (
+        action: string,
+        params: Record<string, unknown>,
+      ): Promise<AgentPlan | null> => {
         if (action === 'reschedule_booking') return null;
         return {
           businessId: 'biz-1',
@@ -149,7 +156,10 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
   it('still attaches compound resume state when a later mutating leg fails after an earlier leg already built a plan', async () => {
     const buildPlan = jest.fn(
-      async (action: string, params: Record<string, unknown>): Promise<AgentPlan | null> => {
+      async (
+        action: string,
+        params: Record<string, unknown>,
+      ): Promise<AgentPlan | null> => {
         if (action === 'reschedule_booking') return null;
         return {
           businessId: 'biz-1',
@@ -189,7 +199,10 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
   it('non-regression: a genuinely optional (non-must-not-skip) action still uses the old silent-skip path', async () => {
     const buildPlan = jest.fn(
-      async (action: string, params: Record<string, unknown>): Promise<AgentPlan | null> => {
+      async (
+        action: string,
+        params: Record<string, unknown>,
+      ): Promise<AgentPlan | null> => {
         if (action === 'apply_schedule') return null;
         return {
           businessId: 'biz-1',
@@ -229,7 +242,10 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
   it('non-regression: both legs build successfully and execute as before', async () => {
     const buildPlan = jest.fn(
-      async (action: string, params: Record<string, unknown>): Promise<AgentPlan | null> =>
+      async (
+        action: string,
+        params: Record<string, unknown>,
+      ): Promise<AgentPlan | null> =>
         ({
           businessId: 'biz-1',
           action,
@@ -239,7 +255,8 @@ describe('CompoundCommandGraphService (e2e-bug.329): mutating steps must not sil
 
     const result = await graph.run({
       businessId: 'biz-1',
-      prompt: "Move Anna's appointment to Friday; then book a massage with Gevorg",
+      prompt:
+        "Move Anna's appointment to Friday; then book a massage with Gevorg",
       sessionContext: {},
       subIntents: [
         {

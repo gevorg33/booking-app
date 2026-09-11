@@ -279,6 +279,10 @@ const en: MessageTree = {
       'I couldn\'t find "{service}". Available services: {available}.',
     availabilityProviderNotFound:
       'I couldn\'t find "{name}". Available specialists: {available}.',
+    // tech-debt D5 — more than one specialist matches the name the guest used.
+    // Never pick one: name them and ask.
+    providerAmbiguous:
+      'More than one specialist matches "{name}". Which did you mean: {options}?',
     availabilityNoSlots:
       'No open slots for {service} with {provider} on the requested day(s) ({days}). Try another day or specialist.',
     availabilityNoSlotsBudget:
@@ -764,6 +768,8 @@ const hy: MessageTree = {
       '«{service}» ծառայությունը չգտա։ Հասանելի ծառայություններ՝ {available}։',
     availabilityProviderNotFound:
       '«{name}» մասնագետը չգտա։ Հասանելի մասնագետներ՝ {available}։',
+    providerAmbiguous:
+      '«{name}»-ին համապատասխանում է մեկից ավելի մասնագետ։ Ո՞ր մեկին նկատի ունեք՝ {options}։',
     availabilityNoSlots:
       '{provider}-ի համար {service} ծառայության ազատ slot-եր չկան հարցված օր(եր)ին ({days})։ Փորձեք այլ օր կամ մասնագետ։',
     availabilityNoSlotsBudget:
@@ -1256,6 +1262,8 @@ const ru: MessageTree = {
       'Услуга «{service}» не найдена. Доступные услуги: {available}.',
     availabilityProviderNotFound:
       'Специалист «{name}» не найден. Доступные специалисты: {available}.',
+    providerAmbiguous:
+      'Под «{name}» подходит несколько специалистов. Кого вы имели в виду: {options}?',
     availabilityNoSlots:
       'Нет свободных слотов для {service} у {provider} в указанные дни ({days}). Попробуйте другой день или специалиста.',
     availabilityNoSlotsBudget:

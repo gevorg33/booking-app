@@ -1,4 +1,9 @@
 import { In, type Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReadWriter,
+  EntityUpdater,
+} from './ai-logic-repo.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { ServicePackage } from '../service-packages/entities/service-package.entity.js';
@@ -21,9 +26,9 @@ import type { AnalyticsService } from '../analytics/analytics.service.js';
 import { formatBusinessMoney } from '../../common/utils/business-currency.util.js';
 
 export interface BusinessCurrencyLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
-  serviceRepo: Pick<Repository<Service>, 'find' | 'update'>;
-  packageRepo: Pick<Repository<ServicePackage>, 'find'>;
+  businessRepo: EntityReadWriter<Business>;
+  serviceRepo: EntityFinder<Service> & EntityUpdater<Service>;
+  packageRepo: EntityFinder<ServicePackage>;
   dashboardService?: Pick<DashboardService, 'getOverview'>;
   analyticsService?: Pick<
     AnalyticsService,

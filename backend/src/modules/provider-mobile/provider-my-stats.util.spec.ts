@@ -95,7 +95,7 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
         },
         {
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime: new Date('2026-06-10T10:00:00.000Z'),
           endTime: new Date('2026-06-10T11:30:00.000Z'),
           service: { price: 60 },
@@ -207,7 +207,7 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
         },
         {
           status: BookingStatus.NO_SHOW,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime: new Date(),
           endTime: new Date(),
           service: { price: 10 },
@@ -255,7 +255,7 @@ describe('provider-my-stats.util (prov-exp-2.1)', () => {
       bookings: [
         {
           status: BookingStatus.CONFIRMED,
-          paymentStatus: PaymentStatus.UNPAID,
+          paymentStatus: PaymentStatus.PENDING,
           startTime: new Date('2026-06-09T10:00:00.000Z'),
           endTime: new Date('2026-06-09T12:00:00.000Z'),
           service: { price: 50 },

@@ -1,5 +1,8 @@
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -12,7 +15,7 @@ import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.ut
 
 export interface ExplainShareRewardLogicDeps {
   publicBookingService: Pick<PublicBookingService, 'getCustomerShareRewards'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(

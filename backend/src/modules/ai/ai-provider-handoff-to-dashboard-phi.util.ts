@@ -23,10 +23,7 @@ export function isHandoffToDashboardPhiPrompt(prompt: string): boolean {
   ) {
     return true;
   }
-  if (
-    /\bfull\s+intake\b/i.test(lower) &&
-    /\bdashboard\b/i.test(lower)
-  ) {
+  if (/\bfull\s+intake\b/i.test(lower) && /\bdashboard\b/i.test(lower)) {
     return true;
   }
 

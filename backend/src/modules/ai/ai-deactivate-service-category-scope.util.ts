@@ -89,6 +89,13 @@ function parseSingleServiceNameFromDeactivatePrompt(
     const name = match?.[1]
       ?.replace(/^["']|["']$/g, '')
       .replace(/\s+service$/i, '')
+      // e2e-bug.430 — drop a dangling "from the" the greedy capture swallowed.
+      //
+      // The third pattern anchors on `\s+service\b`, so "Disable Deluxe Facial
+      // from the service catalog" runs to the *second* occurrence of the word
+      // and captures "Deluxe Facial from the". The fourth pattern would have
+      // read it correctly, but the third matches first.
+      .replace(/\s+from(?:\s+(?:the|our|my|your))?$/i, '')
       .trim();
     if (name && !/^(all|every)$/i.test(name)) return name;
   }

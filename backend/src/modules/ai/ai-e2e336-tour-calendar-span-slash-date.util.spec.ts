@@ -48,8 +48,16 @@ describe('e2e-bug.336: explain_tour_calendar_span avoids DD/MM slash dates', () 
       status: BookingStatus.CONFIRMED,
       startTime: new Date('2026-06-06T08:00:00.000Z'),
       endTime: new Date('2026-06-10T18:00:00.000Z'),
-      metadata: { paxCount: 2, tourStartDate: '2026-06-06', tourEndDate: '2026-06-10' },
-      service: { id: 'svc-clip', name: 'Clipped Tour', metadata: { serviceType: 'tour' } },
+      metadata: {
+        paxCount: 2,
+        tourStartDate: '2026-06-06',
+        tourEndDate: '2026-06-10',
+      },
+      service: {
+        id: 'svc-clip',
+        name: 'Clipped Tour',
+        metadata: { serviceType: 'tour' },
+      },
       customer: { name: 'Jane Doe' },
     };
     const clippedBookingService = {

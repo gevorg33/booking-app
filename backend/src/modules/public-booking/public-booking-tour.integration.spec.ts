@@ -5,8 +5,22 @@ import {
 import { ForbiddenException } from '@nestjs/common';
 import { createTourPublicBookingHarness } from './public-booking-tour.harness.js';
 
+/**
+ * e2e-bug.491's class — same expiry as `public-booking-tour-16-18`.
+ *
+ * `getServiceDaySlots` returns nothing for a day that has passed, so a
+ * hardcoded 2026-08-15 stopped producing slots and the assertions saw empty
+ * arrays. Anchored ahead of today; the times of day stay fixed because slot
+ * identity is asserted.
+ */
+const dayKeyIn = (n: number): string =>
+  new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const TOUR_DAY = dayKeyIn(10);
+const TOUR_DAY_2 = dayKeyIn(12);
+const TOUR_DAY_3 = dayKeyIn(13);
+
 describe('Public booking tour integration', () => {
-  const startTime = '2026-08-15T08:00:00.000Z';
+  const startTime = `${TOUR_DAY}T08:00:00.000Z`;
 
   it('creates tour booking with pax metadata and per-person pricing', async () => {
     const harness = createTourPublicBookingHarness();
@@ -35,8 +49,8 @@ describe('Public booking tour integration', () => {
         metadata: expect.objectContaining({
           paxCount: 3,
           pricePerPerson: 320,
-          tourStartDate: '2026-08-15',
-          tourEndDate: '2026-08-17',
+          tourStartDate: TOUR_DAY,
+          tourEndDate: TOUR_DAY_2,
           specialRequirements: 'Vegetarian meals',
         }),
       }),
@@ -72,8 +86,8 @@ describe('Public booking tour integration', () => {
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
         startTime: new Date(startTime),
-        endTime: new Date('2026-08-18T08:00:00.000Z'),
-        metadata: { paxCount: 6, tourStartDate: '2026-08-15' },
+        endTime: new Date(`${TOUR_DAY_3}T08:00:00.000Z`),
+        metadata: { paxCount: 6, tourStartDate: TOUR_DAY },
       },
     ]);
     (harness.service as any).bookingRepo = harness.bookingRepo;
@@ -96,7 +110,7 @@ describe('Public booking tour integration', () => {
         businessId: 'biz-tour',
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
-        metadata: { paxCount: 8, tourStartDate: '2026-08-15' },
+        metadata: { paxCount: 8, tourStartDate: TOUR_DAY },
       },
     ]);
     (harness.service as any).bookingRepo = harness.bookingRepo;
@@ -135,8 +149,8 @@ describe('Public booking tour integration', () => {
 
   it('returns day-level slot and remaining spots for capped tours', async () => {
     const harness = createTourPublicBookingHarness();
-    const slotA = new Date('2026-08-15T08:00:00.000Z');
-    const slotB = new Date('2026-08-15T09:00:00.000Z');
+    const slotA = new Date(`${TOUR_DAY}T08:00:00.000Z`);
+    const slotB = new Date(`${TOUR_DAY}T09:00:00.000Z`);
 
     jest
       .spyOn(harness.service as any, 'getEmployeeStartTimes')
@@ -152,7 +166,7 @@ describe('Public booking tour integration', () => {
         businessId: 'biz-tour',
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
-        metadata: { paxCount: 3, tourStartDate: '2026-08-15' },
+        metadata: { paxCount: 3, tourStartDate: TOUR_DAY },
       },
     ]);
     (harness.service as any).bookingRepo = harness.bookingRepo;
@@ -167,7 +181,7 @@ describe('Public booking tour integration', () => {
     const result = await harness.service.getServiceDaySlots(
       'alpine-tours',
       'svc-tour-1',
-      '2026-08-15',
+      TOUR_DAY,
     );
 
     expect(result.slots).toHaveLength(1);
@@ -180,7 +194,7 @@ describe('Public booking tour integration', () => {
 
     jest
       .spyOn(harness.service as any, 'getEmployeeStartTimes')
-      .mockResolvedValue([new Date('2026-08-15T08:00:00.000Z')]);
+      .mockResolvedValue([new Date(`${TOUR_DAY}T08:00:00.000Z`)]);
     jest
       .spyOn(harness.service as any, 'filterStartTimesWithService')
       .mockImplementation(
@@ -192,7 +206,7 @@ describe('Public booking tour integration', () => {
         businessId: 'biz-tour',
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
-        metadata: { paxCount: 8, tourStartDate: '2026-08-15' },
+        metadata: { paxCount: 8, tourStartDate: TOUR_DAY },
       },
     ]);
     (harness.service as any).bookingRepo = harness.bookingRepo;
@@ -207,7 +221,7 @@ describe('Public booking tour integration', () => {
     const result = await harness.service.getServiceDaySlots(
       'alpine-tours',
       'svc-tour-1',
-      '2026-08-15',
+      TOUR_DAY,
     );
 
     expect(result.slots).toEqual([]);

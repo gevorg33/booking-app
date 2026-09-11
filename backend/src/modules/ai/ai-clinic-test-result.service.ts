@@ -62,7 +62,6 @@ export class AiClinicTestResultService {
       bookingRepo,
       resultRepo,
       orderRepo,
-      clinicTestResultService,
       clinicCatalogService,
       clinicLabAccessService,
       clinicLabChangeHistoryService,

@@ -1,5 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 import { buildPolicyRiskExplain } from './policy-risk-explain.util.js';
+import {
+  makeAgentPlan,
+  makeAgentPlanStep,
+} from '../../engine/agent/interfaces/agent.test-fixture.js';
 
 describe('buildPolicyRiskExplain', () => {
   it('describes multi-provider multi-day high risk', () => {
@@ -9,10 +13,10 @@ describe('buildPolicyRiskExplain', () => {
         riskLevel: 'high',
         violations: ['Too many bookings affected'],
       },
-      plan: {
-        steps: [{ id: '1' }, { id: '2' }],
-        riskAssessment: { level: 'high' },
-      },
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })],
+        riskAssessment: { level: 'high', factors: [] },
+      }),
       employeeCount: 3,
       daySpan: 7,
     });
@@ -24,7 +28,10 @@ describe('buildPolicyRiskExplain', () => {
 
   it('falls back to step count for small scope', () => {
     const result = buildPolicyRiskExplain({
-      plan: { steps: [{ id: 'a' }], riskAssessment: { level: 'low' } },
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: 'a' })],
+        riskAssessment: { level: 'low', factors: [] },
+      }),
       employeeCount: 1,
       daySpan: 1,
     });
@@ -35,28 +42,36 @@ describe('buildPolicyRiskExplain', () => {
   it('maps critical risk to high', () => {
     const result = buildPolicyRiskExplain({
       policyPreview: { riskLevel: 'critical', violations: [] },
-      plan: { steps: [] },
+      plan: makeAgentPlan({ steps: [] }),
     });
     expect(result.riskLevel).toBe('high');
   });
 
   it('uses provider-only and day-only scope phrases', () => {
     const providersOnly = buildPolicyRiskExplain({
-      plan: { steps: [{ id: '1' }, { id: '2' }] },
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })],
+      }),
       employeeCount: 4,
       daySpan: 1,
     });
     expect(providersOnly.headline).toContain('4 providers');
 
     const daysOnly = buildPolicyRiskExplain({
-      plan: { steps: [{ id: '1' }] },
+      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' })] }),
       employeeCount: 1,
       daySpan: 5,
     });
     expect(daysOnly.headline).toContain('5 days');
 
     const stepsOnly = buildPolicyRiskExplain({
-      plan: { steps: [{ id: '1' }, { id: '2' }, { id: '3' }] },
+      plan: makeAgentPlan({
+        steps: [
+          makeAgentPlanStep({ id: '1' }),
+          makeAgentPlanStep({ id: '2' }),
+          makeAgentPlanStep({ id: '3' }),
+        ],
+      }),
       employeeCount: 1,
       daySpan: 1,
     });
@@ -70,7 +85,7 @@ describe('buildPolicyRiskExplain', () => {
         riskLevel: 'unknown',
         violations: [],
       },
-      plan: { steps: [{ id: '1' }] },
+      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' })] }),
       employeeCount: 1,
       daySpan: 1,
     });
@@ -81,7 +96,9 @@ describe('buildPolicyRiskExplain', () => {
 
   it('uses providers-only scope when multiple providers and one day', () => {
     const result = buildPolicyRiskExplain({
-      plan: { steps: [{ id: '1' }, { id: '2' }] },
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })],
+      }),
       employeeCount: 3,
       daySpan: 1,
     });
@@ -99,7 +116,7 @@ describe('buildPolicyRiskExplain', () => {
   it('uses low-risk headline', () => {
     const result = buildPolicyRiskExplain({
       policyPreview: { riskLevel: 'low', violations: [] },
-      plan: { steps: [{ id: '1' }] },
+      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' })] }),
       employeeCount: 1,
       daySpan: 1,
     });

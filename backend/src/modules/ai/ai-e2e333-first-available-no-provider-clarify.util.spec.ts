@@ -4,14 +4,19 @@ import { AiBookingCoreService } from './ai-booking-core.service.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 
 describe('e2e-bug.333: first-available create_booking without a resolved provider clarifies, never a fake conflict', () => {
-  it.each(
-    E2E333_PROMPT_HINT_CASES.map((row) => [row.id, row] as const),
-  )('%s', (_id, scenario) => {
-    const params: Record<string, unknown> = {};
-    enrichBookingTimeHintsFromPrompt('create_booking', params, scenario.prompt);
-    expect(params.bookingFirstAvailable).toBe(scenario.expectFirstAvailable);
-    expect(Boolean(params.allProviders)).toBe(scenario.expectAllProviders);
-  });
+  it.each(E2E333_PROMPT_HINT_CASES.map((row) => [row.id, row] as const))(
+    '%s',
+    (_id, scenario) => {
+      const params: Record<string, unknown> = {};
+      enrichBookingTimeHintsFromPrompt(
+        'create_booking',
+        params,
+        scenario.prompt,
+      );
+      expect(params.bookingFirstAvailable).toBe(scenario.expectFirstAvailable);
+      expect(Boolean(params.allProviders)).toBe(scenario.expectAllProviders);
+    },
+  );
 
   // pickCreateBookingFirstAvailable's zero-search-target validation is pure
   // w.r.t. injected repos/services (no DB access before the early return),

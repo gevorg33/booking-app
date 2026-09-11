@@ -57,7 +57,10 @@ describe('e2e-bug.326: "+1 thanks" / "thanks +1" wrapper phrasing rates as give_
     async ({ prompt, expectedRating, expectShowReasonChips }) => {
       const result = await handleGiveAiFeedbackLogic(
         'biz',
-        { lastAssistantReply: 'Slots open tomorrow.', lastAction: 'list_services' },
+        {
+          lastAssistantReply: 'Slots open tomorrow.',
+          lastAction: 'list_services',
+        },
         prompt,
       );
       expect(result.success).toBe(true);
@@ -73,8 +76,16 @@ describe('e2e-bug.326: "+1 thanks" / "thanks +1" wrapper phrasing rates as give_
   );
 
   it.each([
-    { id: 'provider-plus-one-thanks', prompt: '+1 thanks', rating: 'up' as const },
-    { id: 'provider-thanks-minus-one', prompt: 'thanks -1', rating: 'down' as const },
+    {
+      id: 'provider-plus-one-thanks',
+      prompt: '+1 thanks',
+      rating: 'up' as const,
+    },
+    {
+      id: 'provider-thanks-minus-one',
+      prompt: 'thanks -1',
+      rating: 'down' as const,
+    },
   ])('provider mirror $id ("$prompt")', ({ prompt, rating }) => {
     expect(isGiveProviderAiFeedbackPrompt(prompt)).toBe(true);
     expect(parseGiveProviderAiFeedbackFromPrompt(prompt)).toEqual(

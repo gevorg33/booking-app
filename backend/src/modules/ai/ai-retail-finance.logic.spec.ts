@@ -179,7 +179,12 @@ function buildDeps(
     } as any,
     reviewsService: {
       summary: jest.fn(async () => [
-        { employeeId: 'e1', employeeName: 'Anna', avgRating: 4.5, reviewCount: 2 },
+        {
+          employeeId: 'e1',
+          employeeName: 'Anna',
+          avgRating: 4.5,
+          reviewCount: 2,
+        },
       ]),
       list: jest.fn(async () => [
         {
@@ -196,8 +201,18 @@ function buildDeps(
         periodDays: 30,
         funnel: {
           steps: [
-            { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
-            { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+            {
+              step: 'app_installed',
+              count: 100,
+              conversionFromPrevious: null,
+              dropOffFromPrevious: null,
+            },
+            {
+              step: 'signed_in',
+              count: 50,
+              conversionFromPrevious: 50,
+              dropOffFromPrevious: 50,
+            },
           ],
           breakdowns: [],
         },
@@ -691,7 +706,12 @@ describe('ai-retail-finance.logic', () => {
           ]),
         } as any,
       });
-      const result = await handleListRefundsLogic(deps, 'biz-1', {}, 'refund report');
+      const result = await handleListRefundsLogic(
+        deps,
+        'biz-1',
+        {},
+        'refund report',
+      );
       expect((result.details as any).refunds[0].amount).toBe(60);
     });
 
@@ -718,7 +738,12 @@ describe('ai-retail-finance.logic', () => {
           }),
         } as any,
       });
-      const result = await handleListRefundsLogic(deps, 'biz-1', {}, 'list refunds');
+      const result = await handleListRefundsLogic(
+        deps,
+        'biz-1',
+        {},
+        'list refunds',
+      );
       expect(result.success).toBe(false);
       expect(result.action).toBe('list_refunds');
       expect(result.summary).toBe('db down');
@@ -739,7 +764,9 @@ describe('ai-retail-finance.logic', () => {
           currency: 'USD',
           rows: [],
         })),
-        exportCsv: jest.fn(async () => 'Section,Key,Value1,Value2,Value3\nP&L,Revenue,1000,,'),
+        exportCsv: jest.fn(
+          async () => 'Section,Key,Value1,Value2,Value3\nP&L,Revenue,1000,,',
+        ),
         exportPdfHtml: jest.fn(async () => '<html>report</html>'),
       } as any,
     });
@@ -2044,10 +2071,14 @@ describe('ai-retail-finance.logic', () => {
         deps.productRecommendationService.setServiceRecommendations,
       ).toHaveBeenCalledWith('biz-1', 'svc-1', ['prod-1']);
 
-      const byCategory = await handleSetRecommendedProductsLogic(deps, 'biz-1', {
-        categoryId: 'cat-1',
-        productNames: ['Shampoo'],
-      });
+      const byCategory = await handleSetRecommendedProductsLogic(
+        deps,
+        'biz-1',
+        {
+          categoryId: 'cat-1',
+          productNames: ['Shampoo'],
+        },
+      );
       expect(byCategory.success).toBe(true);
       expect(
         deps.productRecommendationService.setCategoryRecommendations,
@@ -2062,9 +2093,9 @@ describe('ai-retail-finance.logic', () => {
 
     it('deletes an expense', async () => {
       const deps = buildDeps();
-      expect(
-        (await handleDeleteExpenseLogic(deps, 'biz-1', {})).success,
-      ).toBe(false);
+      expect((await handleDeleteExpenseLogic(deps, 'biz-1', {})).success).toBe(
+        false,
+      );
       const byId = await handleDeleteExpenseLogic(deps, 'biz-1', {
         expenseId: 'exp-1',
       });

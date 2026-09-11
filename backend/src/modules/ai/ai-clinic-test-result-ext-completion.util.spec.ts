@@ -11,9 +11,8 @@ function baseCmd(overrides: Partial<ResolvedCommand>): ResolvedCommand {
     action: 'upload_patient_result',
     params: {},
     enrichedParams: {},
-    entities: {},
+    entities: { employees: [], services: [] },
     reasoning: 'test',
-    confidence: 0.9,
     ...overrides,
   };
 }

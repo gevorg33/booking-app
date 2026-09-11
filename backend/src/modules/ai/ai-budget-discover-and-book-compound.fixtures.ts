@@ -8,7 +8,7 @@ export type BudgetDiscoverAndBookCompoundFixture = {
   misclassifiedAction?: string;
 };
 
-export const BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS = [
+export const BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS: readonly BudgetDiscoverAndBookCompoundFixture[] = [
   {
     id: 'budget-discover-book-haircut-50-e2e-en',
     prompt:
@@ -179,7 +179,7 @@ export const BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS = [
       bookingFirstAvailable: true,
     },
   },
-] as const satisfies readonly BudgetDiscoverAndBookCompoundFixture[];
+] satisfies readonly BudgetDiscoverAndBookCompoundFixture[];
 
 export const BUDGET_DISCOVER_AND_BOOK_EN_SCENARIO_IDS =
   BUDGET_DISCOVER_AND_BOOK_COMPOUND_PROMPTS.map((row) => row.id);

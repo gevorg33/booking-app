@@ -48,31 +48,48 @@ describe('ai-external-doctors.logic', () => {
   describe('handleCreateExternalDoctorLogic', () => {
     it('creates an external doctor', async () => {
       const deps = buildDeps();
-      const result = await handleCreateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        name: 'Dr. Smith',
-        street: '123 Main St',
-        city: 'Springfield',
-        province: 'IL',
-        country: 'US',
-        postalCode: '62704',
-      });
+      const result = await handleCreateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          name: 'Dr. Smith',
+          street: '123 Main St',
+          city: 'Springfield',
+          province: 'IL',
+          country: 'US',
+          postalCode: '62704',
+        },
+      );
       expect(result.success).toBe(true);
-      expect(deps.externalDoctorsService.createExternalDoctor).toHaveBeenCalled();
+      expect(
+        deps.externalDoctorsService.createExternalDoctor,
+      ).toHaveBeenCalled();
     });
 
     it('requires sign in', async () => {
       const deps = buildDeps();
-      const result = await handleCreateExternalDoctorLogic(deps, 'biz-1', undefined, {
-        name: 'Dr. Smith',
-      });
+      const result = await handleCreateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        undefined,
+        {
+          name: 'Dr. Smith',
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('clarifies when address fields are missing', async () => {
       const deps = buildDeps();
-      const result = await handleCreateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        name: 'Dr. Smith',
-      });
+      const result = await handleCreateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          name: 'Dr. Smith',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
       expect(result.details?.missing).toContain('street');
@@ -84,14 +101,19 @@ describe('ai-external-doctors.logic', () => {
           throw new Error('forbidden');
         }),
       });
-      const result = await handleCreateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        name: 'Dr. Smith',
-        street: '123 Main St',
-        city: 'Springfield',
-        province: 'IL',
-        country: 'US',
-        postalCode: '62704',
-      });
+      const result = await handleCreateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          name: 'Dr. Smith',
+          street: '123 Main St',
+          city: 'Springfield',
+          province: 'IL',
+          country: 'US',
+          postalCode: '62704',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.summary).toBe('forbidden');
     });
@@ -100,12 +122,19 @@ describe('ai-external-doctors.logic', () => {
   describe('handleUpdateExternalDoctorLogic', () => {
     it('resolves by doctorId and updates', async () => {
       const deps = buildDeps();
-      const result = await handleUpdateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        doctorId: 'doc-1',
-        name: 'Dr. Smith Jr.',
-      });
+      const result = await handleUpdateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          doctorId: 'doc-1',
+          name: 'Dr. Smith Jr.',
+        },
+      );
       expect(result.success).toBe(true);
-      expect(deps.externalDoctorsService.updateExternalDoctor).toHaveBeenCalledWith(
+      expect(
+        deps.externalDoctorsService.updateExternalDoctor,
+      ).toHaveBeenCalledWith(
         'biz-1',
         'user-1',
         'doc-1',
@@ -115,12 +144,19 @@ describe('ai-external-doctors.logic', () => {
 
     it('resolves by doctorName via search', async () => {
       const deps = buildDeps();
-      const result = await handleUpdateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        doctorName: 'Smith',
-        isActive: false,
-      });
+      const result = await handleUpdateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          doctorName: 'Smith',
+          isActive: false,
+        },
+      );
       expect(result.success).toBe(true);
-      expect(deps.externalDoctorsService.listExternalDoctors).toHaveBeenCalled();
+      expect(
+        deps.externalDoctorsService.listExternalDoctors,
+      ).toHaveBeenCalled();
     });
 
     it('fails when no doctor matches the name', async () => {
@@ -132,27 +168,42 @@ describe('ai-external-doctors.logic', () => {
           pageSize: 20,
         })),
       });
-      const result = await handleUpdateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        doctorName: 'Nobody',
-        isActive: false,
-      });
+      const result = await handleUpdateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          doctorName: 'Nobody',
+          isActive: false,
+        },
+      );
       expect(result.success).toBe(false);
     });
 
     it('clarifies when neither doctorId nor doctorName is given', async () => {
       const deps = buildDeps();
-      const result = await handleUpdateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        isActive: false,
-      });
+      const result = await handleUpdateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          isActive: false,
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
     });
 
     it('clarifies when no patch fields are given', async () => {
       const deps = buildDeps();
-      const result = await handleUpdateExternalDoctorLogic(deps, 'biz-1', 'user-1', {
-        doctorId: 'doc-1',
-      });
+      const result = await handleUpdateExternalDoctorLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {
+          doctorId: 'doc-1',
+        },
+      );
       expect(result.success).toBe(false);
       expect(result.details?.clarify).toBe(true);
     });
@@ -161,7 +212,12 @@ describe('ai-external-doctors.logic', () => {
   describe('handleListExternalDoctorsLogic', () => {
     it('lists external doctors', async () => {
       const deps = buildDeps();
-      const result = await handleListExternalDoctorsLogic(deps, 'biz-1', 'user-1', {});
+      const result = await handleListExternalDoctorsLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
       expect(result.success).toBe(true);
       expect((result.details as any).totalItems).toBe(1);
     });

@@ -64,7 +64,11 @@ export function getUtcBoundsForDateKey(
   const tz = resolveTimezone(timeZone);
   return {
     start: dayjs.tz(`${dateKey} 00:00:00`, tz).utc().toDate(),
-    end: dayjs.tz(`${dateKey} 23:59:59`, tz).utc().toDate(),
+    // §218 — `.999`, not `.000`. Every one of the twelve callers uses this as
+    // "the whole of day X" against an inclusive `Between`, so closing on
+    // 23:59:59.000 silently dropped anything in the final second of the day.
+    // Widening can only include rows that were always meant to be in range.
+    end: dayjs.tz(`${dateKey} 23:59:59.999`, tz).utc().toDate(),
   };
 }
 

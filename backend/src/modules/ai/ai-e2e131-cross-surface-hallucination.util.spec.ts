@@ -16,8 +16,8 @@ describe('e2e-bug.131 cross-surface action hallucination', () => {
   const rescue = new AiIntentRescueService();
 
   it.each(
-    E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS.filter((s) =>
-      s.expectedAction === 'remove_service_from_cart',
+    E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS.filter(
+      (s) => s.expectedAction === 'remove_service_from_cart',
     ).map((s) => [s.id, s]),
   )('cart remove detectors for %s', (_id, row) => {
     expect(isRemoveServiceFromCartPrompt(row.prompt)).toBe(true);
@@ -31,10 +31,7 @@ describe('e2e-bug.131 cross-surface action hallucination', () => {
   it.each(E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS.map((s) => [s.id, s]))(
     'AiIntentRescueService remaps wrong-surface %s',
     (_id, row) => {
-      for (const fromAction of [
-        row.misclassifiedAction,
-        'unknown',
-      ] as const) {
+      for (const fromAction of [row.misclassifiedAction, 'unknown'] as const) {
         const result = rescue.rescue({
           prompt: row.prompt,
           action: fromAction,
@@ -48,21 +45,22 @@ describe('e2e-bug.131 cross-surface action hallucination', () => {
     },
   );
 
-  it.each(
-    E2E131_PROVIDER_RETAIL_CART_STILL_MATCH.map((s) => [s.id, s.prompt]),
-  )('provider retail remove still matches %s', (_id, prompt) => {
-    expect(isRemoveRetailFromBookingPrompt(prompt)).toBe(true);
-    expect(
-      rescueProviderExp3Intent(prompt, 'unknown')?.action,
-    ).toBe('remove_retail_from_booking');
-    const result = rescue.rescue({
-      prompt,
-      action: 'unknown',
-      params: {},
-      surface: 'provider',
-    });
-    expect(result?.action).toBe('remove_retail_from_booking');
-  });
+  it.each(E2E131_PROVIDER_RETAIL_CART_STILL_MATCH.map((s) => [s.id, s.prompt]))(
+    'provider retail remove still matches %s',
+    (_id, prompt) => {
+      expect(isRemoveRetailFromBookingPrompt(prompt)).toBe(true);
+      expect(rescueProviderExp3Intent(prompt, 'unknown')?.action).toBe(
+        'remove_retail_from_booking',
+      );
+      const result = rescue.rescue({
+        prompt,
+        action: 'unknown',
+        params: {},
+        surface: 'provider',
+      });
+      expect(result?.action).toBe('remove_retail_from_booking');
+    },
+  );
 
   it('provider retail cart does not win on customer surface', () => {
     const result = rescue.rescue({

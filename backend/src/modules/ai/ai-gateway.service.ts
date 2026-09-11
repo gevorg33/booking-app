@@ -4,8 +4,14 @@ import {
   HttpException,
   Logger,
   Inject,
+  Optional,
   forwardRef,
 } from '@nestjs/common';
+import {
+  AiConversationCarrierService,
+  CONVERSATION_ENTITY_STORE_CONTEXT_KEY,
+  CONVERSATION_TURN_INDEX_CONTEXT_KEY,
+} from './ai-conversation-carrier.service.js';
 import { AiCommandService } from './ai-command.service.js';
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { ProviderAiCommandService } from '../provider-mobile/provider-ai-command.service.js';
@@ -40,6 +46,7 @@ import { AiSettingsService } from './ai-settings.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import type { AiCommandSurface } from './ai-platform.util.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { AiPlannerShadowService } from './ai-planner-shadow.service.js';
 import {
   buildGatewayCommandTraceInput,
   COMMAND_TRACE_ID_CONTEXT_KEY,
@@ -108,6 +115,9 @@ export class AiGatewayService {
   private readonly platform: AiPlatformService;
   private readonly commandTrace: AiCommandTraceService;
   private readonly productGuide: AiProductGuideService;
+  /** AI-ROADMAP Phase 3 — optional so the 12-arg constructions in specs keep working. */
+  private readonly plannerShadow?: AiPlannerShadowService;
+  private readonly conversationCarrier?: AiConversationCarrierService;
 
   /* istanbul ignore start */
   constructor(
@@ -125,6 +135,11 @@ export class AiGatewayService {
     platform: AiPlatformService,
     commandTrace: AiCommandTraceService,
     productGuide: AiProductGuideService,
+    @Optional() plannerShadow?: AiPlannerShadowService,
+    // e2e-bug.401 — optional so the many hand-constructed gateways in tests
+    // keep compiling; an absent carrier simply means no state crosses turns,
+    // which is the behaviour before this change.
+    @Optional() conversationCarrier?: AiConversationCarrierService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -138,6 +153,8 @@ export class AiGatewayService {
     this.platform = platform;
     this.commandTrace = commandTrace;
     this.productGuide = productGuide;
+    this.plannerShadow = plannerShadow;
+    this.conversationCarrier = conversationCarrier;
   }
   /* istanbul ignore end */
 
@@ -367,8 +384,22 @@ export class AiGatewayService {
         historyChannel,
       );
 
+    // e2e-bug.401 — open the conversation before the turn is classified, so
+    // anything downstream can read what previous turns left behind. Awaited
+    // rather than fired off: the point is to have it *before* classification,
+    // and a miss is a resolved null rather than a hang (the store fails fast on
+    // an unreachable Redis and is a no-op while the flag is unset).
+    const carrierContext = await this.conversationCarrier?.begin({
+      userId: params.userId ?? null,
+      businessId: params.businessId,
+      history: params.history ?? [],
+      prompt: params.prompt,
+    });
+
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
+      [CONVERSATION_ENTITY_STORE_CONTEXT_KEY]: carrierContext?.entityStore,
+      [CONVERSATION_TURN_INDEX_CONTEXT_KEY]: carrierContext?.identity.turnIndex,
       [ASSISTANT_MODE_CONTEXT_KEY]: resolveAssistantMode({
         prompt: params.prompt,
         surface: params.surface,
@@ -500,6 +531,13 @@ export class AiGatewayService {
       );
     }
 
+    // e2e-bug.401 — close the conversation. After the result is built, and
+    // fire-and-forget inside `commit`, so a slow Redis cannot add latency to a
+    // response that is already finished.
+    if (carrierContext) {
+      this.conversationCarrier?.commit(carrierContext, result);
+    }
+
     const attached = attachGatewayMeta(result, params.surface, tier);
     void this.recordOutcome(
       params,
@@ -544,6 +582,32 @@ export class AiGatewayService {
       latencyMs: Date.now() - opts.startedAt,
     });
     this.commandTrace.recordFireAndForget(input);
+
+    // AI-ROADMAP Phase 3 — shadow-run the planner on this same message.
+    // Started AFTER the response is built and the trace is queued, so it can
+    // add no latency; disabled unless the surface is listed in
+    // AI_PLANNER_SHADOW_SURFACES; and it can never affect `opts.result`.
+    try {
+      this.plannerShadow?.runInBackground({
+        traceId: opts.traceId,
+        businessId: opts.params.businessId,
+        surface: opts.surface,
+        // Re-derived from the request rather than taken from `opts.role`, which
+        // carries a role *profile* on some paths and an access tier on others.
+        // The planner filters its shortlist by this, so it has to be the same
+        // value `execute` gates on — not something that looks like it.
+        tier: resolveAccessTier(opts.params.membershipRole ?? opts.params.role),
+        message: opts.params.prompt,
+        userId: opts.params.userId,
+        locale:
+          typeof opts.result.details?.locale === 'string'
+            ? opts.result.details.locale
+            : undefined,
+      });
+    } catch {
+      // Defence in depth: the shadow run is diagnostics-only and must never
+      // turn a completed response into a failed request.
+    }
   }
 
   private recordOutcome(
@@ -597,17 +661,5 @@ export class AiGatewayService {
       userId ?? 'system',
     );
     return this.toClientResponse(result);
-  }
-
-  assertIntentAllowed(
-    surface: AiSurface,
-    tier: string | undefined,
-    action: string,
-  ): void {
-    if (!isIntentAllowed(surface, normalizeActorRole(tier), action)) {
-      throw new ForbiddenException(
-        `Action "${action}" is not allowed for your role on ${surface}.`,
-      );
-    }
   }
 }

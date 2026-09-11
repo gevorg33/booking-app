@@ -65,8 +65,7 @@ describe('ai-report-booking-problem.util (ai-cmd-customer-4.12.3)', () => {
       if (wantsReport) {
         expect(isConfirmMyBookingDetailsPrompt(prompt)).toBe(false);
         expect(
-          rescueReportBookingProblemIntent(prompt, misclassifiedAction)
-            ?.action,
+          rescueReportBookingProblemIntent(prompt, misclassifiedAction)?.action,
         ).toBe('report_booking_problem');
         expect(
           rescueConfirmMyBookingDetailsIntent(prompt, 'unknown'),

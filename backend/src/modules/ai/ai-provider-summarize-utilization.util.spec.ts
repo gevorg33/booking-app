@@ -6,7 +6,10 @@ import {
 
 describe('ai-provider-summarize-utilization.util', () => {
   it.each(
-    PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
   )('detects summarize_utilization prompt %s', (_id, prompt) => {
     expect(isSummarizeUtilizationPrompt(prompt)).toBe(true);
   });
@@ -19,7 +22,10 @@ describe('ai-provider-summarize-utilization.util', () => {
   });
 
   it.each(
-    PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    PROVIDER_SUMMARIZE_UTILIZATION_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
   )('rescues summarize_utilization from unknown for %s', (_id, prompt) => {
     const rescued = rescueSummarizeUtilizationIntent(prompt, 'unknown');
     expect(rescued?.action).toBe('summarize_utilization');

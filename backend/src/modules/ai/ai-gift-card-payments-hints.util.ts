@@ -420,7 +420,3 @@ export function decomposeGiftCardPaymentsCompoundPrompt(
   const single = classifyGiftCardPaymentsSegment(trimmed);
   return single ? [single] : [];
 }
-
-export function isGiftCardPaymentsCompoundPrompt(prompt: string): boolean {
-  return decomposeGiftCardPaymentsCompoundPrompt(prompt).length >= 2;
-}

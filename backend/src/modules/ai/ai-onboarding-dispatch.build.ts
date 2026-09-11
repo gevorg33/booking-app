@@ -42,21 +42,13 @@ export function buildOnboardingLogicDispatchMap(): ReadonlyMap<
     handleApplyOnboardingCatalogLogic(deps, ctx.businessId, ctx.params),
   );
   map.set('apply_onboarding_schedule', async (deps, ctx) =>
-    handleApplyOnboardingScheduleLogic(
-      deps,
-      ctx.businessId,
-      ctx.userId ?? '',
-    ),
+    handleApplyOnboardingScheduleLogic(deps, ctx.businessId, ctx.userId ?? ''),
   );
   map.set('skip_onboarding_schedule', async (deps, ctx) =>
     handleSkipOnboardingScheduleLogic(deps, ctx.businessId),
   );
   map.set('apply_onboarding_playbook', async (deps, ctx) =>
-    handleApplyOnboardingPlaybookLogic(
-      deps,
-      ctx.businessId,
-      ctx.userId ?? '',
-    ),
+    handleApplyOnboardingPlaybookLogic(deps, ctx.businessId, ctx.userId ?? ''),
   );
   map.set('complete_onboarding', async (deps, ctx) =>
     handleCompleteOnboardingLogic(deps, ctx.businessId),

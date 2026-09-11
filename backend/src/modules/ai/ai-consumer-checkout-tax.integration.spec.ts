@@ -10,9 +10,11 @@ import {
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai consumer checkout tax integration (ai-cmd-tax-14)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -26,7 +28,7 @@ describe('ai consumer checkout tax integration (ai-cmd-tax-14)', () => {
         taxNumber: '',
       },
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -60,15 +62,16 @@ describe('ai consumer checkout tax integration (ai-cmd-tax-14)', () => {
       expect(rescued?.action).toBe('explain_consumer_checkout_tax');
       if (aspect) expect(rescued?.params?.aspect).toBe(aspect);
 
-      const validation = validateCommand({
-        action: 'explain_consumer_checkout_tax',
-        params: aspect ? { aspect } : {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_consumer_checkout_tax',
+          params: aspect ? { aspect } : {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

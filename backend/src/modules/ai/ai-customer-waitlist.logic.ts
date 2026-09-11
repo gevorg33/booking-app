@@ -1,4 +1,6 @@
 import type { CommandResult } from './command-completion.types.js';
+import { fuzzyMatchServiceByName } from './ai-orchestration.helpers.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
 import type { PublicCustomerWaitlistService } from '../public-booking/public-customer-waitlist.service.js';
 import {
@@ -51,7 +53,7 @@ async function resolveBusinessSlug(
   return business?.slug ?? null;
 }
 
-async function resolveServiceIdByName(
+async function resolveWaitlistServiceId(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   serviceName?: string,
@@ -63,7 +65,38 @@ async function resolveServiceIdByName(
     .where('service.businessId = :businessId', { businessId })
     .andWhere('LOWER(service.name) = :name', { name: normalized })
     .getOne();
-  return service?.id;
+  if (service) return service.id;
+
+  // e2e-bug.489 — fall back to the shared matcher when the exact name misses.
+  //
+  // This resolver only ever did `LOWER(name) = :name`, so "haircut" against a
+  // catalog entry "Haircut - Men's" linked nothing and the row was stored with
+  // a free-text `serviceName` and no `serviceId`. That is a *supported* outcome
+  // (the waitlist accepts free-text names by design), so this was never a
+  // correctness bug — only fewer rows linked to a real service than could be.
+  //
+  // **Strictly additive**: the exact match above is unchanged and still wins,
+  // so this can only turn a previously-unlinked row into a linked one. That is
+  // the same "acceptance may widen, never narrow" constraint the D5 slices
+  // used, and it is what makes a widening safe to ship here — widening a
+  // matcher is otherwise how e2e-bug.362 happened.
+  //
+  // A tie resolves to nothing rather than to an arbitrary namesake: linking the
+  // wrong service is worse than leaving the row free-text, which already works.
+  //
+  // e2e-bug.367 (2026-09-11) — the in-memory tail delegates to the shared
+  // resolver, which refuses ties the same way and prefers the canonical match.
+  // The previous `fuzzyMatchServiceByName` fallback is passed as the last tier
+  // so nothing this path used to accept is lost: acceptance widens, never
+  // narrows. Renamed because it is no longer a re-parser — it is a DB exact
+  // match in front of the one resolver.
+  const candidates = await deps.serviceRepo.find({ where: { businessId } });
+  if (!candidates.length) return undefined;
+  return resolveServiceByNameOrRefuseTie(
+    candidates,
+    serviceName,
+    (list, needle) => fuzzyMatchServiceByName([...list], needle),
+  )?.id;
 }
 
 export async function handleJoinWaitlistLogic(
@@ -103,7 +136,7 @@ export async function handleJoinWaitlistLogic(
   const serviceId =
     typeof enriched.serviceId === 'string'
       ? enriched.serviceId
-      : await resolveServiceIdByName(
+      : await resolveWaitlistServiceId(
           deps,
           businessId,
           parsed.serviceName ?? (enriched.serviceName as string | undefined),

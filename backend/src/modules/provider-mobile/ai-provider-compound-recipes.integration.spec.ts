@@ -19,7 +19,10 @@ describe('provider AI compound recipes (ai-cmd-provider-5.14)', () => {
     searchProviderPatients?: jest.Mock<any>;
   };
 
-  function echoActionHandleIntent(summary: string, details: Record<string, unknown> = {}) {
+  function echoActionHandleIntent(
+    summary: string,
+    details: Record<string, unknown> = {},
+  ) {
     return jest.fn(async (...args: any[]) => ({
       success: true,
       action: args[2],
@@ -305,7 +308,9 @@ describe('provider AI compound recipes (ai-cmd-provider-5.14)', () => {
       save: jest.fn(async (b: unknown) => b),
     };
     const providerExp3 = {
-      handleIntent: echoActionHandleIntent('Texted Maria about the reschedule.'),
+      handleIntent: echoActionHandleIntent(
+        'Texted Maria about the reschedule.',
+      ),
     };
     const service = createProviderAiCommandHarness({
       providerMobile,
@@ -685,7 +690,10 @@ describe('provider AI compound recipes (ai-cmd-provider-5.14)', () => {
     );
 
     expect(result.action).toBe('multi_service_brief');
-    for (const action of ['explain_multi_service_timeline', 'summarize_client']) {
+    for (const action of [
+      'explain_multi_service_timeline',
+      'summarize_client',
+    ]) {
       expect(providerClientContext.handleIntent).toHaveBeenCalledWith(
         businessId,
         userId,

@@ -1,4 +1,13 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { ClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.entity.js';
+import type { Service } from '../service/entities/service.entity.js';
+import { makeClinicPatientAlertDismissal } from './entities/clinic-patient-alert-dismissal.test-fixture.js';
+import { makeClinicTestOrder } from '../clinic-test-results/entities/clinic-test-order.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import type { ClinicPatientAlertDismissal } from './entities/clinic-patient-alert-dismissal.entity.js';
+import { makeClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.test-fixture.js';
+import { makeClinicTestType } from '../clinic-test-results/entities/clinic-test-catalog.test-fixture.js';
+import type { ClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.entity.js';
 import { PatientClinicalAlertsService } from './patient-clinical-alerts.service.js';
 import { CLINIC_PATIENT_ALERT_LIST_EXPECTED } from './clinic-patient-alert.fixtures.js';
 
@@ -9,37 +18,49 @@ describe('PatientClinicalAlertsService (integration)', () => {
   const dismissalRepo = {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => ({ ...value, id: 'dismiss-1' })),
-    find: jest.fn(async () => []),
-    findOne: jest.fn(async () => null),
+    // Declared returns, not inferred: `async () => []` infers `Promise<never[]>`
+    // and `async () => null` infers `Promise<null>`, neither of which is the
+    // entity this repository deals in.
+    find: jest.fn(async (): Promise<ClinicPatientAlertDismissal[]> => []),
+    findOne: jest.fn(
+      async (): Promise<ClinicPatientAlertDismissal | null> => null,
+    ),
   };
 
   const resultRepo = {
-    find: jest.fn(async () => [
-      {
-        id: 'result-1',
-        bookingId: 'booking-1',
-        patientVisibility: 'New',
-        status: 'Released',
-        releasedAt: new Date('2026-06-21T10:00:00.000Z'),
-        testType: { title: 'CBC panel' },
-        order: null,
-      },
-    ]),
-    findOne: jest.fn(async () => ({
-      id: 'result-1',
-      businessId,
-      customerId,
-      status: 'Released',
-    })),
+    find: jest.fn(
+      async (): Promise<ClinicTestResult[]> => [
+        makeClinicTestResult({
+          id: 'result-1',
+          bookingId: 'booking-1',
+          patientVisibility: 'New',
+          status: 'Released',
+          releasedAt: new Date('2026-06-21T10:00:00.000Z'),
+          testType: makeClinicTestType({ title: 'CBC panel' }),
+        }),
+      ],
+    ),
+    // `ClinicTestResult | null`: one test resolves `null` for the missing-source path.
+    findOne: jest.fn(
+      async (): Promise<ClinicTestResult | null> =>
+        makeClinicTestResult({
+          id: 'result-1',
+          businessId,
+          customerId,
+          status: 'Released',
+        }),
+    ),
   };
 
   const orderRepo = {
-    find: jest.fn(async () => []),
-    findOne: jest.fn(async () => null),
+    // Declared returns, not inferred — `Promise<never[]>` / `Promise<null>` are
+    // not the entity this repository deals in.
+    find: jest.fn(async (): Promise<ClinicTestOrder[]> => []),
+    findOne: jest.fn(async (): Promise<ClinicTestOrder | null> => null),
   };
 
   const serviceRepo = {
-    find: jest.fn(async () => []),
+    find: jest.fn(async (): Promise<Service[]> => []),
   };
 
   const intakeRepo = {
@@ -153,11 +174,13 @@ describe('PatientClinicalAlertsService (integration)', () => {
   });
 
   it('returns existing dismissal without creating a duplicate', async () => {
-    dismissalRepo.findOne.mockResolvedValueOnce({
-      id: 'existing-dismiss',
-      alertType: 'TestResultReleased',
-      sourceId: 'result-1',
-    });
+    dismissalRepo.findOne.mockResolvedValueOnce(
+      makeClinicPatientAlertDismissal({
+        id: 'existing-dismiss',
+        alertType: 'TestResultReleased',
+        sourceId: 'result-1',
+      }),
+    );
 
     const dismissed = await alertsService.dismissAlert(
       businessId,
@@ -210,10 +233,10 @@ describe('PatientClinicalAlertsService (integration)', () => {
 
   it('filters dismissed alerts from the list response', async () => {
     dismissalRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicPatientAlertDismissal({
         alertType: 'TestResultReleased',
         sourceId: 'result-1',
-      },
+      }),
     ]);
 
     const list = await alertsService.listAlertsForCustomer(
@@ -228,15 +251,13 @@ describe('PatientClinicalAlertsService (integration)', () => {
 
   it('falls back to order display name when test type title is missing', async () => {
     resultRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestResult({
         id: 'result-9',
-        bookingId: null,
         patientVisibility: 'New',
         status: 'Released',
         releasedAt: new Date('2026-06-21T10:00:00.000Z'),
-        testType: null,
-        order: { displayNames: 'Custom order panel' },
-      },
+        order: makeClinicTestOrder({ displayNames: 'Custom order panel' }),
+      }),
     ]);
 
     const list = await alertsService.listAlertsForCustomer(
@@ -252,18 +273,17 @@ describe('PatientClinicalAlertsService (integration)', () => {
 
   it('lists lab booking request pending alerts after staff push', async () => {
     orderRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestOrder({
         id: 'order-1',
         bookingId: 'visit-booking-1',
         displayNames: 'CBC, Lipid panel',
         status: 'NotCollected',
         bookingRequestPushedAt: new Date('2026-06-22T11:00:00.000Z'),
-        collectionBookingId: null,
         collectionServiceId: 'svc-lab-draw',
-      },
+      }),
     ]);
     serviceRepo.find.mockResolvedValueOnce([
-      { id: 'svc-lab-draw', name: 'Lab blood draw' },
+      makeService({ id: 'svc-lab-draw', name: 'Lab blood draw' }),
     ]);
 
     const list = await alertsService.listAlertsForCustomer(
@@ -279,14 +299,16 @@ describe('PatientClinicalAlertsService (integration)', () => {
   });
 
   it('dismisses lab booking request pending alerts', async () => {
-    orderRepo.findOne.mockResolvedValueOnce({
-      id: 'order-1',
-      businessId,
-      customerId,
-      status: 'NotCollected',
-      bookingRequestPushedAt: new Date('2026-06-22T11:00:00.000Z'),
-      collectionBookingId: null,
-    });
+    orderRepo.findOne.mockResolvedValueOnce(
+      makeClinicTestOrder({
+        id: 'order-1',
+        businessId,
+        customerId,
+        status: 'NotCollected',
+        bookingRequestPushedAt: new Date('2026-06-22T11:00:00.000Z'),
+        collectionBookingId: null,
+      }),
+    );
 
     const dismissed = await alertsService.dismissAlert(
       businessId,
@@ -307,7 +329,7 @@ describe('PatientClinicalAlertsService (integration)', () => {
 
   it('falls back when collection service id is unknown in the registry', async () => {
     orderRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestOrder({
         id: 'order-3',
         bookingId: 'visit-booking-3',
         displayNames: 'Vitamin D',
@@ -315,7 +337,7 @@ describe('PatientClinicalAlertsService (integration)', () => {
         bookingRequestPushedAt: new Date('2026-06-22T09:00:00.000Z'),
         collectionBookingId: null,
         collectionServiceId: 'missing-service',
-      },
+      }),
     ]);
     serviceRepo.find.mockResolvedValueOnce([]);
 
@@ -336,7 +358,7 @@ describe('PatientClinicalAlertsService (integration)', () => {
 
   it('lists lab booking request alerts without collection service name when service is missing', async () => {
     orderRepo.find.mockResolvedValueOnce([
-      {
+      makeClinicTestOrder({
         id: 'order-2',
         bookingId: 'visit-booking-2',
         displayNames: null,
@@ -344,7 +366,7 @@ describe('PatientClinicalAlertsService (integration)', () => {
         bookingRequestPushedAt: new Date('2026-06-22T10:00:00.000Z'),
         collectionBookingId: null,
         collectionServiceId: null,
-      },
+      }),
     ]);
 
     const list = await alertsService.listAlertsForCustomer(
@@ -364,14 +386,16 @@ describe('PatientClinicalAlertsService (integration)', () => {
   });
 
   it('rejects lab booking request dismiss when collection is already booked', async () => {
-    orderRepo.findOne.mockResolvedValueOnce({
-      id: 'order-1',
-      businessId,
-      customerId,
-      status: 'NotCollected',
-      bookingRequestPushedAt: new Date('2026-06-22T11:00:00.000Z'),
-      collectionBookingId: 'collection-booking-1',
-    });
+    orderRepo.findOne.mockResolvedValueOnce(
+      makeClinicTestOrder({
+        id: 'order-1',
+        businessId,
+        customerId,
+        status: 'NotCollected',
+        bookingRequestPushedAt: new Date('2026-06-22T11:00:00.000Z'),
+        collectionBookingId: 'collection-booking-1',
+      }),
+    );
 
     await expect(
       alertsService.dismissAlert(

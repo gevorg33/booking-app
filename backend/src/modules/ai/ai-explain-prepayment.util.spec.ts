@@ -139,13 +139,10 @@ describe('ai-explain-prepayment.util (ai-cmd-ext-7.1)', () => {
   it.each(
     PUBLIC_CATALOG_PREPAYMENT_PROMPTS.map((row) => [row.id, row] as const),
   )('detects public catalog prepayment prompt $id', (_id, row) => {
-    if (row.expectedAction === 'explain_why_stripe_required') {
-      expect(
-        isDoIPayOnlineForServicePrompt(row.prompt) ||
-          isExplainWhyPrepaymentPrompt(row.prompt) ||
-          referencesCatalogServiceContext(row.prompt),
-      ).toBe(true);
-    } else if (row.expectedAction === 'explain_payment_options_for_service') {
+    // No `explain_why_stripe_required` arm: `PublicCatalogPrepaymentPromptFixture`
+    // admits only the two actions below, so such a branch is unreachable here.
+    // That action is covered by the `EXPLAIN_PREPAYMENT_PROMPTS` loop above.
+    if (row.expectedAction === 'explain_payment_options_for_service') {
       expect(
         isDoIPayOnlineForServicePrompt(row.prompt) ||
           referencesCatalogServiceContext(row.prompt),

@@ -1157,10 +1157,9 @@ describe('ai-push-notifications.logic', () => {
       expect(result.success).toBe(true);
       expect(result.action).toBe('list_push_notifications');
       expect(result.summary).toContain('1 unread of 1 notification');
-      expect(deps.pushHistoryService.listNotificationCenter).toHaveBeenCalledWith(
-        'biz-1',
-        'user-1',
-      );
+      expect(
+        deps.pushHistoryService.listNotificationCenter,
+      ).toHaveBeenCalledWith('biz-1', 'user-1');
     });
 
     it('marks all notifications as read', async () => {

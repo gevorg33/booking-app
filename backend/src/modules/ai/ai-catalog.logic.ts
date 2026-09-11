@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { Customer } from '../customer/entities/customer.entity.js';
@@ -215,8 +216,7 @@ export async function handleUpdateServiceCategoryLogic(
   const updated = await deps.categoryService.update(category.id, businessId, {
     name: newName || undefined,
     description: params.description,
-    sortOrder:
-      params.sortOrder != null ? Number(params.sortOrder) : undefined,
+    sortOrder: params.sortOrder != null ? Number(params.sortOrder) : undefined,
   });
 
   return success(
@@ -912,7 +912,7 @@ export async function handleAssignSubscriptionToCustomerLogic(
   params: Record<string, any>,
   services: Service[],
   customers: Customer[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
 ): Promise<CommandResult> {
   const customerName = params.customerName as string | undefined;
   const planName = params.planName as string | undefined;
@@ -1185,6 +1185,79 @@ export async function handleSetServiceCompatibilityLogic(
   );
 }
 
+/**
+ * e2e-bug.348 — which decomposition wins, and why it is not simply the LLM's.
+ *
+ * This was `params.compoundSteps ?? decomposeCatalogCompoundPrompt(prompt)`, so
+ * LLM-supplied steps won unconditionally. For
+ * "Create a category Y with three services: A…; B…; C…" the LLM emits
+ * `create_services` and drops the category: all three services land with
+ * `category_id = NULL`, keeping the LLM's literal names ("service A") rather
+ * than the parser's normalised ones — the tell that the deterministic path never
+ * ran. It is fully capable of the job: it yields
+ * `bulk_create_catalog { categoryName: 'Y', services: [A, B, C] }`.
+ *
+ * ## Why this replaces steps instead of replacing the plan
+ *
+ * The obvious fix — prefer the deterministic decomposition whenever it produces
+ * a complete draft — is the "blanket exemption" this ticket records as having
+ * broken four tests, because it also discards the legitimate
+ * "category + services **and** add a package" compound: the deterministic path
+ * yields one step there, the LLM yields two, and preferring the shorter one
+ * silently drops the package.
+ *
+ * So the swap is surgical. Only `create_service` / `create_services` steps are
+ * replaced, only when the deterministic path produced a complete category draft,
+ * and only when the LLM's own plan contains nothing that would create the
+ * category. Every other LLM step keeps its place and order.
+ */
+function isCompleteCatalogDraft(step: CatalogCompoundStep): boolean {
+  const draft = (step.params as { catalogDraft?: unknown } | undefined)
+    ?.catalogDraft as
+    | { categoryName?: unknown; services?: unknown[] }
+    | undefined;
+  return (
+    step.action === 'bulk_create_catalog' &&
+    typeof draft?.categoryName === 'string' &&
+    draft.categoryName.trim().length > 0 &&
+    Array.isArray(draft.services) &&
+    draft.services.length > 0
+  );
+}
+
+export function chooseCatalogCompoundSteps(
+  prompt: string,
+  llmSteps: CatalogCompoundStep[] | undefined,
+): CatalogCompoundStep[] {
+  const deterministic = decomposeCatalogCompoundPrompt(prompt);
+  if (!llmSteps?.length) return deterministic;
+
+  const bulk = deterministic.find(isCompleteCatalogDraft);
+  if (!bulk) return llmSteps;
+
+  // If the model already plans to create the category, it has not lost the link
+  // and there is nothing to repair.
+  const creates = new Set(['bulk_create_catalog', 'create_service_category']);
+  if (llmSteps.some((s) => creates.has(s.action))) return llmSteps;
+
+  const servicey = new Set(['create_service', 'create_services']);
+  if (!llmSteps.some((s) => servicey.has(s.action))) return llmSteps;
+
+  const repaired: CatalogCompoundStep[] = [];
+  let inserted = false;
+  for (const step of llmSteps) {
+    if (servicey.has(step.action)) {
+      if (!inserted) {
+        repaired.push(bulk);
+        inserted = true;
+      }
+      continue;
+    }
+    repaired.push(step);
+  }
+  return repaired;
+}
+
 export async function handleCatalogCompoundLogic(
   deps: CatalogLogicDeps,
   businessId: string,
@@ -1192,12 +1265,36 @@ export async function handleCatalogCompoundLogic(
   params: Record<string, any>,
   services: Service[],
   customers: Customer[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
   userId?: string,
+  /**
+   * e2e-bug.448(b) / D3 item (5) — the online-payment step, injected rather
+   * than imported.
+   *
+   * Both e2e-bug.348's and e2e-bug.349's reported prompts end with "Turn on
+   * online payment for …", which is not a catalog action: it is handled by
+   * `AiPaymentsService`. Until now it hit the `default` branch below, which
+   * fails the **whole** compound — so a prompt whose catalog work had already
+   * succeeded was reported as a failure. That is the shared reason both
+   * tickets lingered as "partial" long after their named root causes closed.
+   *
+   * Taking it as a callback rather than adding the payments service to
+   * `CatalogLogicDeps` is the D5-b pattern: `ai-catalog.logic.ts` gains no
+   * dependency on another domain, and a caller that cannot supply it simply
+   * does not (the step then reports as unsupported, exactly as before).
+   */
+  configureServiceOnlinePayment?: (
+    businessId: string,
+    params: Record<string, any>,
+    prompt: string,
+    services: Service[],
+    userId?: string,
+  ) => Promise<CommandResult>,
 ): Promise<CommandResult> {
-  const steps: CatalogCompoundStep[] =
-    (params.compoundSteps as CatalogCompoundStep[] | undefined) ??
-    decomposeCatalogCompoundPrompt(prompt);
+  const steps: CatalogCompoundStep[] = chooseCatalogCompoundSteps(
+    prompt,
+    params.compoundSteps as CatalogCompoundStep[] | undefined,
+  );
 
   if (steps.length < 2) {
     return failure(
@@ -1335,6 +1432,24 @@ export async function handleCatalogCompoundLogic(
           resolveCustomer,
         );
         break;
+      // e2e-bug.448(b). `enable_online_payment` is the shape the planner emits;
+      // `configure_service_online_payment` is the canonical spec id. Both are
+      // accepted so a plan is not failed over a naming difference.
+      case 'enable_online_payment':
+      case 'configure_service_online_payment':
+        result = configureServiceOnlinePayment
+          ? await configureServiceOnlinePayment(
+              businessId,
+              stepParams,
+              step.segment,
+              services,
+              userId,
+            )
+          : failure(
+              step.action,
+              'Online payment could not be configured as part of this compound.',
+            );
+        break;
       default:
         result = failure(
           step.action,
@@ -1343,13 +1458,35 @@ export async function handleCatalogCompoundLogic(
     }
     results.push(result);
     if (!result.success) {
+      // e2e-bug.448 — steps before this one already wrote to the database, so
+      // reporting a bare "Stopped at step N" tells the user nothing happened
+      // when a category and its services may well have been created. The run
+      // still stops here (a later step may depend on the failed one), but the
+      // completed work is named rather than discarded.
+      //
+      // This is what made e2e-bug.348 and .349 look unfixed long after their
+      // named root causes were closed: both prompts end with an online-payment
+      // instruction that is not a supported catalog step, so the whole compound
+      // reported failure on top of a successful catalog creation.
+      const completed = results.slice(0, -1).filter((r) => r.success);
+      const done = completed.length
+        ? ` Completed before stopping: ${completed
+            .map((r) => r.action.replace(/_/g, ' '))
+            .join(', ')}.`
+        : '';
       return {
         success: false,
         action: 'compound_intent',
-        summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}`,
+        summary: `Stopped at step ${results.length} (${step.action}): ${result.summary}${done}`,
         details: {
           steps: results.map((r) => r.action),
           failedStep: step.action,
+          // Named separately from `steps` (which includes the failed action) so
+          // a caller can tell what actually landed without re-deriving it.
+          completedSteps: completed.map((r) => ({
+            action: r.action,
+            summary: r.summary,
+          })),
           userId,
         },
       };

@@ -2,6 +2,7 @@ import {
   applyEntityMemoryToParams,
   formatEntityMemoryContextBlock,
   formatEntityMemoryLine,
+  stripSharedEntityMemoryPii,
   findAliasMentionsInPrompt,
   normalizeEntityAlias,
 } from './ai-entity-memory.util.js';
@@ -15,12 +16,15 @@ describe('ai-entity-memory.util', () => {
     expect(
       formatEntityMemoryLine('gevorg', { employeeName: 'Gevorg A.' }),
     ).toContain('provider=Gevorg');
-    expect(
-      formatEntityMemoryLine('john', {
-        customerName: 'John',
-        templateName: 'Weekday',
-      }),
-    ).toContain('customer=John');
+    // e2e-bug.371 — a customer's name must never be rendered into a context
+    // block that every user of the business receives. This assertion used to
+    // require the opposite.
+    const line = formatEntityMemoryLine('john', {
+      customerName: 'John',
+      templateName: 'Weekday',
+    });
+    expect(line).not.toContain('John');
+    expect(line).toContain('template=Weekday');
     expect(
       formatEntityMemoryContextBlock({
         aliases: {
@@ -60,13 +64,42 @@ describe('ai-entity-memory.util', () => {
     ).toEqual(['gevorg', 'facemassage']);
   });
 
-  it('maps customer alias to waitlistCustomerName when missing', () => {
+  it('never fills a customer from the shared map — e2e-bug.371', () => {
+    // This test asserted the leak: one user's customer, injected as a *param*
+    // of another user's command. Not disclosure — acting on the wrong person.
     const result = applyEntityMemoryToParams(
       {},
       { aliases: { john: { customerName: 'John Smith' } } },
       'offer slot to john',
     );
-    expect(result.waitlistCustomerName).toBe('John Smith');
+    expect(result.waitlistCustomerName).toBeUndefined();
+    expect(result.customerName).toBeUndefined();
+  });
+
+  it('still fills the business-level facts', () => {
+    // The capability that is legitimately shared, kept.
+    const result = applyEntityMemoryToParams(
+      {},
+      {
+        aliases: {
+          gevorg: { employeeName: 'Gevorg A.', serviceName: 'Face massage' },
+        },
+      },
+      'book gevorg tomorrow',
+    );
+    expect(result.employeeName).toBe('Gevorg A.');
+    expect(result.serviceName).toBe('Face massage');
+  });
+
+  it('strips customerName on the way in as well as out', () => {
+    // Read-side filtering neutralises what is already stored; write-side
+    // stripping stops the map growing. Both, because either alone leaves a gap.
+    expect(
+      stripSharedEntityMemoryPii({
+        employeeName: 'Gevorg',
+        customerName: 'John Smith',
+      }),
+    ).toEqual({ employeeName: 'Gevorg' });
   });
 
   it('applies templateName and preserves existing customerName', () => {

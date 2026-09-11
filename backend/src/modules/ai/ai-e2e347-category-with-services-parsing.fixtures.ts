@@ -87,13 +87,15 @@ export const E2E347_BULK_DRAFT_CASES: readonly E2e347DraftCase[] = [
   },
   {
     id: 'e347-case2-segment-one',
-    prompt: 'Create category Y with services A (30 min, $50) and B (45 min, $45)',
+    prompt:
+      'Create category Y with services A (30 min, $50) and B (45 min, $45)',
     expectedCategoryName: 'Y',
     expectedServiceNames: ['A', 'B'],
   },
   {
     id: 'e347-case2-segment-two',
-    prompt: 'create category Z with services C (60 min, $70) and D (20 min, $30)',
+    prompt:
+      'create category Z with services C (60 min, $70) and D (20 min, $30)',
     expectedCategoryName: 'Z',
     expectedServiceNames: ['C', 'D'],
   },

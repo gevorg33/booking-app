@@ -340,9 +340,7 @@ export async function handleSetServiceResourceRequirementsLogic(
   }
 
   const resourceIdsParamRaw = Array.isArray(params.resourceIds)
-    ? params.resourceIds.filter(
-        (id): id is string => typeof id === 'string',
-      )
+    ? params.resourceIds.filter((id): id is string => typeof id === 'string')
     : [];
   // e2e-bug.147 (write-side follow-up) — the classifier sometimes puts a
   // human-readable resource name into `resourceIds` instead of

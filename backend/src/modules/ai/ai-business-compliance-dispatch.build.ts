@@ -96,10 +96,7 @@ export function buildBusinessComplianceLogicDispatchMap(): ReadonlyMap<
     );
   });
   map.set('explain_gdpr_checklist', async (deps, ctx) => {
-    const parsed = parseExplainGdprChecklistFromPrompt(
-      ctx.prompt,
-      ctx.params,
-    );
+    const parsed = parseExplainGdprChecklistFromPrompt(ctx.prompt, ctx.params);
     return handleExplainGdprChecklistLogic(
       deps,
       ctx.businessId,

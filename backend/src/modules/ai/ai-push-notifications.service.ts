@@ -151,7 +151,12 @@ export class AiPushNotificationsService {
     userId: string,
     params: Record<string, any>,
   ) {
-    return handleMarkNotificationReadLogic(this.deps, businessId, userId, params);
+    return handleMarkNotificationReadLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleEndOfDaySummary(businessId: string, params: Record<string, any>) {

@@ -1,6 +1,13 @@
 /** adopt-6.5 — smart rebooking cadence scenario fixtures. */
 
-export const LEARNED_CADENCE_INTERVAL_SCENARIOS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type LearnedCadenceIntervalScenario = {
+  id: string;
+  intervals: { completedAt: string; previousCompletedAt: string }[];
+  expectedDays: number;
+};
+
+export const LEARNED_CADENCE_INTERVAL_SCENARIOS: readonly LearnedCadenceIntervalScenario[] = [
   {
     id: 'two-four-week-gaps',
     intervals: [
@@ -20,7 +27,22 @@ export const LEARNED_CADENCE_INTERVAL_SCENARIOS = [
   },
 ] as const;
 
-export const LEARNED_CADENCE_RESOLVE_SCENARIOS = [
+/**
+ * Declared so the array is one type, not a union of literal shapes. The three
+ * members exercise different precedence paths — history, metadata, service
+ * default — so each path's input is optional.
+ */
+export type LearnedCadenceResolveScenario = {
+  id: string;
+  serviceCadenceDays: number;
+  defaultCadenceDays: number;
+  expectedDays: number;
+  learnedFromHistory?: number;
+  metadataByService?: Record<string, number>;
+  serviceId?: string;
+};
+
+export const LEARNED_CADENCE_RESOLVE_SCENARIOS: readonly LearnedCadenceResolveScenario[] = [
   {
     id: 'history-overrides-service-default',
     serviceCadenceDays: 30,

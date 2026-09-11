@@ -10,10 +10,7 @@ import {
   rescueHowToDownloadAppIntent,
 } from './ai-how-to-download-app.util.js';
 import { rescueHowToDownloadAppCustomerPublicIntent } from './ai-how-to-download-app-customer-public.util.js';
-import {
-  detectHowToDownloadAppCustomerPublicAction,
-  isHowToDownloadAppCustomerPublicPrompt,
-} from './ai-how-to-download-app-customer-public.util.js';
+import { detectHowToDownloadAppCustomerPublicAction } from './ai-how-to-download-app-customer-public.util.js';
 import { rescueMarketingGrowthIntent } from './ai-marketing-growth.util.js';
 import { buildCustomerClassifierSchema } from './customer-ai-command.util.js';
 import { buildPublicClassifierSchema } from '../public-booking/public-booking-classifier.schema.js';
@@ -121,9 +118,7 @@ describe('ai-how-to-download-app.util (ai-cmd-customer-4.5.7)', () => {
 
   it('e2e-bug.94 does not treat get-an-appointment as download-app', () => {
     expect(
-      isHowToDownloadAppPrompt(
-        "what's the soonest I can get an appointment?",
-      ),
+      isHowToDownloadAppPrompt("what's the soonest I can get an appointment?"),
     ).toBe(false);
   });
 
@@ -132,19 +127,6 @@ describe('ai-how-to-download-app.util (ai-cmd-customer-4.5.7)', () => {
     expect(
       isHowToDownloadAppPrompt('Is there an app store link for downloads?'),
     ).toBe(true);
-  });
-
-  it('exposes customer/public detection helpers', () => {
-    expect(isHowToDownloadAppCustomerPublicPrompt('Get the app')).toBe(true);
-    expect(detectHowToDownloadAppCustomerPublicAction('Get the app')).toBe(
-      'how_to_download_app',
-    );
-    expect(
-      rescueHowToDownloadAppCustomerPublicIntent(
-        'Install on my phone',
-        'how_to_download_app',
-      ),
-    ).toBeNull();
   });
 
   it('registers eval golden cases for every fixture scenario', () => {

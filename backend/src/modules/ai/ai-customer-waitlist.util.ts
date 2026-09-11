@@ -65,8 +65,7 @@ function containsCyrillicScript(prompt: string): boolean {
 const WAITLIST_SERVICE_TOKEN =
   /\b(massage|haircut|facial|manicure|pedicure|color|colour|trim|wax|blowdry|beard|cut|nails?|highlights?|balayage|keratin|brows?|lashes?|spa|treatment|service|package|facemassage)\b/i;
 
-const WAITLIST_DATE_BOUNDARY =
-  String.raw`(?=\s*(?:,|;|\?|\band\b|\bwith\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bon\b|\bopens?\b|\bslot\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+const WAITLIST_DATE_BOUNDARY = String.raw`(?=\s*(?:,|;|\?|\band\b|\bwith\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bon\b|\bopens?\b|\bslot\b|\bevening\b|\bmorning\b|\bafternoon\b|\bthis\b|\bweek\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
 
 /** Proper-name heuristic for provider-only waitlist phrasing (e2e-bug.112). */
 export function looksLikeWaitlistPersonName(value: string): boolean {
@@ -123,9 +122,7 @@ function extractWaitlistServiceName(
     // e2e-bug.112 — classifier sometimes copies provider into serviceName.
     if (looksLikeWaitlistPersonName(fromParams)) return undefined;
     const employee =
-      typeof params.employeeName === 'string'
-        ? params.employeeName.trim()
-        : '';
+      typeof params.employeeName === 'string' ? params.employeeName.trim() : '';
     if (employee && fromParams.toLowerCase() === employee.toLowerCase()) {
       return undefined;
     }
@@ -149,7 +146,8 @@ function extractWaitlistServiceName(
 
   const forService = prompt.match(
     new RegExp(
-      String.raw`\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)` + WAITLIST_DATE_BOUNDARY,
+      String.raw`\bfor\s+(?:a\s+)?([a-z][\w\s'-]{2,40}?)` +
+        WAITLIST_DATE_BOUNDARY,
       'i',
     ),
   );
@@ -170,7 +168,8 @@ function extractWaitlistServiceName(
   // e2e-bug.235 — "Notify me if a Swedish massage with Gevorg opens…"
   const ifService = prompt.match(
     new RegExp(
-      String.raw`\bif\s+(?:a\s+|an\s+)?([a-z][\w\s'-]{2,40}?)` + WAITLIST_DATE_BOUNDARY,
+      String.raw`\bif\s+(?:a\s+|an\s+)?([a-z][\w\s'-]{2,40}?)` +
+        WAITLIST_DATE_BOUNDARY,
       'i',
     ),
   );

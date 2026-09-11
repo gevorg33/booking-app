@@ -9,17 +9,32 @@ describe('Sprint 22 provider AI intelligence integration', () => {
   const mariaId = 'emp-maria';
 
   let service: ReturnType<typeof createProviderAiCommandHarness>;
-  let llm: { isAvailableForBusiness: jest.Mock; completeJson: jest.Mock };
-  let providerMobile: {
-    resolveMobileAccess: jest.Mock;
-    getScopedEmployeeId: jest.Mock;
+  // F1 — a bare `jest.Mock` annotation defaults to an unknown return, so
+  // `mockResolvedValue(...)` resolves its parameter to `never`. The annotation
+  // on the declaration overrides the typed `jest.fn<...>()` in the assignment
+  // below, so both have to name the signature — the same "annotation narrows
+  // away better information" shape as `e2e-bug.494`.
+  let llm: {
+    isAvailableForBusiness: jest.Mock<(businessId: string) => Promise<boolean>>;
+    completeJson: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
   };
-  let bookingRepo: { find: jest.Mock };
-  let employeeRepo: { find: jest.Mock };
-  let customerRepo: { createQueryBuilder: jest.Mock };
-  let bookingService: { cancel: jest.Mock };
-  let planBuilder: { buildFillSlotFromWaitlistPlan: jest.Mock };
-  let orchestration: { executePlan: jest.Mock };
+  // Typed by what each double actually returns — a repo `find` resolves an
+  // array, `createQueryBuilder` returns synchronously. A bare `jest.Mock`
+  // defaults to an unknown return and makes `mockResolvedValue` unusable.
+  type AsyncMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  type AsyncListMock = jest.Mock<(...args: unknown[]) => Promise<unknown[]>>;
+  type SyncMock = jest.Mock<(...args: unknown[]) => unknown>;
+
+  let providerMobile: {
+    resolveMobileAccess: AsyncMock;
+    getScopedEmployeeId: AsyncMock;
+  };
+  let bookingRepo: { find: AsyncListMock };
+  let employeeRepo: { find: AsyncListMock };
+  let customerRepo: { createQueryBuilder: SyncMock };
+  let bookingService: { cancel: AsyncMock };
+  let planBuilder: { buildFillSlotFromWaitlistPlan: SyncMock };
+  let orchestration: { executePlan: AsyncMock };
   let completionPipeline: {
     mergeProviderSessionContext: jest.Mock;
     normalizeDateParams: jest.Mock;
@@ -35,7 +50,7 @@ describe('Sprint 22 provider AI intelligence integration', () => {
   beforeEach(() => {
     llm = {
       isAvailableForBusiness: jest.fn(async () => true),
-      completeJson: jest.fn(),
+      completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     };
     providerMobile = {
       resolveMobileAccess: jest.fn(async () => teamAccess),

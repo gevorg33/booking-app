@@ -5,6 +5,7 @@ import {
   GUEST_CHECKOUT_FIELDS_RESCUE_SCENARIOS,
 } from './ai-explain-guest-checkout-fields.fixtures.js';
 import { rescueExplainGuestCheckoutFieldsIntent } from './ai-explain-guest-checkout-fields.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain guest checkout fields integration (ai-cmd-customer-4.2.2)', () => {
   const businessRepo = { findOne: jest.fn() };
@@ -22,15 +23,16 @@ describe('ai explain guest checkout fields integration (ai-cmd-customer-4.2.2)',
   it.each(EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand({
-        action: 'explain_guest_checkout_fields',
-        params: { aspect },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_guest_checkout_fields',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainGuestCheckoutFieldsLogic(

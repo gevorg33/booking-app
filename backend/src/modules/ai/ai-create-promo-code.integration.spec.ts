@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { AiMarketingGrowthService } from './ai-marketing-growth.service.js';
@@ -74,7 +75,9 @@ describe('create_promo_code AI scenarios', () => {
         {
           provide: getRepositoryToken(Business),
           useValue: {
-            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+            findOne: jest.fn(async () =>
+              makeBusiness({ id: 'biz-1', slug: 'salon' }),
+            ),
           },
         },
       ],

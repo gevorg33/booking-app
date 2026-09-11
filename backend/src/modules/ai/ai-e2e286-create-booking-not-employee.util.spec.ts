@@ -13,7 +13,9 @@ import {
 
 describe('e2e-bug.286 create booking not stolen by create_employee', () => {
   it.each(
-    E2E286_CREATE_BOOKING_NOT_EMPLOYEE_CASES.map((row) => [row.id, row] as const),
+    E2E286_CREATE_BOOKING_NOT_EMPLOYEE_CASES.map(
+      (row) => [row.id, row] as const,
+    ),
   )('%s — detectors', (_id, row) => {
     expect(isCreateEmployeePrompt(row.prompt)).toBe(false);
     expect(isCreateBookingNotEmployeePrompt(row.prompt)).toBe(
@@ -51,14 +53,18 @@ describe('e2e-bug.286 create booking not stolen by create_employee', () => {
         params: {},
         surface: 'dashboard',
       });
-      expect(result.action).toBe(row.expectedAction);
+      // `rescue` returns null when it declines, which is the failure this suite
+      // exists to catch. Asserted explicitly rather than reached through `?.`,
+      // because `expect(result?.action).not.toBe(…)` passes on null.
+      expect(result).not.toBeNull();
+      expect(result!.action).toBe(row.expectedAction);
       if (row.expectBookingFirstAvailable) {
-        expect(result.params?.bookingFirstAvailable).toBe(true);
+        expect(result!.params?.bookingFirstAvailable).toBe(true);
       }
       if (row.expectAllProviders) {
-        expect(result.params?.allProviders).toBe(true);
+        expect(result!.params?.allProviders).toBe(true);
       }
-      expect(result.action).not.toBe('create_employee');
+      expect(result!.action).not.toBe('create_employee');
     });
   });
 

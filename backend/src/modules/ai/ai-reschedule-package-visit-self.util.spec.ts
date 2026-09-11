@@ -88,7 +88,9 @@ describe('ai-reschedule-package-visit-self.util (ai-cmd-customer-4.15.3)', () =>
       {
         id: 'b2',
         status: 'confirmed',
-        startTime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        startTime: new Date(
+          Date.now() + 14 * 24 * 60 * 60 * 1000,
+        ).toISOString(),
         packagePurchaseId: 'p1',
         packageName: 'Spa Day',
         serviceName: 'Facial',

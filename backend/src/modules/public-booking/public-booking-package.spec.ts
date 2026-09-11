@@ -4,6 +4,7 @@ import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function createPackagePublicBookingHarness() {
   const bookingService = {
@@ -60,7 +61,7 @@ function createPackagePublicBookingHarness() {
     schedulingPeriodRepo: { find: jest.fn() },
   });
 
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -82,7 +83,7 @@ function createPackagePublicBookingHarness() {
         },
       },
     },
-  } as Business;
+  });
 
   const pkg = {
     id: 'pkg-1',

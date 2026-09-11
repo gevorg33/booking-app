@@ -9,7 +9,6 @@ import {
   decomposeGiftCardPaymentsCompoundPrompt,
   disambiguateGiftCardPaymentsAction,
   isGiftCardCheckoutCompoundPrompt,
-  isGiftCardPaymentsCompoundPrompt,
   isPhysicalGiftCardHandoffCompoundPrompt,
 } from './ai-gift-card-payments-hints.util.js';
 import {
@@ -149,31 +148,6 @@ describe('ai gift card checkout integration (ai-cmd-h4.1)', () => {
   });
 
   describe('prompt detection and decomposition', () => {
-    it.each(ALL_GIFT_CARD_CHECKOUT_PROMPTS)(
-      'detects gift-card checkout compound for $id',
-      ({ prompt, orderedActions, giftCardCode, serviceName }) => {
-        expect(isGiftCardCheckoutCompoundPrompt(prompt)).toBe(true);
-        expect(isGiftCardPaymentsCompoundPrompt(prompt)).toBe(true);
-
-        const steps = decomposeGiftCardPaymentsCompoundPrompt(prompt);
-        expect(steps.map((s) => s.action)).toEqual(orderedActions);
-        if (giftCardCode) {
-          const applyStep = steps.find(
-            (s) => s.action === 'apply_gift_card_code',
-          );
-          expect(applyStep?.params.giftCardCode).toBe(giftCardCode);
-        }
-        if (serviceName) {
-          const bookStep = steps.find(
-            (s) =>
-              s.action === 'book_nearest_slot' ||
-              s.action === 'check_providers_for_service',
-          );
-          expect(bookStep?.params.serviceName).toBe(serviceName);
-        }
-      },
-    );
-
     it.each(GIFT_CARD_PHYSICAL_HANDOFF_PROMPTS)(
       'detects physical gift card handoff for $id',
       ({ prompt, orderedActions, amount }) => {

@@ -12,6 +12,10 @@
       {
         "include": "modules/ai/guide/guide-flows/**/*.json",
         "outDir": "dist"
+      },
+      {
+        "include": "modules/ai/ai-completion-floors.json",
+        "outDir": "dist"
       }
     ],
     "watchAssets": true

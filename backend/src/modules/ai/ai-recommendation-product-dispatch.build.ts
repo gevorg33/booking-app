@@ -37,9 +37,7 @@ export function buildRecommendationProductDispatchMap(): ReadonlyMap<
           ...(parsed.serviceId ? { serviceId: parsed.serviceId } : {}),
           ...(parsed.serviceName ? { serviceName: parsed.serviceName } : {}),
           ...(parsed.categoryId ? { categoryId: parsed.categoryId } : {}),
-          ...(parsed.categoryName
-            ? { categoryName: parsed.categoryName }
-            : {}),
+          ...(parsed.categoryName ? { categoryName: parsed.categoryName } : {}),
         }
       : ctx.params;
     return service.handleExplainRecommendationSetup(
@@ -104,13 +102,9 @@ export function buildRecommendationProductDispatchMap(): ReadonlyMap<
           ...(parsed.productName
             ? { productName: parsed.productName, name: parsed.productName }
             : {}),
-          ...(parsed.description
-            ? { description: parsed.description }
-            : {}),
+          ...(parsed.description ? { description: parsed.description } : {}),
           ...(parsed.imageUrl ? { imageUrl: parsed.imageUrl } : {}),
-          ...(parsed.externalLink
-            ? { externalLink: parsed.externalLink }
-            : {}),
+          ...(parsed.externalLink ? { externalLink: parsed.externalLink } : {}),
           ...(parsed.retailPrice !== undefined
             ? { retailPrice: parsed.retailPrice }
             : {}),
@@ -141,9 +135,7 @@ export function buildRecommendationProductDispatchMap(): ReadonlyMap<
           ...(parsed.serviceId ? { serviceId: parsed.serviceId } : {}),
           ...(parsed.serviceName ? { serviceName: parsed.serviceName } : {}),
           ...(parsed.categoryId ? { categoryId: parsed.categoryId } : {}),
-          ...(parsed.categoryName
-            ? { categoryName: parsed.categoryName }
-            : {}),
+          ...(parsed.categoryName ? { categoryName: parsed.categoryName } : {}),
         }
       : ctx.params;
     return service.handleLinkRecommendedProducts(

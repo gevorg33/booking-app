@@ -57,7 +57,10 @@ describe('ai-public-booking-guide.util (ai-guide-1.5.1 / 1.5.3)', () => {
       ),
     ).toBe('booking_help');
     expect(
-      rescuePublicBookingHelpIntent('walk me through booking', 'guide_user_flow'),
+      rescuePublicBookingHelpIntent(
+        'walk me through booking',
+        'guide_user_flow',
+      ),
     ).toBe('booking_help');
     expect(
       rescuePublicBookingHelpIntent(

@@ -10,6 +10,7 @@ import {
   SUPPORTED_BUSINESS_CURRENCIES,
   STRIPE_CHARGE_CURRENCIES,
 } from './business-currency.util.js';
+import { makeBusiness } from '../../modules/business/entities/business.test-fixture.js';
 
 function buildPublicBookingService(): PublicBookingService {
   const config = {
@@ -47,11 +48,17 @@ function buildPublicBookingService(): PublicBookingService {
     {} as never,
     {} as never,
     {} as never,
-  );
+  
+    // e2e-bug: PublicBookingService gained four repositories;
+    // `undefined as never` keeps the runtime identical to omitting them.
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never);
 }
 
 const baseBusiness = (settings: Record<string, unknown>): Business =>
-  ({
+  makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -63,7 +70,7 @@ const baseBusiness = (settings: Record<string, unknown>): Business =>
       publicBooking: { enabled: true },
       ...settings,
     },
-  }) as Business;
+  });
 
 function adminStripeWarning(connectReady: boolean, currency: string): boolean {
   return connectReady && !isStripeChargeCurrencySupported(currency);

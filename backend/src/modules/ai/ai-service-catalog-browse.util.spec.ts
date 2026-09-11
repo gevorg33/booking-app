@@ -21,7 +21,10 @@ describe('ai-service-catalog-browse.util', () => {
 
   it('enriches service name from do-you-offer phrasing (e2e-bug.53)', () => {
     expect(
-      enrichListServicesParamsFromPrompt('Do you offer facemassage services', {}),
+      enrichListServicesParamsFromPrompt(
+        'Do you offer facemassage services',
+        {},
+      ),
     ).toEqual({ serviceCategory: 'facemassage' });
   });
 

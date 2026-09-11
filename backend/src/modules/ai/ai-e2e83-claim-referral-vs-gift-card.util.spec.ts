@@ -40,9 +40,9 @@ describe('e2e-bug.83 claim_referral_code must not be stolen by apply_gift_card_c
       expect(rescueConsumerAdoptionIntent(prompt, 'unknown')?.action).toBe(
         expectedAction,
       );
-      expect(
-        enrichClaimReferralCodeParamsFromPrompt(prompt).referralCode,
-      ).toBe(expectedReferralCode);
+      expect(enrichClaimReferralCodeParamsFromPrompt(prompt).referralCode).toBe(
+        expectedReferralCode,
+      );
     },
   );
 
@@ -78,5 +78,3 @@ describe('e2e-bug.83 claim_referral_code must not be stolen by apply_gift_card_c
     },
   );
 });
-
-

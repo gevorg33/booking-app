@@ -2520,7 +2520,11 @@ export const AI_COMMAND_EVAL_E2E130_GIFT_CARD_PURCHASE_CASES: AiCommandEvalCase[
     locale: 'en' as const,
     surface: row.surface,
     expect: {
-      rescuedAction: row.expectedAction,
+      // e2e-bug.516 — the public row expects the surrogate, because the guest
+      // surface has no `buy_gift_card` handler to dispatch to.
+      rescuedAction:
+        (row as { rescuedActionOnSurface?: string }).rescuedActionOnSurface ??
+        row.expectedAction,
     },
   }));
 

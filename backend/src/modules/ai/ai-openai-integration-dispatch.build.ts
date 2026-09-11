@@ -20,11 +20,16 @@ export function buildOpenaiIntegrationDispatchMap(): ReadonlyMap<
   const map = new Map<string, OpenaiIntegrationDispatchHandler>();
 
   map.set('configure_openai_integration', async (service, ctx) =>
-    service.handleConfigureOpenaiIntegration(ctx.businessId, ctx.params, ctx.prompt),
+    service.handleConfigureOpenaiIntegration(
+      ctx.businessId,
+      ctx.params,
+      ctx.prompt,
+    ),
   );
 
   return map;
 }
 
 /** Registry-driven dispatch table for AiOpenaiIntegrationService (ai-cmd-ext-0.5). */
-export const OPENAI_INTEGRATION_DISPATCH_MAP = buildOpenaiIntegrationDispatchMap();
+export const OPENAI_INTEGRATION_DISPATCH_MAP =
+  buildOpenaiIntegrationDispatchMap();

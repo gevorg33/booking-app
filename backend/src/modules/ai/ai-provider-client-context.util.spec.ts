@@ -49,13 +49,13 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
   });
 
   it('detects list_client_staff_notes vs explain_client_intake prompts', () => {
-    expect(isListClientStaffNotesPrompt('Show staff notes for this client')).toBe(
-      true,
-    );
+    expect(
+      isListClientStaffNotesPrompt('Show staff notes for this client'),
+    ).toBe(true);
     expect(isListClientStaffNotesPrompt('Any notes on Jane?')).toBe(true);
-    expect(isListClientStaffNotesPrompt('List the customer notes for John')).toBe(
-      true,
-    );
+    expect(
+      isListClientStaffNotesPrompt('List the customer notes for John'),
+    ).toBe(true);
     expect(isAddClientNotePrompt('Show staff notes for this client')).toBe(
       false,
     );
@@ -67,11 +67,13 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       isExplainClientIntakePrompt("Show Jane's pre-visit intake answers"),
     ).toBe(true);
     expect(
-      isExplainClientIntakePrompt('Did they fill out the intake questionnaire?'),
+      isExplainClientIntakePrompt(
+        'Did they fill out the intake questionnaire?',
+      ),
     ).toBe(true);
-    expect(isSummarizeClientPrompt('What does their pre-visit intake say?')).toBe(
-      false,
-    );
+    expect(
+      isSummarizeClientPrompt('What does their pre-visit intake say?'),
+    ).toBe(false);
   });
 
   it('detects explain_package_visit_context vs explain_multi_service_timeline prompts (ai-cmd-provider-5.2.8/5.2.9)', () => {
@@ -79,19 +81,19 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       isExplainPackageVisitContextPrompt('Which visit is this in her package?'),
     ).toBe(true);
     expect(
-      isExplainPackageVisitContextPrompt('This is visit 2 of 6 facials, right?'),
+      isExplainPackageVisitContextPrompt(
+        'This is visit 2 of 6 facials, right?',
+      ),
     ).toBe(true);
     expect(
       isExplainMultiServiceTimelinePrompt("What's next after this blowdry?"),
     ).toBe(true);
     expect(isExplainMultiServiceTimelinePrompt('Spa day order')).toBe(true);
+    expect(isExplainMultiServiceTimelinePrompt('Which service is first?')).toBe(
+      true,
+    );
     expect(
-      isExplainMultiServiceTimelinePrompt('Which service is first?'),
-    ).toBe(true);
-    expect(
-      isExplainMultiServiceTimelinePrompt(
-        'Gap between her two appointments?',
-      ),
+      isExplainMultiServiceTimelinePrompt('Gap between her two appointments?'),
     ).toBe(true);
     expect(isSummarizeClientPrompt('Which visit is this in her package?')).toBe(
       false,
@@ -176,7 +178,9 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
 
   it('detects explain_gift_card_redemption prompts (ai-cmd-provider-5.12.3)', () => {
     expect(
-      isExplainGiftCardRedemptionPrompt("She's paying with gift card — balance?"),
+      isExplainGiftCardRedemptionPrompt(
+        "She's paying with gift card — balance?",
+      ),
     ).toBe(true);
     expect(
       isExplainGiftCardRedemptionPrompt(
@@ -187,7 +191,9 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       isExplainGiftCardRedemptionPrompt("What's left on the gift card?"),
     ).toBe(true);
     expect(
-      isExplainGiftCardRedemptionPrompt('How much is remaining on her gift card?'),
+      isExplainGiftCardRedemptionPrompt(
+        'How much is remaining on her gift card?',
+      ),
     ).toBe(true);
     expect(
       isExplainGiftCardRedemptionPrompt(
@@ -197,17 +203,21 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
   });
 
   it('detects explain_tour_group_on_booking prompts (ai-cmd-provider-5.18.4)', () => {
-    expect(isExplainTourGroupOnBookingPrompt('How many pax on this tour?')).toBe(
-      true,
-    );
+    expect(
+      isExplainTourGroupOnBookingPrompt('How many pax on this tour?'),
+    ).toBe(true);
     expect(isExplainTourGroupOnBookingPrompt('Group booking details')).toBe(
       true,
     );
     expect(
-      isExplainTourGroupOnBookingPrompt('How many people are in this tour group?'),
+      isExplainTourGroupOnBookingPrompt(
+        'How many people are in this tour group?',
+      ),
     ).toBe(true);
     expect(
-      isExplainTourGroupOnBookingPrompt("What's the pax count for this booking?"),
+      isExplainTourGroupOnBookingPrompt(
+        "What's the pax count for this booking?",
+      ),
     ).toBe(true);
     expect(
       isExplainTourGroupOnBookingPrompt('Set pax count to 4 for this booking'),
@@ -224,11 +234,13 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       ),
     ).toBe(false);
     expect(
-      isExplainGiftCardRedemptionPrompt('Is there a balance due on this booking?'),
+      isExplainGiftCardRedemptionPrompt(
+        'Is there a balance due on this booking?',
+      ),
     ).toBe(false);
-    expect(
-      isExplainGiftCardRedemptionPrompt('Buy a gift card for Maria'),
-    ).toBe(false);
+    expect(isExplainGiftCardRedemptionPrompt('Buy a gift card for Maria')).toBe(
+      false,
+    );
     expect(
       isExplainGiftCardRedemptionPrompt('Show gift card creation queue'),
     ).toBe(false);
@@ -252,9 +264,7 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
     expect(isExplainRetailCartPrompt('Sell conditioner on my booking')).toBe(
       false,
     );
-    expect(
-      isExplainRetailCartPrompt('Remove the serum from cart'),
-    ).toBe(false);
+    expect(isExplainRetailCartPrompt('Remove the serum from cart')).toBe(false);
   });
 
   it('detects explain_cancel_policy_for_client prompts (ai-cmd-provider-5.7.6)', () => {
@@ -303,15 +313,15 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
         "What's the payment breakdown for this booking?",
       ),
     ).toBe(false);
-    expect(
-      isExplainCancelPolicyForClientPrompt('Cancel this booking'),
-    ).toBe(false);
+    expect(isExplainCancelPolicyForClientPrompt('Cancel this booking')).toBe(
+      false,
+    );
   });
 
   it('formats the cancel policy for client text', () => {
-    expect(
-      formatProviderCancelPolicyForClientText('Jane', [], [], null),
-    ).toBe('No cancel/reschedule policy is configured for Jane\'s booking.');
+    expect(formatProviderCancelPolicyForClientText('Jane', [], [], null)).toBe(
+      "No cancel/reschedule policy is configured for Jane's booking.",
+    );
     expect(
       formatProviderCancelPolicyForClientText(
         'Jane',
@@ -346,9 +356,7 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
         serviceTotal: 6,
         visitsRemaining: 4,
       }),
-    ).toBe(
-      'This is visit 2 of 6 in Facial Package — 4 visits remaining.',
-    );
+    ).toBe('This is visit 2 of 6 in Facial Package — 4 visits remaining.');
 
     expect(formatProviderMultiServiceTimelineText('Jane', null)).toBe(
       "Jane's appointment isn't part of a multi-service booking.",
@@ -412,14 +420,16 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
         },
       ],
     });
-    expect(withGap).toContain('1. Blowdry (current) — 09:00 with Alex (30m) (15m gap after)');
+    expect(withGap).toContain(
+      '1. Blowdry (current) — 09:00 with Alex (30m) (15m gap after)',
+    );
     expect(withGap).toContain('2. Manicure — 09:45 with Sam (30m)');
   });
 
   it('formats booking payment breakdown text (ai-cmd-provider-5.3.3)', () => {
     expect(
       formatProviderBookingPaymentBreakdownText('Jane', 'pending', null),
-    ).toBe('No payment breakdown available for Jane\'s booking yet.');
+    ).toBe("No payment breakdown available for Jane's booking yet.");
 
     const summary = {
       currency: 'USD',
@@ -460,9 +470,9 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
   });
 
   it('formats deposit balance due text (ai-cmd-provider-5.3.5)', () => {
-    expect(
-      formatProviderDepositBalanceDueText('Jane', null),
-    ).toBe("No payment details available for Jane's booking yet.");
+    expect(formatProviderDepositBalanceDueText('Jane', null)).toBe(
+      "No payment details available for Jane's booking yet.",
+    );
 
     const summary = {
       currency: 'USD',
@@ -533,7 +543,12 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       adjustments: [],
     };
     expect(
-      formatProviderGiftCardRedemptionText('Jane', noGiftCardSummary, null, null),
+      formatProviderGiftCardRedemptionText(
+        'Jane',
+        noGiftCardSummary,
+        null,
+        null,
+      ),
     ).toBe("Jane's booking isn't using a gift card.");
 
     const giftCardSummary = {
@@ -574,7 +589,7 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
 
   it('formats retail cart text (ai-cmd-provider-5.4.3)', () => {
     expect(formatProviderRetailCartText('Jane', null)).toBe(
-      'No retail products on Jane\'s booking yet.',
+      "No retail products on Jane's booking yet.",
     );
 
     const emptySummary = {
@@ -596,7 +611,7 @@ describe('ai-provider-client-context.util (prov-exp-1.6)', () => {
       adjustments: [],
     };
     expect(formatProviderRetailCartText('Jane', emptySummary)).toBe(
-      'No retail products on Jane\'s booking yet.',
+      "No retail products on Jane's booking yet.",
     );
 
     const text = formatProviderRetailCartText('Jane', {

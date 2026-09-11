@@ -186,7 +186,15 @@ export const DASHBOARD_DATE_SURFACE_DEFERRED: DashboardDateSurfaceEntry[] = [
 export const DASHBOARD_DATE_SURFACE_AUDIT_CATALOG: DashboardDateSurfaceEntry[] =
   [...DASHBOARD_DATE_SURFACE_MIGRATED, ...DASHBOARD_DATE_SURFACE_DEFERRED];
 
-export const PREVIEW_BUSINESS_DATE_FORMAT_PROMPTS = [
+/** Declared so the array is one type, not a union of six literal shapes. */
+export type PreviewBusinessDateFormatPromptFixture = {
+  id: string;
+  prompt: string;
+  dateFormat?: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+  timeFormat?: '12h' | '24h';
+};
+
+export const PREVIEW_BUSINESS_DATE_FORMAT_PROMPTS: readonly PreviewBusinessDateFormatPromptFixture[] = [
   {
     id: 'preview-us-before-saving',
     prompt: 'Preview US date format before saving',
@@ -265,7 +273,14 @@ export const DASHBOARD_DATE_MIGRATION_STEPS: DashboardDateMigrationStep[] =
     };
   });
 
-export const MIGRATE_DASHBOARD_DATE_DISPLAY_PROMPTS = [
+/** Declared so the array is one type, not a union of six literal shapes. */
+export type MigrateDashboardDateDisplayPromptFixture = {
+  id: string;
+  prompt: string;
+  surfaceId?: string;
+};
+
+export const MIGRATE_DASHBOARD_DATE_DISPLAY_PROMPTS: readonly MigrateDashboardDateDisplayPromptFixture[] = [
   {
     id: 'migrate-deferred-surfaces',
     prompt:

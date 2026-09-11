@@ -37,7 +37,11 @@ const DASHBOARD_ONLY_TOPIC_KEYWORDS: Record<string, string[]> = {
     'ընդունելության պատասխան',
     'ամբողջական ընդունելութ',
   ],
-  'exp-2-2-request-review': ['review policy', 'review trigger', 'review settings'],
+  'exp-2-2-request-review': [
+    'review policy',
+    'review trigger',
+    'review settings',
+  ],
   'exp-6-2-edit-templates': [
     'edit message templates',
     'edit templates',
@@ -56,7 +60,11 @@ const DASHBOARD_ONLY_TOPIC_KEYWORDS: Record<string, string[]> = {
     'loyalty point',
     'հավատարմության միավոր',
   ],
-  'exp-10-4-locale-switch': ['switch app language', 'app language', 'change language'],
+  'exp-10-4-locale-switch': [
+    'switch app language',
+    'app language',
+    'change language',
+  ],
 };
 
 /** e2e-bug.301 — i18n keys for dashboard-only row action/reason copy. */
@@ -138,7 +146,9 @@ function findDashboardOnlyParityRow(
   prompt: string,
 ): ProviderExpUiActionParity | null {
   const lower = prompt.toLowerCase();
-  for (const [rowId, keywords] of Object.entries(DASHBOARD_ONLY_TOPIC_KEYWORDS)) {
+  for (const [rowId, keywords] of Object.entries(
+    DASHBOARD_ONLY_TOPIC_KEYWORDS,
+  )) {
     if (!keywords.some((keyword) => lower.includes(keyword))) continue;
     const row = PROVIDER_EXP_UI_AI_PARITY.find((entry) => entry.id === rowId);
     if (row && row.coverage.kind === 'dashboard-only') return row;
@@ -166,9 +176,7 @@ export function buildExplainDashboardOnlyActionSummary(
 ): string {
   const loc = resolveLocale(locale);
   const i18n = DASHBOARD_HANDOFF_ROW_I18N[row.id];
-  const action = i18n
-    ? t(loc, i18n.actionKey)
-    : row.uiAction;
+  const action = i18n ? t(loc, i18n.actionKey) : row.uiAction;
   const reason = i18n
     ? t(loc, i18n.reasonKey)
     : row.coverage.kind === 'dashboard-only'
@@ -184,8 +192,9 @@ export function resolveDashboardOnlyActionSummaryFromPrompt(
   let row = findDashboardOnlyParityRow(prompt);
   if (!row && isWhyCantCallClientDashboardHandoffPrompt(prompt)) {
     row =
-      PROVIDER_EXP_UI_AI_PARITY.find((entry) => entry.id === 'exp-1-1-tap-call') ??
-      null;
+      PROVIDER_EXP_UI_AI_PARITY.find(
+        (entry) => entry.id === 'exp-1-1-tap-call',
+      ) ?? null;
   }
   if (!row) return null;
   const loc = resolveDashboardHandoffLocale(locale, prompt);
@@ -300,7 +309,10 @@ export function rescueDashboardHandoffIntent(
     | 'explain_dashboard_only_action';
   rescueReason: string;
 } | null {
-  if (isExplainReassignLimitPrompt(prompt) && action !== 'explain_reassign_limit') {
+  if (
+    isExplainReassignLimitPrompt(prompt) &&
+    action !== 'explain_reassign_limit'
+  ) {
     return {
       action: 'explain_reassign_limit',
       rescueReason: 'explain_reassign_limit',

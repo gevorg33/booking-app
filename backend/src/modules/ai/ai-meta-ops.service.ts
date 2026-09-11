@@ -48,8 +48,7 @@ export class AiMetaOpsService {
     businessId: string,
   ): Promise<CommandResult> {
     const r: any = await this.weeklyReportService.getWeeklyReport(businessId);
-    const sections: Array<{ heading: string; body: string }> =
-      r.sections ?? [];
+    const sections: Array<{ heading: string; body: string }> = r.sections ?? [];
     const lines = [
       r.title ?? 'Weekly report',
       ...sections.map((s) => `${s.heading}: ${s.body}`),
@@ -89,9 +88,7 @@ export class AiMetaOpsService {
     return {
       success: true,
       action: 'explain_ai_audit_log',
-      summary: [`${entries.length} recent AI action(s):`, ...lines].join(
-        '\n',
-      ),
+      summary: [`${entries.length} recent AI action(s):`, ...lines].join('\n'),
       details: { entries },
     };
   }
@@ -127,9 +124,8 @@ export class AiMetaOpsService {
     businessId: string,
     membershipRole?: string,
   ): Promise<CommandResult> {
-    const entitlements = await this.planEntitlements.getEntitlements(
-      businessId,
-    );
+    const entitlements =
+      await this.planEntitlements.getEntitlements(businessId);
     const view = buildCapabilitiesView(
       'dashboard',
       membershipRole,

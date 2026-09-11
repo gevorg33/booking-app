@@ -42,9 +42,9 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
   });
 
   it('detects running_late_notify (5.14.2)', () => {
-    expect(
-      isRunningLateNotifyPrompt("I'm 15 late — text my next client"),
-    ).toBe(true);
+    expect(isRunningLateNotifyPrompt("I'm 15 late — text my next client")).toBe(
+      true,
+    );
     expect(
       isRunningLateNotifyPrompt('Running behind — let my next client know'),
     ).toBe(true);
@@ -54,12 +54,10 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
   });
 
   it('detects gap_waitlist_fill (5.14.3)', () => {
-    expect(isGapWaitlistFillPrompt('Fill my 3pm gap from waitlist')).toBe(
+    expect(isGapWaitlistFillPrompt('Fill my 3pm gap from waitlist')).toBe(true);
+    expect(isGapWaitlistFillPrompt('Offer my open slot to the waitlist')).toBe(
       true,
     );
-    expect(
-      isGapWaitlistFillPrompt('Offer my open slot to the waitlist'),
-    ).toBe(true);
     expect(isGapWaitlistFillPrompt('Who is on the waitlist?')).toBe(false);
   });
 
@@ -70,9 +68,7 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
     expect(
       isCancelAndRecoverPrompt('Cancel this booking and check the waitlist'),
     ).toBe(true);
-    expect(isCancelAndRecoverPrompt('Cancel my time off request')).toBe(
-      false,
-    );
+    expect(isCancelAndRecoverPrompt('Cancel my time off request')).toBe(false);
   });
 
   it('detects pre_visit_brief (5.14.5)', () => {
@@ -84,15 +80,13 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
   });
 
   it('detects end_of_day_close (5.14.6)', () => {
-    expect(
-      isEndOfDayClosePrompt('Wrap today — mark paid and no-shows'),
-    ).toBe(true);
-    expect(
-      isEndOfDayClosePrompt('Close out my day — paid and no-shows'),
-    ).toBe(true);
-    expect(isEndOfDayClosePrompt('Give me my end of day summary')).toBe(
-      false,
+    expect(isEndOfDayClosePrompt('Wrap today — mark paid and no-shows')).toBe(
+      true,
     );
+    expect(isEndOfDayClosePrompt('Close out my day — paid and no-shows')).toBe(
+      true,
+    );
+    expect(isEndOfDayClosePrompt('Give me my end of day summary')).toBe(false);
   });
 
   it('detects reschedule_and_notify (5.14.7)', () => {
@@ -100,7 +94,9 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
       true,
     );
     expect(
-      isRescheduleAndNotifyPrompt('Reschedule Jane to tomorrow and let her know'),
+      isRescheduleAndNotifyPrompt(
+        'Reschedule Jane to tomorrow and let her know',
+      ),
     ).toBe(true);
     expect(isRescheduleAndNotifyPrompt('Move Maria to 4pm')).toBe(false);
   });
@@ -122,16 +118,16 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
       ),
     ).toBe(true);
     expect(
-      isPushConfirmCheckInPrompt('Confirm this push notification and check her in'),
+      isPushConfirmCheckInPrompt(
+        'Confirm this push notification and check her in',
+      ),
     ).toBe(true);
-    expect(isPushConfirmCheckInPrompt('Confirm the push booking')).toBe(
-      false,
-    );
+    expect(isPushConfirmCheckInPrompt('Confirm the push booking')).toBe(false);
   });
 
   it('rescues each recipe with a matching rescueReason', () => {
     const cases: Array<[string, string]> = [
-      ["Finish Jane, mark paid cash, add Olaplex", 'chair_closeout'],
+      ['Finish Jane, mark paid cash, add Olaplex', 'chair_closeout'],
       ["I'm 15 late — text my next client", 'running_late_notify'],
       ['Fill my 3pm gap from waitlist', 'gap_waitlist_fill'],
       ['Cancel 2pm and message waitlist', 'cancel_and_recover'],
@@ -154,7 +150,10 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
 
   it('does not rescue when the action is already a known recipe', () => {
     expect(
-      rescueProviderCompoundRecipeIntent('Finish Jane, mark paid', 'chair_closeout'),
+      rescueProviderCompoundRecipeIntent(
+        'Finish Jane, mark paid',
+        'chair_closeout',
+      ),
     ).toBeNull();
   });
 
@@ -164,7 +163,7 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
     ).toBe(true);
     expect(
       isPendingConfirmDayPrompt(
-        'Confirm my pending bookings and give me today\'s rundown',
+        "Confirm my pending bookings and give me today's rundown",
       ),
     ).toBe(true);
     expect(isPendingConfirmDayPrompt('Confirm all pending')).toBe(false);
@@ -191,9 +190,9 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
   });
 
   it('detects gap_walk_in_book (5.26.4)', () => {
-    expect(
-      isGapWalkInBookPrompt('Book walk-in in 2pm gap and check in'),
-    ).toBe(true);
+    expect(isGapWalkInBookPrompt('Book walk-in in 2pm gap and check in')).toBe(
+      true,
+    );
     expect(
       isGapWalkInBookPrompt('Quick book a walk-in and check them in now'),
     ).toBe(true);
@@ -211,9 +210,9 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
   });
 
   it('detects multi_service_brief (5.26.6)', () => {
-    expect(
-      isMultiServiceBriefPrompt('Brief me on spa day client at 3'),
-    ).toBe(true);
+    expect(isMultiServiceBriefPrompt('Brief me on spa day client at 3')).toBe(
+      true,
+    );
     expect(
       isMultiServiceBriefPrompt(
         "Walk me through this package client's multi-service order",
@@ -251,7 +250,9 @@ describe('ai-provider-compound-recipes.util (ai-cmd-provider-5.14 / 5.26)', () =
       isManagerFloorSweepPrompt('Floor status then sweep team unpaid'),
     ).toBe(true);
     expect(
-      isManagerFloorSweepPrompt('Check the floor and sweep unpaid appointments'),
+      isManagerFloorSweepPrompt(
+        'Check the floor and sweep unpaid appointments',
+      ),
     ).toBe(true);
     expect(isManagerFloorSweepPrompt('Team floor status')).toBe(false);
   });

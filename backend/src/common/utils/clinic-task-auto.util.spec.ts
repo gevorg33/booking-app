@@ -87,6 +87,11 @@ describe('clinic-task-auto.util', () => {
       testName: 'CBC',
       completedAt,
       assigneeEmployeeId: 'emp-1',
+      // Pin the clock. resolveResultReviewDueAt clamps a due date that is
+      // already past up to `now`, so without this the assertion below only
+      // holds while the real clock is within CLINIC_RESULT_REVIEW_DUE_HOURS of
+      // completedAt — i.e. it passed in June 2026 and rots thereafter.
+      now: completedAt,
     });
 
     expect(draft).toEqual(

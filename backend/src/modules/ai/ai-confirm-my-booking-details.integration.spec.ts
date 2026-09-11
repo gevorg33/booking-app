@@ -6,6 +6,7 @@ import {
 } from './ai-confirm-my-booking-details.fixtures.js';
 import { rescueConfirmMyBookingDetailsIntent } from './ai-confirm-my-booking-details.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai confirm my booking details integration (ai-cmd-customer-4.3.1)', () => {
   const bookingRepo = { findOne: jest.fn(), find: jest.fn() };
@@ -35,15 +36,16 @@ describe('ai confirm my booking details integration (ai-cmd-customer-4.3.1)', ()
   it.each(CONFIRM_MY_BOOKING_DETAILS_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand({
-        action: 'confirm_my_booking_details',
-        params: { aspect, bookingId: 'book-1' },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'confirm_my_booking_details',
+          params: { aspect, bookingId: 'book-1' },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfirmMyBookingDetailsLogic(

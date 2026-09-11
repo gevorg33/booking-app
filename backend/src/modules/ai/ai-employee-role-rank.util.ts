@@ -28,15 +28,6 @@ const EMPLOYEE_ROLE_OCCUPATIONS = new Set([
 const PROVIDER_ROLE_WORD_PATTERN =
   /\b(?:specialist|stylist|therapist|provider|employee|cosmetologist|dermatologist|esthetician|aesthetician|beautician|barber|manicurist|masseur|masseuse|hairdresser|colorist)s?\b/i;
 
-/** Provider-rank prompts that name a role/title (not only generic specialist). */
-export function isEmployeeRoleRankPrompt(prompt: string): boolean {
-  if (!prompt?.trim()) return false;
-  return (
-    isProviderRankDiscoveryPrompt(prompt) &&
-    extractEmployeeRoleFromPrompt(prompt) != null
-  );
-}
-
 function normalizeEmployeeRoleTerm(term: string): string {
   const normalized = term
     .trim()

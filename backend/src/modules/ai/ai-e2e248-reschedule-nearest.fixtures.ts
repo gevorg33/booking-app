@@ -20,8 +20,7 @@ export const E2E248_RESCHEDULE_NEAREST_SCENARIOS: readonly E2e248RescheduleNeare
   [
     {
       id: 'move-gevorg-june1-to-june2-nearest',
-      prompt:
-        "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
       surface: 'dashboard',
       fromAction: 'unknown',
       expectedAction: 'reschedule_booking',
@@ -29,8 +28,7 @@ export const E2E248_RESCHEDULE_NEAREST_SCENARIOS: readonly E2e248RescheduleNeare
     },
     {
       id: 'move-gevorg-create-booking-misclass',
-      prompt:
-        "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
       surface: 'dashboard',
       fromAction: 'create_booking',
       expectedAction: 'reschedule_booking',
@@ -38,8 +36,7 @@ export const E2E248_RESCHEDULE_NEAREST_SCENARIOS: readonly E2e248RescheduleNeare
     },
     {
       id: 'move-gevorg-soonest-misclass',
-      prompt:
-        "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
       surface: 'dashboard',
       fromAction: 'find_soonest_appointment',
       expectedAction: 'reschedule_booking',
@@ -120,8 +117,7 @@ export const E2E248_RESCHEDULE_NEAREST_SCENARIOS: readonly E2e248RescheduleNeare
     },
     {
       id: 'move-jujo-possessive',
-      prompt:
-        "Move Jujo's appointment on June 10 to June 11 nearest free time",
+      prompt: "Move Jujo's appointment on June 10 to June 11 nearest free time",
       surface: 'dashboard',
       fromAction: 'unknown',
       expectedAction: 'reschedule_booking',

@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { createBookingManagerMock } from '../../common/utils/booking-manager.mock.js';
 import { GiftCardDeliveryService } from '../gift-cards/gift-card-delivery.service.js';
 import {
   buildWhatsAppGiftCardSummary,
@@ -18,12 +19,20 @@ function queryBuilderMock(bookings: unknown[]) {
 }
 
 function createHarness() {
-  const bookingRepo = {
+  const bookingRepo: Record<string, any> = {
     findOne: jest.fn(),
     find: jest.fn(),
     save: jest.fn().mockImplementation(async (value) => value),
     createQueryBuilder: jest.fn(),
   };
+  // e2e-bug.471 — ensureBookingManageToken mints the manage token inside
+  // bookingRepo.manager.transaction. Delegated to this spec's own findOne/save,
+  // falling back to the "exists, no token yet" row these doubles use elsewhere.
+  bookingRepo.manager = createBookingManagerMock({
+    find: async (id) =>
+      (await bookingRepo.findOne({ where: { id } })) ?? { id, metadata: {} },
+    save: (booking) => bookingRepo.save(booking),
+  });
   const logRepo = {
     findOne: jest.fn().mockResolvedValue(null),
     save: jest.fn(),

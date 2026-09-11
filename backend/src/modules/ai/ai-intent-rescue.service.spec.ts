@@ -75,9 +75,7 @@ describe('AiIntentRescueService', () => {
     expect(result?.action).toBe('payment_sweep');
   });
 
-  it.each(
-    PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
-  )(
+  it.each(PROVIDER_PAYMENT_SWEEP_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]))(
     'rescues payment_sweep prompt %s (ai-cmd-provider-5.3.2)',
     (_id, prompt) => {
       const result = rescue.rescue({
@@ -373,9 +371,7 @@ describe('AiIntentRescueService', () => {
           employees,
         });
         expect(result?.action).toBe(expectedAction);
-        expect(result?.params).toEqual(
-          expect.objectContaining(paramsPartial),
-        );
+        expect(result?.params).toEqual(expect.objectContaining(paramsPartial));
       }
     },
   );
@@ -477,8 +473,7 @@ describe('AiIntentRescueService', () => {
 
   it('e2e-bug.148 — priced at N dollars enriches create_product params', () => {
     const result = rescue.rescue({
-      prompt:
-        'Add a retail product called QA Test Product priced at 5 dollars',
+      prompt: 'Add a retail product called QA Test Product priced at 5 dollars',
       action: 'create_product',
       params: {},
       employees,
@@ -494,8 +489,7 @@ describe('AiIntentRescueService', () => {
     'e2e-bug.147 — service equipment requirements → list_service_resource_requirements from %s',
     (action) => {
       const result = rescue.rescue({
-        prompt:
-          'What equipment does the deep tissue massage service require?',
+        prompt: 'What equipment does the deep tissue massage service require?',
         action,
         params: {},
         employees,
@@ -621,16 +615,19 @@ describe('AiIntentRescueService', () => {
         s.prompt,
         s.expectedStatus,
       ]),
-    )('rescues %s to update_bookings with status=%s', (_id, prompt, expectedStatus) => {
-      const result = rescue.rescue({
-        prompt: prompt as string,
-        action: 'unknown',
-        params: {},
-        employees,
-      });
-      expect(result?.action).toBe('update_bookings');
-      expect(result?.params.status).toBe(expectedStatus);
-    });
+    )(
+      'rescues %s to update_bookings with status=%s',
+      (_id, prompt, expectedStatus) => {
+        const result = rescue.rescue({
+          prompt: prompt as string,
+          action: 'unknown',
+          params: {},
+          employees,
+        });
+        expect(result?.action).toBe('update_bookings');
+        expect(result?.params.status).toBe(expectedStatus);
+      },
+    );
 
     it('does not misroute mark_visit_complete phrasing to confirm_my_booking_details', () => {
       // Note: at this general (dashboard-shared) rescue layer, "mark this visit
@@ -652,7 +649,10 @@ describe('AiIntentRescueService', () => {
 
   describe('mark_visit_in_progress (ai-cmd-provider-5.16.2)', () => {
     it.each(
-      PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('rescues %s to mark_visit_in_progress', (_id, prompt) => {
       const result = rescue.rescue({
         prompt: prompt as string,
@@ -708,7 +708,10 @@ describe('AiIntentRescueService', () => {
 
   describe('confirm_pending_booking (ai-cmd-provider-5.16.4)', () => {
     it.each(
-      PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_CONFIRM_PENDING_BOOKING_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('rescues %s to confirm_pending_booking', (_id, prompt) => {
       const result = rescue.rescue({
         prompt: prompt as string,
@@ -723,7 +726,10 @@ describe('AiIntentRescueService', () => {
 
   describe('visit status explainers (ai-cmd-provider-5.16.5 / 5.16.6)', () => {
     it.each(
-      PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_EXPLAIN_BOOKING_STATUS_BADGE_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('rescues %s to explain_booking_status_badge', (_id, prompt) => {
       const result = rescue.rescue({
         prompt: prompt as string,
@@ -736,7 +742,10 @@ describe('AiIntentRescueService', () => {
     });
 
     it.each(
-      PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+      PROVIDER_EXPLAIN_FLOOR_STATUS_PROMPT_SCENARIOS.map((s) => [
+        s.id,
+        s.prompt,
+      ]),
     )('rescues %s to explain_floor_status', (_id, prompt) => {
       const result = rescue.rescue({
         prompt: prompt as string,
@@ -818,18 +827,19 @@ describe('AiIntentRescueService', () => {
   });
 
   describe('give_provider_ai_feedback (ai-cmd-provider-5.24.3)', () => {
-    it.each(
-      PROVIDER_GIVE_AI_FEEDBACK_PROMPTS.map((s) => [s.id, s.prompt]),
-    )('rescues %s to give_provider_ai_feedback on provider surface', (_id, prompt) => {
-      const result = rescue.rescue({
-        prompt: prompt as string,
-        action: 'unknown',
-        params: {},
-        employees,
-        surface: 'provider',
-      });
-      expect(result?.action).toBe('give_provider_ai_feedback');
-    });
+    it.each(PROVIDER_GIVE_AI_FEEDBACK_PROMPTS.map((s) => [s.id, s.prompt]))(
+      'rescues %s to give_provider_ai_feedback on provider surface',
+      (_id, prompt) => {
+        const result = rescue.rescue({
+          prompt: prompt as string,
+          action: 'unknown',
+          params: {},
+          employees,
+          surface: 'provider',
+        });
+        expect(result?.action).toBe('give_provider_ai_feedback');
+      },
+    );
 
     it('does not rescue to give_provider_ai_feedback on customer surface', () => {
       const result = rescue.rescue({
@@ -928,7 +938,9 @@ describe('AiIntentRescueService', () => {
       });
       expect(result?.action).toBe('explain_tour_booking');
       expect(result?.rescued).toBe(true);
-      expect(result?.rescueReason).toBe('incomplete_tour_booking_mutate_clarify');
+      expect(result?.rescueReason).toBe(
+        'incomplete_tour_booking_mutate_clarify',
+      );
       expect(result?.params.serviceName).toBe('Wine tour');
       expect(result?.params.aspect).toBe('all');
     });

@@ -1,20 +1,23 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import { LIST_TOUR_CALENDAR_WEEK_PROMPTS } from './ai-tour-calendar-week.fixtures.js';
 import { handleListTourCalendarWeekLogic } from './ai-tour-calendar-week.logic.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
 describe('ai tour calendar week integration (ai-cmd-tour-12)', () => {
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: '3-Day Mountain Trek',
     metadata: { serviceType: 'tour', maxGroupSize: 8 },
-  };
+  });
 
-  const maria = { id: 'emp-maria', name: 'Maria Lopez' };
-  const gevorg = { id: 'emp-gevorg', name: 'Gevorg Gasparyan' };
+  const maria = makeEmployee({ id: 'emp-maria', name: 'Maria Lopez' });
+  const gevorg = makeEmployee({ id: 'emp-gevorg', name: 'Gevorg Gasparyan' });
 
-  const trekBooking = {
+  const trekBooking = makeBooking({
     id: 'bk-tour-1',
     serviceId: 'svc-mountain',
     employeeId: 'emp-maria',
@@ -29,7 +32,7 @@ describe('ai tour calendar week integration (ai-cmd-tour-12)', () => {
     service: mountainTrek,
     employee: maria,
     customer: { name: 'John Doe' },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [trekBooking]),

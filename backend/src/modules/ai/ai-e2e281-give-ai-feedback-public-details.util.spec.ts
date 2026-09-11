@@ -1,6 +1,4 @@
-import {
-  E2E281_PUBLIC_DETAIL_CASES,
-} from './ai-e2e281-give-ai-feedback-public-details.fixtures.js';
+import { E2E281_PUBLIC_DETAIL_CASES } from './ai-e2e281-give-ai-feedback-public-details.fixtures.js';
 import { buildGiveAiFeedbackDetails } from './ai-give-ai-feedback.util.js';
 import {
   commandResultToPublicAssistantResult,

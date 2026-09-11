@@ -13,10 +13,13 @@ describe('GuideTelemetryService (ai-guide-1.7.3)', () => {
           route: null,
           locale: 'en',
           sessionId: null,
-          handoffAction: row.handoffAction ?? null,
-          relatedActionsCount: row.relatedActionsCount ?? null,
           issueCodes: null,
           ...row,
+          // After the spread, not before it: these two were previously written
+          // ahead of `...row`, which overwrote them, so the `?? null` defaulting
+          // never ran and an absent value reached the service as `undefined`.
+          handoffAction: row.handoffAction ?? null,
+          relatedActionsCount: row.relatedActionsCount ?? null,
         })),
       ),
     } as any);

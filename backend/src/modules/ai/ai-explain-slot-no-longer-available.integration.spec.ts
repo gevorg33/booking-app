@@ -5,6 +5,7 @@ import {
   EXPLAIN_SLOT_NO_LONGER_AVAILABLE_RESCUE_SCENARIOS,
 } from './ai-explain-slot-no-longer-available.fixtures.js';
 import { rescueExplainSlotNoLongerAvailableIntent } from './ai-explain-slot-no-longer-available.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain slot no longer available integration (ai-cmd-customer-4.18.4)', () => {
   const businessRepo = {
@@ -14,15 +15,16 @@ describe('ai explain slot no longer available integration (ai-cmd-customer-4.18.
   it.each(EXPLAIN_SLOT_NO_LONGER_AVAILABLE_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand({
-        action: 'explain_slot_no_longer_available',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_slot_no_longer_available',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

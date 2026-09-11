@@ -63,7 +63,10 @@ export async function handleRegisterCustomerPushLogic(
       'Missing device push token or platform.',
       {
         clarify: true,
-        missing: [...(token ? [] : ['token']), ...(platform ? [] : ['platform'])],
+        missing: [
+          ...(token ? [] : ['token']),
+          ...(platform ? [] : ['platform']),
+        ],
       },
     );
   }

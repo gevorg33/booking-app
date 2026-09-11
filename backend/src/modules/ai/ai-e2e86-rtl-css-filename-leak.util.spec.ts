@@ -43,7 +43,8 @@ describe('e2e-bug.86 explain_rtl_layout must not leak CSS filenames', () => {
         explainRtlLayoutCustomerTextLeaksInternalCss(result.summary ?? ''),
       ).toBe(false);
       expect(result.summary).not.toContain(ADOPTION_A11Y_STYLESHEET);
-      const nextSteps = (result.details?.nextSteps as string[] | undefined) ?? [];
+      const nextSteps =
+        (result.details?.nextSteps as string[] | undefined) ?? [];
       for (const step of nextSteps) {
         expect(explainRtlLayoutCustomerTextLeaksInternalCss(step)).toBe(false);
       }

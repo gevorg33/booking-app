@@ -10,7 +10,24 @@ export const CHECKOUT_RECOMMENDATIONS_CLASSIFIER_RULES = `- explain_checkout_rec
   - "How many products can appear on the success screen?" → explain_checkout_recommendations, aspect=maxCount
   - "Are these recommendations from my booked haircut service?" → explain_checkout_recommendations, aspect=whyShown, serviceName=haircut`;
 
-export const EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS = [
+/**
+ * Declared so the array is a list of *one* type rather than a union of 22
+ * literal shapes.
+ *
+ * Without it, `it.each(...)` destructuring `serviceName` fails on the twenty
+ * members that do not carry it — `as const` on the individual fields makes each
+ * element its own type. `serviceName` is genuinely optional (2 of 22), so the
+ * type says so and the consumers stop needing casts.
+ */
+export type ExplainCheckoutRecommendationsPromptFixture = {
+  id: string;
+  prompt: string;
+  aspect: 'all' | 'maxCount' | 'products' | 'shopLink' | 'whyShown';
+  surface: 'customer' | 'public';
+  serviceName?: string;
+};
+
+export const EXPLAIN_CHECKOUT_RECOMMENDATIONS_PROMPTS: readonly ExplainCheckoutRecommendationsPromptFixture[] = [
   {
     id: 'public-you-might-also-like',
     prompt:

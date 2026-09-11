@@ -23,7 +23,12 @@ export class AiClinicQuestionnaireService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleCreateQuestionnaireLogic(this.deps, businessId, userId, params);
+    return handleCreateQuestionnaireLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handleUpdateQuestionnaire(
@@ -31,7 +36,12 @@ export class AiClinicQuestionnaireService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handleUpdateQuestionnaireLogic(this.deps, businessId, userId, params);
+    return handleUpdateQuestionnaireLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   handlePublishQuestionnaire(
@@ -39,7 +49,12 @@ export class AiClinicQuestionnaireService {
     userId: string,
     params: Record<string, any>,
   ): Promise<CommandResult> {
-    return handlePublishQuestionnaireLogic(this.deps, businessId, userId, params);
+    return handlePublishQuestionnaireLogic(
+      this.deps,
+      businessId,
+      userId,
+      params,
+    );
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not a clinic-questionnaire intent. */

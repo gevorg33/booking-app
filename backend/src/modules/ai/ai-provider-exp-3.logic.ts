@@ -541,9 +541,7 @@ export async function handleExtendMyBlockLogic(
     );
   } catch (error: unknown) {
     const message =
-      error instanceof Error
-        ? error.message
-        : 'Could not extend your block.';
+      error instanceof Error ? error.message : 'Could not extend your block.';
     return failure('extend_my_block', message);
   }
 }

@@ -12,8 +12,7 @@ export const E2E89_CANCEL_AND_REBOOK_PROMPTS = [
   },
   {
     id: 'e2e89-massage-next-available',
-    prompt:
-      'Cancel my massage on Friday; book the next available slot',
+    prompt: 'Cancel my massage on Friday; book the next available slot',
     expectedCancelServiceName: 'massage',
   },
   {

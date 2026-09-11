@@ -179,6 +179,7 @@ export function buildBookingCoreDispatchMap(): ReadonlyMap<
       ctx.params,
       ctx.services,
       ctx.employees,
+      ctx.customers,
       ctx.employeeId,
       ctx.userId,
     ),
@@ -308,6 +309,7 @@ export function buildBookingCoreDispatchMap(): ReadonlyMap<
       ctx.params,
       ctx.services,
       ctx.employees,
+      ctx.customers,
       ctx.employeeId,
       ctx.userId,
     );

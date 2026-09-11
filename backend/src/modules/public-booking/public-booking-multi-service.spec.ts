@@ -3,6 +3,7 @@ import { createPublicBookingServiceHarness } from './public-booking-test.harness
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('PublicBookingService multi-service profile', () => {
   const stripeIntegrationService = {
@@ -26,7 +27,7 @@ describe('PublicBookingService multi-service profile', () => {
     configService: config as unknown as ConfigService,
   });
 
-  const baseBusiness: Business = {
+  const baseBusiness: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -37,7 +38,7 @@ describe('PublicBookingService multi-service profile', () => {
       branding: { primaryColor: '#000' },
       publicBooking: { enabled: true },
     },
-  } as Business;
+  });
 
   it('omits multiService when feature is disabled', () => {
     const profile = service.toPublicProfile(baseBusiness);

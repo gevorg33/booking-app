@@ -5,9 +5,20 @@ import {
   translateServiceLocalizedNames,
 } from './ai-catalog-service-localized-names.logic.js';
 
-function mockOpenAi(
-  completeJson: OpenAiGatewayService['completeJson'],
-): OpenAiGatewayService {
+/**
+ * The real `completeJson` is generic in its return type, which a `jest.fn` cannot
+ * express, so requiring that exact type at this boundary only rejected every mock
+ * — the helper casts to `OpenAiGatewayService` below regardless. This states the
+ * call shape instead, which is what the assertions actually check.
+ */
+type CompleteJsonMock = (
+  context: unknown,
+  systemPrompt: string,
+  userPrompt: string,
+  options?: { temperature?: number; maxTokens?: number },
+) => Promise<unknown>;
+
+function mockOpenAi(completeJson: CompleteJsonMock): OpenAiGatewayService {
   return {
     isAvailableForBusiness: jest.fn(async () => true),
     completeJson,
@@ -36,7 +47,10 @@ describe('ai-catalog-service-localized-names.logic', () => {
   });
 
   it('skips locales already provided explicitly', async () => {
-    const completeJson = jest.fn(async () => ({ ru: 'Мужская стрижка' }));
+    // Declares the arity so `toHaveBeenCalledWith` below can name four arguments.
+    const completeJson = jest.fn(async (..._args: unknown[]) => ({
+      ru: 'Мужская стрижка',
+    }));
     const openAi = mockOpenAi(completeJson);
 
     const result = await resolveCreateServiceLocalizedNames(openAi, {

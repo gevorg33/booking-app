@@ -12,6 +12,17 @@ import {
   handleViewPhiAccessAuditLogic,
 } from './ai-business-compliance.logic.js';
 import type { Business } from '../business/entities/business.entity.js';
+import type { PhiAccessAuditLog } from '../compliance/entities/phi-access-audit-log.entity.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
+import type {
+  RenderedTrustDocument,
+  SecurityOnePager,
+} from '../enterprise-trust/enterprise-trust.types.js';
+import type {
+  HipaaEvalResult,
+  MarketplaceEvalResult,
+  StrategyEvalSummary,
+} from '../strategy-eval/strategy-eval.types.js';
 
 describe('ai-business-compliance.logic', () => {
   const business: Business = {
@@ -22,12 +33,11 @@ describe('ai-business-compliance.logic', () => {
     settings: {},
   } as Business;
 
-  const anna = {
+  const anna = makeCustomer({
     id: 'cust-anna',
     name: 'Anna',
     businessId: 'biz-1',
-    isActive: true,
-  };
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -39,7 +49,9 @@ describe('ai-business-compliance.logic', () => {
   };
 
   const customerPrivacyService = {
-    deleteCustomerData: jest.fn(async () => ({ deleted: true })),
+    // `deleted: true as const` — production declares `Promise<{ deleted: true }>`,
+    // and a bare `true` infers as `boolean`.
+    deleteCustomerData: jest.fn(async () => ({ deleted: true as const })),
   };
 
   const businessService = {
@@ -58,63 +70,83 @@ describe('ai-business-compliance.logic', () => {
       customDataProcessingNotes: null,
     })),
     updateSettings: jest.fn(),
-    renderDocuments: jest.fn(async () => [
-      { id: 'dpa', title: 'Data Processing Agreement (DPA)', markdown: '...', placeholdersFilled: [] },
-      { id: 'privacy_policy', title: 'Privacy Policy (EU template)', markdown: '...', placeholdersFilled: [] },
-    ]),
-    getSecurityOnePager: jest.fn(() => ({
-      title: 'Security One-Pager',
-      lastUpdated: '2026-01-01',
-      summary: 'We take security seriously.',
-      sections: [],
-      contactEmail: 'security@example.com',
-    })),
+    renderDocuments: jest.fn(
+      async (): Promise<RenderedTrustDocument[]> => [
+        {
+          id: 'dpa',
+          title: 'Data Processing Agreement (DPA)',
+          markdown: '...',
+          placeholdersFilled: [],
+        },
+        {
+          id: 'privacy_policy',
+          title: 'Privacy Policy (EU template)',
+          markdown: '...',
+          placeholdersFilled: [],
+        },
+      ],
+    ),
+    getSecurityOnePager: jest.fn(
+      (): SecurityOnePager => ({
+        title: 'Security One-Pager',
+        lastUpdated: '2026-01-01',
+        summary: 'We take security seriously.',
+        sections: [],
+        contactEmail: 'security@example.com',
+      }),
+    ),
   };
 
   const strategyEvalService = {
-    getSummary: jest.fn(async () => ({
-      hipaa: {
-        answers: {},
-        handlesPhi: true,
-        readinessPercent: 40,
-        blockers: ['diagnosis_documentation'],
-        recommendation: 'defer',
-        recommendationKey: 'strategyEval.hipaa.defer',
-        notes: null,
-        decidedAt: null,
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      },
-      marketplace: null,
-      medicalVerticalBlocked: true,
-      marketplaceDecisionLocked: false,
-    })),
+    getSummary: jest.fn(
+      async (): Promise<StrategyEvalSummary> => ({
+        hipaa: {
+          answers: {},
+          handlesPhi: true,
+          readinessPercent: 40,
+          blockers: ['diagnosis_documentation'],
+          recommendation: 'defer',
+          recommendationKey: 'strategyEval.hipaa.defer',
+          notes: null,
+          decidedAt: null,
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        marketplace: null,
+        medicalVerticalBlocked: true,
+        marketplaceDecisionLocked: false,
+      }),
+    ),
     getHipaaFramework: jest.fn(),
     getMarketplaceFramework: jest.fn(),
-    submitHipaaEval: jest.fn(async () => ({
-      answers: { handles_phi: 'yes' },
-      handlesPhi: true,
-      readinessPercent: 40,
-      blockers: [],
-      recommendation: 'pursue_baa',
-      recommendationKey: 'strategyEval.hipaa.pursue_baa',
-      notes: null,
-      decidedAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })),
-    submitMarketplaceEval: jest.fn(async () => ({
-      criterionWeights: { tenant_autonomy: 4 },
-      optionScores: {
-        software_only: 10,
-        partner_directory: 8,
-        full_marketplace: 6,
-      },
-      recommendation: 'software_only',
-      recommendationKey: 'strategyEval.marketplace.software_only',
-      directoryOptIn: false,
-      notes: null,
-      decidedAt: '2026-01-01T00:00:00.000Z',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    })),
+    submitHipaaEval: jest.fn(
+      async (): Promise<HipaaEvalResult> => ({
+        answers: { handles_phi: 'yes' },
+        handlesPhi: true,
+        readinessPercent: 40,
+        blockers: [],
+        recommendation: 'pursue_baa',
+        recommendationKey: 'strategyEval.hipaa.pursue_baa',
+        notes: null,
+        decidedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ),
+    submitMarketplaceEval: jest.fn(
+      async (): Promise<MarketplaceEvalResult> => ({
+        criterionWeights: { tenant_autonomy: 4 },
+        optionScores: {
+          software_only: 10,
+          partner_directory: 8,
+          full_marketplace: 6,
+        },
+        recommendation: 'software_only',
+        recommendationKey: 'strategyEval.marketplace.software_only',
+        directoryOptIn: false,
+        notes: null,
+        decidedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ),
   };
 
   const deps = () => ({
@@ -336,33 +368,37 @@ describe('ai-business-compliance.logic', () => {
   it('filters PHI audit log entries for lab result comments', async () => {
     const createdAt = new Date('2026-06-01T12:00:00.000Z');
     const phiAccessAuditService = {
-      listForOwner: jest.fn(async () => ({
-        total: 2,
-        items: [
-          {
-            id: 'log-1',
-            businessId: 'biz-1',
-            userId: 'user-manager',
-            role: 'manager',
-            action: 'read',
-            resourceType: 'clinic_test_result',
-            resourceId: 'result-1',
-            fieldName: 'comment',
-            createdAt,
-          },
-          {
-            id: 'log-2',
-            businessId: 'biz-1',
-            userId: 'user-manager',
-            role: 'manager',
-            action: 'read',
-            resourceType: 'booking',
-            resourceId: 'booking-1',
-            fieldName: 'notes',
-            createdAt,
-          },
-        ],
-      })),
+      listForOwner: jest.fn(
+        async (): Promise<{ items: PhiAccessAuditLog[]; total: number }> => ({
+          total: 2,
+          items: [
+            {
+              id: 'log-1',
+              businessId: 'biz-1',
+              userId: 'user-manager',
+              role: 'manager',
+              action: 'read',
+              resourceType: 'clinic_test_result',
+              resourceId: 'result-1',
+              fieldName: 'comment',
+              ip: null,
+              createdAt,
+            },
+            {
+              id: 'log-2',
+              businessId: 'biz-1',
+              userId: 'user-manager',
+              role: 'manager',
+              action: 'read',
+              resourceType: 'booking',
+              resourceId: 'booking-1',
+              fieldName: 'notes',
+              ip: null,
+              createdAt,
+            },
+          ],
+        }),
+      ),
     };
 
     const result = await handleViewPhiAccessAuditLogic(

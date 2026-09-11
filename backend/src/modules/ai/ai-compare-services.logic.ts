@@ -1,3 +1,5 @@
+import { resolveEntity } from './ai-entity-resolution.util.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -11,18 +13,25 @@ import {
 } from './ai-compare-services.util.js';
 import type { PaymentsLogicDeps } from './ai-payments.logic.js';
 
-function resolveServiceByName(
-  services: readonly Service[],
-  name: string,
-): Service | undefined {
-  const needle = name.trim().toLowerCase();
-  if (!needle) return undefined;
-  return (
-    services.find((entry) => entry.name.toLowerCase() === needle) ??
-    services.find((entry) => entry.name.toLowerCase().includes(needle)) ??
-    services.find((entry) => needle.includes(entry.name.toLowerCase()))
-  );
-}
+/**
+ * tech-debt B7 / e2e-bug.367 — this local copy now refuses a tie.
+ *
+ * §187 filed the four remaining re-parsers as blocked on one decision: "may
+ * these surfaces ask a clarifying question", on the grounds that every copy
+ * *guesses* while `EntityResolutionService` *asks*, making each migration a
+ * contract change for its callers.
+ *
+ * Checked, and this caller needs no contract change: `resolveServicesForCompare` collects unresolved
+ * names into `missing[]`, and the summary reports *"Could not find catalog
+ * matches for: X. Name services from the menu."* — a refusal channel that
+ * already existed.
+ *
+ * So the tie is detected with the shared `resolveEntity` and answered with
+ * `undefined`, which the existing path already handles. Acceptance is otherwise
+ * untouched — the original tiers still run for every non-tied name — so this
+ * can only refuse a name that previously resolved to an arbitrary one of
+ * several equally good matches.
+ */
 
 function resolveServicesForCompare(
   services: readonly Service[],
@@ -31,7 +40,17 @@ function resolveServicesForCompare(
   const resolved: Service[] = [];
   const missing: string[] = [];
   for (const name of names) {
-    const match = resolveServiceByName(services, name);
+    // e2e-bug.367 — the shared tiers live in `resolveServiceByNameOrRefuseTie`;
+    // the closure is this call site's own last tier, and the only rule that
+    // differs from `ai-pick-provider-for-service.logic.ts`: the *query*
+    // contains a service name ("how do Deep Tissue Massage and Swedish
+    // compare"). Stated here rather than hidden in a near-identical copy.
+    const match = resolveServiceByNameOrRefuseTie(
+      services,
+      name,
+      (list, needle) =>
+        list.find((entry) => needle.includes(entry.name.toLowerCase())),
+    );
     if (!match) {
       missing.push(name);
       continue;

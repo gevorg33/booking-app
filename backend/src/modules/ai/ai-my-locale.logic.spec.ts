@@ -2,6 +2,7 @@ import {
   handleGetMyLocaleLogic,
   handleUpdateMyLocaleLogic,
 } from './ai-my-locale.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import type { CustomerCrmLogicDeps } from './ai-customer-crm.logic.js';
 
 function buildDeps(
@@ -19,7 +20,9 @@ function buildDeps(
       })),
     } as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   } as CustomerCrmLogicDeps;
@@ -41,10 +44,9 @@ describe('ai-my-locale.logic', () => {
       expect(result.success).toBe(true);
       expect(result.action).toBe('get_my_locale');
       expect(result.details?.preferredLocale).toBe('en');
-      expect(deps.publicCustomerAuthService.getPreferredLocale).toHaveBeenCalledWith(
-        'salon',
-        'cust-1',
-      );
+      expect(
+        deps.publicCustomerAuthService.getPreferredLocale,
+      ).toHaveBeenCalledWith('salon', 'cust-1');
     });
 
     it('requires sign-in', async () => {

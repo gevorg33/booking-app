@@ -1,4 +1,7 @@
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-explain-professional-profile-multilingual.fixtures.js';
+import type { PublicProviderReviewSummary } from '../reviews/reviews.service.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import {
   EXPLAIN_PROFESSIONAL_PROFILE_PROMPTS,
   EXPLAIN_PROFESSIONAL_PROFILE_RESCUE_SCENARIOS,
@@ -105,34 +108,39 @@ describe('ai-explain-professional-profile.util (ai-cmd-customer-4.11.5)', () => 
 describe('ai-explain-professional-profile.logic (ai-cmd-customer-4.11.5)', () => {
   const employeeRepo = {
     find: jest.fn(async () => [
-      {
+      makeEmployee({
         id: 'emp-anna',
         name: 'Anna',
         businessId: 'biz-1',
-        isActive: true,
         serviceIds: ['svc-color', 'svc-cut'],
         metadata: { role: 'Colorist', specialty: 'Balayage' },
-      },
-      {
+      }),
+      makeEmployee({
         id: 'emp-maria',
         name: 'Maria',
         businessId: 'biz-1',
-        isActive: true,
         serviceIds: ['svc-cut'],
-        metadata: {},
-      },
+      }),
     ]),
   };
   const serviceRepo = {
     find: jest.fn(async () => [
-      { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
-      { id: 'svc-cut', name: 'Haircut', businessId: 'biz-1', isActive: true },
+      makeService({ id: 'svc-color', name: 'Color', businessId: 'biz-1' }),
+      makeService({ id: 'svc-cut', name: 'Haircut', businessId: 'biz-1' }),
     ]),
   };
   const reviewsService = {
+    // `recentReviews` is required by `PublicProviderReviewSummary` and was
+    // absent — the summary's third field, and the only one carrying the reviews
+    // themselves.
     getPublicReviewsByEmployees: jest.fn(
-      async () =>
-        new Map([['emp-anna', { averageRating: 4.8, reviewCount: 12 }]]),
+      async (): Promise<Map<string, PublicProviderReviewSummary>> =>
+        new Map([
+          [
+            'emp-anna',
+            { averageRating: 4.8, reviewCount: 12, recentReviews: [] },
+          ],
+        ]),
     ),
   };
 

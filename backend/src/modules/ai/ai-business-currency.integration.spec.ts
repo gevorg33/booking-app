@@ -1,4 +1,8 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import {
+  makeServicePopularityRow,
+  makeStaffPerformanceRow,
+} from '../analytics/analytics.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import {
   handleBulkUpdateServiceCurrencyLogic,
@@ -21,15 +25,17 @@ import { SUMMARIZE_REVENUE_KPIS_PROMPTS } from './ai-revenue-kpis.fixtures.js';
 import { parseCurrencyFromPrompt } from './ai-business-currency.util.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
     timezone: 'UTC',
     settings: { currency: 'USD' },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -67,17 +73,23 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
     staffPerformance: jest.fn(async () => ({
       currency: 'USD',
       rows: [
-        {
+        makeStaffPerformanceRow({
           employeeName: 'Alex',
           bookings: 5,
           revenue: 3000,
           utilizationPercent: 60,
-        },
+        }),
       ],
     })),
     servicePopularity: jest.fn(async () => ({
       currency: 'USD',
-      rows: [{ serviceName: 'Cut', bookings: 5, revenue: 3000 }],
+      rows: [
+        makeServicePopularityRow({
+          serviceName: 'Cut',
+          bookings: 5,
+          revenue: 3000,
+        }),
+      ],
     })),
   };
 
@@ -110,14 +122,15 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('configure_business_currency');
 
-      const validation = validateCommand({
-        action: 'configure_business_currency',
-        params: { currencyCode },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_business_currency',
+          params: { currencyCode },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessCurrencyLogic(
@@ -141,14 +154,15 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('explain_business_currency');
 
-      const validation = validateCommand({
-        action: 'explain_business_currency',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_business_currency',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleExplainBusinessCurrencyLogic(deps(), 'biz-1');
@@ -251,14 +265,15 @@ describe('ai business currency integration (ai-cmd-curr-1..3)', () => {
       });
       expect(rescued?.action).toBe('bulk_update_service_currency');
 
-      const validation = validateCommand({
-        action: 'bulk_update_service_currency',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'bulk_update_service_currency',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const preview = await handleBulkUpdateServiceCurrencyLogic(

@@ -5,18 +5,20 @@ import {
   RESUME_BOOKING_DRAFT_RESCUE_SCENARIOS,
 } from './ai-resume-booking-draft.fixtures.js';
 import { rescueResumeBookingDraftIntent } from './ai-resume-booking-draft.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai resume booking draft integration (ai-cmd-customer-4.18.3)', () => {
   it.each(RESUME_BOOKING_DRAFT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'resume_booking_draft',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'resume_booking_draft',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

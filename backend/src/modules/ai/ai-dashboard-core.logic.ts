@@ -1,4 +1,5 @@
 import type { Customer } from '../customer/entities/customer.entity.js';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { AiCatalogService } from './ai-catalog.service.js';
@@ -51,7 +52,7 @@ export type DashboardCoreDispatchContext = {
   services: Service[];
   customers: Customer[];
   session?: CommandSessionOptions;
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined;
+  resolveCustomer: NamedResolver<Customer>;
   isExecutionConfirmed: (session?: CommandSessionOptions) => boolean;
 };
 

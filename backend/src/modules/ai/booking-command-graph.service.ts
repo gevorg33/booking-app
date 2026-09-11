@@ -155,8 +155,7 @@ export class BookingCommandGraphService {
       ...clarifyFields,
       timeZone: input.timeZone,
     };
-    const promptForPlans =
-      resume.confirmationPrompt || input.effectivePrompt;
+    const promptForPlans = resume.confirmationPrompt || input.effectivePrompt;
 
     if (this.router.useCompoundGraph()) {
       try {

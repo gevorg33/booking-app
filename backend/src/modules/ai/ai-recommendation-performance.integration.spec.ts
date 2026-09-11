@@ -4,6 +4,7 @@ import { SUMMARIZE_RECOMMENDATION_PERFORMANCE_PROMPTS } from './ai-recommendatio
 import { handleSummarizeRecommendationPerformanceLogic } from './ai-recommendation-performance.logic.js';
 import { AI_COMMAND_EVAL_SUMMARIZE_RECOMMENDATION_PERFORMANCE_CASES } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai recommendation performance integration (ai-cmd-rec-9)', () => {
   const business = { id: 'biz-1', settings: {} };
@@ -38,15 +39,16 @@ describe('ai recommendation performance integration (ai-cmd-rec-9)', () => {
       const params: Record<string, unknown> = {};
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand({
-        action: 'summarize_recommendation_performance',
-        params,
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'summarize_recommendation_performance',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

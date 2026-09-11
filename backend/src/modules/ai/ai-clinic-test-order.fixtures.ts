@@ -7,7 +7,17 @@ export const CLINIC_TEST_ORDER_CLASSIFIER_RULES = `- create_test_order: MUTATE �
   - "Show Maria's lab orders for tomorrow" → list_test_orders, customerName=Maria, date=tomorrow
   - "List pending lab orders for this week" → list_test_orders, dateFrom/dateTo=this week, status=NotCollected`;
 
-export const CREATE_TEST_ORDER_PROMPTS = [
+/** Declared so the array is one type, not a union of eleven literal shapes. */
+export type CreateTestOrderPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  testNames: string[];
+  dateHint?: string;
+  bookingId?: string;
+};
+
+export const CREATE_TEST_ORDER_PROMPTS: readonly CreateTestOrderPromptFixture[] = [
   {
     id: 'cbc-lipid-maria-tomorrow',
     prompt: "Order CBC and lipid panel for Maria's visit tomorrow",
@@ -75,7 +85,7 @@ export const CREATE_TEST_ORDER_PROMPTS = [
     bookingId: 'abc123',
     testNames: ['CBC'],
   },
-] as const;
+];
 
 export const LIST_TEST_ORDERS_PROMPTS = [
   {

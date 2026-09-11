@@ -1,6 +1,38 @@
 import { ForbiddenException } from '@nestjs/common';
 import { ProviderTimeOffService } from './provider-time-off.service.js';
 
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * Requests are made for 2026-06-01 onward and the service refuses time off in
+ * the past, so every scenario turns into a validation error once that date
+ * passes.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+const FROZEN_NOW = new Date('2026-05-20T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('ProviderTimeOffService (prov-exp-7.2)', () => {
   const requestRepo = {
     create: jest.fn((value) => value),

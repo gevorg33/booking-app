@@ -6,12 +6,36 @@ import {
 } from './ai-add-booking-to-calendar.fixtures.js';
 import { rescueAddBookingToCalendarIntent } from './ai-add-booking-to-calendar.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai add booking to calendar integration (ai-cmd-customer-4.3.2)', () => {
+  // `manager.transaction` — the manifest's `mock_missing_transaction` class,
+  // and the same gap its sibling `.logic.spec.ts` had.
+  //
+  // The handler mints a manage token via `ensureBookingManageToken`, which
+  // opens `bookingRepo.manager.transaction` and locks the row inside it. With
+  // no `manager` on the mock every case died with "Cannot read properties of
+  // undefined (reading 'transaction')" before reaching the behaviour under
+  // test, so all 22 failures were about the mock rather than the code.
+  //
+  // The locked read delegates to the same `findOne` the tests prime, so a case
+  // sets its booking up once.
+  const manager = {
+    createQueryBuilder: () => ({
+      setLock: () => ({
+        where: () => ({ getOne: async () => bookingRepo.findOne() }),
+      }),
+    }),
+    save: jest.fn(async (_entity: unknown, row: any) => row),
+  };
   const bookingRepo = {
     findOne: jest.fn(),
     find: jest.fn(),
     save: jest.fn(async (row) => row),
+    manager: {
+      transaction: async (cb: (m: typeof manager) => Promise<unknown>) =>
+        cb(manager),
+    },
   };
   const businessRepo = {
     findOne: jest.fn(async () => ({
@@ -48,15 +72,16 @@ describe('ai add booking to calendar integration (ai-cmd-customer-4.3.2)', () =>
   it.each(ADD_BOOKING_TO_CALENDAR_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, format }) => {
-      const validation = validateCommand({
-        action: 'add_booking_to_calendar',
-        params: { format, bookingId: 'book-1' },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'add_booking_to_calendar',
+          params: { format, bookingId: 'book-1' },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleAddBookingToCalendarLogic(

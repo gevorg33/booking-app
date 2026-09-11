@@ -4,6 +4,8 @@ import { PrepaymentMode } from '../service/entities/service.entity.js';
 import {
   createEmptyBookingPopularityRepoMock,
   createPublicBookingServiceHarness,
+  createEmptyRepoMock,
+  createBookingManagerMock,
 } from './public-booking-test.harness.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
 import type { Business } from '../business/entities/business.entity.js';
@@ -96,9 +98,21 @@ export function createTourPublicBookingHarness(options?: {
       get: jest.fn(() => 'https://app.test'),
     } as unknown as ConfigService,
     referralProgramService: { find: jest.fn() },
-    serviceRepo: { findOne: jest.fn().mockResolvedValue(tourService) },
-    slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
-    schedulingPeriodRepo: { find: jest.fn() },
+    // Spread over the empty-repo default so these stay the *declared* behaviour
+    // while any method this harness never anticipated (slotRepo.count, added
+    // with planAssignedProvidersUpcomingHours) resolves empty instead of
+    // throwing "is not a function".
+    serviceRepo: {
+      ...createEmptyRepoMock(),
+      findOne: jest.fn().mockResolvedValue(tourService),
+    },
+    // The bare `find: jest.fn()` / `createQueryBuilder: jest.fn()` stubs these
+    // used to carry existed only to make the property exist — they returned
+    // `undefined`, so production code doing `(await repo.find(...)).filter(...)`
+    // threw. createEmptyRepoMock() makes the property exist *and* resolve empty,
+    // and they are still jest.fn()s, so a test can still mockResolvedValue them.
+    slotRepo: createEmptyRepoMock(),
+    schedulingPeriodRepo: createEmptyRepoMock(),
     bookingRepo,
   });
 
@@ -124,11 +138,18 @@ function createTourBookingRepo(storedBookings: Array<Record<string, unknown>>) {
           metadata: {},
         },
     ),
-    save: jest.fn(async (booking: Record<string, unknown>) => {
-      const idx = storedBookings.findIndex((b) => b.id === booking.id);
-      if (idx >= 0) storedBookings[idx] = booking;
-      else storedBookings.push(booking);
-      return booking;
-    }),
+    save: jest.fn(async (booking: Record<string, unknown>) => saveRow(booking)),
+    manager: createBookingManagerMock({ find: findRow, save: saveRow }),
   };
+
+  function findRow(id?: string) {
+    return storedBookings.find((b) => b.id === id) ?? { id, metadata: {} };
+  }
+
+  function saveRow(booking: Record<string, unknown>) {
+    const idx = storedBookings.findIndex((b) => b.id === booking.id);
+    if (idx >= 0) storedBookings[idx] = booking;
+    else storedBookings.push(booking);
+    return booking;
+  }
 }

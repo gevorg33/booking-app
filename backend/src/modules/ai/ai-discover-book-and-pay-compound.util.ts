@@ -23,7 +23,7 @@ import {
 import { hasAvailabilityOrPattern } from './ai-flexible-availability.util.js';
 import { isBookWithGiftCardCompoundPrompt } from './ai-book-with-gift-card.util.js';
 import { isGiftCardCheckoutCompoundPrompt } from './ai-gift-card-payments-hints.util.js';
-import { isGiftCardCheckoutCompoundPrompt as isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
+import { isGiftCardCheckApplyBookCompoundPrompt } from './ai-gift-card-checkout-compound.util.js';
 import { isBudgetDiscoverAndBookCompoundPrompt } from './ai-budget-discover-and-book-compound.util.js';
 import {
   DISCOVER_BOOK_AND_PAY_COMPOUND_PROMPTS,
@@ -194,7 +194,24 @@ function extractDiscoverBookAndPayServiceCategory(
   prompt: string,
   params: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (params.serviceCategory || params.serviceName) return params;
+  // §170 — normalize what is already there instead of returning it untouched.
+  //
+  // `DISCOVER_BOOK_CATEGORY_SINGULAR` and the regexes below were both correct;
+  // this early return meant they never ran. An upstream extractor sets
+  // `serviceCategory` first, so "Show facials under $50" arrived here already
+  // populated with `facials`, took this branch, and propagated the plural to all
+  // four compound steps. The guard's intent is "do not re-extract", not "do not
+  // normalize", so only the second half changes.
+  if (params.serviceCategory || params.serviceName) {
+    return typeof params.serviceCategory === 'string'
+      ? {
+          ...params,
+          serviceCategory: normalizeDiscoverBookServiceCategory(
+            params.serviceCategory,
+          ),
+        }
+      : params;
+  }
 
   const showMatch = prompt.match(
     /\b(?:show|list|find|book)\s+(?:(?:cheapest|most\s+affordable|premium|luxury|deluxe|affordable)\s+)?([a-z][\w-]{2,30})(?=\s*(?:under|below|options|services|,|$))/i,

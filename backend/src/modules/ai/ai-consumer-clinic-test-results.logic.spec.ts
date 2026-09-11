@@ -2,6 +2,8 @@ import {
   handleExplainResultStatusLogic,
   handleListMyTestResultsLogic,
 } from './ai-consumer-clinic-test-results.logic.js';
+import type { ClinicPatientReleasedResultView } from '../../common/utils/clinic-patient-released-result.util.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   EXPLAIN_RESULT_STATUS_PROMPTS,
   LIST_MY_TEST_RESULTS_PROMPTS,
@@ -9,23 +11,30 @@ import {
 
 describe('ai-consumer-clinic-test-results.logic', () => {
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-1',
-      settings: { businessType: 'clinic' },
-    })),
+    findOne: jest.fn(async () =>
+      makeBusiness({ id: 'biz-1', settings: { businessType: 'clinic' } }),
+    ),
   };
   const clinicTestResultsService = {
-    listReleasedResultsForCustomer: jest.fn(async () => [
-      {
-        id: 'result-1',
-        orderId: 'order-1',
-        bookingId: 'booking-1',
-        status: 'Released',
-        testName: 'CBC',
-        measurementFlag: 'Normal',
-        releasedAt: '2026-06-08T12:00:00.000Z',
-      },
-    ]),
+    // Required by the deps interface because the service forwards this object to
+    // the track-lab-order-status logic, which calls it.
+    listCustomerResultsForTracking: jest.fn(async () => []),
+    // `measurements` is required by `ClinicPatientReleasedResultView` and was
+    // absent — the field carrying the actual results, not just their summary flag.
+    listReleasedResultsForCustomer: jest.fn(
+      async (): Promise<ClinicPatientReleasedResultView[]> => [
+        {
+          id: 'result-1',
+          orderId: 'order-1',
+          bookingId: 'booking-1',
+          status: 'Released',
+          testName: 'CBC',
+          measurementFlag: 'Normal',
+          releasedAt: '2026-06-08T12:00:00.000Z',
+          measurements: [],
+        },
+      ],
+    ),
   };
 
   const deps = { businessRepo, clinicTestResultsService };

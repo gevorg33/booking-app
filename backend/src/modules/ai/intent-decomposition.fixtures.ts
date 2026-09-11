@@ -923,9 +923,22 @@ export const COMPOUND_DECOMPOSITION_SCENARIOS: CompoundScenarioExpectation[] = [
     noLlm: true,
   },
   {
+    // §165 — the prompt here was 'List providers and check availability' until
+    // it went stale. This fixture is from 2026-06-05; the
+    // `list_providers_check_availability` shape was added to
+    // `ai-public-assistant-compound.util.ts` on 2026-07-20 and silently
+    // contradicted it. Six other places assert that prompt IS a public
+    // assistant compound — including the `public_assistant_compound` recipe's
+    // own `examplePrompts` — so this fixture was the outlier, not the truth.
+    //
+    // The coverage it was written for is still worth having, so the prompt is
+    // replaced rather than the expectation flipped. This one fires the same
+    // `LIST_PROVIDERS_CUE` as the real shape and misses the second cue, so it
+    // guards the exact boundary that went stale: compound-looking, no
+    // deterministic recipe, hand it to the LLM.
     id: 'public_compound_no_deterministic',
     surface: 'public',
-    prompt: 'List providers and check availability',
+    prompt: 'List providers and cancel my haircut',
     expectEmpty: true,
     noLlm: true,
   },

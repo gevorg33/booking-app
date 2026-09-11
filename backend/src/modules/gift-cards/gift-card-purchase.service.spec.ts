@@ -5,7 +5,14 @@ import { GiftCardPurchaseService } from './gift-card-purchase.service.js';
 describe('GiftCardPurchaseService', () => {
   const businessRepo = { findOne: jest.fn() };
   const serviceRepo = { findOne: jest.fn() };
-  const giftCardRepo = { save: jest.fn(), create: jest.fn(), find: jest.fn() };
+  // `findOne` declared alongside the rest — one test assigns it directly, which
+  // typed the mock as not having it at all.
+  const giftCardRepo = {
+    save: jest.fn(),
+    create: jest.fn(),
+    find: jest.fn(),
+    findOne: jest.fn(),
+  };
   const creditRepo = { save: jest.fn(), create: jest.fn() };
   const eventEmitter = { emit: jest.fn() };
   const packagesService = {

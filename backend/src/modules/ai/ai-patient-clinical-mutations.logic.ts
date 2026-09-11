@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { PatientClinicalProfilesService } from '../patient-clinical-profiles/patient-clinical-profiles.service.js';
@@ -14,13 +18,19 @@ import {
 } from './ai-patient-clinical-mutations.util.js';
 
 export interface PatientClinicalMutationsLogicDeps {
-  customerRepo: Pick<Repository<Customer>, 'find' | 'findOne'>;
-  profilesService: Pick<PatientClinicalProfilesService, 'upsertProfileForCustomer'>;
+  customerRepo: EntityFinder<Customer> & EntityReader<Customer>;
+  profilesService: Pick<
+    PatientClinicalProfilesService,
+    'upsertProfileForCustomer'
+  >;
   profileAccessService: Pick<
     PatientClinicalProfileAccessService,
     'assertCustomerClinicalProfileAccess'
   >;
-  documentsService: Pick<PatientDocumentsService, 'updateDocumentReleaseForCustomer'>;
+  documentsService: Pick<
+    PatientDocumentsService,
+    'updateDocumentReleaseForCustomer'
+  >;
   encountersService: Pick<
     PatientEncountersService,
     'appendAddendum' | 'upsertEncounterForBooking' | 'listEncountersForCustomer'
@@ -57,7 +67,12 @@ function clarify(
   summary: string,
   missing: string[],
 ): CommandResult {
-  return { success: false, action, summary, details: { clarify: true, missing } };
+  return {
+    success: false,
+    action,
+    summary,
+    details: { clarify: true, missing },
+  };
 }
 
 async function resolveCustomerOrClarify(
@@ -66,7 +81,11 @@ async function resolveCustomerOrClarify(
   params: Record<string, unknown>,
   action: string,
 ): Promise<Customer | CommandResult> {
-  const customer = await resolvePatientClinicalCustomer(deps, businessId, params);
+  const customer = await resolvePatientClinicalCustomer(
+    deps,
+    businessId,
+    params,
+  );
   if (!customer) {
     return clarify(
       action,
@@ -93,14 +112,21 @@ export async function handleUpdateClinicalProfileLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'update_clinical_profile';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
   const allergies =
     typeof params.allergies === 'string' ? params.allergies : undefined;
   const chronicProblems =
-    typeof params.chronicProblems === 'string' ? params.chronicProblems : undefined;
+    typeof params.chronicProblems === 'string'
+      ? params.chronicProblems
+      : undefined;
   const emergencyContactName =
     typeof params.emergencyContactName === 'string'
       ? params.emergencyContactName
@@ -135,11 +161,12 @@ export async function handleUpdateClinicalProfileLogic(
     );
   }
 
-  const access = await deps.profileAccessService.assertCustomerClinicalProfileAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.profileAccessService.assertCustomerClinicalProfileAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
   const updated = await deps.profilesService.upsertProfileForCustomer(
     businessId,
     customer.id,
@@ -172,7 +199,12 @@ export async function handleDismissPatientAlertLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'dismiss_patient_alert';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
@@ -198,11 +230,15 @@ export async function handleDismissPatientAlertLogic(
     sourceId,
   );
 
-  return success(action, `Dismissed the ${alertType} alert for ${customer.name}.`, {
-    customerId: customer.id,
-    alertType,
-    sourceId,
-  });
+  return success(
+    action,
+    `Dismissed the ${alertType} alert for ${customer.name}.`,
+    {
+      customerId: customer.id,
+      alertType,
+      sourceId,
+    },
+  );
 }
 
 export async function handleReleasePatientDocumentLogic(
@@ -212,7 +248,12 @@ export async function handleReleasePatientDocumentLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'release_patient_document';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
@@ -224,13 +265,16 @@ export async function handleReleasePatientDocumentLogic(
     return clarify(action, 'Which document should I release?', ['documentId']);
   }
   const releasedToPatient =
-    typeof params.releasedToPatient === 'boolean' ? params.releasedToPatient : true;
+    typeof params.releasedToPatient === 'boolean'
+      ? params.releasedToPatient
+      : true;
 
-  const access = await deps.profileAccessService.assertCustomerClinicalProfileAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.profileAccessService.assertCustomerClinicalProfileAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
   const document = await deps.documentsService.updateDocumentReleaseForCustomer(
     businessId,
     customer.id,
@@ -255,7 +299,12 @@ export async function handleCreateEncounterAddendumLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'create_encounter_addendum';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
@@ -267,11 +316,12 @@ export async function handleCreateEncounterAddendumLogic(
     return clarify(action, 'What should the addendum say?', ['body']);
   }
 
-  const access = await deps.profileAccessService.assertCustomerClinicalProfileAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.profileAccessService.assertCustomerClinicalProfileAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
 
   let encounterId =
     typeof params.encounterId === 'string' && params.encounterId.trim()
@@ -326,7 +376,12 @@ export async function handleUpdateEncounterByBookingLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'update_encounter_by_booking';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
@@ -347,11 +402,12 @@ export async function handleUpdateEncounterByBookingLogic(
     );
   }
 
-  const access = await deps.profileAccessService.assertCustomerClinicalProfileAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.profileAccessService.assertCustomerClinicalProfileAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
   const detail = await deps.encountersService.upsertEncounterForBooking(
     businessId,
     customer.id,
@@ -373,15 +429,21 @@ export async function handleListCustomerStaffNotesLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'list_customer_staff_notes';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
-  const access = await deps.staffNoteAccessService.assertCustomerStaffNoteAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.staffNoteAccessService.assertCustomerStaffNoteAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
   const list = await deps.staffNotesService.listNotesForCustomer(
     businessId,
     customer.id,
@@ -404,7 +466,12 @@ export async function handleAddCustomerStaffNoteLogic(
   params: Record<string, any>,
 ): Promise<CommandResult> {
   const action = 'add_customer_staff_note';
-  const resolved = await resolveCustomerOrClarify(deps, businessId, params, action);
+  const resolved = await resolveCustomerOrClarify(
+    deps,
+    businessId,
+    params,
+    action,
+  );
   if (isCommandResult(resolved)) return resolved;
   const customer = resolved;
 
@@ -420,11 +487,12 @@ export async function handleAddCustomerStaffNoteLogic(
       ? params.bookingId.trim()
       : undefined;
 
-  const access = await deps.staffNoteAccessService.assertCustomerStaffNoteAccess(
-    businessId,
-    userId,
-    customer.id,
-  );
+  const access =
+    await deps.staffNoteAccessService.assertCustomerStaffNoteAccess(
+      businessId,
+      userId,
+      customer.id,
+    );
   const note = await deps.staffNotesService.createNoteForCustomer(
     businessId,
     customer.id,

@@ -4,13 +4,19 @@ import {
   handleBulkStripDisabledLocaleTranslationsLogic,
   handleExplainBookingLanguagesLogic,
 } from './ai-business-languages.logic.js';
+import { makeServicePackage } from '../service-packages/entities/service-package.test-fixture.js';
+import {
+  makeService,
+  makeServiceCategory,
+} from '../service/entities/service.test-fixture.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { ServiceCategory } from '../service/entities/service-category.entity.js';
 import type { ServicePackage } from '../service-packages/entities/service-package.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-business-languages.logic (ai-cmd-lang-1)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -20,7 +26,7 @@ describe('ai-business-languages.logic (ai-cmd-lang-1)', () => {
       defaultLocale: 'en',
       locale: 'en',
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -30,28 +36,34 @@ describe('ai-business-languages.logic (ai-cmd-lang-1)', () => {
   const serviceRepo = {
     save: jest.fn(async (item: Service) => item),
     find: jest.fn(async () => [
-      {
+      makeService({
         id: 's1',
         metadata: { localizedNames: { en: ['Cut'], ru: ['Стрижка'] } },
-      },
-      { id: 's2', metadata: { localizedNames: { en: ['Color'] } } },
+      }),
+      makeService({
+        id: 's2',
+        metadata: { localizedNames: { en: ['Color'] } },
+      }),
     ]),
   };
 
   const categoryRepo = {
     save: jest.fn(async (item: ServiceCategory) => item),
     find: jest.fn(async () => [
-      {
+      makeServiceCategory({
         id: 'c1',
         metadata: { localizedNames: { hy: ['Մազեր'], ru: ['Волосы'] } },
-      },
+      }),
     ]),
   };
 
   const packageRepo = {
     save: jest.fn(async (item: ServicePackage) => item),
     find: jest.fn(async () => [
-      { id: 'p1', metadata: { localizedNames: { en: ['Spa Day'] } } },
+      makeServicePackage({
+        id: 'p1',
+        metadata: { localizedNames: { en: ['Spa Day'] } },
+      }),
     ]),
   };
 

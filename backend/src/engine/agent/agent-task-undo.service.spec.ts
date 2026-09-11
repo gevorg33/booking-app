@@ -1,8 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { AgentTaskUndoService } from './agent-task-undo.service.js';
 import { AgentTask } from './agent-task.entity.js';
+import { AgentTaskUndoService } from './agent-task-undo.service.js';
 import { BookingService } from '../../modules/booking/booking.service.js';
 import { BlockScheduleService } from '../../modules/schedule/services/block-schedule.service.js';
 import { ScheduleService } from '../../modules/schedule/schedule.service.js';
@@ -11,7 +11,6 @@ import { EventStoreService } from '../../events/store/event-store.service.js';
 import { PlanStatus } from './interfaces/agent.interfaces.js';
 import { StepStatus } from '../workflow/interfaces/workflow.interfaces.js';
 import { EventType } from '../../events/event-types.js';
-import type { AgentTask } from './agent-task.entity.js';
 
 function buildTask(
   planSteps: Array<{
@@ -63,7 +62,7 @@ describe('AgentTaskUndoService', () => {
   const employeeService = { update: jest.fn() };
   const eventStore = { publish: jest.fn(), getEvents: jest.fn(async () => []) };
   const taskRepo = {
-    find: jest.fn(),
+    find: jest.fn<Promise<unknown>, unknown[]>(),
     save: jest.fn(async (t: AgentTask) => t),
   };
 

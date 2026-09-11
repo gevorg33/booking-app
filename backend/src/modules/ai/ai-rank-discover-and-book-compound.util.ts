@@ -67,7 +67,20 @@ function hasCheckStepCue(prompt: string): boolean {
   return (
     isCheckProvidersForServicePrompt(prompt) ||
     (/\bcheck\b/i.test(prompt) &&
-      /\b(?:providers?|availability|who|free|available)\b/i.test(prompt))
+      (/\b(?:providers?|availability|who|free|available)\b/i.test(prompt) ||
+        // §169 — the mixed-language fixtures keep the English verb and translate
+        // the object ("check кто свободен tomorrow evening"), so the second half
+        // of this test never matched and the whole compound failed to decompose
+        // — `got 0`, not "one step short". No `\b`: it is ASCII-only and cannot
+        // sit beside Cyrillic (same trap as §166).
+        //
+        // §181 — Armenian added. §169 shipped the Russian half only, and nothing
+        // caught the omission because every `hy` row in these two fixture files
+        // was the English prompt verbatim (`e2e-bug.457`): there was no Armenian
+        // case that *could* fail. Measured before adding: "check ով է ազատ …"
+        // decomposed to NULL while the Russian equivalent decomposed to three
+        // steps.
+        /(?:кто|свободн|доступн|ով|ազատ|հասանելի)/iu.test(prompt)))
   );
 }
 
@@ -84,8 +97,21 @@ function hasBookStepCue(prompt: string): boolean {
 function extractRankDiscoverServiceCategory(
   prompt: string,
 ): string | undefined {
+  // e2e-bug.428 — the same early return as its budget sibling, with the same
+  // consequence: `SERVICE_CATEGORY_BLOCKLIST` exists to stop adjectives like
+  // "affordable" and "premium" being taken for a category, and this path
+  // skipped it.
   const fromList = enrichListServicesParamsFromPrompt(prompt, {});
-  if (fromList.serviceCategory) return fromList.serviceCategory;
+  const fromListCategory =
+    typeof fromList.serviceCategory === 'string'
+      ? fromList.serviceCategory.trim()
+      : '';
+  if (
+    fromListCategory &&
+    !SERVICE_CATEGORY_BLOCKLIST.has(fromListCategory.toLowerCase())
+  ) {
+    return fromListCategory;
+  }
 
   const bookMatch = prompt.match(RANK_BOOK_SERVICE_CATEGORY_PATTERN);
   const rankMatch = prompt.match(RANK_CUE_SERVICE_CATEGORY_PATTERN);

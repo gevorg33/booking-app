@@ -27,7 +27,18 @@ describe('ai-clinic-booking-multilingual.util', () => {
       id: 'en-fallback',
       locale: 'en',
       surface: 'public',
-      prompt: 'Explain the lab prep for Lipid panel',
+      // e2e-bug.523 — was 'Explain the lab prep for Lipid panel', which
+      // `isExplainClinicBookingPrompt` rejects *on purpose*:
+      // CONSUMER_LAB_PREP_EXPLAIN matches `prep\s+for\s+(the )?lipid|panel` and
+      // routes consumer lab-prep questions away from explain_clinic_booking. So
+      // the parser returned null and paramsPartial was omitted entirely — the
+      // prompt contradicted a deliberate routing rule rather than exposing a
+      // mapping bug. This test is about the mapping fallback, so it needs a
+      // prompt the command actually owns: the English analogue of the passing
+      // Russian fixture 'Как подготовиться к Lipid panel на странице записи?'.
+      // 'prepare' does not trip the exclusion because that pattern requires
+      // whitespace directly after 'prep'.
+      prompt: 'How do I prepare for Lipid panel on the booking page?',
       expectedAction: 'explain_clinic_booking',
     });
 

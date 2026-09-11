@@ -5,9 +5,7 @@ export function isExplainProviderContextPrompt(prompt: string): boolean {
     /\bam\s+i\s+in\s+team\s+view\b/.test(lower) ||
     /\bwhat'?s\s+my\s+role\b/.test(lower) ||
     (/\bteam\s+view\s+or\b/.test(lower) && /\bown\s+view\b/.test(lower)) ||
-    /\b(current|this)\s+(provider\s+)?session\s+(details|context)\b/.test(
-      lower,
-    )
+    /\b(current|this)\s+(provider\s+)?session\s+(details|context)\b/.test(lower)
   );
 }
 

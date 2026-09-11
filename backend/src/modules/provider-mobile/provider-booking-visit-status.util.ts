@@ -1,10 +1,7 @@
 /** prov-exp-3.2 — provider running late / ready now on booking metadata. */
 
 import type { EntityManager, Repository } from 'typeorm';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   normalizeProviderRunningLateMinutes,
   type ProviderVisitStatusKind,
@@ -216,7 +213,8 @@ export async function claimProviderVisitStatus(
         ok: false,
         code: 'not_allowed',
         reason:
-          eligibility.reason ?? 'Visit status cannot be updated for this booking',
+          eligibility.reason ??
+          'Visit status cannot be updated for this booking',
       };
     }
 

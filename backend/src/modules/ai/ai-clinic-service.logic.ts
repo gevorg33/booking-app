@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { type Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { OnboardingService } from '../onboarding/onboarding.service.js';
 import { Business } from '../business/entities/business.entity.js';
 import type { ServiceService } from '../service/service.service.js';
@@ -25,13 +28,14 @@ import {
   type ParsedConfigureClinicService,
   type ParsedExplainClinicServices,
 } from './ai-clinic-service.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ClinicServiceLogicDeps {
   serviceService: Pick<ServiceService, 'findAll' | 'update'>;
 }
 
 export interface ClinicPlaybookLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   onboardingService: Pick<OnboardingService, 'applyVerticalPlaybook'>;
 }
 
@@ -61,17 +65,6 @@ export function resolveExplainClinicServicesLocale(
   if (detected === 'hy' || detected === 'ru') return detected;
   return resolveLocale(
     typeof params.locale === 'string' ? params.locale : null,
-  );
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
   );
 }
 
@@ -121,7 +114,7 @@ export async function handleConfigureClinicServiceLogic(
   const service = parsed.serviceId
     ? services.find((item) => item.id === parsed.serviceId)
     : parsed.serviceName
-      ? resolveServiceByName(services, parsed.serviceName)
+      ? matchServiceByNameLegacy(services, parsed.serviceName)
       : undefined;
 
   if (!service) {
@@ -348,7 +341,7 @@ export async function handleExplainClinicServicesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveServiceByName(clinicServices, parsed.serviceName);
+    const match = matchServiceByNameLegacy(clinicServices, parsed.serviceName);
     clinicServices = match ? [match] : [];
   }
 

@@ -13,7 +13,11 @@ export function isMarkVisitInProgressPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
 
   if (/\b(pay|paid|payment)\b/.test(lower)) return false;
-  if (/\b(no[\s-]?show|running late|complete(?:d)?|done|finish(?:ed)?)\b/.test(lower)) {
+  if (
+    /\b(no[\s-]?show|running late|complete(?:d)?|done|finish(?:ed)?)\b/.test(
+      lower,
+    )
+  ) {
     return false;
   }
 

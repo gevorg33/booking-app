@@ -77,7 +77,12 @@ describe('AiRetailFinanceService', () => {
   };
   const reviewsService = {
     summary: jest.fn(async () => [
-      { employeeId: 'e1', employeeName: 'Alex', avgRating: 4.5, reviewCount: 2 },
+      {
+        employeeId: 'e1',
+        employeeName: 'Alex',
+        avgRating: 4.5,
+        reviewCount: 2,
+      },
     ]),
     list: jest.fn(async () => [
       {
@@ -94,8 +99,18 @@ describe('AiRetailFinanceService', () => {
       periodDays: 30,
       funnel: {
         steps: [
-          { step: 'app_installed', count: 100, conversionFromPrevious: null, dropOffFromPrevious: null },
-          { step: 'signed_in', count: 50, conversionFromPrevious: 50, dropOffFromPrevious: 50 },
+          {
+            step: 'app_installed',
+            count: 100,
+            conversionFromPrevious: null,
+            dropOffFromPrevious: null,
+          },
+          {
+            step: 'signed_in',
+            count: 50,
+            conversionFromPrevious: 50,
+            dropOffFromPrevious: 50,
+          },
         ],
         breakdowns: [],
       },
@@ -168,7 +183,14 @@ describe('AiRetailFinanceService', () => {
       serviceRepo as any,
       productRepo as any,
       employeeRepo as any,
-      { handleMarkPaid: jest.fn(async () => ({ success: true, action: 'mark_paid', summary: 'ok', details: {} })) } as any,
+      {
+        handleMarkPaid: jest.fn(async () => ({
+          success: true,
+          action: 'mark_paid',
+          summary: 'ok',
+          details: {},
+        })),
+      } as any,
     );
   });
 

@@ -4,14 +4,16 @@ import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import {
   createEmptyBookingPopularityRepoMock,
+  createBookingManagerMock,
   createPublicBookingServiceHarness,
 } from './public-booking-test.harness.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function createClinicPublicBookingHarness() {
   const storedBookings: Array<Record<string, unknown>> = [];
 
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-clinic',
     name: 'City Polyclinic',
     slug: 'city-poly',
@@ -21,7 +23,7 @@ function createClinicPublicBookingHarness() {
       locale: 'en',
       publicBooking: { enabled: true },
     },
-  } as Business;
+  });
 
   const labService = {
     id: 'svc-lab',
@@ -186,15 +188,22 @@ function createClinicPublicBookingHarness() {
 function createClinicBookingRepo(
   storedBookings: Array<Record<string, unknown>>,
 ) {
+  const findRow = (id?: string) =>
+    storedBookings.find((b) => b.id === id) ?? { id, metadata: {} };
+  const saveRow = (booking: Record<string, unknown>) => {
+    const idx = storedBookings.findIndex((b) => b.id === booking.id);
+    if (idx >= 0) storedBookings[idx] = booking;
+    else storedBookings.push(booking);
+    return booking;
+  };
   return {
     ...createEmptyBookingPopularityRepoMock(),
+    // e2e-bug.471 — ensureBookingManageToken mints the token inside a
+    // transaction; wire it to this same array so it lands on the seeded row.
+    manager: createBookingManagerMock({ find: findRow, save: saveRow }),
     find: jest.fn(async () => storedBookings),
-    findOne: jest.fn(
-      async ({ where }: { where: { id: string } }) =>
-        storedBookings.find((b) => b.id === where.id) ?? {
-          id: where.id,
-          metadata: {},
-        },
+    findOne: jest.fn(async ({ where }: { where: { id: string } }) =>
+      findRow(where.id),
     ),
     save: jest.fn(async (booking: Record<string, unknown>) => {
       const idx = storedBookings.findIndex((b) => b.id === booking.id);

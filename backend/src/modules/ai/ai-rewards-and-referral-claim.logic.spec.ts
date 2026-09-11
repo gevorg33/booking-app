@@ -3,6 +3,7 @@ import {
   handleClaimShareRewardLogic,
   handleExplainRewardsWalletLogic,
 } from './ai-consumer-adoption.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import type { ConsumerAdoptionLogicDeps } from './ai-consumer-adoption.logic.js';
 
 function buildDeps(
@@ -45,7 +46,9 @@ function buildDeps(
     notificationsService: {} as any,
     consumerPushTokenService: {} as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   };
@@ -163,6 +166,59 @@ describe('handleClaimReferralCodeLogic', () => {
     expect(result.details?.clarify).toBe(true);
   });
 
+  // e2e-bug.410 — the production case, reproduced.
+  //
+  // All 96 stored attempts look exactly like this: the classifier names the
+  // action correctly, params arrive empty, and the code is sitting in the
+  // prompt. Before the fix every one of them was answered with "What referral
+  // code would you like to claim?".
+  it.each([
+    ['I want to claim referral code FRIEND25', 'FRIEND25'],
+    ['Claim referral code FRIEND10', 'FRIEND10'],
+    ['I want to redeem referral code ABC123', 'ABC123'],
+    ["Redeem my friend's invite code HELLO1", 'HELLO1'],
+  ])('reads the code out of the prompt: %s', async (prompt, code) => {
+    const result = await handleClaimReferralCodeLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1', slug: 'salon' },
+      prompt,
+    );
+    expect(result.success).toBe(true);
+    expect(
+      deps.publicBookingService.claimCustomerReferralCode,
+    ).toHaveBeenCalledWith('salon', 'cust-1', code);
+  });
+
+  it('still clarifies when neither params nor prompt carry a code', async () => {
+    // The enrichment must not invent one — "use my invite code" is a documented
+    // example of this command and names no code.
+    const result = await handleClaimReferralCodeLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1', slug: 'salon' },
+      'use my invite code',
+    );
+    expect(result.success).toBe(false);
+    expect(result.details?.clarify).toBe(true);
+    expect(result.details?.missing).toEqual(['referralCode']);
+  });
+
+  it('prefers an explicit param over the prompt', async () => {
+    // A resolved param is a decision something upstream already made; re-reading
+    // the raw text over the top of it would silently override it.
+    const result = await handleClaimReferralCodeLogic(
+      deps,
+      'biz-1',
+      { sessionCustomerId: 'cust-1', slug: 'salon', referralCode: 'PARAM99' },
+      'claim referral code PROMPT11',
+    );
+    expect(result.success).toBe(true);
+    expect(
+      deps.publicBookingService.claimCustomerReferralCode,
+    ).toHaveBeenCalledWith('salon', 'cust-1', 'PARAM99');
+  });
+
   it.each([
     ['disabled', 'not enabled'],
     ['invalid_code', "couldn't find"],
@@ -237,7 +293,11 @@ describe('handleClaimShareRewardLogic', () => {
   it('surfaces a cooldown failure message', async () => {
     (
       deps.publicBookingService.claimCustomerShareReward as jest.Mock
-    ).mockResolvedValueOnce({ awarded: false, channel: 'salon', reason: 'cooldown' });
+    ).mockResolvedValueOnce({
+      awarded: false,
+      channel: 'salon',
+      reason: 'cooldown',
+    });
     const result = await handleClaimShareRewardLogic(deps, 'biz-1', {
       sessionCustomerId: 'cust-1',
       slug: 'salon',

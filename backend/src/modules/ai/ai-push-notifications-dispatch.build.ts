@@ -8,6 +8,7 @@ import {
   handleNewBookingPushActionsLogic,
   handleNotificationHistoryLogic,
   handleOfflineQueueStatusLogic,
+  handleConfirmBookingFromPushLogic,
   handleOpenBookingFromPushLogic,
   handleRetryOfflineActionLogic,
   handleTestPushLogic,
@@ -46,6 +47,21 @@ export function buildPushNotificationsLogicDispatchMap(): ReadonlyMap<
       lastPush: ctx.params.lastPush ?? ctx.sessionLastPush,
     }),
   );
+  // e2e-bug.463 — this action had no executor at all: no map entry, no `case`,
+  // while a rescue produced it and `isConfirmPendingBookingPrompt` deliberately
+  // declined push prompts in its favour.
+  map.set('confirm_booking_from_push', (deps, ctx) =>
+    handleConfirmBookingFromPushLogic(
+      deps,
+      ctx.businessId,
+      {
+        ...ctx.params,
+        lastPush: ctx.params.lastPush ?? ctx.sessionLastPush,
+      },
+      ctx.prompt,
+      ctx.userId,
+    ),
+  );
   map.set('open_booking_from_push', (deps, ctx) =>
     handleOpenBookingFromPushLogic(
       deps,
@@ -60,14 +76,16 @@ export function buildPushNotificationsLogicDispatchMap(): ReadonlyMap<
   map.set('offline_queue_status', (deps, ctx) =>
     handleOfflineQueueStatusLogic(deps, {
       ...ctx.params,
-      offlineQueueCount: ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
+      offlineQueueCount:
+        ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
       online: ctx.params.online ?? ctx.sessionOnline,
     }),
   );
   map.set('retry_offline_action', (deps, ctx) =>
     handleRetryOfflineActionLogic(deps, {
       ...ctx.params,
-      offlineQueueCount: ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
+      offlineQueueCount:
+        ctx.params.offlineQueueCount ?? ctx.sessionOfflineQueueCount,
       online: ctx.params.online ?? ctx.sessionOnline,
     }),
   );

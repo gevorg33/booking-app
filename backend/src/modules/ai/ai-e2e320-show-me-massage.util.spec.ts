@@ -54,9 +54,9 @@ describe('e2e-bug.320 show me massage keeps massage family', () => {
         CATALOG,
         'list_services',
       );
-      expect(enriched.serviceName == null || enriched.serviceName === null).toBe(
-        true,
-      );
+      expect(
+        enriched.serviceName == null || enriched.serviceName === null,
+      ).toBe(true);
 
       const matched = resolveServicesFromCatalogParams(CATALOG, enriched);
       const names = matched.map((s) => s.name).sort();

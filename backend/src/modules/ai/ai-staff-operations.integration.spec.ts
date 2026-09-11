@@ -1,4 +1,6 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { AiOperationsService } from './ai-operations.service.js';
 import {
   CONFIGURE_ONLINE_BOOKING_PROMPTS,
@@ -83,7 +85,7 @@ describe('AiStaffOperations integration (ai-cmd-ext-2.5–2.8)', () => {
         email: body.email,
       })),
       findAll: jest.fn(async () => [
-        { id: 'emp-1', name: 'Maria Lopez', email: 'maria@salon.com' },
+        makeService({ id: 'emp-1', name: 'Maria Lopez', email: 'maria@salon.com' }),
       ]),
       update: jest.fn(async (_id, dto) => ({
         id: 'emp-1',

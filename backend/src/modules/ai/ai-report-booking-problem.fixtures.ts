@@ -147,8 +147,7 @@ export const E2E236_REPORT_VS_CONFIRM_SCENARIOS = [
   },
   {
     id: 'e2e236-something-went-wrong-booking-report-support',
-    prompt:
-      'something went wrong with my booking please report it to support',
+    prompt: 'something went wrong with my booking please report it to support',
     surface: 'customer' as const,
     misclassifiedAction: 'confirm_my_booking_details',
     expectedAction: 'report_booking_problem' as const,

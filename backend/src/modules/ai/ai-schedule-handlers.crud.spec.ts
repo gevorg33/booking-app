@@ -40,7 +40,9 @@ describe('AiScheduleHandlersService template/block CRUD (ai-cmd-dashboard-6.5)',
     const service = new AiScheduleHandlersService(
       templateRepo as any,
       {} as any,
-      { findOne: jest.fn().mockResolvedValue({ id: 'biz-1', settings: {} }) } as any,
+      {
+        findOne: jest.fn().mockResolvedValue({ id: 'biz-1', settings: {} }),
+      } as any,
       {} as any,
       {} as any,
       {} as any,
@@ -164,7 +166,11 @@ describe('AiScheduleHandlersService template/block CRUD (ai-cmd-dashboard-6.5)',
     it('auto-resolves a single block', async () => {
       const { service, blockScheduleService } = buildService({
         blockScheduleService: {
-          list: jest.fn().mockResolvedValue([{ id: 'block-1', startDay: '2026-06-01', endDay: null }]),
+          list: jest
+            .fn()
+            .mockResolvedValue([
+              { id: 'block-1', startDay: '2026-06-01', endDay: null },
+            ]),
         },
       });
       const result = await service.handleDeleteScheduleBlock(

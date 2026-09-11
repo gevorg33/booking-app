@@ -29,10 +29,7 @@ export function buildTourServiceDispatchMap(): ReadonlyMap<
   const map = new Map<string, TourServiceDispatchHandler>();
 
   map.set('configure_tour_service', async (service, ctx) => {
-    const parsed = parseConfigureTourServiceFromPrompt(
-      ctx.prompt,
-      ctx.params,
-    );
+    const parsed = parseConfigureTourServiceFromPrompt(ctx.prompt, ctx.params);
     const merged = parsed
       ? {
           ...ctx.params,
@@ -46,9 +43,7 @@ export function buildTourServiceDispatchMap(): ReadonlyMap<
             : {}),
           ...(parsed.difficulty ? { difficulty: parsed.difficulty } : {}),
           ...(parsed.coverImage ? { coverImage: parsed.coverImage } : {}),
-          ...(parsed.meetingPoint
-            ? { meetingPoint: parsed.meetingPoint }
-            : {}),
+          ...(parsed.meetingPoint ? { meetingPoint: parsed.meetingPoint } : {}),
           ...(parsed.includedItems
             ? { includedItems: parsed.includedItems }
             : {}),
@@ -124,10 +119,7 @@ export function buildTourServiceDispatchMap(): ReadonlyMap<
   });
 
   map.set('list_tour_calendar_week', async (service, ctx) => {
-    const parsed = parseListTourCalendarWeekFromPrompt(
-      ctx.prompt,
-      ctx.params,
-    );
+    const parsed = parseListTourCalendarWeekFromPrompt(ctx.prompt, ctx.params);
     const merged = parsed
       ? {
           ...ctx.params,

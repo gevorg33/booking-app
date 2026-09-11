@@ -1,4 +1,7 @@
-import { E2E79_LIVE_SCENARIOS, E2E79_NON_EXPLAIN_STILL_MATCHES } from './ai-e2e79-explain-subscription-vs-one-time.fixtures.js';
+import {
+  E2E79_LIVE_SCENARIOS,
+  E2E79_NON_EXPLAIN_STILL_MATCHES,
+} from './ai-e2e79-explain-subscription-vs-one-time.fixtures.js';
 import { isAddBookingToCalendarPrompt } from './ai-add-booking-to-calendar.util.js';
 import { isCompareServicesPrompt } from './ai-compare-services.util.js';
 import { isConfirmMyBookingDetailsPrompt } from './ai-confirm-my-booking-details.util.js';
@@ -17,24 +20,24 @@ describe('e2e-bug.79 explain_subscription_vs_one_time unreachable', () => {
 
   it('customer classifier schema includes live e2e79 phrasing + NOT stealers', () => {
     const schema = buildCustomerClassifierSchema();
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'should I get the subscription or just pay per visit?',
-    );
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'NOT compare_services',
-    );
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'NOT add_booking_to_calendar',
-    );
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'NOT subscription_usage_history',
-    );
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'NOT confirm_my_booking_details',
-    );
-    expect(CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES).toContain(
-      'NOT choose_payment_method',
-    );
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('should I get the subscription or just pay per visit?');
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('NOT compare_services');
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('NOT add_booking_to_calendar');
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('NOT subscription_usage_history');
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('NOT confirm_my_booking_details');
+    expect(
+      CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
+    ).toContain('NOT choose_payment_method');
     expect(schema).toContain(
       CUSTOMER_PUBLIC_EXPLAIN_SUBSCRIPTION_VS_ONE_TIME_CLASSIFIER_RULES,
     );

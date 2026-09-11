@@ -3,9 +3,7 @@
  * Never bulk-mutate the provider's day when multiple appointments match.
  */
 
-export type VisitStatusAlias =
-  | 'mark_visit_in_progress'
-  | 'mark_visit_complete';
+export type VisitStatusAlias = 'mark_visit_in_progress' | 'mark_visit_complete';
 
 /** After findMatchingBookings filters, >1 match always needs client/booking clarify. */
 export function shouldClarifyVisitStatusTarget(matchedCount: number): boolean {

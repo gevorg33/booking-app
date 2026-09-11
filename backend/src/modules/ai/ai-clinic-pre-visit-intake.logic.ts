@@ -71,7 +71,9 @@ export async function handleStaffSubmitIntakeAnswersLogic(
   const bookingId =
     typeof params.bookingId === 'string' ? params.bookingId.trim() : '';
   const values = Array.isArray(params.values)
-    ? params.values.filter((value): value is string => typeof value === 'string')
+    ? params.values.filter(
+        (value): value is string => typeof value === 'string',
+      )
     : typeof params.values === 'string'
       ? [params.values]
       : [];
@@ -85,7 +87,9 @@ export async function handleStaffSubmitIntakeAnswersLogic(
   }
 
   const questionId =
-    typeof params.questionId === 'string' ? params.questionId.trim() : undefined;
+    typeof params.questionId === 'string'
+      ? params.questionId.trim()
+      : undefined;
 
   try {
     const intake = await deps.intakeService.getForBooking(

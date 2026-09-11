@@ -7,6 +7,7 @@ import {
 import { EXPLAIN_PROFESSIONAL_PROFILE_MULTILINGUAL_SCENARIOS } from './ai-explain-professional-profile-multilingual.fixtures.js';
 import { handleExplainProfessionalProfileLogic } from './ai-explain-professional-profile.logic.js';
 import { rescueExplainProfessionalProfileIntent } from './ai-explain-professional-profile.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain professional profile integration (ai-cmd-customer-4.11.5)', () => {
   const employeeRepo = {
@@ -95,18 +96,19 @@ describe('ai explain professional profile integration (ai-cmd-customer-4.11.5)',
     );
     expect(directRescue?.action).toBe('explain_professional_profile');
 
-    const validation = validateCommand({
-      action: 'explain_professional_profile',
-      params: {
-        aspect: row.aspect,
-        ...(row.providerName ? { providerName: row.providerName } : {}),
-      },
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt: row.prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_professional_profile',
+        params: {
+          aspect: row.aspect,
+          ...(row.providerName ? { providerName: row.providerName } : {}),
+        },
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: row.prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleExplainProfessionalProfileLogic(

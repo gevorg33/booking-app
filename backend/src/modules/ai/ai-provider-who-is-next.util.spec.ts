@@ -5,11 +5,12 @@ import {
 } from './ai-provider-who-is-next.util.js';
 
 describe('ai-provider-who-is-next.util', () => {
-  it.each(
-    PROVIDER_WHO_IS_NEXT_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
-  )('detects who_is_next prompt %s', (_id, prompt) => {
-    expect(isWhoIsNextPrompt(prompt)).toBe(true);
-  });
+  it.each(PROVIDER_WHO_IS_NEXT_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]))(
+    'detects who_is_next prompt %s',
+    (_id, prompt) => {
+      expect(isWhoIsNextPrompt(prompt)).toBe(true);
+    },
+  );
 
   it('does not misdetect the manager team-wide queue', () => {
     expect(
@@ -23,16 +24,14 @@ describe('ai-provider-who-is-next.util', () => {
     expect(isWhoIsNextPrompt('List my afternoon')).toBe(false);
   });
 
-  it.each(
-    PROVIDER_WHO_IS_NEXT_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
-  )('rescues who_is_next → show_appointments from unknown for %s', (
-    _id,
-    prompt,
-  ) => {
-    const rescued = rescueWhoIsNextIntent(prompt, 'unknown');
-    expect(rescued?.action).toBe('show_appointments');
-    expect(rescued?.rescueReason).toBe('who_is_next');
-  });
+  it.each(PROVIDER_WHO_IS_NEXT_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]))(
+    'rescues who_is_next → show_appointments from unknown for %s',
+    (_id, prompt) => {
+      const rescued = rescueWhoIsNextIntent(prompt, 'unknown');
+      expect(rescued?.action).toBe('show_appointments');
+      expect(rescued?.rescueReason).toBe('who_is_next');
+    },
+  );
 
   it('narrows the result to the single next slot', () => {
     const rescued = rescueWhoIsNextIntent("Who's my next client?", 'unknown');

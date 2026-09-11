@@ -160,7 +160,10 @@ const REMOVE_RETAIL_I18N: Record<string, { hy: string; ru: string }> = {
   },
 };
 
-const EXPLAIN_MESSAGE_TEMPLATES_I18N: Record<string, { hy: string; ru: string }> = {
+const EXPLAIN_MESSAGE_TEMPLATES_I18N: Record<
+  string,
+  { hy: string; ru: string }
+> = {
   'explain-templates-what-can-i-send-en': {
     hy: 'Ի՞նչ ձևանմուշներ կարող եմ ուղարկել',
     ru: 'Какие шаблоны я могу отправить?',
@@ -353,9 +356,7 @@ function buildProviderExp3MultilingualScenarios(): ProviderExp3MultilingualScena
       i18n,
     );
   }
-  for (const [enScenarioId, i18n] of Object.entries(
-    NOTIFY_CLIENT_READY_I18N,
-  )) {
+  for (const [enScenarioId, i18n] of Object.entries(NOTIFY_CLIENT_READY_I18N)) {
     pushExp3MultilingualRows(rows, enScenarioId, 'notify_client_ready', i18n);
   }
   for (const [enScenarioId, i18n] of Object.entries(EXTEND_MY_BLOCK_I18N)) {

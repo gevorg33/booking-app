@@ -68,9 +68,7 @@ export function readCompoundResumeFromContext(
   if (!context || typeof context !== 'object') return null;
   const plansRaw = context.compoundResumePlans;
   const plans =
-    plansRaw === undefined
-      ? []
-      : deserializeCompoundResumePlans(plansRaw);
+    plansRaw === undefined ? [] : deserializeCompoundResumePlans(plansRaw);
   if (plans == null) return null;
   const subIntentsRaw = context.compoundResumeSubIntents;
   if (!Array.isArray(subIntentsRaw) || subIntentsRaw.length === 0) {
@@ -90,7 +88,11 @@ export function readCompoundResumeFromContext(
     });
   }
   const stepIndex = Number(context.compoundStepIndex);
-  if (!Number.isInteger(stepIndex) || stepIndex < 0 || stepIndex >= subIntents.length) {
+  if (
+    !Number.isInteger(stepIndex) ||
+    stepIndex < 0 ||
+    stepIndex >= subIntents.length
+  ) {
     return null;
   }
   const compoundActions = Array.isArray(context.compoundActions)

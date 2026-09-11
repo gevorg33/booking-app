@@ -8,6 +8,7 @@ import {
   resolveGiftCardSenderName,
 } from './gift-card-delivery-content.util.js';
 import type { GiftCard } from './entities/gift-card.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function card(
   partial: Partial<GiftCard> & Pick<GiftCard, 'cardType' | 'code'>,
@@ -145,11 +146,11 @@ describe('gift-card-delivery-content.util', () => {
         code: 'GCM-AMD',
         balance: 15000,
         currency: 'AMD',
-        business: {
+        business: makeBusiness({
           name: 'Glow Salon',
           slug: 'glow-salon',
           settings: { currency: 'AMD' },
-        } as GiftCard['business'],
+        }),
         serviceCredits: [],
       }),
     );
@@ -212,7 +213,7 @@ describe('gift-card-delivery-content.util', () => {
       card({
         cardType: 'monetary',
         code: 'GCM-OFF',
-        business: {
+        business: makeBusiness({
           name: 'Glow',
           slug: 'glow',
           settings: {
@@ -220,7 +221,7 @@ describe('gift-card-delivery-content.util', () => {
               templates: { gift_card_recipient: { enabled: false } },
             },
           },
-        } as GiftCard['business'],
+        }),
         serviceCredits: [],
       }),
       links,
@@ -233,7 +234,7 @@ describe('gift-card-delivery-content.util', () => {
       card({
         cardType: 'service',
         code: 'GCS-OFF',
-        business: {
+        business: makeBusiness({
           name: 'Glow',
           slug: 'glow',
           settings: {
@@ -241,7 +242,7 @@ describe('gift-card-delivery-content.util', () => {
               templates: { gift_card_purchaser_receipt: { enabled: false } },
             },
           },
-        } as GiftCard['business'],
+        }),
         serviceCredits: [],
       }),
       'friend@test.com',
@@ -268,11 +269,11 @@ describe('gift-card-delivery-content.util', () => {
       card({
         cardType: 'monetary',
         code: 'GCM-EXP',
-        business: {
+        business: makeBusiness({
           name: 'Glow Salon',
           slug: 'glow-salon',
           settings: { dateFormat: 'MM/DD/YYYY', timeFormat: '12h' },
-        } as GiftCard['business'],
+        }),
         expiresAt: new Date('2027-06-01T00:00:00.000Z'),
         serviceCredits: [],
       }),
@@ -285,11 +286,11 @@ describe('gift-card-delivery-content.util', () => {
       card({
         cardType: 'monetary',
         code: 'GCM-ISO',
-        business: {
+        business: makeBusiness({
           name: 'Glow Salon',
           slug: 'glow-salon',
           settings: { dateFormat: 'YYYY-MM-DD', timeFormat: '24h' },
-        } as GiftCard['business'],
+        }),
         expiresAt: new Date('2027-06-01T00:00:00.000Z'),
         serviceCredits: [],
       }),
@@ -302,11 +303,11 @@ describe('gift-card-delivery-content.util', () => {
       card({
         cardType: 'monetary',
         code: 'GCM-WA',
-        business: {
+        business: makeBusiness({
           name: 'Glow Salon',
           slug: 'glow-salon',
           settings: { dateFormat: 'YYYY-MM-DD' },
-        } as GiftCard['business'],
+        }),
         expiresAt: new Date('2027-06-01T00:00:00.000Z'),
         serviceCredits: [],
       }),

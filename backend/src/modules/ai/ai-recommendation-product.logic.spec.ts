@@ -4,6 +4,11 @@ import {
   handleLinkRecommendedProductsLogic,
 } from './ai-recommendation-product.logic.js';
 import {
+  makeService,
+  makeServiceCategory,
+} from '../service/entities/service.test-fixture.js';
+import { makeProduct } from '../inventory/entities/product.test-fixture.js';
+import {
   CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS,
   EXPLAIN_RECOMMENDATION_SETUP_PROMPTS,
   LINK_RECOMMENDED_PRODUCTS_PROMPTS,
@@ -11,7 +16,7 @@ import {
 
 describe('ai-recommendation-product.logic (ai-cmd-rec-1)', () => {
   const products = [
-    {
+    makeProduct({
       id: 'prod-shampoo',
       businessId: 'biz-1',
       name: 'Shampoo',
@@ -20,17 +25,14 @@ describe('ai-recommendation-product.logic (ai-cmd-rec-1)', () => {
       externalLink: null,
       retailPrice: 0,
       isActive: true,
-    },
+    }),
   ];
 
   const inventoryService = {
     listProducts: jest.fn(async () => [...products]),
     createProduct: jest.fn(
-      async (_businessId: string, dto: Record<string, unknown>) => ({
-        id: 'prod-new',
-        businessId: 'biz-1',
-        ...dto,
-      }),
+      async (_businessId: string, dto: Record<string, unknown>) =>
+        makeProduct({ id: 'prod-new', businessId: 'biz-1', ...dto }),
     ),
     updateProduct: jest.fn(
       async (
@@ -113,15 +115,22 @@ describe('ai-recommendation-product.logic (ai-cmd-rec-1)', () => {
 
 describe('ai-recommendation-product link logic (ai-cmd-rec-2)', () => {
   const products = [
-    { id: 'prod-shampoo', name: 'Shampoo', isActive: true },
-    { id: 'prod-conditioner', name: 'Conditioner', isActive: true },
+    makeProduct({ id: 'prod-shampoo', name: 'Shampoo' }),
+    makeProduct({ id: 'prod-conditioner', name: 'Conditioner' }),
   ];
 
   const services = [
-    { id: 'svc-haircut', name: 'Haircut', businessId: 'biz-1', isActive: true },
+    makeService({
+      id: 'svc-haircut',
+      name: 'Haircut',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
   ];
 
-  const categories = [{ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }];
+  const categories = [
+    makeServiceCategory({ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }),
+  ];
 
   const inventoryService = {
     listProducts: jest.fn(async () => [...products]),
@@ -217,8 +226,8 @@ describe('ai-recommendation-product explain logic (ai-cmd-rec-3)', () => {
   };
 
   const products = [
-    { id: 'prod-shampoo', name: 'Shampoo', isActive: true },
-    { id: 'prod-conditioner', name: 'Conditioner', isActive: true },
+    makeProduct({ id: 'prod-shampoo', name: 'Shampoo' }),
+    makeProduct({ id: 'prod-conditioner', name: 'Conditioner' }),
     { id: 'prod-mask', name: 'Repair Mask', isActive: false },
   ];
 
@@ -227,7 +236,9 @@ describe('ai-recommendation-product explain logic (ai-cmd-rec-3)', () => {
     { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
   ];
 
-  const categories = [{ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }];
+  const categories = [
+    makeServiceCategory({ id: 'cat-hair', name: 'Hair', businessId: 'biz-1' }),
+  ];
 
   const businessRepo = {
     findOne: jest.fn(async () => business),

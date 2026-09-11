@@ -231,11 +231,23 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
         expect(publicAction).toBe('explain_checkout_currency');
         return;
       }
-      // e2e-bug.231 — gift-card apply/check stay on gift-card intents on public.
-      if (
-        expectedAction === 'apply_gift_card_code' ||
-        expectedAction === 'check_gift_card_balance'
-      ) {
+      // e2e-bug.231 said gift-card apply *and* check both stay on their own
+      // intents on public. e2e-bug.516 split them, because they are not the
+      // same kind of thing:
+      //
+      // `check_gift_card_balance` is `risk: 'T0'` — a read, and harmless for a
+      // guest to reach, so it still passes through.
+      //
+      // `apply_gift_card_code` is `risk: 'T2'` with `surfaces: ['customer']`
+      // and `tiers: { customer: ['client'] }`. Routing an unauthenticated
+      // prompt at a payment mutation the command itself disowns is the defect,
+      // and both prompts that land here only *mention* a gift card while
+      // booking ("I have a $50 gift card for a haircut") rather than asking to
+      // redeem one. It now takes the `booking_help` surrogate that public
+      // already uses for "this surface cannot do that"; the customer assertion
+      // above still expects the real action, so nothing is lost where a signed-in
+      // client actually can redeem.
+      if (expectedAction === 'check_gift_card_balance') {
         expect(publicAction).toBe(expectedAction);
         return;
       }
@@ -317,10 +329,18 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
     it('rescueBudgetServiceDiscoveryIntent no longer steals deposit-forfeiture prompts from later rescues', () => {
       const prompt = 'why do I have to pay a deposit to book?';
       expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_checkout_currency', 'customer'),
+        rescueBudgetServiceDiscoveryIntent(
+          prompt,
+          'explain_checkout_currency',
+          'customer',
+        ),
       ).toBeNull();
       expect(
-        rescueBudgetServiceDiscoveryIntent(prompt, 'explain_why_stripe_required', 'customer'),
+        rescueBudgetServiceDiscoveryIntent(
+          prompt,
+          'explain_why_stripe_required',
+          'customer',
+        ),
       ).toBeNull();
     });
   });
@@ -579,14 +599,17 @@ describe('ai-budget-service-discovery.util (budget-1.10)', () => {
       expect(rescued?.rescueReason).toBe(misroute);
       if (expectedAction === 'explain_checkout_currency') {
         expect(rescued?.action).toBe('explain_checkout_currency');
-      } else if (
-        expectedAction === 'apply_gift_card_code' ||
-        expectedAction === 'check_gift_card_balance'
-      ) {
+      } else if (expectedAction === 'check_gift_card_balance') {
+        // e2e-bug.516 — the T0 read still reaches public; only the T2 mutation
+        // (`apply_gift_card_code`) takes the surrogate. See the note on the
+        // `resolveBudgetMisrouteActionForSurface public` case above.
         expect(rescued?.action).toBe(expectedAction);
       } else {
         expect(rescued?.action).toBe('booking_help');
       }
+      // The rescueReason keeps naming the canonical misroute either way, so the
+      // surrogate does not erase *why* the prompt was rerouted.
+      expect(rescued?.rescueReason).toBe(misroute);
     },
   );
 
@@ -899,4 +922,105 @@ describe('budget negative routing for accuracy eval (acc-2)', () => {
     expect(scenario.expectedAction).toBe('check_availability');
     expect(scenario.expectedParams?.availabilityWindows).toHaveLength(2);
   });
+});
+
+/**
+ * e2e-bug.516 — the fallback must not hand a mutation to a surface that
+ * disowns it.
+ *
+ * The bug was not any single mapping; it was the shape of the default.
+ * `resolveBudgetMisrouteActionForSurface` ended `?? misroute`, so the guest
+ * surface received whatever a two-entry map happened not to mention — and what
+ * it did not mention was every gift-card action, four of them `risk: 'T2'`
+ * payment mutations declared `surfaces: ['customer']`. A map is the wrong place
+ * to encode "may this surface run this", because the failure mode of forgetting
+ * an entry is to permit rather than to refuse.
+ *
+ * These assert the rule rather than the current entries, so adding a new
+ * misroute action cannot silently reopen it.
+ */
+describe('e2e-bug.516 — no unowned mutation reaches a surface', () => {
+  const { isRegistryMutating, isIntentAllowedOnSurface } =
+    require('./ai-command-registry.util.js') as typeof import('./ai-command-registry.util.js');
+
+  /** Every action `resolveBudgetMisrouteAction` can return. */
+  const MISROUTE_ACTIONS = [
+    'buy_gift_card_for_someone',
+    'get_gift_card_quote',
+    'buy_gift_card_physical',
+    'buy_gift_card',
+    'check_gift_card_balance',
+    'apply_gift_card_code',
+    'discover_packages',
+    'explain_checkout_currency',
+    'discover_subscription_plans',
+  ] as const;
+
+  it.each(['public', 'dashboard'] as const)(
+    'never resolves to a mutation the %s surface does not declare',
+    (surface) => {
+      const leaked: string[] = [];
+      for (const action of MISROUTE_ACTIONS) {
+        const resolved = surrogateForTest(action, surface);
+        if (
+          isRegistryMutating(resolved) &&
+          !isIntentAllowedOnSurface(resolved, surface)
+        ) {
+          leaked.push(`${action} → ${resolved}`);
+        }
+      }
+      expect(leaked).toEqual([]);
+    },
+  );
+
+  it('routes the T2 gift-card mutations on public to the surrogate', () => {
+    for (const action of [
+      'apply_gift_card_code',
+      'buy_gift_card',
+      'buy_gift_card_for_someone',
+      'buy_gift_card_physical',
+    ]) {
+      // Guards the assertion above against passing because these stopped being
+      // mutations: if the risk tier were downgraded, the leak check would go
+      // quiet while the behaviour got worse.
+      expect(isRegistryMutating(action)).toBe(true);
+      expect(surrogateForTest(action, 'public')).toBe('booking_help');
+    }
+  });
+
+  it('leaves reads alone, including ones a surface under-declares', () => {
+    // `explain_checkout_currency` is `risk: 'T0'` and does not list dashboard
+    // in `surfaces`, yet a passing fixture expects it there. Gating the
+    // fallback on `surfaces` alone broke that case; gating on mutation does
+    // not. This pins the distinction so the stricter version is not
+    // reintroduced as a "tightening".
+    expect(surrogateForTest('explain_checkout_currency', 'dashboard')).toBe(
+      'explain_checkout_currency',
+    );
+    expect(surrogateForTest('check_gift_card_balance', 'public')).toBe(
+      'check_gift_card_balance',
+    );
+  });
+
+  /** Drives the real resolver through a prompt that yields `action`. */
+  function surrogateForTest(action: string, surface: 'public' | 'dashboard') {
+    const PROMPTS: Record<string, string> = {
+      buy_gift_card_for_someone: 'buy a gift card for my sister for $100',
+      get_gift_card_quote: 'how much would a $50 gift card cost',
+      buy_gift_card_physical: 'buy a physical gift card for $75',
+      buy_gift_card: 'buy a $50 gift card',
+      check_gift_card_balance: 'what is the balance on gift card code GCM-1234',
+      apply_gift_card_code: 'I have a $50 gift card for a haircut',
+      discover_packages: 'Any spa packages under $100?',
+      explain_checkout_currency: 'Is the $50 deposit enough for highlights?',
+      discover_subscription_plans: 'Can my plan cover a $80 massage?',
+    };
+    const prompt = PROMPTS[action];
+    expect(prompt).toBeTruthy();
+    const canonical = resolveBudgetMisrouteAction(prompt);
+    // If a prompt stops producing its action the table above is stale, and the
+    // leak check would be asserting nothing.
+    expect(canonical).toBe(action);
+    return resolveBudgetMisrouteActionForSurface(prompt, surface);
+  }
 });

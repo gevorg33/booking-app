@@ -8,13 +8,30 @@ import {
 } from '../../common/utils/tour-service.util.js';
 import { createTourPublicBookingHarness } from './public-booking-tour.harness.js';
 
+/**
+ * e2e-bug.491's class — this suite's tour days expired on a calendar.
+ *
+ * `getServiceDaySlots` only returns slots for days that have not passed, so a
+ * hardcoded 2026-08-15 stopped producing any once today moved beyond it and the
+ * assertions saw empty arrays. The symptom is an assertion, not a crash.
+ *
+ * `TOUR_DAY` and its two successors are derived from today so the window is
+ * always ahead, while the *times of day* (08:00 / 09:00 / 10:00) stay fixed —
+ * slot ordering is asserted, so those must not drift with the wall clock.
+ */
+const dayKeyIn = (n: number): string =>
+  new Date(Date.now() + n * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const TOUR_DAY = dayKeyIn(10);
+const TOUR_DAY_1 = dayKeyIn(11);
+const TOUR_DAY_2 = dayKeyIn(12);
+
 describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
-  const startTime = '2026-08-15T08:00:00.000Z';
+  const startTime = `${TOUR_DAY}T08:00:00.000Z`;
 
   it('collapses multiple slots to one departure for multi-day day-level tours', async () => {
     const harness = createTourPublicBookingHarness();
-    const slotA = new Date('2026-08-15T08:00:00.000Z');
-    const slotB = new Date('2026-08-15T10:00:00.000Z');
+    const slotA = new Date(`${TOUR_DAY}T08:00:00.000Z`);
+    const slotB = new Date(`${TOUR_DAY}T10:00:00.000Z`);
 
     jest
       .spyOn(harness.service as any, 'getEmployeeStartTimes')
@@ -35,7 +52,7 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
     const result = await harness.service.getServiceDaySlots(
       'alpine-tours',
       'svc-tour-1',
-      '2026-08-15',
+      TOUR_DAY,
     );
 
     expect(isDayLevelTour(harness.tourService)).toBe(true);
@@ -59,9 +76,9 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
       },
     });
     const slots = [
-      new Date('2026-08-15T08:00:00.000Z'),
-      new Date('2026-08-15T09:00:00.000Z'),
-      new Date('2026-08-15T10:00:00.000Z'),
+      new Date(`${TOUR_DAY}T08:00:00.000Z`),
+      new Date(`${TOUR_DAY}T09:00:00.000Z`),
+      new Date(`${TOUR_DAY}T10:00:00.000Z`),
     ];
 
     jest
@@ -86,7 +103,7 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
     const result = await harness.service.getServiceDaySlots(
       'alpine-tours',
       'svc-city',
-      '2026-08-15',
+      TOUR_DAY,
     );
 
     expect(isDayLevelTour(harness.tourService)).toBe(false);
@@ -101,8 +118,8 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
         businessId: 'biz-tour',
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
-        startTime: new Date('2026-08-15T08:00:00.000Z'),
-        endTime: new Date('2026-08-18T08:00:00.000Z'),
+        startTime: new Date(`${TOUR_DAY}T08:00:00.000Z`),
+        endTime: new Date(`${TOUR_DAY_2}T08:00:00.000Z`),
         metadata: { paxCount: 2 },
       },
     ]);
@@ -110,7 +127,7 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
 
     jest
       .spyOn(harness.service as any, 'getEmployeeStartTimes')
-      .mockResolvedValue([new Date('2026-08-15T08:00:00.000Z')]);
+      .mockResolvedValue([new Date(`${TOUR_DAY}T08:00:00.000Z`)]);
     jest
       .spyOn(harness.service as any, 'filterStartTimesWithService')
       .mockImplementation(
@@ -127,7 +144,7 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
     const result = await harness.service.getServiceDaySlots(
       'alpine-tours',
       'svc-tour-1',
-      '2026-08-15',
+      TOUR_DAY,
     );
 
     expect(result.remainingSpots).toBe(6);
@@ -167,7 +184,7 @@ describe('Sprint 30 — vert-tour-1.6 day-level slot selection', () => {
 });
 
 describe('Sprint 30 — vert-tour-1.8 tour booking record metadata', () => {
-  const startTime = '2026-08-15T08:00:00.000Z';
+  const startTime = `${TOUR_DAY}T08:00:00.000Z`;
 
   it('stores same start and end date for single-day tours', async () => {
     const harness = createTourPublicBookingHarness({
@@ -204,8 +221,8 @@ describe('Sprint 30 — vert-tour-1.8 tour booking record metadata', () => {
       harness.business.id,
       expect.objectContaining({
         metadata: expect.objectContaining({
-          tourStartDate: '2026-08-15',
-          tourEndDate: '2026-08-15',
+          tourStartDate: TOUR_DAY,
+          tourEndDate: TOUR_DAY,
           paxCount: 2,
         }),
       }),
@@ -238,7 +255,7 @@ describe('Sprint 30 — vert-tour-1.8 tour booking record metadata', () => {
         businessId: 'biz-tour',
         serviceId: 'svc-tour-1',
         status: BookingStatus.CONFIRMED,
-        metadata: { paxCount: 7, tourStartDate: '2026-08-15' },
+        metadata: { paxCount: 7, tourStartDate: TOUR_DAY },
       },
     ]);
     (harness.service as any).bookingRepo = harness.bookingRepo;
@@ -290,15 +307,17 @@ describe('Sprint 30 — vert-tour-1.8 tour booking record metadata', () => {
       ),
     ).toEqual({
       paxCount: 5,
-      tourStartDate: '2026-08-15',
-      tourEndDate: '2026-08-16',
+      tourStartDate: TOUR_DAY,
+      tourEndDate: TOUR_DAY_1,
     });
   });
 
   it.each([
-    { durationDays: 3, tourEndDate: '2026-08-17' },
-    { durationDays: 5, tourEndDate: '2026-08-19' },
-    { durationDays: 7, tourEndDate: '2026-08-21' },
+    { durationDays: 3, tourEndDate: TOUR_DAY_2 },
+    // Derived from TOUR_DAY like the 3-day case above, so a duration change is
+    // the only thing these encode — not a calendar position.
+    { durationDays: 5, tourEndDate: dayKeyIn(14) },
+    { durationDays: 7, tourEndDate: dayKeyIn(16) },
   ])(
     'computes $durationDays-day tour end date $tourEndDate',
     ({ durationDays, tourEndDate }) => {
@@ -308,7 +327,7 @@ describe('Sprint 30 — vert-tour-1.8 tour booking record metadata', () => {
         durationMinutes: durationDays * 1440,
         durationDays,
       });
-      expect(meta.tourStartDate).toBe('2026-08-15');
+      expect(meta.tourStartDate).toBe(TOUR_DAY);
       expect(meta.tourEndDate).toBe(tourEndDate);
     },
   );

@@ -19,7 +19,8 @@ describe('Sprint 28 — service packages currency integration', () => {
     {} as never,
     {} as never,
     businessRepo as never,
-  );
+  
+    undefined as never);
 
   const basePackage = {
     id: 'pkg-1',

@@ -57,7 +57,7 @@ describe("e2e-bug.321 Men's cut / Women's cut substring collision", () => {
     ).toEqual(["Women's cut"]);
   });
 
-  it('a stale Men\'s cut session pin does not leak into a fresh massage list request', () => {
+  it("a stale Men's cut session pin does not leak into a fresh massage list request", () => {
     const staleParams = { serviceName: "Men's cut", serviceId: 'mc' };
     const enriched = enrichPublicAssistantParamsFromPrompt(
       'list massage services',

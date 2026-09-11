@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import { readBusinessPrivacySettings } from '../../common/utils/business-compliance.util.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -9,7 +12,7 @@ import {
 } from './ai-explain-guest-checkout-fields.util.js';
 
 export interface GuestCheckoutFieldsLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 const FIELD_EXPLANATIONS: Record<

@@ -8,6 +8,7 @@ import {
   AI_COMMAND_EVAL_EXPLAIN_CONSUMER_CHECKOUT_SUCCESS_CASES,
 } from './eval/ai-command-eval.cases.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai consumer checkout success integration (ai-cmd-rec-6)', () => {
   const business = {
@@ -59,15 +60,16 @@ describe('ai consumer checkout success integration (ai-cmd-rec-6)', () => {
       };
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand({
-        action: 'explain_consumer_checkout_success',
-        params,
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_consumer_checkout_success',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

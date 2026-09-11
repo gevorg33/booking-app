@@ -1,6 +1,4 @@
-import {
-  PROVIDER_SUMMARIZE_DAY_PROMPT_SCENARIOS,
-} from './ai-provider-summarize-day.fixtures.js';
+import { PROVIDER_SUMMARIZE_DAY_PROMPT_SCENARIOS } from './ai-provider-summarize-day.fixtures.js';
 
 /** Legacy empty-today suggestion prompts (e2e-bug.66) — single calendar date, not a range. */
 export function isLegacyEmptyTodaySchedulePrompt(prompt: string): boolean {

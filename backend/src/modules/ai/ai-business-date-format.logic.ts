@@ -1,4 +1,9 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+  EntityReadWriter,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { mergeBusinessSettings } from '../../common/utils/merge-business-settings.util.js';
@@ -54,8 +59,8 @@ import type { ClinicTestResult } from '../clinic-test-results/entities/clinic-te
 import type { ResultReadyDeliverySummary } from '../notifications/notifications.service.js';
 
 export interface BusinessDateFormatLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
-  resultRepo?: Pick<Repository<ClinicTestResult>, 'findOne' | 'find'>;
+  businessRepo: EntityReadWriter<Business>;
+  resultRepo?: EntityReader<ClinicTestResult> & EntityFinder<ClinicTestResult>;
   sendClinicResultReady?: (
     resultId: string,
   ) => Promise<ResultReadyDeliverySummary>;

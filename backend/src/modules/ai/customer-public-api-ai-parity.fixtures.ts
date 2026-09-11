@@ -131,7 +131,10 @@ export const CUSTOMER_PUBLIC_API_AI_PARITY: readonly CustomerPublicApiParityEntr
       id: 'capi-package-slots',
       exportName: 'suggestPublicPackageSlots',
       apiModule: 'service-packages',
-      coverage: { kind: 'customer-ai', intents: ['check_package_availability'] },
+      coverage: {
+        kind: 'customer-ai',
+        intents: ['check_package_availability'],
+      },
     },
     {
       id: 'capi-package-block-slots',
@@ -155,7 +158,10 @@ export const CUSTOMER_PUBLIC_API_AI_PARITY: readonly CustomerPublicApiParityEntr
       exportName: 'getPublicPackageProviders',
       aliasOf: 'fetchPackageProviders',
       apiModule: 'service-packages',
-      coverage: { kind: 'customer-ai', intents: ['check_package_availability'] },
+      coverage: {
+        kind: 'customer-ai',
+        intents: ['check_package_availability'],
+      },
     },
     {
       id: 'capi-quote-package',
@@ -187,7 +193,8 @@ export const CUSTOMER_PUBLIC_API_AI_PARITY: readonly CustomerPublicApiParityEntr
       aliasOf: 'previewPublicMultiService',
       apiModule: 'public-booking',
       coverage: { kind: 'public-ai', intents: ['preview_multi_service_cart'] },
-      notes: 'Consumer-app alias that delegates straight to previewPublicMultiService',
+      notes:
+        'Consumer-app alias that delegates straight to previewPublicMultiService',
     },
     {
       id: 'capi-multi-service-block-slots',
@@ -462,7 +469,11 @@ export const CUSTOMER_PUBLIC_API_AI_PARITY: readonly CustomerPublicApiParityEntr
       apiModule: 'public-booking',
       coverage: {
         kind: 'public-ai',
-        intents: ['sign_in_with_google', 'sign_in_with_apple', 'sign_in_with_phone'],
+        intents: [
+          'sign_in_with_google',
+          'sign_in_with_apple',
+          'sign_in_with_phone',
+        ],
       },
     },
     {

@@ -133,8 +133,13 @@ export const AMBIGUITY_CORPUS_SCENARIOS: AmbiguityCorpusScenario[] = [
     clarifyFieldsContains: ['serviceName'],
   },
   {
+    // §165 — see `public_compound_no_deterministic` in
+    // `intent-decomposition.fixtures.ts`. Same stale prompt, same fix: 'List
+    // providers and check availability' became a real deterministic compound on
+    // 2026-07-20, six weeks after this fixture claimed it was not one. The id
+    // keeps its name because the case it covers is unchanged.
     id: 'public-compound-list-and-check',
-    prompt: 'List providers and check availability',
+    prompt: 'List providers and cancel my haircut',
     surface: 'public',
     locale: 'en',
     kind: 'compound_empty',

@@ -47,9 +47,7 @@ export function resolveClinicTestResultAccessTier(
     (CLINIC_TEST_RESULT_EXT_READ_INTENTS as readonly string[]).includes(
       action,
     ) ||
-    (CLINIC_TEST_RESULT_CORE_READ_INTENTS as readonly string[]).includes(
-      action,
-    )
+    (CLINIC_TEST_RESULT_CORE_READ_INTENTS as readonly string[]).includes(action)
   ) {
     return 'R';
   }

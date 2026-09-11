@@ -1,9 +1,11 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import { handleExplainTourDaySlotsLogic } from './ai-tour-day-slots.logic.js';
 import { EXPLAIN_TOUR_DAY_SLOTS_PROMPTS } from './ai-tour-day-slots.fixtures.js';
 import { rescueTourDaySlotsIntent } from './ai-tour-day-slots.util.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour day slots integration (ai-cmd-tour-6)', () => {
   const mountainTrek = {
@@ -25,14 +27,14 @@ describe('ai tour day slots integration (ai-cmd-tour-6)', () => {
 
   const bookingService = {
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date('2026-08-15T08:00:00.000Z'),
         endTime: new Date('2026-08-18T08:00:00.000Z'),
         metadata: { paxCount: 3, tourStartDate: '2026-08-15' },
-      },
+      }),
     ]),
   };
 
@@ -64,15 +66,16 @@ describe('ai tour day slots integration (ai-cmd-tour-6)', () => {
       if (date) params.date = date;
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand({
-        action: 'explain_tour_day_slots',
-        params,
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_day_slots',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourDaySlotsLogic(

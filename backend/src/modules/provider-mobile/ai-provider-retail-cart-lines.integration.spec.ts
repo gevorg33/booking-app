@@ -71,7 +71,10 @@ describe('provider AI retail cart bulk replace + alias normalization (ai-cmd-pro
   });
 
   it('normalizes the dashboard-style add_retail_to_my_booking alias to add_retail_to_booking on the provider surface', async () => {
-    mockIntent('add_retail_to_my_booking', { bookingId, productName: 'Shampoo' });
+    mockIntent('add_retail_to_my_booking', {
+      bookingId,
+      productName: 'Shampoo',
+    });
 
     const result = await service.executeCommand(
       businessId,

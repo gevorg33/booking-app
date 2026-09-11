@@ -8,7 +8,18 @@ export const PACKAGE_LOCALIZED_NAMES_CLASSIFIER_RULES = `- configure_package_loc
   - "Ավելացրի՛ր հայերեն անուն «Սպա օր» Spa Day փաթեթի համար" → configure_package_localized_names, locale=hy
   - "Установи русское название для пакета Wellness: Спа день" → configure_package_localized_names, locale=ru`;
 
-export const CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS = [
+/** `displayName` is absent for `clear` operations and for the prompts that
+ * only ask which locales exist. */
+export type ConfigurePackageLocalizedNamesPromptFixture = {
+  id: string;
+  prompt: string;
+  operation: 'clear' | 'set';
+  packageName: string;
+  locale?: 'en' | 'hy' | 'ru';
+  displayName?: string;
+};
+
+export const CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS: readonly ConfigurePackageLocalizedNamesPromptFixture[] = [
   {
     id: 'add-hy-spa-day',
     prompt: 'Add Armenian name «Սպա օր» for Spa Day package',
@@ -107,4 +118,4 @@ export const CONFIGURE_PACKAGE_LOCALIZED_NAMES_PROMPTS = [
     packageName: 'Bridal',
     locale: 'ru' as const,
   },
-] as const;
+];

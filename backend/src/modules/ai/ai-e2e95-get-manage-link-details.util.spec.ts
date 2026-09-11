@@ -10,7 +10,9 @@ describe('e2e-bug.95 get_manage_link delivers link/token', () => {
       success: true,
       action: 'get_manage_link',
       summary: `Here is your booking manage link: ${
-        row.detailKey === 'manageUrl' ? row.detailValue : 'https://example/manage'
+        row.detailKey === 'manageUrl'
+          ? row.detailValue
+          : 'https://example/manage'
       }`,
       details: {
         bookingId: 'book-1',

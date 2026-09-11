@@ -41,7 +41,12 @@ export function buildBusinessCurrencyLogicDispatchMap(): ReadonlyMap<
     handleExplainReportsCurrencyLogic(deps, ctx.businessId),
   );
   map.set('summarize_revenue_kpis', async (deps, ctx) =>
-    handleSummarizeRevenueKpisLogic(deps, ctx.businessId, ctx.params, ctx.prompt),
+    handleSummarizeRevenueKpisLogic(
+      deps,
+      ctx.businessId,
+      ctx.params,
+      ctx.prompt,
+    ),
   );
   map.set('bulk_update_service_currency', async (deps, ctx) =>
     handleBulkUpdateServiceCurrencyLogic(

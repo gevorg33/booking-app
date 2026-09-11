@@ -68,13 +68,13 @@ describe('ai-provider-exp-2.util', () => {
   });
 
   it('does not let list_team_unpaid_today steal payment_sweep mutations', () => {
-    expect(isListTeamUnpaidTodayPrompt('Mark all unpaid appointments today as paid')).toBe(
-      false,
-    );
+    expect(
+      isListTeamUnpaidTodayPrompt('Mark all unpaid appointments today as paid'),
+    ).toBe(false);
     expect(isListTeamUnpaidTodayPrompt('Payment sweep for today')).toBe(false);
-    expect(isListTeamUnpaidTodayPrompt('Collect outstanding balances today')).toBe(
-      false,
-    );
+    expect(
+      isListTeamUnpaidTodayPrompt('Collect outstanding balances today'),
+    ).toBe(false);
   });
 
   it('formats the team unpaid today summary', () => {
@@ -143,7 +143,9 @@ describe('ai-provider-exp-2.util', () => {
       false,
     );
     expect(
-      isExplainRequestReviewFlowPrompt('Send a review request for this booking'),
+      isExplainRequestReviewFlowPrompt(
+        'Send a review request for this booking',
+      ),
     ).toBe(false);
   });
 
@@ -218,9 +220,9 @@ describe('ai-provider-exp-2.util', () => {
     expect(inferReviewsInboxPeriodFromPrompt('Any reviews today?', {})).toBe(
       'today',
     );
-    expect(
-      inferReviewsInboxPeriodFromPrompt('Reviews this week', {}),
-    ).toBe('week');
+    expect(inferReviewsInboxPeriodFromPrompt('Reviews this week', {})).toBe(
+      'week',
+    );
     expect(inferReviewsInboxPeriodFromPrompt('My rating this month', {})).toBe(
       'month',
     );
@@ -265,7 +267,9 @@ describe('ai-provider-exp-2.util', () => {
         },
       ],
     });
-    expect(summary).toContain('Team reviews yesterday: 2 reviews, 3.5★ average.');
+    expect(summary).toContain(
+      'Team reviews yesterday: 2 reviews, 3.5★ average.',
+    );
     expect(summary).toContain('2★ — Jane Doe (Sam): "Could be better" (low)');
     expect(summary).toContain('5★ (Alex)');
   });

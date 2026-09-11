@@ -105,13 +105,13 @@ describe('ai-gift-fulfillment.util', () => {
       );
       expect(isGiftCardCreationQueuePrompt('Creation queue')).toBe(true);
 
-      expect(
-        isMarkCardReadyPrompt('Mark card GC-123 ready for pickup'),
-      ).toBe(true);
-      expect(isMarkCardReadyPrompt('Card printed — ready')).toBe(true);
-      expect(extractGiftCardIdFromPrompt('Mark card GC-123 ready for pickup')).toBe(
-        'GC-123',
+      expect(isMarkCardReadyPrompt('Mark card GC-123 ready for pickup')).toBe(
+        true,
       );
+      expect(isMarkCardReadyPrompt('Card printed — ready')).toBe(true);
+      expect(
+        extractGiftCardIdFromPrompt('Mark card GC-123 ready for pickup'),
+      ).toBe('GC-123');
 
       expect(isDeliveryQueuePrompt('Cards to ship today')).toBe(true);
       expect(isDeliveryQueuePrompt('Delivery queue')).toBe(true);
@@ -215,9 +215,7 @@ describe('ai-gift-fulfillment.util', () => {
           'Cancel gift card order gc-1 because the item arrived damaged',
         ),
       ).toBe('the item arrived damaged');
-      expect(
-        extractCancelReasonFromPrompt('cancel order gc-1'),
-      ).toBeNull();
+      expect(extractCancelReasonFromPrompt('cancel order gc-1')).toBeNull();
       expect(
         extractCancelWindowHoursFromPrompt('extend cancel window 48 hours'),
       ).toBe(48);

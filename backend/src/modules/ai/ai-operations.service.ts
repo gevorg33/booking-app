@@ -409,7 +409,9 @@ export class AiOperationsService {
   }
 
   /** Registry-driven dispatch (ai-cmd-ext-0.5). Returns null when action is not an operations intent. */
-  dispatchIntent(ctx: OperationsDispatchContext): Promise<CommandResult | null> {
+  dispatchIntent(
+    ctx: OperationsDispatchContext,
+  ): Promise<CommandResult | null> {
     return dispatchOperationsIntent(this, ctx);
   }
 }

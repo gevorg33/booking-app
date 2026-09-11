@@ -29,9 +29,15 @@ export class GiftCard {
   @Column({ name: 'business_id' })
   businessId: string;
 
+  /**
+   * Optional because the relation is only populated when a query asks for it.
+   * `gift-card-delivery-content.util.ts` already reads it as `card.business?.`
+   * in six places with `?? 'your business'` fallbacks — the declaration was the
+   * only thing claiming it is always present.
+   */
   @ManyToOne(() => Business, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'business_id' })
-  business: Business;
+  business?: Business;
 
   @Column()
   code: string;

@@ -39,10 +39,10 @@ describe('Sprint 29 — public booking package locale integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     packagesService.listPublicPackages.mockResolvedValue([
-      { id: 'pkg-1', kind: 'package', name: 'Սպա օր' },
+      { id: 'ed9c3ac3-f7c7-4161-8e38-0944e672b647', kind: 'package', name: 'Սպա օր' },
     ]);
     packagesService.getPublicPackage.mockResolvedValue({
-      id: 'pkg-1',
+      id: 'ed9c3ac3-f7c7-4161-8e38-0944e672b647',
       kind: 'package',
       name: 'Սպա օր',
     });
@@ -72,13 +72,13 @@ describe('Sprint 29 — public booking package locale integration', () => {
   it('passes resolved display locale to getPublicPackage', async () => {
     const { package: pkg } = await service.getPublicPackage(
       'salon',
-      'pkg-1',
+      'ed9c3ac3-f7c7-4161-8e38-0944e672b647',
       'hy',
     );
 
     expect(packagesService.getPublicPackage).toHaveBeenCalledWith(
       'biz-1',
-      'pkg-1',
+      'ed9c3ac3-f7c7-4161-8e38-0944e672b647',
       0,
       'hy',
     );

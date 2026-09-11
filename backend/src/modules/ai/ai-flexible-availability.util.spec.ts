@@ -10,6 +10,7 @@ import {
 import { resolvePublicAvailabilityWindows } from './ai-orchestration.helpers.js';
 import { enrichDiscoveryParamsFromPrompt } from './ai-service-discovery-enrichment.util.js';
 import {
+  applySameDayRelativeDateToAvailabilityParams,
   clauseHasAvailabilityCue,
   enrichAvailabilitySessionAppendFromPrompt,
   enrichAvailabilitySessionDropFromPrompt,
@@ -617,4 +618,148 @@ describe('ai-flexible-availability.util nearest OR windows (avail-1.6 / discover
       expect(windows).toHaveLength(expectedWindowCount);
     },
   );
+});
+
+/**
+ * e2e-bug.506 — the raw-relative-date contract.
+ *
+ * `applySameDayRelativeDateToAvailabilityParams` deliberately writes the
+ * unresolved word (`'today'` / `'tomorrow'`) into `params.date` rather than an
+ * ISO day. That is required by e2e-bug.296: the keyword has to survive
+ * enrichment so the same-day cue can drop classifier `dateFrom`/`dateTo` ranges
+ * and stamp dateless `availabilityWindows[]`. Resolution happens later, at the
+ * service boundary.
+ *
+ * That split is only safe while the writer and the reader agree on the
+ * vocabulary. This pins both halves of the handshake, because a raw word the
+ * resolver does not recognise would fall through `toIsoDay` unchanged and reach
+ * the availability query as a string no consumer can parse.
+ */
+describe('e2e-bug.506 — every stamped relative keyword is resolvable downstream', () => {
+  const { toIsoDay, resolveRelativeDateKeyword } =
+    require('../../common/utils/date-format.util.js') as typeof import('../../common/utils/date-format.util.js');
+
+  // The full parameter domain of the stamping helper.
+  const STAMPED_KEYWORDS = ['today', 'tomorrow'] as const;
+
+  it.each(STAMPED_KEYWORDS)(
+    'applySameDayRelativeDateToAvailabilityParams writes %s verbatim',
+    (keyword) => {
+      expect(
+        applySameDayRelativeDateToAvailabilityParams({}, keyword).date,
+      ).toBe(keyword);
+    },
+  );
+
+  it.each(STAMPED_KEYWORDS)(
+    'the service boundary resolves %s to an ISO day',
+    (keyword) => {
+      // `toIsoDay` is what `normalizeDateParams` calls. Unlike a parse failure,
+      // which returns the input untouched, a recognised keyword must come back
+      // as YYYY-MM-DD.
+      expect(resolveRelativeDateKeyword(keyword, 'UTC')).toMatch(
+        /^\d{4}-\d{2}-\d{2}$/,
+      );
+      expect(toIsoDay(keyword, 'UTC')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    },
+  );
+
+  it('resolves in the business timezone, not UTC', () => {
+    // e2e-bug.296's actual failure mode: resolving "today" in UTC can yield the
+    // previous calendar day for a business east of it, after which dropPast
+    // empties the date keys.
+    const kiritimati = toIsoDay('today', 'Pacific/Kiritimati');
+    const midway = toIsoDay('today', 'Pacific/Midway');
+    expect(kiritimati).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(midway).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(kiritimati >= midway).toBe(true);
+  });
+
+  it('tomorrow is exactly one day after today in the same zone', () => {
+    const tz = 'Europe/Berlin';
+    const today = new Date(`${toIsoDay('today', tz)}T00:00:00.000Z`);
+    const tomorrow = new Date(`${toIsoDay('tomorrow', tz)}T00:00:00.000Z`);
+    expect(tomorrow.getTime() - today.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('an explicit relative word in the prompt outranks a stale session date', () => {
+    // The behaviour e2e-bug.506 was filed against. The guest's session carries a
+    // concrete date; the new prompt says "tomorrow". The word wins — keeping the
+    // session date would answer a question nobody asked.
+    const enriched = enrichFlexibleAvailabilitySingleWindowFromPrompt(
+      'give me available slots tomorrow afternoon for hairstyle',
+      { serviceName: 'haircut', date: '10/06/2026', timeOfDay: 'afternoon' },
+    );
+    expect(enriched.date).toBe('tomorrow');
+    // …and the range fields a classifier may have guessed are cleared, so the
+    // single day is not re-expanded into a 14-day scan.
+    expect(enriched.dateFrom).toBeUndefined();
+    expect(enriched.dateTo).toBeUndefined();
+  });
+
+  it('leaves a session date alone when the prompt names no relative day', () => {
+    const enriched = enrichFlexibleAvailabilitySingleWindowFromPrompt(
+      'give me available slots in the afternoon for hairstyle',
+      { serviceName: 'haircut', date: '10/06/2026', timeOfDay: 'afternoon' },
+    );
+    expect(enriched.date).toBe('10/06/2026');
+  });
+});
+
+/**
+ * e2e-bug.504 — the plural map is redundant for matching, and that is the point.
+ *
+ * `normalizeAvailabilityServiceCategory` singularises an ad-hoc set — `lashes`,
+ * `haircuts`, `hairstyles`, `facials` — and leaves everything else alone, which
+ * reads like an unfinished rule and invites "just strip the trailing s".
+ *
+ * It is not unfinished, it is unnecessary: `matchServicesByQuery` resolves
+ * plurals on its own. Measured — `pedicures` finds `Pedicure` and `massages`
+ * finds both massages with **no** normalisation applied. So completing the map
+ * buys nothing at the matching layer.
+ *
+ * And completing it blindly costs something. e2e-bug.323 records that forcing
+ * `cut`/`cuts` to `haircut` discarded the raw token before
+ * `matchServicesByQuery` ran, so its literal-substring-first expansion never got
+ * to prefer real catalog rows named "Men's cut" over the unrelated `hairstyle`
+ * synonym. A blanket singularisation rule is exactly that fix, reverted.
+ *
+ * These pin the reason, so the next person to notice the inconsistency finds the
+ * measurement rather than repeating it.
+ */
+describe('e2e-bug.504 — plurals resolve without the normaliser', () => {
+  const CATALOG = [
+    { id: 's1', name: 'Swedish Massage' },
+    { id: 's2', name: 'Deep Tissue Massage' },
+    { id: 's3', name: 'Haircut' },
+    { id: 's4', name: 'Pedicure' },
+  ];
+
+  const { matchServicesByQuery } =
+    require('./ai-orchestration.helpers.js') as typeof import('./ai-orchestration.helpers.js');
+  const { normalizeAvailabilityServiceCategory } =
+    require('./ai-flexible-availability.util.js') as typeof import('./ai-flexible-availability.util.js');
+
+  it.each([
+    ['massages', 'Deep Tissue Massage'],
+    ['pedicures', 'Pedicure'],
+  ])(
+    '%s matches its service though the normaliser leaves it plural',
+    (query, expected) => {
+      // Both halves asserted: the normaliser is a no-op here, and the match
+      // happens anyway. If someone later adds these to the map, the first
+      // assertion fails and points at this comment.
+      expect(normalizeAvailabilityServiceCategory(query)).toBe(query);
+      expect(matchServicesByQuery(CATALOG, query).map((s) => s.name)).toContain(
+        expected,
+      );
+    },
+  );
+
+  it('leaves "cut" and "cuts" unaliased, as e2e-bug.323 requires', () => {
+    // The specific entry a blanket rule would add, and the one that broke
+    // catalog matching last time.
+    expect(normalizeAvailabilityServiceCategory('cut')).toBe('cut');
+    expect(normalizeAvailabilityServiceCategory('cuts')).toBe('cuts');
+  });
 });

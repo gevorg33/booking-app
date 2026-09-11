@@ -6,7 +6,8 @@ import type { TimeOfDayWindow } from './ai-operations.util.js';
  */
 
 /** Armenian / Russian / translit "who" tokens. */
-const MULTILINGUAL_WHO = /(?:ով|кто|\bkto\b)/iu;
+/** Who, in hy/ru/translit. Exported for the compound escape in `ai-payments.util.ts` (§183). */
+export const MULTILINGUAL_WHO = /(?:ով|кто|\bkto\b)/iu;
 
 /** Free / available / open in hy/ru/translit. */
 export const MULTILINGUAL_PROVIDER_AVAILABILITY =
@@ -122,25 +123,6 @@ export function isMultilingualFindSoonestAppointmentPrompt(
     /(?:ով|кто)/iu.test(prompt) &&
     MULTILINGUAL_PROVIDER_AVAILABILITY.test(prompt) &&
     /(?:ամենաառաջին|ամենամոտ|առաջին|раньше\s+всех)/iu.test(prompt)
-  );
-}
-
-/** First-available flexible booking in hy/ru/translit (rescue + enrichment). */
-export function isMultilingualFirstAvailableBookingPrompt(
-  prompt: string,
-): boolean {
-  if (
-    MULTILINGUAL_BOOK_VERBS.test(prompt) &&
-    MULTILINGUAL_AVAILABILITY_OR.test(prompt)
-  ) {
-    return true;
-  }
-  if (!MULTILINGUAL_FLEXIBLE_SLOT.test(prompt)) return false;
-  return (
-    MULTILINGUAL_BOOK_VERBS.test(prompt) ||
-    /\b(find|get|reserve|schedule|grab)\b/i.test(prompt) ||
-    MULTILINGUAL_SLOT_NOUNS.test(prompt) ||
-    MULTILINGUAL_SERVICE_HINT.test(prompt)
   );
 }
 

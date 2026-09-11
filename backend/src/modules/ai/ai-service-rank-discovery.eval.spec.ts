@@ -84,9 +84,15 @@ describe('ai service rank discovery eval cases (rank-1.11)', () => {
     );
     expect(evalCase.expect.rescuedAction).toBe('list_services');
     expect(evalCase.expect.rescueReason).toBe('rank_list_services');
+    // e2e-bug.524 — 'Premium cut?' says "cut", never "haircut", and
+    // RANK_SERVICE_CATEGORY_ALIASES deliberately does NOT alias bare
+    // 'cut' -> 'haircut' (e2e-bug.323: pre-aliasing discards the raw token
+    // before matchServicesByQuery runs, so its literal-substring-first
+    // expansion can no longer prefer real rows named "Men's cut"). Only the
+    // plural folds, 'cuts' -> 'cut'. This expectation predates that decision.
     expect(evalCase.expect.paramsPartial).toEqual({
       serviceRank: 'highest_price',
-      serviceCategory: 'haircut',
+      serviceCategory: 'cut',
     });
   });
 

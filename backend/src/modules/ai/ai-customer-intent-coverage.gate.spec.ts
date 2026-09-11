@@ -40,9 +40,18 @@ describe('ai customer intent coverage gate manifest (ai-cmd-customer-4.0.3)', ()
 
   it('tracks every promoted intent in CUSTOMER_INTENT_COVERAGE_REQUIRED', () => {
     expect(assertCustomerIntentCoverageGateManifest()).toEqual([]);
-    expect(listGraduatedCustomerIntentCoverageRequired()).toEqual([
-      ...CUSTOMER_INTENT_PROMOTION_INTENT_LIST,
-    ]);
+    // e2e-bug.502 / §222 — compared as sets, deliberately. The invariant is
+    // that the promoted intents and the graduated subset of REQUIRED are the
+    // same intents; `toEqual` on the raw arrays also demanded the *same order*,
+    // coupling two independently-maintained lists in different files. They
+    // currently share all 43 entries in entirely different orders, and
+    // reordering 43 lines of a list whose order carries no meaning would be
+    // churn that the next append re-breaks. Membership is separately enforced
+    // by `assertCustomerIntentCoverageGateManifest`, which reports any promoted
+    // intent missing from REQUIRED.
+    expect([...listGraduatedCustomerIntentCoverageRequired()].sort()).toEqual(
+      [...CUSTOMER_INTENT_PROMOTION_INTENT_LIST].sort(),
+    );
     expect(CUSTOMER_INTENT_COVERAGE_REQUIRED.length).toBe(
       CUSTOMER_INTENT_COVERAGE_REQUIRED_BASELINE_COUNT +
         CUSTOMER_INTENT_PROMOTION_INTENT_LIST.length,

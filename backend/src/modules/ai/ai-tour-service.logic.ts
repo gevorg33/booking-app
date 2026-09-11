@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { type Repository } from 'typeorm';
+import type { EntityReader } from './ai-logic-repo.types.js';
 import type { BookingService } from '../booking/booking.service.js';
 import type { OnboardingService } from '../onboarding/onboarding.service.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -26,11 +27,17 @@ import {
 
 export interface TourServiceLogicDeps {
   serviceService: Pick<ServiceService, 'findAll' | 'update'>;
+  /**
+   * `findOne` is not called in this file — it is here because this deps object is
+   * forwarded whole to `TourBookingRecordLogicDeps` and `TourMeetingPointLogicDeps`
+   * (`ai-tour-service.service.ts:87,188`), both of which do call it. Dropping it
+   * as "unused" breaks the production typecheck; verified.
+   */
   bookingService: Pick<BookingService, 'findAll' | 'findOne'>;
 }
 
 export interface TourPlaybookLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   onboardingService: Pick<OnboardingService, 'applyVerticalPlaybook'>;
 }
 
@@ -299,7 +306,10 @@ export async function handleExplainTourServicesLogic(
       (service) => service.id === parsed.serviceId,
     );
   } else if (parsed.serviceName) {
-    const match = resolveTourCatalogServiceByName(tourServices, parsed.serviceName);
+    const match = resolveTourCatalogServiceByName(
+      tourServices,
+      parsed.serviceName,
+    );
     tourServices = match ? [match] : [];
   }
 

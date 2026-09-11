@@ -119,13 +119,13 @@ describe('ProviderMobileService calendar month (prov-exp-10.2)', () => {
     bookingRepo.find.mockResolvedValue([
       {
         status: BookingStatus.CONFIRMED,
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-09T10:00:00.000Z'),
         endTime: new Date('2026-06-09T11:00:00.000Z'),
       },
       {
         status: BookingStatus.CANCELLED,
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-09T12:00:00.000Z'),
         endTime: new Date('2026-06-09T13:00:00.000Z'),
       },

@@ -6,12 +6,13 @@ import {
 } from './ai-notify-when-results-ready.fixtures.js';
 import { rescueNotifyWhenResultsReadyIntent } from './ai-notify-when-results-ready.util.js';
 import type { NotifyWhenResultsReadyLogicDeps } from './ai-notify-when-results-ready.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
-const clinicBusiness = {
+const clinicBusiness = makeBusiness({
   id: 'biz-1',
   timezone: 'UTC',
   settings: { businessType: 'clinic' },
-} as Business;
+});
 
 function buildDeps(overrides: Partial<NotifyWhenResultsReadyLogicDeps> = {}) {
   return {

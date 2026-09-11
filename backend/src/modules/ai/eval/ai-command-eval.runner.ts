@@ -276,10 +276,33 @@ const decomposition = {
 const router = new CommandComplexityRouterService(decomposition);
 const rescue = new AiIntentRescueService();
 
+/**
+ * The roster a case runs against — its own if it declares one, else the shared
+ * three (e2e-bug.470). See `AiCommandEvalCase.employees` for why the shared
+ * default is not always enough.
+ */
+function rosterFor(
+  evalCase: AiCommandEvalCase,
+): Array<{ id: string; name: string }> {
+  return evalCase.employees ?? SAMPLE_EMPLOYEES;
+}
+
 const SAMPLE_EMPLOYEES = [
   { id: 'emp-1', name: 'Gevorg Gasparyan' },
   { id: 'emp-2', name: 'Mary Torgomyan' },
   { id: 'emp-3', name: 'Maria Lopez' },
+];
+
+/**
+ * e2e-bug.460 — the staff rescue needs a positive place test to tell "Set
+ * Downtown's phone" from "Set Maria's phone", which are grammatically
+ * identical. Deliberately disjoint from SAMPLE_EMPLOYEES: a name that is both
+ * a person and a place is genuinely ambiguous and must not be resolved by
+ * fixture ordering.
+ */
+const SAMPLE_LOCATIONS = [
+  { id: 'loc-1', name: 'Downtown' },
+  { id: 'loc-2', name: 'Uptown Studio' },
 ];
 
 function valuesMatchPartial(actual: unknown, expected: unknown): boolean {
@@ -509,7 +532,7 @@ export function evaluateDeterministicEvalCase(
   }
 
   if (expect.routeTier) {
-    const route = router.routeDeterministic(prompt, SAMPLE_EMPLOYEES);
+    const route = router.routeDeterministic(prompt, rosterFor(evalCase));
     if (route.tier !== expect.routeTier) {
       errors.push(`routeTier: expected ${expect.routeTier}, got ${route.tier}`);
     }
@@ -2191,7 +2214,9 @@ export function evaluateDeterministicEvalCase(
                                                                                                                                   params:
                                                                                                                                     {},
                                                                                                                                   employees:
-                                                                                                                                    SAMPLE_EMPLOYEES,
+                                                                                                                                    rosterFor(evalCase),
+                                                                                                                                  locations:
+                                                                                                                                    SAMPLE_LOCATIONS,
                                                                                                                                   surface:
                                                                                                                                     evalCase.surface,
                                                                                                                                 },

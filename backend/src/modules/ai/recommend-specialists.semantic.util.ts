@@ -87,11 +87,3 @@ export function impliesRecommendSpecialistsFromSemantic(
       resolveRecommendSpecialistsSemanticHints(prompt, surface) != null,
   );
 }
-
-export function isRecommendSpecialistsPrompt(prompt: string): boolean {
-  if (impliesRecommendSpecialistsFromSemantic(prompt)) return true;
-  // e2e-bug.278 — semantic anchors miss short who-recommend + day-part cues;
-  // provider-rank discovery covers those (and excludes plain availability).
-  if (promptImpliesPlainAvailabilityNotRecommend(prompt)) return false;
-  return isProviderRankDiscoveryPrompt(prompt);
-}

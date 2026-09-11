@@ -1,10 +1,14 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { AiPushNotificationsService } from './ai-push-notifications.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
 import type { ConsumerPushTokenService } from '../notifications/consumer-push-token.service.js';
+import { enrichClaimReferralCodeParamsFromPrompt } from './ai-rewards-and-referral-claim.util.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   DEFAULT_CUSTOMER_NOTIFICATION_PREFERENCES,
@@ -38,7 +42,7 @@ export interface ConsumerAdoptionLogicDeps {
   notificationsService: NotificationsService;
   consumerPushTokenService: ConsumerPushTokenService;
   /** e2e-bug.125 — resolve booking slug from authenticated businessId. */
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(
@@ -254,21 +258,36 @@ export async function handleClaimReferralCodeLogic(
   deps: ConsumerAdoptionLogicDeps,
   businessId: string,
   params: Record<string, unknown>,
+  prompt?: string,
 ): Promise<CommandResult> {
-  const customerId = resolveSessionCustomerId(params);
+  // e2e-bug.410 — read the code out of the prompt when the classifier did not
+  // put it in params, which is every time it gets the action right.
+  //
+  // `enrichClaimReferralCodeParamsFromPrompt` already existed and was already
+  // tested, but it was only called from the *rescue* path in
+  // `ai-intent-rescue.service.ts`. `rescueClaimReferralCodeIntent` returns null
+  // when the action is already `claim_referral_code`, so the enrichment ran only
+  // when the classifier had been wrong about the action. It never was: all 96
+  // stored attempts carry `action_changed_by = (none)`, empty params, and the
+  // reply "What referral code would you like to claim?" — to a user who had just
+  // typed the code.
+  const enriched = enrichClaimReferralCodeParamsFromPrompt(
+    prompt ?? '',
+    params,
+  );
+
+  const customerId = resolveSessionCustomerId(enriched);
   if (!customerId) {
-    return failure(
-      'claim_referral_code',
-      'Sign in to claim a referral code.',
-      { clarify: true },
-    );
+    return failure('claim_referral_code', 'Sign in to claim a referral code.', {
+      clarify: true,
+    });
   }
-  const slug = await resolveBusinessSlug(deps, businessId, params);
+  const slug = await resolveBusinessSlug(deps, businessId, enriched);
   if (!slug) return failure('claim_referral_code', 'Business not found.');
 
   const referralCode =
-    typeof params.referralCode === 'string'
-      ? params.referralCode.trim()
+    typeof enriched.referralCode === 'string'
+      ? enriched.referralCode.trim()
       : undefined;
   if (!referralCode) {
     return failure(
@@ -362,10 +381,14 @@ export async function handleClaimShareRewardLogic(
     );
   }
 
-  return success('claim_share_reward', `Reward claimed for sharing your ${channel === 'booking' ? 'booking' : 'salon link'}.`, {
-    channel,
-    awarded: true,
-  });
+  return success(
+    'claim_share_reward',
+    `Reward claimed for sharing your ${channel === 'booking' ? 'booking' : 'salon link'}.`,
+    {
+      channel,
+      awarded: true,
+    },
+  );
 }
 
 export async function handleExplainShareRewardLogic(
@@ -444,7 +467,7 @@ export async function dispatchConsumerAdoptionIntent(
     case 'refer_a_friend':
       return handleReferAFriendLogic(deps, businessId, params);
     case 'claim_referral_code':
-      return handleClaimReferralCodeLogic(deps, businessId, params);
+      return handleClaimReferralCodeLogic(deps, businessId, params, prompt);
     case 'explain_share_reward':
       return handleExplainShareRewardLogic(deps, businessId, params, prompt);
     case 'share_salon_link':

@@ -29,7 +29,17 @@ export const BUSINESS_TAX_CLASSIFIER_RULES = `- configure_business_tax: MUTATE â
 
 ${TAX_DISPLAY_EN_CLASSIFIER_RULES}`;
 
-export const CONFIGURE_BUSINESS_TAX_PROMPTS = [
+/** Declared so the array is one type, not a union of seven literal shapes. */
+export type ConfigureBusinessTaxPromptFixture = {
+  id: string;
+  prompt: string;
+  enabled?: boolean;
+  rate?: number;
+  name?: string;
+  model?: 'exclusive' | 'inclusive';
+};
+
+export const CONFIGURE_BUSINESS_TAX_PROMPTS: readonly ConfigureBusinessTaxPromptFixture[] = [
   {
     id: 'enable-20-vat',
     prompt: 'Enable 20% VAT',

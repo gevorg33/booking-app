@@ -42,7 +42,10 @@ export function isConcreteTimedBookAppointmentPrompt(prompt: string): boolean {
   ) {
     return false;
   }
-  if (isBookNearestSlotPrompt(prompt) || isFirstAvailableBookingPrompt(prompt)) {
+  if (
+    isBookNearestSlotPrompt(prompt) ||
+    isFirstAvailableBookingPrompt(prompt)
+  ) {
     return false;
   }
   if (isFindSoonestAppointmentPrompt(prompt)) return false;
@@ -70,8 +73,36 @@ function isNamedIsAvailablePrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * A pure *capability* question: who is able to perform this at all, with no
+ * availability word and no day. "Who offers deep tissue massage?" is a catalog
+ * question; "who is free for it tomorrow?" is an availability question, and the
+ * two have different right answers — the first should name the provider even
+ * when nobody is scheduled.
+ *
+ * Kept deliberately tight: the verb must follow who/which directly, because
+ * "does" and "do" are far too common to match loosely.
+ *
+ * "specialises in" is deliberately NOT here. It reads like a capability verb
+ * and is one, but it is `explain_provider_specialty`'s own trigger — including
+ * it cost that command 2 corpus cases (-0.03%) before this was measured.
+ */
+const CAPABILITY_QUESTION =
+  /\b(?:who|which\s+(?:providers?|staff|specialists?|stylists?|therapists?))\s+(?:usually\s+|normally\s+|typically\s+)?(?:offers?|does|do|performs?|provides?)\b/i;
+
+/** An availability word or an explicit day makes it a scheduling question. */
+const AVAILABILITY_OR_DAY =
+  /\b(?:available|availability|free|open|slots?|today|tomorrow|tonight|this\s+week|next\s+week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|morning|afternoon|evening)\b/i;
+
+export function isPureCapabilityQuestion(prompt: string): boolean {
+  return CAPABILITY_QUESTION.test(prompt) && !AVAILABILITY_OR_DAY.test(prompt);
+}
+
 /** Staff-ops assignment lookup — not customer "who is free" wording. */
 export function isLookupServiceAssignmentPrompt(prompt: string): boolean {
+  // A capability question is this command's whole purpose, so it wins before
+  // the availability predicate below can claim it on the word "providers".
+  if (isPureCapabilityQuestion(prompt)) return !hasBookVerb(prompt);
   if (isCheckProvidersForServicePrompt(prompt)) return false;
   if (hasBookVerb(prompt)) return false;
   return (

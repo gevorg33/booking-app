@@ -124,9 +124,9 @@ describe('e2e-bug.91 public sessionContext must not leak orchestration internals
 
   it('live prompt fixture covers original booking_help + guide_user_flow triggers', () => {
     expect(E2E91_LIVE_LEAK_PROMPTS.length).toBeGreaterThanOrEqual(6);
-    expect(
-      E2E91_LIVE_LEAK_PROMPTS.some((p) => /book/i.test(p.prompt)),
-    ).toBe(true);
+    expect(E2E91_LIVE_LEAK_PROMPTS.some((p) => /book/i.test(p.prompt))).toBe(
+      true,
+    );
     expect(
       E2E91_LIVE_LEAK_PROMPTS.some((p) => /gift card shipment/i.test(p.prompt)),
     ).toBe(true);

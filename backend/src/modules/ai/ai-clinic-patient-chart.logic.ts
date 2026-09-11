@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { PatientChartService } from '../patient-clinical-profiles/patient-chart.service.js';
@@ -15,8 +19,8 @@ import {
 } from './ai-clinic-patient-chart.util.js';
 
 export interface ClinicPatientChartLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  customerRepo: Pick<Repository<Customer>, 'find' | 'findOne'>;
+  businessRepo: EntityReader<Business>;
+  customerRepo: EntityFinder<Customer> & EntityReader<Customer>;
   patientChartService: Pick<PatientChartService, 'getChartSummaryForCustomer'>;
 }
 

@@ -59,7 +59,11 @@ describe('ai-clinic-booking.logic', () => {
       deps,
       'biz-1',
       {},
-      'Explain the lab prep for Lipid panel',
+      // e2e-bug.523 — see ai-clinic-booking-multilingual.util.spec.ts: the old
+      // prompt 'Explain the lab prep for Lipid panel' is excluded from
+      // explain_clinic_booking by design (CONSUMER_LAB_PREP_EXPLAIN), so the
+      // handler correctly refused and success was false.
+      'How do I prepare for Lipid panel on the booking page?',
     );
 
     expect(result.success).toBe(true);

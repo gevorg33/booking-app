@@ -1,3 +1,5 @@
+import { COMMAND_SPECS } from './ai-command-spec.registry.js';
+import { resolveSpecByAction } from './ai-command-spec.derive.js';
 import {
   canAccessDataCategory,
   ALL_PRODUCT_GUIDE_INTENTS,
@@ -81,6 +83,16 @@ describe('access-control.matrix', () => {
     for (const action of STAFF_DENIED_CRM_REVENUE_FINANCE_INTENTS) {
       expect(DASHBOARD_DENIED_BY_TIER.staff.has(action)).toBe(true);
       expect(isDashboardIntentAllowed('staff', action)).toBe(false);
+
+      // e2e-bug.356 — "not blocked by the staff deny-list" is not the same as
+      // "available on the dashboard", and this loop used to conflate them.
+      // `gift_card_balance` is a `customer`/`public` command: its spec declares
+      // no dashboard surface, so it is denied there for every tier. The old
+      // deny-list allowed it to manager and owner purely because nobody had
+      // listed it — the default-allow bug §356 fixed. Production agrees: the one
+      // dashboard trace for it failed.
+      const spec = resolveSpecByAction(COMMAND_SPECS, action);
+      if (!spec?.surfaces.includes('dashboard')) continue;
       expect(isDashboardIntentAllowed('manager', action)).toBe(true);
       expect(isDashboardIntentAllowed('owner', action)).toBe(true);
     }

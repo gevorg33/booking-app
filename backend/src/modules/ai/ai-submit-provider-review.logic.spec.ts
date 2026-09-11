@@ -2,6 +2,7 @@ import {
   handleSubmitProviderReviewLogic,
   type SubmitProviderReviewLogicDeps,
 } from './ai-submit-provider-review.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 const employees = [
   { id: 'emp-1', name: 'Anna', businessId: 'biz-1', isActive: true },
@@ -25,7 +26,9 @@ function buildDeps(
       })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   } as SubmitProviderReviewLogicDeps;
@@ -43,9 +46,7 @@ describe('handleSubmitProviderReviewLogic', () => {
     expect(result.success).toBe(true);
     expect(result.action).toBe('submit_provider_review');
     expect(result.summary).toContain('Anna');
-    expect(
-      deps.reviewsService.submitProviderPortalReview,
-    ).toHaveBeenCalledWith(
+    expect(deps.reviewsService.submitProviderPortalReview).toHaveBeenCalledWith(
       'salon',
       'emp-1',
       { rating: 5, comment: undefined, idToken: undefined },
@@ -62,9 +63,7 @@ describe('handleSubmitProviderReviewLogic', () => {
       idToken: 'google-token',
     });
     expect(result.success).toBe(true);
-    expect(
-      deps.reviewsService.submitProviderPortalReview,
-    ).toHaveBeenCalledWith(
+    expect(deps.reviewsService.submitProviderPortalReview).toHaveBeenCalledWith(
       'salon',
       'emp-2',
       { rating: 4, comment: undefined, idToken: 'google-token' },

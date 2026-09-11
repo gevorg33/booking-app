@@ -35,8 +35,7 @@ export const E2E92_CHECK_PROVIDERS_COLLAPSE_SCENARIOS = [
   },
   {
     id: 'e2e92-any-provider-fine',
-    prompt:
-      "I don't care who does it, any provider works fine for the massage",
+    prompt: "I don't care who does it, any provider works fine for the massage",
     surface: 'public' as const,
     misclassifiedAction: 'check_providers_for_service',
     expectedAction: 'explain_any_provider_option',
@@ -107,8 +106,7 @@ export const E2E92_LIVE_PROMPTS = [
   },
   {
     id: 'e2e92-live-any-provider-fine',
-    prompt:
-      "I don't care who does it, any provider works fine for the massage",
+    prompt: "I don't care who does it, any provider works fine for the massage",
     expectAction: 'explain_any_provider_option',
   },
   {

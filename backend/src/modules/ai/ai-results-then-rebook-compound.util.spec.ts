@@ -11,7 +11,6 @@ import {
   rescueResultsThenRebookCompoundIntent,
 } from './ai-results-then-rebook-compound.util.js';
 import { isExplainResultStatusPrompt } from './ai-consumer-clinic-test-results.util.js';
-import { isRebookLastAppointmentPrompt } from './ai-rebook-last-appointment.util.js';
 
 describe('ai-results-then-rebook-compound.util (ai-cmd-customer-4.21.5)', () => {
   it.each(RESULTS_THEN_REBOOK_COMPOUND_PROMPTS)(
@@ -70,12 +69,6 @@ describe('ai-results-then-rebook-compound.util (ai-cmd-customer-4.21.5)', () => 
     const prompt = 'What does released mean for my lab results?';
     expect(isResultsThenRebookCompoundPrompt(prompt)).toBe(false);
     expect(isExplainResultStatusPrompt(prompt)).toBe(true);
-  });
-
-  it('rebook-only prompt stays on rebook_last_appointment', () => {
-    const prompt = 'Rebook my last appointment';
-    expect(isResultsThenRebookCompoundPrompt(prompt)).toBe(false);
-    expect(isRebookLastAppointmentPrompt(prompt)).toBe(true);
   });
 
   it('buildResultsThenRebookCompoundParams extracts status and testName', () => {

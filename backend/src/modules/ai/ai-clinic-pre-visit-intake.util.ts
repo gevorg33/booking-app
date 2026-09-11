@@ -19,9 +19,7 @@ export function isClinicPreVisitIntakeIntent(
   return CLINIC_PRE_VISIT_INTAKE_INTENT_SET.has(action);
 }
 
-export function isAssignPreVisitIntakeToBookingPrompt(
-  prompt: string,
-): boolean {
+export function isAssignPreVisitIntakeToBookingPrompt(prompt: string): boolean {
   return (
     /\bassign\b/i.test(prompt) &&
     /\b(pre[-\s]?visit\s+)?intake\b/i.test(prompt) &&

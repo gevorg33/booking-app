@@ -15,6 +15,7 @@ import {
   applyPromptDateOverride,
 } from './ai-orchestration.helpers.js';
 import { resolveServicesForEmployeeAssignment } from './ai-category-assignment.util.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import {
   ClassifiedCommand,
   BusinessCatalog,
@@ -210,9 +211,29 @@ export class CommandCompletionPipelineService {
       classified.action === 'assign_employee_services'
         ? resolveServicesForEmployeeAssignment(catalog.services, params)
         : resolveServices(catalog.services, params);
-    const customer = params.customerName
-      ? fuzzyMatchByName(catalog.customers, params.customerName)
-      : undefined;
+    // e2e-bug.362 (D5) — first caller migrated onto the §46 resolver.
+    //
+    // `fuzzyMatchByName` is a cascade of `.find(...)` calls, so two customers
+    // named "John Smith" resolved to whichever row the database returned
+    // first and the booking was filed against a person the user never chose.
+    // `resolveEntity` checks ambiguity *before* the threshold and refuses.
+    //
+    // `threshold: 0` on purpose: this slice changes ties only. Any tier the
+    // old matcher accepted is still accepted, so the delta is exactly the
+    // silent pick — not a re-tiering of who matches.
+    const customerVerdict = params.customerName
+      ? resolveEntity(catalog.customers, params.customerName, {
+          entityLabel: 'customer',
+          threshold: 0,
+        })
+      : null;
+    const customer =
+      customerVerdict === null || customerVerdict.status === 'ambiguous'
+        ? undefined
+        : // `not_found` falls back to the legacy matcher so acceptance can
+          // only stay the same or widen, never narrow, in this slice.
+          (customerVerdict.match ??
+            fuzzyMatchByName(catalog.customers, params.customerName!));
     const template = resolveTemplate(catalog.templates, params.templateName);
     const dateRange = resolveDateRange(params, prompt, timeZone);
 
@@ -221,9 +242,27 @@ export class CommandCompletionPipelineService {
     const entities: ResolvedEntities = {
       employee,
       employees,
-      service: services.length === 1 ? services[0] : services[0],
+      // e2e-bug.445 / §221 — deliberately NOT the `employee` shape above.
+      // `employees.length !== 1` means the name was ambiguous, so the singular
+      // is withheld and the validator asks which provider. `services.length > 1`
+      // means the opposite: the user named *several* services on purpose, for a
+      // multi-service visit. Withholding the singular there makes the
+      // completeness check `entities.service || enrichedParams.serviceId` fail
+      // — and `serviceId` is only set when exactly one service resolved, so
+      // nothing else backstops it — which would have the validator ask for a
+      // service the user already named twice over. It used to be written
+      // `length === 1 ? services[0] : services[0]`, which reads as a bug and
+      // invites exactly that "fix"; the branch is gone, the reason is here.
+      service: services[0],
       services,
       customer,
+      // Only set when the name tied, so the validator can name the options
+      // instead of claiming the customer does not exist. Nothing else reads
+      // this field today.
+      customers:
+        customerVerdict?.status === 'ambiguous'
+          ? customerVerdict.candidates
+          : undefined,
       template,
       dateRange,
       employeeId: employee?.id ?? employees[0]?.id,

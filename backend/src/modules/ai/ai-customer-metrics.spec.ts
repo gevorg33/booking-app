@@ -37,10 +37,7 @@ describe('Sprint 18 customer page AI metrics', () => {
 
   it('e2e-bug.155 — cancellation totals route to overview (not ranking)', () => {
     expect(
-      resolveCustomerMetric(
-        {},
-        'How many cancellations have I had in total?',
-      ),
+      resolveCustomerMetric({}, 'How many cancellations have I had in total?'),
     ).toBe('overview');
     expect(
       resolveCustomerMetric({}, 'How many cancellations across all customers?'),
@@ -57,23 +54,26 @@ describe('Sprint 18 customer page AI metrics', () => {
       'What is my total number of customers?',
       'How many clients do I have?',
       'Customers in total',
-    ])('routes roster count to overview (overrides ranking params): %s', (prompt) => {
-      expect(isUnscopedCustomerCountPrompt(prompt)).toBe(true);
-      expect(resolveCustomerMetric({}, prompt)).toBe('overview');
-      expect(
-        resolveCustomerMetric({ customerMetric: 'most_no_shows' }, prompt),
-      ).toBe('overview');
-      expect(rescueUnscopedCustomerCountIntent(prompt, 'summarize_customers')).toEqual(
-        {
+    ])(
+      'routes roster count to overview (overrides ranking params): %s',
+      (prompt) => {
+        expect(isUnscopedCustomerCountPrompt(prompt)).toBe(true);
+        expect(resolveCustomerMetric({}, prompt)).toBe('overview');
+        expect(
+          resolveCustomerMetric({ customerMetric: 'most_no_shows' }, prompt),
+        ).toBe('overview');
+        expect(
+          rescueUnscopedCustomerCountIntent(prompt, 'summarize_customers'),
+        ).toEqual({
           action: 'summarize_customers',
           customerMetric: 'overview',
           rescueReason: 'unscoped_customer_count',
-        },
-      );
-      expect(rescueUnscopedCustomerCountIntent(prompt, 'list_customers')?.action).toBe(
-        'summarize_customers',
-      );
-    });
+        });
+        expect(
+          rescueUnscopedCustomerCountIntent(prompt, 'list_customers')?.action,
+        ).toBe('summarize_customers');
+      },
+    );
 
     it('does not steal ranking or segment prompts', () => {
       expect(
@@ -99,20 +99,22 @@ describe('Sprint 18 customer page AI metrics', () => {
         isCustomerRetentionRatePrompt('What is my customer retention rate?'),
       ).toBe(true);
       expect(
-        isCustomerRetentionRatePrompt('How many returning customers do I have?'),
+        isCustomerRetentionRatePrompt(
+          'How many returning customers do I have?',
+        ),
       ).toBe(true);
-      expect(
-        isCustomerRetentionRatePrompt('Are customers coming back?'),
-      ).toBe(true);
+      expect(isCustomerRetentionRatePrompt('Are customers coming back?')).toBe(
+        true,
+      );
     });
 
     it('does not steal unrelated customer prompts', () => {
       expect(
         isCustomerRetentionRatePrompt('Which customer has the most no-shows?'),
       ).toBe(false);
-      expect(isCustomerRetentionRatePrompt('How many customers do I have?')).toBe(
-        false,
-      );
+      expect(
+        isCustomerRetentionRatePrompt('How many customers do I have?'),
+      ).toBe(false);
     });
 
     it('resolves the retention metric via resolveCustomerMetric', () => {
@@ -148,7 +150,10 @@ describe('Sprint 18 customer page AI metrics', () => {
         ),
       ).toBeNull();
       expect(
-        rescueCustomerRetentionRateIntent('How many customers do I have?', 'unknown'),
+        rescueCustomerRetentionRateIntent(
+          'How many customers do I have?',
+          'unknown',
+        ),
       ).toBeNull();
     });
   });

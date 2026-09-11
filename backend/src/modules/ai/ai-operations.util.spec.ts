@@ -164,10 +164,9 @@ describe('ai-operations.util', () => {
     expect(applyPriceAdjustment(20, dollars!)).toBe(25);
     expect(applyPriceAdjustment(20, { percentChange: 5 })).toBe(21);
 
-    const lowered = parsePriceAdjustment(
-      'Lower Neck Massage by $10',
-      { serviceName: 'Neck Massage' },
-    );
+    const lowered = parsePriceAdjustment('Lower Neck Massage by $10', {
+      serviceName: 'Neck Massage',
+    });
     expect(lowered?.amountChange).toBe(-10);
     expect(applyPriceAdjustment(50, lowered!)).toBe(40);
 

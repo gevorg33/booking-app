@@ -1,6 +1,4 @@
-import {
-  E2E271_VOICE_CATEGORY_NAME_CASES,
-} from './ai-e2e271-create-service-category-voice-name.fixtures.js';
+import { E2E271_VOICE_CATEGORY_NAME_CASES } from './ai-e2e271-create-service-category-voice-name.fixtures.js';
 import {
   enrichServiceCategoryRescueParams,
   extractCreateServiceCategoryFromPrompt,
@@ -45,9 +43,9 @@ describe('e2e-bug.271 create_service_category voice name keeps trailing tokens',
   });
 
   it('stripTrailingCategoryNamePoliteness leaves core name intact', () => {
-    expect(
-      stripTrailingCategoryNamePoliteness('brows E2E271-abc please'),
-    ).toBe('brows E2E271-abc');
+    expect(stripTrailingCategoryNamePoliteness('brows E2E271-abc please')).toBe(
+      'brows E2E271-abc',
+    );
     expect(stripTrailingCategoryNamePoliteness('Spa Treatments.')).toBe(
       'Spa Treatments',
     );

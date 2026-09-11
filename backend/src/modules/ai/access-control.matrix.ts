@@ -4,6 +4,14 @@ import {
   isAnyProductGuideIntent,
 } from './ai-product-guide-completion.util.js';
 import { APP_GUIDE_INTENTS } from './ai-product-guide.util.js';
+// e2e-bug.356 — the permission gate reads the specs. `ai-command-spec.types.ts`
+// imports `AccessTier` from this file with `import type`, which is erased at
+// compile time, so this does not create a runtime cycle.
+import { COMMAND_SPECS } from './ai-command-spec.registry.js';
+import {
+  isSpecAllowedForTier,
+  resolveSpecByAction,
+} from './ai-command-spec.derive.js';
 import {
   META_PRODUCT_GUIDE_INTENTS,
   PROVIDER_META_GUIDE_INTENTS,
@@ -437,6 +445,17 @@ export const PROVIDER_DENIED_BY_TIER: Record<
     'summarize_utilization',
     'mark_no_shows',
     'payment_sweep',
+    // e2e-bug.378: these three are team-wide views, and `staff` is explicitly
+    // denied them below. `client` — a strictly lower tier — was allowed, so a
+    // client-tier provider-app user could see team coordination data that a
+    // staff member could not. The tiers now nest correctly.
+    //
+    // Fixed by DENYING client rather than granting staff: the staff entry is a
+    // deliberate "team-wide data is manager+" decision, and overriding it would
+    // widen access on a guess. This only narrows.
+    'coordinate_waitlist_offer',
+    'team_whos_next',
+    'team_floor_status',
   ]),
   staff: new Set([
     'payment_sweep',
@@ -449,6 +468,48 @@ export const PROVIDER_DENIED_BY_TIER: Record<
   owner: new Set(),
 };
 
+/**
+ * e2e-bug.356 — the spec decides; the deny-list is the fallback for actions no
+ * spec covers.
+ *
+ * Both gates used to be pure denials, so **a command absent from the list was
+ * permitted**. Every command added after the list was written became available
+ * to every tier by default, and nothing enumerated them, so the set could not be
+ * reviewed. `CommandSpec.tiers` fails closed by construction (§23): a spec with
+ * no tier entry for a surface denies.
+ *
+ * Measured before the change, across every registry command on these two
+ * surfaces:
+ *
+ * | surface/tier | spec agrees | spec would deny | no spec |
+ * |---|---:|---:|---:|
+ * | dashboard/client | 0 | **265** | 0 |
+ * | dashboard/staff | 234 | 0 | 0 |
+ * | dashboard/manager | 386 | 0 | 0 |
+ * | dashboard/owner | 388 | 0 | 0 |
+ * | provider/* | 557 | 0 | 0 |
+ *
+ * **`no spec` is zero**, so this is not a migration with a gap — the port is
+ * complete (696/696, §66) and every registry command already carries an explicit
+ * decision. The single behavioural delta is `dashboard/client`, where the
+ * deny-list permitted 265 commands and every spec denies them. Those were
+ * reachable only because `AiGatewayService` separately refuses `client` on the
+ * dashboard outright — defence in depth that was load-bearing rather than
+ * redundant. It is now redundant, which is what it should have been.
+ *
+ * The deny-list fallback stays for actions with no spec: pipeline pseudo-actions
+ * like `compound_intent` are not registry commands and must keep working.
+ */
+function specDecision(
+  surface: 'dashboard' | 'provider',
+  tier: AccessTier,
+  action: string,
+): boolean | null {
+  const spec = resolveSpecByAction(COMMAND_SPECS, action);
+  if (!spec) return null;
+  return isSpecAllowedForTier(spec, surface, tier);
+}
+
 export function isDashboardIntentAllowed(
   tier: AccessTier,
   action: string,
@@ -459,6 +520,8 @@ export function isDashboardIntentAllowed(
     action === 'security_blocked'
   )
     return true;
+  const decided = specDecision('dashboard', tier, action);
+  if (decided !== null) return decided;
   return !DASHBOARD_DENIED_BY_TIER[tier].has(action);
 }
 
@@ -472,6 +535,8 @@ export function isProviderIntentAllowed(
     action === 'security_blocked'
   )
     return true;
+  const decided = specDecision('provider', tier, action);
+  if (decided !== null) return decided;
   return !PROVIDER_DENIED_BY_TIER[tier].has(action);
 }
 

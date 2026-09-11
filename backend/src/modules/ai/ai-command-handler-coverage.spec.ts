@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import fs, { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DASHBOARD_CLASSIFIER_ACTION_UNION,
@@ -26,6 +26,35 @@ const DASHBOARD_CORE_LOGIC_SOURCE = readFileSync(
   join(__dirname, 'ai-dashboard-core.logic.ts'),
   'utf8',
 );
+
+// e2e-bug.534 — a dispatch-map registration is a handler too.
+//
+// This suite predates the move from a switch in AiCommandService to per-domain
+// dispatch builders. Nine dashboard intents were reported as having no handler
+// — explain_ai_audit_log, explain_ai_capabilities, explain_ai_usage_analytics,
+// get_provider_calendar, list_customers, list_schedule_blocks,
+// summarize_ai_briefing, summarize_ai_settings, summarize_ai_weekly_report —
+// and every one of them is in fact wired, via `map.set('<id>', …)` in
+// ai-meta-ops-dispatch.build.ts, ai-customer-crm-dispatch.build.ts or
+// ai-schedule-handlers-dispatch.build.ts. Checked individually, not inferred
+// from a sample.
+//
+// The registry still names AiCommandService as their handler, which is what put
+// them in this list; that is a separate question from whether they are
+// reachable, and they are. Accept either wiring so the gate keeps catching a
+// genuinely unhandled intent without failing on the architecture it moved to.
+const DISPATCH_BUILD_SOURCES = fs
+  .readdirSync(__dirname)
+  .filter((name) => name.endsWith('-dispatch.build.ts'))
+  .map((name) => readFileSync(join(__dirname, name), 'utf8'))
+  .join('\n');
+
+function hasAnyHandlerWiring(id: string): boolean {
+  return (
+    AI_COMMAND_SERVICE_SOURCE.includes(`case '${id}':`) ||
+    DISPATCH_BUILD_SOURCES.includes(`map.set('${id}'`)
+  );
+}
 
 const DASHBOARD_META_INTENTS = new Set([
   'unknown',
@@ -72,9 +101,7 @@ function dashboardIntentsRequiringLegacySwitchCase(): string[] {
 describe('ai command handler coverage (ai-cmd-ext-0.2 / ai-cmd-ext-6.1)', () => {
   it('maps every legacy AiCommandService dashboard intent to a switch case', () => {
     const required = dashboardIntentsRequiringLegacySwitchCase();
-    const missing = required.filter(
-      (id) => !AI_COMMAND_SERVICE_SOURCE.includes(`case '${id}':`),
-    );
+    const missing = required.filter((id) => !hasAnyHandlerWiring(id));
 
     expect(missing).toEqual([]);
   });
@@ -155,8 +182,13 @@ describe('ai command INTENT_SCHEMA union drift (ai-cmd-ext-0.1)', () => {
 
 describe('ai command default branch telemetry (ai-cmd-ext-0.3)', () => {
   it('routes executeSingleIntent default through registry-aware unwired helper', () => {
-    expect(AI_COMMAND_SERVICE_SOURCE).toContain(
-      'buildUnwiredDashboardIntentResult(parsed.action',
+    // Matched with tolerant whitespace rather than as a literal substring: the
+    // call sits ~60 columns deep, so prettier wraps it across lines whenever the
+    // surrounding code shifts, and the assertion then fails for a reformat that
+    // changed no behaviour. The invariant is "the default branch calls the
+    // registry-aware helper with parsed.action", not how it is line-broken.
+    expect(AI_COMMAND_SERVICE_SOURCE).toMatch(
+      /buildUnwiredDashboardIntentResult\(\s*parsed\.action/,
     );
     expect(AI_COMMAND_SERVICE_SOURCE).not.toContain(
       "I don't know how to execute that action yet",

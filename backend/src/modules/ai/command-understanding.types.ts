@@ -20,7 +20,16 @@ export type IntentCandidateSource =
   | 'rescue'
   | 'self_verify'
   | 'structural_enrich'
-  | 'guide_handoff';
+  | 'guide_handoff'
+  /**
+   * The §15 planner, routing rather than observing.
+   *
+   * e2e-bug.392 — until this existed the planner ran after the response was
+   * built and could not affect it, which meant no Phase 8 slice could retire its
+   * detectors: deleting them would have removed routing with nothing to replace
+   * it. Gated per domain by `AI_PLANNER_EXECUTE_DOMAINS`, unset meaning none.
+   */
+  | 'planner';
 
 /**
  * Scored intent hypothesis from any understand-stage producer.
@@ -30,6 +39,25 @@ export interface IntentCandidate {
   action: string;
   confidence: number;
   source: IntentCandidateSource;
+  /**
+   * Ranked above confidence when set — e2e-bug.403.
+   *
+   * The rerank sorts on `confidence`, which works while every candidate's number
+   * means the same thing. It stopped being true when the planner joined: its
+   * confidence is an LLM self-report anchored by an example value in a prompt
+   * template, and the classifier's is a calibrated score. On the `tour` slice
+   * both land on 0.90-0.95, so the winner was decided by that example.
+   *
+   * Precedence exists for the one case where the answer is not a matter of
+   * degree: in a domain whose detectors are retired (§93), the planner is the
+   * router. Rescue is locked there, so without this the classifier's answer —
+   * the very one rescue used to override — would win by a hundredth of a point.
+   *
+   * Default 0. Higher wins. Nothing sets it except a retired-domain planner
+   * route, and it is deliberately not a confidence boost: inflating a number to
+   * win a comparison hides that the comparison was never valid.
+   */
+  precedence?: number;
   /** Partial params from classifier / rescue (merged into final params). */
   params?: Record<string, unknown>;
   /** Hints from semantic anchors or heuristics (e.g. bookingFirstAvailable). */
@@ -118,6 +146,10 @@ export interface PipelineUnderstandResult {
 export const PIPELINE_UNDERSTAND_STAGE_ORDER = [
   'normalize',
   'fast_heuristics',
+  // `planner` is deliberately absent: it is a *conditional* stage, recorded only
+  // when `AI_PLANNER_EXECUTE_DOMAINS` names a domain (e2e-bug.392). This list is
+  // the flow every request must follow, and asserting an opt-in stage here would
+  // make the default configuration fail its own contract.
   'classify',
   'confidence_gate',
   'semantic_match',
@@ -152,6 +184,8 @@ export interface PipelineUnderstandInput {
   lastAction?: string;
   employees?: Array<{ id: string; name: string }>;
   customers?: Array<{ id: string; name: string }>;
+  /** Business locations — e2e-bug.460, lets the staff rescue tell a place from a person. */
+  locations?: Array<{ id: string; name: string }>;
   /** Session context for structural enrich (pipe-1.7.1). */
   sessionContext?: Record<string, unknown>;
   /** Skip normalize when caller already normalized (e.g. executeCommand). */

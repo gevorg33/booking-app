@@ -37,15 +37,19 @@ function buildDeps(overrides: Record<string, any> = {}): OnboardingLogicDeps {
       applyCatalog: jest.fn(async (_businessId: string, dto: any) => ({
         applied: dto.categories.length,
       })),
-      applyDefaultSchedule: jest.fn(async (_businessId: string, _userId: string) => ({
-        applied: true,
-      })),
+      applyDefaultSchedule: jest.fn(
+        async (_businessId: string, _userId: string) => ({
+          applied: true,
+        }),
+      ),
       skipScheduleStep: jest.fn(async (_businessId: string) => ({
         skipped: true,
       })),
-      applyVerticalPlaybook: jest.fn(async (_businessId: string, _userId: string) => ({
-        applied: true,
-      })),
+      applyVerticalPlaybook: jest.fn(
+        async (_businessId: string, _userId: string) => ({
+          applied: true,
+        }),
+      ),
       completeOnboarding: jest.fn(async (_businessId: string) => ({
         completed: true,
       })),

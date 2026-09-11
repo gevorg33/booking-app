@@ -271,12 +271,9 @@ describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () 
   describe('handleClaimClinicTaskLogic', () => {
     it('claims a task by explicit taskId', async () => {
       const deps = buildDeps();
-      const result = await handleClaimClinicTaskLogic(
-        deps,
-        'biz-1',
-        'user-1',
-        { taskId: 'task-1' },
-      );
+      const result = await handleClaimClinicTaskLogic(deps, 'biz-1', 'user-1', {
+        taskId: 'task-1',
+      });
 
       expect(result.success).toBe(true);
       expect(result.action).toBe('claim_clinic_task');
@@ -289,12 +286,9 @@ describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () 
 
     it('resolves a task by customerName when unambiguous', async () => {
       const deps = buildDeps();
-      const result = await handleClaimClinicTaskLogic(
-        deps,
-        'biz-1',
-        'user-1',
-        { customerName: 'Jane' },
-      );
+      const result = await handleClaimClinicTaskLogic(deps, 'biz-1', 'user-1', {
+        customerName: 'Jane',
+      });
 
       expect(result.success).toBe(true);
       expect(deps.providerMobile.claimProviderClinicTask).toHaveBeenCalledWith(
@@ -306,7 +300,12 @@ describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () 
 
     it('auto-resolves the only task in the inbox when no filters given', async () => {
       const deps = buildDeps();
-      const result = await handleClaimClinicTaskLogic(deps, 'biz-1', 'user-1', {});
+      const result = await handleClaimClinicTaskLogic(
+        deps,
+        'biz-1',
+        'user-1',
+        {},
+      );
 
       expect(result.success).toBe(true);
     });
@@ -360,12 +359,9 @@ describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () 
         },
       });
 
-      const result = await handleClaimClinicTaskLogic(
-        deps,
-        'biz-1',
-        'user-1',
-        { customerName: 'Jane' },
-      );
+      const result = await handleClaimClinicTaskLogic(deps, 'biz-1', 'user-1', {
+        customerName: 'Jane',
+      });
 
       expect(result.success).toBe(false);
       expect(result.details).toMatchObject({ clarify: true });
@@ -402,12 +398,9 @@ describe('ai-provider-clinic-tasks-and-results.logic (ai-cmd-provider-6.9)', () 
         },
       });
 
-      const result = await handleClaimClinicTaskLogic(
-        deps,
-        'biz-1',
-        'user-1',
-        { taskId: 'task-1' },
-      );
+      const result = await handleClaimClinicTaskLogic(deps, 'biz-1', 'user-1', {
+        taskId: 'task-1',
+      });
 
       expect(result.success).toBe(false);
       expect(result.summary).toContain('cannot be claimed');

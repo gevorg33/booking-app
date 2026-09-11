@@ -3,9 +3,11 @@ import { validateCommand } from './command-completion.validator.js';
 import { handleExplainPackageDisplayNameLogic } from './ai-package-localized-names.logic.js';
 import { EXPLAIN_PACKAGE_DISPLAY_NAME_PROMPTS } from './ai-package-display-name.fixtures.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai package display name integration (ai-cmd-lang-7)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -15,7 +17,7 @@ describe('ai package display name integration (ai-cmd-lang-7)', () => {
       defaultLocale: 'en',
       locale: 'en',
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),
@@ -83,18 +85,19 @@ describe('ai package display name integration (ai-cmd-lang-7)', () => {
       });
       expect(rescued?.action).toBe('explain_package_display_name');
 
-      const validation = validateCommand({
-        action: 'explain_package_display_name',
-        params: {
-          packageName,
-          ...(locale ? { locale } : {}),
-        },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_package_display_name',
+          params: {
+            packageName,
+            ...(locale ? { locale } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPackageDisplayNameLogic(

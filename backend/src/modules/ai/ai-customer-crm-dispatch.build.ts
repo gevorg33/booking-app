@@ -1,4 +1,5 @@
 import type { CommandResult } from './command-completion.types.js';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import {
   handleCancelSubscriptionAdminLogic,
@@ -40,7 +41,7 @@ export type CustomerCrmDispatchContext = {
   params: Record<string, any>;
   prompt?: string;
   customers: Customer[];
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined;
+  resolveCustomer: NamedResolver<Customer>;
   sessionCustomerId?: unknown;
 };
 

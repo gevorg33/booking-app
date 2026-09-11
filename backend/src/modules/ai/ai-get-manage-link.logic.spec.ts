@@ -16,7 +16,10 @@ describe('ai-get-manage-link.logic (ai-cmd-customer-4.4.5)', () => {
   };
 
   const deps = () => {
-    const bookingRow = { ...guestBooking, metadata: { ...guestBooking.metadata } };
+    const bookingRow = {
+      ...guestBooking,
+      metadata: { ...guestBooking.metadata },
+    };
     const lockedQb = {
       setLock: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -41,8 +44,8 @@ describe('ai-get-manage-link.logic (ai-cmd-customer-4.4.5)', () => {
         findOne: jest.fn(async () => bookingRow),
         save: jest.fn(async (booking: typeof bookingRow) => booking),
         manager: {
-          transaction: jest.fn(async (cb: (m: typeof manager) => Promise<string>) =>
-            cb(manager),
+          transaction: jest.fn(
+            async (cb: (m: typeof manager) => Promise<string>) => cb(manager),
           ),
         },
       },

@@ -3,6 +3,9 @@ import {
   handleListMyCollectionQueueLogic,
   handleMarkSpecimenCollectedLogic,
 } from './ai-provider-clinic-collection.logic.js';
+import type { ClinicLabStaffContext } from '../../common/utils/clinic-lab-access.util.js';
+import { makeClinicSpecimen } from '../clinic-test-results/entities/clinic-test-order.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   LIST_MY_COLLECTION_QUEUE_PROMPTS,
   MARK_SPECIMEN_COLLECTED_PROMPTS,
@@ -10,10 +13,9 @@ import {
 
 describe('ai-provider-clinic-collection.logic', () => {
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-1',
-      settings: { businessType: 'clinic' },
-    })),
+    findOne: jest.fn(async () =>
+      makeBusiness({ id: 'biz-1', settings: { businessType: 'clinic' } }),
+    ),
   };
   const clinicSpecimenService = {
     listSpecimens: jest.fn(async () => [
@@ -34,29 +36,37 @@ describe('ai-provider-clinic-collection.logic', () => {
         createdAt: new Date('2026-06-08T09:00:00.000Z'),
       },
     ]),
-    getSpecimenForBusiness: jest.fn(async () => ({
-      id: 'spec-abc123',
-      status: 'NotCollected',
-      orderId: 'order-abc123',
-      bookingId: 'booking-1',
-      specimenIdentifier: 'SP-ABC',
-      collectedAt: null,
-      createdAt: new Date('2026-06-08T09:00:00.000Z'),
-    })),
+    getSpecimenForBusiness: jest.fn(async () =>
+      makeClinicSpecimen({
+        id: 'spec-abc123',
+        status: 'NotCollected',
+        orderId: 'order-abc123',
+        bookingId: 'booking-1',
+        specimenIdentifier: 'SP-ABC',
+        createdAt: new Date('2026-06-08T09:00:00.000Z'),
+      }),
+    ),
   };
   const clinicSpecimenStatusService = {
-    transitionSpecimenStatus: jest.fn(async () => ({
-      id: 'spec-1',
-      status: 'Collected',
-      orderId: 'order-1',
-      collectedAt: new Date('2026-06-08T11:00:00.000Z'),
-    })),
+    transitionSpecimenStatus: jest.fn(async () =>
+      makeClinicSpecimen({
+        id: 'spec-1',
+        status: 'Collected',
+        orderId: 'order-1',
+        collectedAt: new Date('2026-06-08T11:00:00.000Z'),
+      }),
+    ),
   };
   const clinicLabAccessService = {
-    assertSpecimenLabAccess: jest.fn(async () => ({
-      employeeId: 'emp-1',
-      userId: 'user-1',
-    })),
+    // `membershipRole` was missing — it is required by `ClinicLabStaffContext`
+    // and is what the access checks branch on.
+    assertSpecimenLabAccess: jest.fn(
+      async (): Promise<ClinicLabStaffContext> => ({
+        employeeId: 'emp-1',
+        userId: 'user-1',
+        membershipRole: 'owner',
+      }),
+    ),
   };
 
   const deps = {

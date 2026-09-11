@@ -267,13 +267,7 @@ describe('ai-customer-waitlist.util (ai-cmd-customer-4.4.7)', () => {
 
   it.each(E2E235_WAITLIST_PROMPT_SCENARIOS)(
     'e2e-bug.235 prompt parse + summary ($id)',
-    ({
-      prompt,
-      serviceName,
-      employeeName,
-      summaryIncludes,
-      forbidden,
-    }) => {
+    ({ prompt, serviceName, employeeName, summaryIncludes, forbidden }) => {
       const parsed = parseJoinWaitlistFromPrompt(prompt);
       expect(parsed).not.toBeNull();
       if (serviceName) expect(parsed?.serviceName).toBe(serviceName);

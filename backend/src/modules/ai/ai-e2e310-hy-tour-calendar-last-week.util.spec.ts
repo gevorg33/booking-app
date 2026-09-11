@@ -18,30 +18,28 @@ function expectedWeekStart(relative: 'next' | 'last' | 'this'): string {
 }
 
 describe('e2e-bug.310 HY last-week tour calendar anchors', () => {
-  it.each(
-    E2E310_HY_LAST_WEEK_POSITIVES.map((row) => [row.id, row] as const),
-  )('%s — detects week list + relative weekStartDate', (_id, row) => {
-    expect(isListTourCalendarWeekPrompt(row.prompt)).toBe(true);
-    const parsed = parseListTourCalendarWeekFromPrompt(row.prompt);
-    expect(parsed).toBeTruthy();
-    if (row.weekRelative) {
-      expect(parsed?.weekStartDate).toBe(expectedWeekStart(row.weekRelative));
-    }
-    expect(
-      rescueListTourCalendarWeekIntent(
-        row.prompt,
-        'list_upcoming_tour_departures',
-      )?.action,
-    ).toBe('list_tour_calendar_week');
-  });
+  it.each(E2E310_HY_LAST_WEEK_POSITIVES.map((row) => [row.id, row] as const))(
+    '%s — detects week list + relative weekStartDate',
+    (_id, row) => {
+      expect(isListTourCalendarWeekPrompt(row.prompt)).toBe(true);
+      const parsed = parseListTourCalendarWeekFromPrompt(row.prompt);
+      expect(parsed).toBeTruthy();
+      if (row.weekRelative) {
+        expect(parsed?.weekStartDate).toBe(expectedWeekStart(row.weekRelative));
+      }
+      expect(
+        rescueListTourCalendarWeekIntent(
+          row.prompt,
+          'list_upcoming_tour_departures',
+        )?.action,
+      ).toBe('list_tour_calendar_week');
+    },
+  );
 
   it.each(
     E2E310_CLASSIFIER_OVERRIDE_CASES.map((row) => [row.id, row] as const),
   )('%s — prompt last week wins over classifier params', (_id, row) => {
-    const parsed = parseListTourCalendarWeekFromPrompt(
-      row.prompt,
-      row.params,
-    );
+    const parsed = parseListTourCalendarWeekFromPrompt(row.prompt, row.params);
     expect(parsed?.weekStartDate).toBe(expectedWeekStart(row.weekRelative));
   });
 

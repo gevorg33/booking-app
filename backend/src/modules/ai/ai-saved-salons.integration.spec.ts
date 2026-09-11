@@ -11,6 +11,7 @@ import {
   AI_COMMAND_EVAL_SWITCH_SALON_TENANT_CASES,
 } from './eval/ai-command-eval.cases.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('saved salons integration (ai-cmd-customer-4.17.4)', () => {
   let rescue: AiIntentRescueService;
@@ -23,15 +24,16 @@ describe('saved salons integration (ai-cmd-customer-4.17.4)', () => {
     'validates find_my_saved_salons $id',
     async ({ prompt }) => {
       expect(
-        validateCommand({
-          action: 'find_my_saved_salons',
-          params: {},
-          enrichedParams: {},
-          entities: {},
-          reasoning: 'test',
-          confidence: 0.9,
-          prompt,
-        }).issues,
+        validateCommand(
+          makeResolvedCommand({
+            action: 'find_my_saved_salons',
+            params: {},
+            enrichedParams: {},
+            entities: { employees: [], services: [] },
+            reasoning: 'test',
+            prompt,
+          }),
+        ).issues,
       ).toEqual([]);
       const result = await handleFindMySavedSalonsLogic(
         { recentSalons: [{ slug: 'demo-salon', name: 'Demo Salon' }] },
@@ -45,15 +47,16 @@ describe('saved salons integration (ai-cmd-customer-4.17.4)', () => {
     'validates switch_salon_tenant $id',
     async ({ prompt }) => {
       expect(
-        validateCommand({
-          action: 'switch_salon_tenant',
-          params: {},
-          enrichedParams: {},
-          entities: {},
-          reasoning: 'test',
-          confidence: 0.9,
-          prompt,
-        }).issues,
+        validateCommand(
+          makeResolvedCommand({
+            action: 'switch_salon_tenant',
+            params: {},
+            enrichedParams: {},
+            entities: { employees: [], services: [] },
+            reasoning: 'test',
+            prompt,
+          }),
+        ).issues,
       ).toEqual([]);
       const result = await handleSwitchSalonTenantLogic(
         {

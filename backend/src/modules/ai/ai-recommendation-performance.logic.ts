@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { EventStoreService } from '../../events/store/event-store.service.js';
 import type { InventoryService } from '../inventory/inventory.service.js';
 import type { Business } from '../business/entities/business.entity.js';
@@ -17,10 +21,10 @@ import {
 } from './ai-recommendation-performance.util.js';
 
 export interface SummarizeRecommendationPerformanceLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   eventStore: Pick<EventStoreService, 'getEvents'>;
   inventoryService: Pick<InventoryService, 'listProducts'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
+  serviceRepo: EntityFinder<Service>;
 }
 
 const DEFAULT_DAYS_AHEAD = 30;

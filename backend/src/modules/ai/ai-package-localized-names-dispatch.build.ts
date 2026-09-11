@@ -47,7 +47,10 @@ export function buildPackageLocalizedNamesLogicDispatchMap(): ReadonlyMap<
   });
 
   map.set('explain_package_display_name', async (deps, ctx) => {
-    const parsed = parsePackageDisplayNameExplainFromPrompt(ctx.prompt, ctx.params);
+    const parsed = parsePackageDisplayNameExplainFromPrompt(
+      ctx.prompt,
+      ctx.params,
+    );
     const merged = parsed
       ? {
           ...ctx.params,

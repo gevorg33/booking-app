@@ -202,17 +202,16 @@ const REQUEST_CLIENT_REVIEW_I18N: Record<
   },
 };
 
-const LIST_REASSIGN_OPTIONS_I18N: Record<string, { hy: string; ru: string }> =
-  {
-    'list-reassign-options-en': {
-      hy: 'Ո՞վ է ազատ ստանձնելու այս ամրագրումը փոխարենը',
-      ru: 'Кто ещё свободен принять эту запись вместо меня?',
-    },
-    'reassign-options-generic-en': {
-      hy: 'Վերանշանակման տարբերակներ այս ամրագրման համար',
-      ru: 'Варианты переназначения для этой записи',
-    },
-  };
+const LIST_REASSIGN_OPTIONS_I18N: Record<string, { hy: string; ru: string }> = {
+  'list-reassign-options-en': {
+    hy: 'Ո՞վ է ազատ ստանձնելու այս ամրագրումը փոխարենը',
+    ru: 'Кто ещё свободен принять эту запись вместо меня?',
+  },
+  'reassign-options-generic-en': {
+    hy: 'Վերանշանակման տարբերակներ այս ամրագրման համար',
+    ru: 'Варианты переназначения для этой записи',
+  },
+};
 
 const REASSIGN_BOOKING_SAME_DAY_I18N: Record<
   string,
@@ -269,77 +268,77 @@ const LIST_TEAM_UNPAID_TODAY_I18N: Record<string, { hy: string; ru: string }> =
     },
   };
 
-const EXPLAIN_REVIEWS_INBOX_I18N: Record<string, { hy: string; ru: string }> =
-  {
-    'reviews-inbox-my-rating-month-en': {
-      hy: 'Իմ գնահատականը այս ամիս',
-      ru: 'Мой рейтинг за этот месяц',
-    },
-    'reviews-inbox-bad-review-yesterday-en': {
-      hy: 'Վատ կարծիք երեկ — ցուցադրիր',
-      ru: 'Плохой отзыв вчера — покажи его',
-    },
-    'reviews-inbox-my-reviews-en': {
-      hy: 'Ցուցադրիր իմ կարծիքները այս ամիս',
-      ru: 'Покажи мои отзывы за этот месяц',
-    },
-    'reviews-inbox-inbox-en': {
-      hy: 'Ցուցադրիր իմ բոլոր կարծիքները',
-      ru: 'Покажи все мои отзывы',
-    },
-    'reviews-inbox-low-reviews-week-en': {
-      hy: 'Կա՞ ցածր կարծիք այս շաբաթ',
-      ru: 'Есть плохие отзывы на этой неделе?',
-    },
-    'reviews-inbox-recent-reviews-en': {
-      hy: 'Իմ վերջին կարծիքները',
-      ru: 'Мои последние отзывы',
-    },
-    'reviews-inbox-did-i-get-bad-en': {
-      hy: 'Ստացե՞լ եմ վատ կարծիք այսօր',
-      ru: 'Получил ли я плохие отзывы сегодня?',
-    },
-    'reviews-inbox-team-reviews-month-en': {
-      hy: 'Թիմի կարծիքները այս ամիս',
-      ru: 'Отзывы команды за этот месяц',
-    },
-    'reviews-inbox-team-rating-week-en': {
-      hy: 'Ո՞րն է մեր թիմի գնահատականը այս շաբաթ',
-      ru: 'Какой у нас рейтинг команды на этой неделе?',
-    },
-    'reviews-inbox-negative-review-en': {
-      hy: 'Ցուցադրիր վատ կարծիքները այս շաբաթ',
-      ru: 'Покажи плохие отзывы за эту неделю',
-    },
-    'reviews-inbox-five-star-latest-en': {
-      hy: 'Վերջին 5 աստղանի կարծիքները',
-      ru: 'Последние отзывы с 5 звёздами',
-    },
-  };
+const EXPLAIN_REVIEWS_INBOX_I18N: Record<string, { hy: string; ru: string }> = {
+  'reviews-inbox-my-rating-month-en': {
+    hy: 'Իմ գնահատականը այս ամիս',
+    ru: 'Мой рейтинг за этот месяц',
+  },
+  'reviews-inbox-bad-review-yesterday-en': {
+    hy: 'Վատ կարծիք երեկ — ցուցադրիր',
+    ru: 'Плохой отзыв вчера — покажи его',
+  },
+  'reviews-inbox-my-reviews-en': {
+    hy: 'Ցուցադրիր իմ կարծիքները այս ամիս',
+    ru: 'Покажи мои отзывы за этот месяц',
+  },
+  'reviews-inbox-inbox-en': {
+    hy: 'Ցուցադրիր իմ բոլոր կարծիքները',
+    ru: 'Покажи все мои отзывы',
+  },
+  'reviews-inbox-low-reviews-week-en': {
+    hy: 'Կա՞ ցածր կարծիք այս շաբաթ',
+    ru: 'Есть плохие отзывы на этой неделе?',
+  },
+  'reviews-inbox-recent-reviews-en': {
+    hy: 'Իմ վերջին կարծիքները',
+    ru: 'Мои последние отзывы',
+  },
+  'reviews-inbox-did-i-get-bad-en': {
+    hy: 'Ստացե՞լ եմ վատ կարծիք այսօր',
+    ru: 'Получил ли я плохие отзывы сегодня?',
+  },
+  'reviews-inbox-team-reviews-month-en': {
+    hy: 'Թիմի կարծիքները այս ամիս',
+    ru: 'Отзывы команды за этот месяц',
+  },
+  'reviews-inbox-team-rating-week-en': {
+    hy: 'Ո՞րն է մեր թիմի գնահատականը այս շաբաթ',
+    ru: 'Какой у нас рейтинг команды на этой неделе?',
+  },
+  'reviews-inbox-negative-review-en': {
+    hy: 'Ցուցադրիր վատ կարծիքները այս շաբաթ',
+    ru: 'Покажи плохие отзывы за эту неделю',
+  },
+  'reviews-inbox-five-star-latest-en': {
+    hy: 'Վերջին 5 աստղանի կարծիքները',
+    ru: 'Последние отзывы с 5 звёздами',
+  },
+};
 
-const EXPLAIN_REQUEST_REVIEW_FLOW_I18N: Record<string, { hy: string; ru: string }> =
-  {
-    'explain-request-review-flow-how-en': {
-      hy: 'Ինչ գործընթաց կա հաճախորդից կարծիք խնդրելու համար',
-      ru: 'Как мне попросить отзыв у клиента?',
-    },
-    'explain-request-review-flow-can-i-en': {
-      hy: 'Կարո՞ղ եմ կարծիք խնդրել Jane-ից',
-      ru: 'Могу ли я попросить отзыв у Jane?',
-    },
-  };
+const EXPLAIN_REQUEST_REVIEW_FLOW_I18N: Record<
+  string,
+  { hy: string; ru: string }
+> = {
+  'explain-request-review-flow-how-en': {
+    hy: 'Ինչ գործընթաց կա հաճախորդից կարծիք խնդրելու համար',
+    ru: 'Как мне попросить отзыв у клиента?',
+  },
+  'explain-request-review-flow-can-i-en': {
+    hy: 'Կարո՞ղ եմ կարծիք խնդրել Jane-ից',
+    ru: 'Могу ли я попросить отзыв у Jane?',
+  },
+};
 
-const DRAFT_REVIEW_RESPONSE_I18N: Record<string, { hy: string; ru: string }> =
-  {
-    'draft-review-response-reply-en': {
-      hy: 'Օգնիր պատասխանել այս կարծիքին',
-      ru: 'Помоги ответить на этот отзыв',
-    },
-    'draft-review-response-professional-en': {
-      hy: 'Գրիր պատասխան այս կարծիքին',
-      ru: 'Напиши профессиональный ответ на отзыв',
-    },
-  };
+const DRAFT_REVIEW_RESPONSE_I18N: Record<string, { hy: string; ru: string }> = {
+  'draft-review-response-reply-en': {
+    hy: 'Օգնիր պատասխանել այս կարծիքին',
+    ru: 'Помоги ответить на этот отзыв',
+  },
+  'draft-review-response-professional-en': {
+    hy: 'Գրիր պատասխան այս կարծիքին',
+    ru: 'Напиши профессиональный ответ на отзыв',
+  },
+};
 
 function pushExp2MultilingualRows(
   rows: ProviderExp2MultilingualScenario[],
@@ -378,20 +377,13 @@ function buildProviderExp2MultilingualScenarios(): ProviderExp2MultilingualScena
   for (const [enScenarioId, i18n] of Object.entries(READY_NOW_I18N)) {
     pushExp2MultilingualRows(rows, enScenarioId, 'mark_ready_now', i18n);
   }
-  for (const [enScenarioId, i18n] of Object.entries(
-    SUGGEST_CANCEL_NOTE_I18N,
-  )) {
+  for (const [enScenarioId, i18n] of Object.entries(SUGGEST_CANCEL_NOTE_I18N)) {
     pushExp2MultilingualRows(rows, enScenarioId, 'suggest_cancel_note', i18n);
   }
   for (const [enScenarioId, i18n] of Object.entries(
     REQUEST_CLIENT_REVIEW_I18N,
   )) {
-    pushExp2MultilingualRows(
-      rows,
-      enScenarioId,
-      'request_client_review',
-      i18n,
-    );
+    pushExp2MultilingualRows(rows, enScenarioId, 'request_client_review', i18n);
   }
   for (const [enScenarioId, i18n] of Object.entries(
     LIST_REASSIGN_OPTIONS_I18N,

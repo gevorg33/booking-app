@@ -280,53 +280,28 @@ export class SchedulingEngineService {
     return h * 60 + m;
   }
 
-  async createBooking(request: BookingRequest): Promise<Booking> {
-    return this.dataSource.transaction(async (manager) => {
-      const service = await manager.findOneOrFail(Service, {
-        where: { id: request.serviceId },
-      });
-      const totalDuration = service.durationMinutes + service.bufferMinutes;
+  /**
+   * e2e-bug.539 — `createBooking` was removed on 2026-09-11.
+   *
+   * It created `Booking` rows without ever reading a slot row: it locked
+   * overlapping bookings, but ignored `appointmentCount < maxAppointmentCount`
+   * (so it would have refused the 2nd booking of a capacity>1 group class),
+   * never incremented `appointmentCount` (leaving the counter understated, so a
+   * later `BookingService.create` would believe there was more room than there
+   * was), and took no ordered `FOR UPDATE` over the window's micro-slots, which
+   * is what gives the guarded path its deadlock avoidance.
+   *
+   * It had **zero callers**. e2e-bug.483 accepted application-only protection
+   * against double-booking on the condition that every writer routes through
+   * `BookingService.create`; a second, divergent, unused creator is the trap
+   * that condition is about, and keeping it allowlisted in
+   * `booking-creation-paths.spec.ts` legitimised it.
+   *
+   * This service's actual role is read-only analysis — `getAvailableSlots`,
+   * `findConflicts`, `getEmployeeUtilization`. If it ever needs to create a
+   * booking, it should call `BookingService.create` rather than grow its own.
+   */
 
-      const startTime = new Date(request.startTime);
-      const endTime = new Date(startTime.getTime() + totalDuration * 60000);
-
-      if (startTime.getUTCMinutes() % SLOT_GRANULARITY_MINUTES !== 0) {
-        throw new ConflictException(
-          'Booking must start on a 10-minute boundary',
-        );
-      }
-
-      const conflicts = await manager
-        .createQueryBuilder(Booking, 'booking')
-        .setLock('pessimistic_write')
-        .where('booking.employee_id = :employeeId', {
-          employeeId: request.employeeId,
-        })
-        .andWhere('booking.status NOT IN (:...excludedStatuses)', {
-          excludedStatuses: [BookingStatus.CANCELLED],
-        })
-        .andWhere('booking.startTime < :endTime', { endTime })
-        .andWhere('booking.endTime > :startTime', { startTime })
-        .getMany();
-
-      if (conflicts.length > 0) {
-        throw new ConflictException('Time slot is already booked');
-      }
-
-      const booking = manager.create(Booking, {
-        businessId: request.businessId,
-        employeeId: request.employeeId,
-        serviceId: request.serviceId,
-        customerId: request.customerId,
-        startTime,
-        endTime,
-        status: BookingStatus.CONFIRMED,
-        notes: request.notes,
-      });
-
-      return manager.save(booking);
-    });
-  }
 
   async cancelBooking(bookingId: string, reason?: string): Promise<Booking> {
     const booking = await this.bookingRepo.findOneOrFail({

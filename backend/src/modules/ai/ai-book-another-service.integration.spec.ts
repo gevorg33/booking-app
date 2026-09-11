@@ -4,6 +4,7 @@ import { BOOK_ANOTHER_SERVICE_PROMPTS } from './ai-book-another-service.fixtures
 import { handleBookAnotherServiceLogic } from './ai-book-another-service.logic.js';
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_BOOK_ANOTHER_SERVICE_CASES } from './eval/ai-command-eval.cases.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-book-another-service integration (ai-cmd-customer-4.3.6)', () => {
   const business = { id: 'biz-1', name: 'Glow Salon' };
@@ -41,15 +42,16 @@ describe('ai-book-another-service integration (ai-cmd-customer-4.3.6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('book_another_service');
 
-      const validation = validateCommand({
-        action: 'book_another_service',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'book_another_service',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

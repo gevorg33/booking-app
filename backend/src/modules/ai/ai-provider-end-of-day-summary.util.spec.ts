@@ -13,9 +13,7 @@ describe('ai-provider-end-of-day-summary.util', () => {
 
   it('does not misdetect summarize_day (mid-day status check)', () => {
     expect(isEndOfDaySummaryPrompt("How's today looking?")).toBe(false);
-    expect(isEndOfDaySummaryPrompt('Give me a rundown of today')).toBe(
-      false,
-    );
+    expect(isEndOfDaySummaryPrompt('Give me a rundown of today')).toBe(false);
     expect(isEndOfDaySummaryPrompt('Summarize my day')).toBe(false);
     expect(isEndOfDaySummaryPrompt('Any no-shows yet today?')).toBe(false);
   });

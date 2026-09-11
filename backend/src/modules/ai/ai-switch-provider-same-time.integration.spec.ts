@@ -1,4 +1,7 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import {
   SWITCH_PROVIDER_SAME_TIME_PROMPTS,
@@ -8,6 +11,7 @@ import { SWITCH_PROVIDER_SAME_TIME_MULTILINGUAL_SCENARIOS } from './ai-switch-pr
 import { handleSwitchProviderSameTimeLogic } from './ai-switch-provider-same-time.logic.js';
 import { rescueSwitchProviderSameTimeIntent } from './ai-switch-provider-same-time.util.js';
 import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', () => {
   const startTime = '2026-07-01T15:00:00.000Z';
@@ -15,18 +19,15 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
 
   const employeeRepo = {
     find: jest.fn(async () => [
-      { id: 'emp-marco', name: 'Marco', businessId: 'biz-1', isActive: true },
-      { id: 'emp-anna', name: 'Anna', businessId: 'biz-1', isActive: true },
-      { id: 'emp-maria', name: 'Maria', businessId: 'biz-1', isActive: true },
+      makeEmployee({ id: 'emp-marco', name: 'Marco', businessId: 'biz-1' }),
+      makeEmployee({ id: 'emp-anna', name: 'Anna', businessId: 'biz-1' }),
+      makeEmployee({ id: 'emp-maria', name: 'Maria', businessId: 'biz-1' }),
     ]),
   };
   const serviceRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'svc-haircut',
-      name: 'Haircut',
-      businessId: 'biz-1',
-      isActive: true,
-    })),
+    findOne: jest.fn(async () =>
+      makeService({ id: 'svc-haircut', name: 'Haircut', businessId: 'biz-1' }),
+    ),
   };
   const publicBookingService = {
     getServiceDaySlots: jest.fn(async () => ({
@@ -56,7 +57,7 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
     })),
   };
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    findOne: jest.fn(async () => makeBusiness({ id: 'biz-1', slug: 'salon' })),
   };
   const switchDeps = () => ({
     employeeRepo,
@@ -89,19 +90,20 @@ describe('ai switch provider same time integration (ai-cmd-customer-4.11.4)', ()
     );
     expect(directRescue?.action).toBe('switch_provider_same_time');
 
-    const validation = validateCommand({
-      action: 'switch_provider_same_time',
-      params: {
-        mode: row.mode,
-        ...(row.providerName ? { providerName: row.providerName } : {}),
-        ...(row.timeSlot ? { timeSlot: row.timeSlot } : {}),
-      },
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt: row.prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'switch_provider_same_time',
+        params: {
+          mode: row.mode,
+          ...(row.providerName ? { providerName: row.providerName } : {}),
+          ...(row.timeSlot ? { timeSlot: row.timeSlot } : {}),
+        },
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: row.prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleSwitchProviderSameTimeLogic(

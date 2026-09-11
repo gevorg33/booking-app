@@ -10,14 +10,63 @@ function baseCmd(overrides: Partial<ResolvedCommand>): ResolvedCommand {
     action: 'create_booking',
     params: {},
     enrichedParams: {},
-    entities: {},
+    entities: { employees: [], services: [] },
     reasoning: 'test',
-    confidence: 0.9,
     ...overrides,
   };
 }
 
 describe('command-completion.validator', () => {
+  /**
+   * §306 (`e2e-bug.462`) — the completion gate must not accept a param the
+   * handler cannot use.
+   *
+   * `holiday_mode` used to count `dateFrom` as a closure date. Nothing
+   * downstream reads it: `prepareHolidayModePlanLogic` calls
+   * `parseHolidayModeDates(params)`, which reads only `closeDates`,
+   * `holidayDates`, `extendDate` and `extendTime*`, then returns `null` on
+   * `!closeDates.length`. So the plan was judged complete, executed, and failed
+   * — the user got an error where a clarifying question belonged.
+   */
+  describe('holiday_mode closure dates (§306)', () => {
+    const holiday = (params: Record<string, unknown>) =>
+      validateCommand(
+        baseCmd({
+          action: 'holiday_mode',
+          params,
+          entities: {
+            employees: [],
+            services: [],
+            employee: { id: 'e1', name: 'Gevorg' } as any,
+          },
+        }),
+      );
+
+    it('asks for closure dates when only a date range is given', () => {
+      const result = holiday({
+        employeeName: 'Gevorg',
+        dateFrom: '2026-12-24',
+      });
+      expect(result.issues.some((i) => i.field === 'closeDates')).toBe(true);
+    });
+
+    it('accepts closeDates', () => {
+      const result = holiday({
+        employeeName: 'Gevorg',
+        closeDates: ['2026-12-24', '2026-12-25'],
+      });
+      expect(result.issues.some((i) => i.field === 'closeDates')).toBe(false);
+    });
+
+    it('accepts holidayDates, the other spelling the handler reads', () => {
+      const result = holiday({
+        employeeName: 'Gevorg',
+        holidayDates: ['2026-12-24'],
+      });
+      expect(result.issues.some((i) => i.field === 'closeDates')).toBe(false);
+    });
+  });
+
   it('requires service for create_booking', () => {
     const result = validateCommand(
       baseCmd({
@@ -28,6 +77,7 @@ describe('command-completion.validator', () => {
         },
         enrichedParams: { employeeId: 'e1' },
         entities: {
+          services: [],
           employee: { id: 'e1', name: 'Gevorg' } as any,
           employees: [],
         },
@@ -48,7 +98,11 @@ describe('command-completion.validator', () => {
           timeSlot: '09:00',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -63,7 +117,11 @@ describe('command-completion.validator', () => {
           serviceName: 'facemassage',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -80,7 +138,11 @@ describe('command-completion.validator', () => {
           notBeforeTime: '17:00',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -97,7 +159,11 @@ describe('command-completion.validator', () => {
           timeOfDay: 'evening',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(false);
@@ -115,7 +181,7 @@ describe('command-completion.validator', () => {
           notBeforeTime: '17:00',
         },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
       }),
     );
     expect(result.ok).toBe(true);
@@ -128,7 +194,7 @@ describe('command-completion.validator', () => {
         action: 'check_availability',
         params: { timeOfDay: 'afternoon', notBeforeTime: '12:00' },
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
       }),
     );
     expect(result.ok).toBe(true);
@@ -140,7 +206,7 @@ describe('command-completion.validator', () => {
         action: 'cancel_bookings',
         params: {},
         enrichedParams: {},
-        entities: {},
+        entities: { employees: [], services: [] },
       }),
     );
     expect(result.ok).toBe(false);

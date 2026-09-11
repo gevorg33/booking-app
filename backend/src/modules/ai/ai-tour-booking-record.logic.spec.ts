@@ -1,13 +1,14 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { handleExplainTourBookingRecordLogic } from './ai-tour-booking-record.logic.js';
 
 describe('ai-tour-booking-record.logic (ai-cmd-tour-7)', () => {
-  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10);
-  const tourEndDate = addDaysToDateKey(tourStartDate, 2);
+  const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
+  const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
-  const tourBooking = {
+  const tourBooking = makeBooking({
     id: 'bk-tour-1',
     businessId: 'biz-1',
     customerId: 'cust-1',
@@ -26,7 +27,7 @@ describe('ai-tour-booking-record.logic (ai-cmd-tour-7)', () => {
       metadata: { serviceType: 'tour', maxGroupSize: 8 },
     },
     customer: { name: 'John Doe' },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [tourBooking]),

@@ -3,10 +3,38 @@ import { handleAddBookingToCalendarLogic } from './ai-add-booking-to-calendar.lo
 import { ADD_BOOKING_TO_CALENDAR_PROMPTS } from './ai-add-booking-to-calendar.fixtures.js';
 
 describe('ai-add-booking-to-calendar.logic (ai-cmd-customer-4.3.2)', () => {
+  // `manager.transaction` — the manifest's `mock_missing_transaction` class.
+  //
+  // `handleAddBookingToCalendarLogic` mints a manage token via
+  // `ensureBookingManageToken`, which opens `bookingRepo.manager.transaction`
+  // and, inside it, locks the row with a query builder. The mock had no
+  // `manager`, so every case died with "Cannot read properties of undefined
+  // (reading 'transaction')" before reaching anything this suite is about — the
+  // failures were about the mock, not the behaviour.
+  //
+  // Modelled on what the real transaction does rather than stubbed to a fixed
+  // string: the callback receives a manager whose query builder returns the
+  // booking `findOne` was primed with, so the token is minted, persisted onto
+  // `metadata`, and — crucially — a second call returns the *same* token, which
+  // is the property `ensureBookingManageToken` exists to guarantee.
+  const manager = {
+    // The locked read returns whatever the test primed on `findOne`, so a case
+    // does not have to set the booking up twice for one logical row.
+    createQueryBuilder: () => ({
+      setLock: () => ({
+        where: () => ({ getOne: async () => bookingRepo.findOne() }),
+      }),
+    }),
+    save: jest.fn(async (_entity: unknown, row: any) => row),
+  };
   const bookingRepo = {
     findOne: jest.fn(),
     find: jest.fn(),
     save: jest.fn(async (row) => row),
+    manager: {
+      transaction: async (cb: (m: typeof manager) => Promise<unknown>) =>
+        cb(manager),
+    },
   };
   const businessRepo = {
     findOne: jest.fn(async () => ({

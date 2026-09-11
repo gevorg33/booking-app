@@ -95,11 +95,11 @@ describe('ai schedule ops integration (ai-cmd-h3.2)', () => {
         dateTo: '2026-06-08',
       },
       entities: {
+        services: [],
         employees: employees.map((e) => ({ id: e.id, name: e.name })) as any,
         dateRange: { start: '2026-06-02', end: '2026-06-08' },
       },
       reasoning: 'test',
-      confidence: 0.9,
     });
     expect(result.ok).toBe(true);
   });

@@ -27,6 +27,9 @@ describe('IntegrationsController growth endpoints', () => {
     getPublicSettings: jest.fn(),
     updateSettings: jest.fn(),
     getDashboardWidgetKey: jest.fn(),
+    // e2e-bug.471 — the controller now calls the context method directly;
+    // getDashboardWidgetKey delegates to it in production.
+    getDashboardWidgetContext: jest.fn(),
     createSupportTicket: jest.fn(),
     syncCustomerIfEnabled: jest.fn(),
   };
@@ -46,7 +49,8 @@ describe('IntegrationsController growth endpoints', () => {
     distributionIntegrationService as unknown as DistributionIntegrationService,
     {} as ZapierIntegrationService,
     {} as AccountingIntegrationService,
-  );
+  
+    undefined as never);
 
   const user = {
     id: 'user-1',
@@ -64,6 +68,9 @@ describe('IntegrationsController growth endpoints', () => {
       settings: { integrations: { zendesk: { widgetKey: 'wk' } } },
     });
     zendeskIntegrationService.getDashboardWidgetKey.mockReturnValue('wk');
+    zendeskIntegrationService.getDashboardWidgetContext.mockReturnValue({
+      widgetKey: 'wk',
+    });
     zendeskIntegrationService.createSupportTicket.mockResolvedValue({
       ticketId: 1,
       url: 'x',

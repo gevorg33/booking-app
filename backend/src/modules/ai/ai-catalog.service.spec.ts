@@ -1,4 +1,6 @@
 import { AiCatalogService } from './ai-catalog.service.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 
 describe('AiCatalogService (thin wrapper)', () => {
   const businessRepo = {
@@ -30,20 +32,20 @@ describe('AiCatalogService (thin wrapper)', () => {
     // created by an earlier assertion made a later one report "All listed
     // services already exist in the catalog."
     findAll: jest.fn(async () => [
-      {
+      makeService({
         id: 's1',
         name: 'Massage',
         price: 80,
         durationMinutes: 60,
         currency: 'USD',
-      },
-      {
+      }),
+      makeService({
         id: 's2',
         name: 'Facial',
         price: 60,
         durationMinutes: 45,
         currency: 'USD',
-      },
+      }),
     ]),
     create: jest.fn(async (_b, dto) => ({ id: 'svc-1', ...dto })),
     remove: jest.fn(),

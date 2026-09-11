@@ -1,48 +1,40 @@
-import { rescueAgentOpsIntent } from './ai-agent-ops.util.js';
+/**
+ * e2e-bug.458 (§172) — this spec used to assert against a private reimplementation
+ * of the rescue chain: a hand-written `??` cascade of the individual predicates,
+ * standing in for `AiIntentRescueService`. It therefore agreed with itself by
+ * construction and could not see the service diverge.
+ *
+ * It proved the point the hard way. The service gained a second, earlier-running
+ * retention producer on 2026-08-02 (`customer_retention_rate`, via the metric
+ * resolvers) that shadows the older `customer_retention` branch, and this spec
+ * stayed green throughout because its copy still had the old branch. When §171
+ * corrected the fixtures to match reality, the copy went red instead — a test
+ * failing because the code was fixed is the signature of a mirror.
+ *
+ * It now drives the real service. The remaining divergence is
+ * `professional-profile`, which is a genuine open question about that command's
+ * surfaces rather than a routing bug (`e2e-bug.456`).
+ */
+import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { rescueBusinessTaxIntent } from './ai-business-tax.util.js';
-import { rescueSummarizeBookingsIntent } from './ai-dashboard-summarize-bookings.logic.js';
-import {
-  isCustomerRetentionPrompt,
-  isListCustomersPrompt,
-  isLookupCustomerPrompt,
-} from './ai-dashboard-ops.util.js';
 import {
   isOwnerBusinessRevenuePrompt,
   isTotalEarningsPrompt,
 } from './dashboard-revenue-analytics.util.js';
 import { E2E137_ROUTING_RESCUE_SCENARIOS } from './ai-e2e137-routing.fixtures.js';
-import { rescueExplainProfessionalProfileIntent } from './ai-explain-professional-profile.util.js';
-import { rescueExplainBusinessHoursAndLocationIntent } from './ai-explain-business-hours-and-location.util.js';
-import { rescueListPromoCodesIntent } from './ai-list-promo-codes.util.js';
-import { rescueMetaOpsIntent } from './ai-meta-ops.util.js';
-import { rescueRetailFinanceIntent } from './ai-retail-finance.util.js';
 import { isSummarizeMyRevenuePrompt } from './ai-provider-earnings.util.js';
 
 function rescueE2e137(
   prompt: string,
 ): { action: string; rescueReason: string } | null {
-  return (
-    rescueSummarizeBookingsIntent(prompt, 'unknown') ??
-    rescueAgentOpsIntent(prompt, 'unknown') ??
-    rescueListPromoCodesIntent(prompt, 'unknown') ??
-    rescueRetailFinanceIntent(prompt, 'unknown') ??
-    (isCustomerRetentionPrompt(prompt)
-      ? {
-          action: 'summarize_customers',
-          rescueReason: 'customer_retention',
-        }
-      : null) ??
-    (isListCustomersPrompt(prompt)
-      ? { action: 'list_customers', rescueReason: 'list_customers' }
-      : null) ??
-    (isLookupCustomerPrompt(prompt)
-      ? { action: 'lookup_customer', rescueReason: 'lookup_customer' }
-      : null) ??
-    rescueBusinessTaxIntent(prompt, 'unknown') ??
-    rescueMetaOpsIntent(prompt, 'unknown') ??
-    rescueExplainProfessionalProfileIntent(prompt, 'unknown') ??
-    rescueExplainBusinessHoursAndLocationIntent(prompt, 'unknown')
-  );
+  const rescued = new AiIntentRescueService().rescue({
+    prompt,
+    action: 'unknown',
+    params: {},
+    employees: [],
+    surface: 'dashboard',
+  } as never) as { action: string; rescueReason: string } | null;
+  return rescued ?? null;
 }
 
 describe('e2e-bug.137 — react_agent domain routing rescues', () => {

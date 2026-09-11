@@ -25,7 +25,10 @@ export function buildClinicServiceDispatchMap(): ReadonlyMap<
   const map = new Map<string, ClinicServiceDispatchHandler>();
 
   map.set('configure_clinic_service', async (service, ctx) => {
-    const parsed = parseConfigureClinicServiceFromPrompt(ctx.prompt, ctx.params);
+    const parsed = parseConfigureClinicServiceFromPrompt(
+      ctx.prompt,
+      ctx.params,
+    );
     const merged = parsed
       ? {
           ...ctx.params,
@@ -40,7 +43,11 @@ export function buildClinicServiceDispatchMap(): ReadonlyMap<
             : {}),
         }
       : ctx.params;
-    return service.handleConfigureClinicService(ctx.businessId, merged, ctx.prompt);
+    return service.handleConfigureClinicService(
+      ctx.businessId,
+      merged,
+      ctx.prompt,
+    );
   });
 
   map.set('explain_clinic_services', async (service, ctx) => {
@@ -52,7 +59,11 @@ export function buildClinicServiceDispatchMap(): ReadonlyMap<
           serviceName: parsed.serviceName,
         }
       : ctx.params;
-    return service.handleExplainClinicServices(ctx.businessId, merged, ctx.prompt);
+    return service.handleExplainClinicServices(
+      ctx.businessId,
+      merged,
+      ctx.prompt,
+    );
   });
 
   map.set('apply_clinic_playbook', async (service, ctx) =>

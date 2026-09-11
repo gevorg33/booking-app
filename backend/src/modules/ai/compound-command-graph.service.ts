@@ -112,7 +112,7 @@ const READ_ONLY_COMPOUND_ACTIONS = new Set([
  * without ever telling them — the compound must stop and ask instead of
  * quietly advancing to the next leg with a half-applied intent.
  */
-const MUST_NOT_SILENTLY_SKIP_ACTIONS = new Set([
+export const MUST_NOT_SILENTLY_SKIP_ACTIONS = new Set([
   'reschedule_booking',
   'create_booking',
   'book_appointment',
@@ -120,7 +120,7 @@ const MUST_NOT_SILENTLY_SKIP_ACTIONS = new Set([
   'cancel_bookings',
 ]);
 
-const COMPOUND_MUTATE_ACTION_LABELS: Record<string, string> = {
+export const COMPOUND_MUTATE_ACTION_LABELS: Record<string, string> = {
   reschedule_booking: 'reschedule the booking',
   create_booking: 'create the booking',
   book_appointment: 'book the appointment',
@@ -494,7 +494,9 @@ export class CompoundCommandGraphService {
       // could not be built; that drops the customer's move/create/cancel
       // without telling them. Stop and ask instead (mirrors the
       // handoff.status === 'clarify' branch above).
-      const actionLabel = COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ?? parsed.action.replace(/_/g, ' ');
+      const actionLabel =
+        COMPOUND_MUTATE_ACTION_LABELS[parsed.action] ??
+        parsed.action.replace(/_/g, ' ');
       let clarify: CommandResult = {
         success: false,
         action: parsed.action,

@@ -45,9 +45,7 @@ describe('ai-provider-time-off.util (prov-exp-7.2)', () => {
       true,
     );
     expect(isCancelTimeOffRequestPrompt('Cancel my PTO')).toBe(true);
-    expect(isCancelTimeOffRequestPrompt('Request next Friday off')).toBe(
-      false,
-    );
+    expect(isCancelTimeOffRequestPrompt('Request next Friday off')).toBe(false);
     expect(
       isCancelTimeOffRequestPrompt('Did my vacation request get approved?'),
     ).toBe(false);

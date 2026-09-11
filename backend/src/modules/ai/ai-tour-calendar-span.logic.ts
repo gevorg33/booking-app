@@ -99,7 +99,11 @@ export function resolveExplainTourCalendarSpanLocale(
 }
 
 // e2e-bug.336 — no DD/MM slash dates (sibling of Fixed e2e-bug.306/308).
-function formatSpanRange(start: string, end: string, locale: AppLocale): string {
+function formatSpanRange(
+  start: string,
+  end: string,
+  locale: AppLocale,
+): string {
   const startLabel = formatDateForAiLabel(start, locale);
   const endLabel = formatDateForAiLabel(end, locale);
   return start === end ? startLabel : `${startLabel}–${endLabel}`;

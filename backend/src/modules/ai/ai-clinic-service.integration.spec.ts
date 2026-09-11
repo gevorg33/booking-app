@@ -10,6 +10,7 @@ import {
   CONFIGURE_CLINIC_SERVICE_PROMPTS,
   EXPLAIN_CLINIC_SERVICES_PROMPTS,
 } from './ai-clinic-service.fixtures.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai clinic service integration (ai-cmd-clinic-1–4)', () => {
   const services = [
@@ -124,20 +125,21 @@ describe('ai clinic service integration (ai-cmd-clinic-1–4)', () => {
       });
       expect(rescued?.action).toBe('configure_clinic_service');
 
-      const validation = validateCommand({
-        action: 'configure_clinic_service',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-          ...(serviceType ? { serviceType } : {}),
-          ...(requiresFasting !== undefined ? { requiresFasting } : {}),
-          ...(preparationNotes ? { preparationNotes } : {}),
-        },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_clinic_service',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+            ...(serviceType ? { serviceType } : {}),
+            ...(requiresFasting !== undefined ? { requiresFasting } : {}),
+            ...(preparationNotes ? { preparationNotes } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigureClinicServiceLogic(
@@ -162,15 +164,16 @@ describe('ai clinic service integration (ai-cmd-clinic-1–4)', () => {
       });
       expect(rescued?.action).toBe('apply_clinic_playbook');
 
-      const validation = validateCommand({
-        action: 'apply_clinic_playbook',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'apply_clinic_playbook',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleApplyClinicPlaybookLogic(
@@ -199,17 +202,18 @@ describe('ai clinic service integration (ai-cmd-clinic-1–4)', () => {
       });
       expect(rescued?.action).toBe('explain_clinic_services');
 
-      const validation = validateCommand({
-        action: 'explain_clinic_services',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-        },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_clinic_services',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainClinicServicesLogic(

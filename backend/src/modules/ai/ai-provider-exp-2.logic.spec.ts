@@ -133,7 +133,11 @@ describe('ai-provider-exp-2.logic', () => {
   });
 
   it('denies list_team_unpaid_today for non-managers', async () => {
-    const result = await handleListTeamUnpaidTodayLogic(deps, 'biz-1', 'user-1');
+    const result = await handleListTeamUnpaidTodayLogic(
+      deps,
+      'biz-1',
+      'user-1',
+    );
 
     expect(result.success).toBe(false);
     expect(result.summary).toContain('managers only');
@@ -159,7 +163,11 @@ describe('ai-provider-exp-2.logic', () => {
       ],
     });
 
-    const result = await handleListTeamUnpaidTodayLogic(deps, 'biz-1', 'user-1');
+    const result = await handleListTeamUnpaidTodayLogic(
+      deps,
+      'biz-1',
+      'user-1',
+    );
 
     expect(result.success).toBe(true);
     expect(result.action).toBe('list_team_unpaid_today');
@@ -222,7 +230,9 @@ describe('ai-provider-exp-2.logic', () => {
     );
 
     expect(result.success).toBe(true);
-    expect(result.summary).toContain('Team reviews this month: no reviews yet.');
+    expect(result.summary).toContain(
+      'Team reviews this month: no reviews yet.',
+    );
     expect(reviewsService.list).toHaveBeenCalledWith('biz-1', undefined);
     expect(result.details?.scope).toBe('team');
   });
@@ -412,7 +422,11 @@ describe('ai-provider-exp-2.logic', () => {
   });
 
   it('fails to build a dashboard deep link with no customer name', () => {
-    const result = handleOpenDashboardDeepLinkLogic(deps, {}, 'Full intake on web');
+    const result = handleOpenDashboardDeepLinkLogic(
+      deps,
+      {},
+      'Full intake on web',
+    );
 
     expect(result.success).toBe(false);
     expect(result.action).toBe('open_dashboard_deep_link');

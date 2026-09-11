@@ -1,4 +1,10 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+  EntityReadWriter,
+  EntityWriter,
+} from './ai-logic-repo.types.js';
 import type { Booking } from '../booking/entities/booking.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -65,9 +71,9 @@ import {
 } from '../booking/entities/booking.entity.js';
 
 export interface BusinessTaxLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne' | 'save'>;
-  serviceRepo: Pick<Repository<Service>, 'find' | 'save'>;
-  bookingRepo: Pick<Repository<Booking>, 'findOne' | 'find'>;
+  businessRepo: EntityReadWriter<Business>;
+  serviceRepo: EntityFinder<Service> & EntityWriter<Service>;
+  bookingRepo: EntityReader<Booking> & EntityFinder<Booking>;
 }
 
 function failure(

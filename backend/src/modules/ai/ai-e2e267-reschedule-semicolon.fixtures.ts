@@ -60,8 +60,7 @@ export const E2E267_SINGLE_RESCHEDULE_CASES: readonly E2e267RescheduleSemicolonC
     },
     {
       id: 'e2e267-no-semicolon-still-single',
-      prompt:
-        "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+      prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
       expectCompound: false,
       expectSingleRescheduleContinuation: false,
       expectRescue: true,

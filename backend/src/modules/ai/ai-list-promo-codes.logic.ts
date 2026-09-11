@@ -28,9 +28,7 @@ export async function handleListPromoCodesLogic(
       /\bactive\b/i.test(params._prompt as string));
 
   const promos = await deps.promoCodesService.list(businessId);
-  const filtered = activeOnly
-    ? promos.filter((p) => p.isActive)
-    : promos;
+  const filtered = activeOnly ? promos.filter((p) => p.isActive) : promos;
 
   if (filtered.length === 0) {
     return {

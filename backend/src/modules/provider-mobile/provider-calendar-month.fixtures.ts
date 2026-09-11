@@ -19,7 +19,7 @@ export const PROVIDER_CALENDAR_MONTH_BAND_SCENARIOS = [
     bookings: [
       {
         status: 'confirmed',
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-10T10:00:00.000Z'),
         endTime: new Date('2026-06-10T11:00:00.000Z'),
       },
@@ -41,7 +41,7 @@ export const PROVIDER_CALENDAR_MONTH_BAND_SCENARIOS = [
     bookings: [
       {
         status: 'confirmed',
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-12T10:00:00.000Z'),
         endTime: new Date('2026-06-12T14:00:00.000Z'),
       },
@@ -62,13 +62,13 @@ export const PROVIDER_CALENDAR_MONTH_BAND_SCENARIOS = [
     bookings: [
       {
         status: 'confirmed',
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-11T09:00:00.000Z'),
         endTime: new Date('2026-06-11T13:00:00.000Z'),
       },
       {
         status: 'confirmed',
-        paymentStatus: 'unpaid',
+        paymentStatus: 'pending',
         startTime: new Date('2026-06-11T14:00:00.000Z'),
         endTime: new Date('2026-06-11T17:00:00.000Z'),
       },
@@ -93,7 +93,7 @@ export const PROVIDER_CALENDAR_MONTH_VIEW_SCENARIO = {
   bookings: [
     {
       status: 'confirmed',
-      paymentStatus: 'unpaid',
+      paymentStatus: 'pending',
       startTime: new Date('2026-06-09T10:00:00.000Z'),
       endTime: new Date('2026-06-09T11:00:00.000Z'),
     },

@@ -11,7 +11,9 @@ export function isListPromoCodesIntent(
 }
 
 export function isListPromoCodesPrompt(prompt: string): boolean {
-  if (/\b(create|add|issue|generate|deactivate|disable|remove)\b/i.test(prompt)) {
+  if (
+    /\b(create|add|issue|generate|deactivate|disable|remove)\b/i.test(prompt)
+  ) {
     return false;
   }
   // "Why wasn't my promo code applied?" is promo_code_help, not list (my + promo code).

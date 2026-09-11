@@ -1,6 +1,7 @@
 import { resolvePriceCurrency } from '../../common/utils/business-currency.util.js';
 import { DEFAULT_TAX_NAME } from '../../common/utils/business-tax.util.js';
 import { roundBonus } from '../loyalty/loyalty.constants.js';
+import { PaymentStatus } from './entities/booking.entity.js';
 
 export interface BookingPaymentAdjustment {
   type: 'promo' | 'gift_card' | 'loyalty' | 'retail';
@@ -164,6 +165,22 @@ export function readBookingListAmounts(
       readNumber(pricing?.amountDue) ?? readNumber(safe.amountPaid) ?? null,
     taxAmount: readNumber(pricing?.taxAmount),
   };
+}
+
+/**
+ * The transition that `recordTaxInclusivePaymentAmount` guards: a booking that
+ * has just become paid, and was not paid before. Lived inline in
+ * `booking.service.ts` and was hand-copied into the spec, so the test could not
+ * catch a change to the real condition; both now call this.
+ */
+export function isTransitionToPaid(
+  previousPaymentStatus: PaymentStatus | string | null | undefined,
+  paymentStatus: PaymentStatus | string | null | undefined,
+): boolean {
+  return (
+    paymentStatus === PaymentStatus.PAID &&
+    previousPaymentStatus !== PaymentStatus.PAID
+  );
 }
 
 export function recordTaxInclusivePaymentAmount(

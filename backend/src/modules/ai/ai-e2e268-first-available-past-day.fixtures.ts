@@ -103,8 +103,7 @@ export const E2E268_LIVE_PROMPTS: readonly {
   },
   {
     id: 'live-book-soonest-any-provider',
-    prompt:
-      'Book the soonest free slot for Face Pilling with any provider',
+    prompt: 'Book the soonest free slot for Face Pilling with any provider',
     expectedAction: 'create_booking',
   },
 ];

@@ -32,6 +32,7 @@ import {
 import {
   enrichDeactivateServiceCategoryScopeParamsFromPrompt,
   rescueDeactivateServiceCategoryScopeIntent,
+  isDeactivateServiceCategoryScopePrompt,
 } from './ai-deactivate-service-category-scope.util.js';
 
 export const CATALOG_MUTATE_INTENTS = [
@@ -73,6 +74,26 @@ export const CATALOG_INTENTS = [
 
 export type CatalogIntent = (typeof CATALOG_INTENTS)[number];
 
+/**
+ * e2e-bug.448(b) — intents the catalog **compound** may contain as a step, but
+ * which are not catalog intents.
+ *
+ * Kept deliberately separate from `CATALOG_INTENTS`. That list also *is*
+ * `DASHBOARD_CATALOG_DISPATCH_INTENTS` (`ai-dashboard-core.util.ts:13`), so
+ * adding an entry there would route the action to the catalog service, which
+ * does not handle it — the exact mistake D3 warns against. A compound may
+ * *contain* a step it does not itself execute; the executor delegates it.
+ */
+export const CATALOG_COMPOUND_EXTRA_STEP_INTENTS = [
+  'configure_service_online_payment',
+  // The shape the planner emits for the same thing.
+  'enable_online_payment',
+] as const;
+
+export type CatalogCompoundStepIntent =
+  | CatalogIntent
+  | (typeof CATALOG_COMPOUND_EXTRA_STEP_INTENTS)[number];
+
 import type { AppLocale } from '../../common/i18n/messages.js';
 import type { LocalizedNamesMap } from '../../common/i18n/service-localized-names.util.js';
 
@@ -94,7 +115,7 @@ export interface CatalogCategoryDraft {
 }
 
 export interface CatalogCompoundStep {
-  action: CatalogIntent;
+  action: CatalogCompoundStepIntent;
   params: Record<string, unknown>;
   segment: string;
 }
@@ -107,8 +128,60 @@ const CATALOG_VERB =
 // minutes, $50; service B, 45 minutes, $45"), so each service line became its
 // own "step" and the category link was lost. The "and <verb>" branch already
 // required a following verb; the semicolon branch now does too.
-const COMPOUND_SPLIT =
-  /\s*;\s*(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)|\s+and\s+(?=(?:add|create|enable|configure|deactivate|duplicate|update|assign|set|hide)\b)/i;
+// e2e-bug.349 — a sentence boundary starts a new step under the same rule the
+// semicolon branch follows: only when a catalog verb (or `under`, which begins
+// the "Under <Category> add …" shape below) starts the next sentence. Splitting
+// on every "." would shred "(30 min, $50). Turn on …" style enumerations, which
+// is the class e2e-bug.347 fixed for semicolons.
+//
+// `under` is in the lookahead deliberately. Adding the sentence split *without*
+// it is a measured no-op on the reported prompt — its sentences begin "Create,
+// Under, Under, Turn", so nothing after the first is a verb, and the prompt
+// stays one segment. The split and the scoped-category classifier only work
+// together.
+const CATALOG_STEP_VERBS =
+  'add|create|enable|configure|deactivate|duplicate|update|assign|set|hide';
+const COMPOUND_SPLIT = new RegExp(
+  `\\s*;\\s*(?=(?:${CATALOG_STEP_VERBS})\\b)` +
+    `|\\s+and\\s+(?=(?:${CATALOG_STEP_VERBS})\\b)` +
+    // §175 — `turn` is in the sentence branch only, NOT in CATALOG_STEP_VERBS.
+    // Adding it to the shared list would also arm the `;` and ` and ` branches,
+    // and "Add service Blow Dry and turn the lights off" would split — the
+    // e2e-bug.347 over-splitting class. Measured both ways: with `turn` here the
+    // reported prompt goes 1 segment -> 2 and all three controls stay at 1.
+    `|\\.\\s+(?=(?:${CATALOG_STEP_VERBS}|under|turn)\\b)`,
+  'i',
+);
+
+/**
+ * e2e-bug.349 — `Under <Category> add <service lines>`.
+ *
+ * The reported dashboard prompt scopes services to a category by sentence
+ * ("Under Y add service A (30 min, $50) …") rather than with the
+ * "category Y with services: …" shape `parseBulkCatalogFromPrompt` expects.
+ * That parser splits on `:` or `with services`, so it returned null and the
+ * whole request produced nothing.
+ *
+ * Maps to the same `bulk_create_catalog` draft, which already creates the
+ * category when it does not exist (`ai-catalog.logic.ts` — `if (!category)
+ * … categoryService.create`). That is why the prompt's leading
+ * "Create categories Y and Z" sentence does not need its own step: each scoped
+ * segment creates its own category.
+ */
+export function parseScopedCategoryLinesFromSegment(
+  segment: string,
+): CatalogCategoryDraft | null {
+  const match = segment
+    .trim()
+    .match(
+      /^under\s+(?:the\s+)?(?:categor(?:y|ies)\s+)?([A-Za-z][\w\s&'-]{0,40}?)\s+add\s+(.+)$/is,
+    );
+  if (!match) return null;
+  const categoryName = match[1].trim();
+  const services = parseServiceLinesFromText(match[2]);
+  if (!categoryName || !services.length) return null;
+  return { categoryName, services };
+}
 
 export function isCatalogIntent(action: string): action is CatalogIntent {
   return (CATALOG_INTENTS as readonly string[]).includes(action);
@@ -120,15 +193,21 @@ export function isBulkCreateCatalogPrompt(prompt: string): boolean {
   );
   const hasServiceLines = parseServiceLinesFromText(prompt).length > 0;
   const hasCategoryContext =
-    /\b(?:create|add|adding)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?category\b/i.test(
+    // e2e-bug.349 — `categories` as well as `category`. "Create categories Y
+    // and Z. Under Y add ..." registered no category context at all, so a
+    // dashboard catalog request was left to whatever else would claim it.
+    /\b(?:create|add|adding)\s+(?:a\s+)?(?:new\s+)?(?:service\s+)?categor(?:y|ies)\b/i.test(
       prompt,
     ) ||
-    /\badding\s+(?:a\s+)?(?:new\s+)?[A-Za-z][\w\s&'-]+\s+category\b/i.test(
+    /\badding\s+(?:a\s+)?(?:new\s+)?[A-Za-z][\w\s&'-]+\s+categor(?:y|ies)\b/i.test(
       prompt,
     ) ||
-    /\bnew\s+[A-Za-z][\w\s&'-]+\s+(?:service\s+)?category\b/i.test(prompt);
+    /\bnew\s+[A-Za-z][\w\s&'-]+\s+(?:service\s+)?categor(?:y|ies)\b/i.test(
+      prompt,
+    );
   if (hasCategoryContext) return hasServiceLines || hasCountedServices;
-  if (!/\b(?:create|add)\s+(?:category|catalog)\b/i.test(prompt)) return false;
+  if (!/\b(?:create|add)\s+(?:categor(?:y|ies)|catalog)\b/i.test(prompt))
+    return false;
   return hasServiceLines;
 }
 
@@ -214,6 +293,31 @@ export function isDeactivateServicePrompt(prompt: string): boolean {
     return false;
   }
 
+  // C3 / e2e-bug.360 — this command's own example is "stop offering hot stone
+  // massage", and `stop offering` was in none of the verb sets below.
+  //
+  // Placed after the guards, not before: `isConfigureServiceOnlinePaymentPrompt`
+  // already returned false above, so "stop offering online payment for X" stays
+  // with the payment command, and the `\bpackage\b` guard still holds.
+  //
+  // Scoped to things that are actually services. "Stop offering gift cards" and
+  // "stop offering memberships" are catalogue products with their own commands,
+  // and claiming them here would be the steal this pattern invites.
+  if (
+    /\bstop\s+(?:offering|providing|doing)\b/i.test(prompt) &&
+    !/\b(?:gift\s*cards?|memberships?|subscriptions?|plans?)\b/i.test(prompt) &&
+    // Measured, not assumed: `isConfigureServiceOnlinePaymentPrompt` above does
+    // NOT match "stop offering online payment for X" — it recognises the
+    // enable-side phrasings — so without this the sentence would deactivate a
+    // service named "online payment for haircut". Caught by probing the branch
+    // before trusting the guard that was supposed to cover it.
+    !/\b(?:online\s+payments?|card\s+payments?|payments?|deposits?)\b/i.test(
+      prompt,
+    )
+  ) {
+    return true;
+  }
+
   const hasVerb = /\b(hide|deactivate|disable|remove|delete)\b/i.test(prompt);
   if (!hasVerb) return false;
 
@@ -257,12 +361,25 @@ export function extractDeactivateServiceNameFromPrompt(
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+(?:called|named)\s+["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?service\s+["']?([^"'.,]+?)["']?(?=\s+from\b|\s*[.?!]|$)/i,
     /\b(?:delete|remove|deactivate|hide|disable)\s+(?:the\s+)?["']?([^"'.,]+?)["']?\s+service\b/i,
+    // C3 — the `stop offering X` shape admitted by the predicate above. Without
+    // this the command would route and then have no service name to act on,
+    // which is D3's "routes correctly, produces no draft" failure and would
+    // have lowered the paraphrase ratchet while leaving the command broken.
+    /\bstop\s+(?:offering|providing|doing)\s+(?:the\s+)?["']?([^"'.,]+?)["']?(?=\s*[.?!]|$)/i,
   ];
   for (const pattern of patterns) {
     const match = prompt.match(pattern);
     const name = match?.[1]
       ?.replace(/^["']|["']$/g, '')
       .replace(/\s+service$/i, '')
+      // e2e-bug.430 — drop a dangling "from the" the lazy capture swallowed.
+      //
+      // The third pattern ends at `\s+service\b`, so "Disable Deluxe Facial
+      // from the service catalog" captures everything up to the *second*
+      // occurrence of the word: "Deluxe Facial from the". The second pattern
+      // already stops at `from`; this one cannot, because the service word it
+      // anchors on comes after.
+      .replace(/\s+from(?:\s+(?:the|our|my|your))?$/i, '')
       .trim();
     if (
       name &&
@@ -331,9 +448,7 @@ const CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE =
 
 const CATEGORY_NAME_TRAILING_EXTRA = `(?:${CATEGORY_NAME_TRAILING_POLITENESS}|${CATEGORY_NAME_TRAILING_PLACEHOLDER_CLAUSE})`;
 
-export function stripTrailingCategoryNamePoliteness(
-  name: string,
-): string {
+export function stripTrailingCategoryNamePoliteness(name: string): string {
   let out = name.trim();
   // Repeat: "kindly please" / "please kindly" / stacked softeners and
   // placeholder-count clauses in any order.
@@ -342,7 +457,10 @@ export function stripTrailingCategoryNamePoliteness(
     'iu',
   );
   for (let i = 0; i < 4; i++) {
-    const next = out.replace(trailing, '').replace(/[.?!]+$/g, '').trim();
+    const next = out
+      .replace(trailing, '')
+      .replace(/[.?!]+$/g, '')
+      .trim();
     if (next === out) break;
     out = next;
   }
@@ -567,6 +685,21 @@ export function isCreatePackagePrompt(prompt: string): boolean {
   }
   return (
     /\b(create|add)\s+(?:a\s+|the\s+|new\s+)*package\b/i.test(prompt) ||
+    // C3 / e2e-bug.360 — this command's own example is "bundle haircut and
+    // beard trim at 15% off", and every branch here demanded the literal word
+    // "package". `bundle` is the verb form of exactly this command.
+    //
+    // Kept narrow on purpose: `bundle` must be used as a verb and must join two
+    // things with `and`, which is the documented shape. The noun sense ("this
+    // package is a bundle of services") is excluded by the lookbehind, and the
+    // booking/visit/appointment and gift-card guards above still run first.
+    //
+    // **Not anchored to `^`.** The first version was, and the Phase 2
+    // paraphrase gate caught it immediately: `NATURAL_BREAK_BASELINE` is 0, and
+    // anchoring made "please bundle haircut and beard trim" fail while the bare
+    // form passed — four natural-phrasing breaks. Politeness and filler
+    // prefixes must never change what is recognised.
+    /(?<!\b(?:a|the|is|as)\s)\bbundle\s+.+\s+and\s+.+/i.test(prompt) ||
     /\b(create|add)\s+(?:the\s+)?[\w\s«»]+\s+package\b/i.test(prompt) ||
     (/\bpackage\s+called\b/i.test(prompt) &&
       /\b(create|add|combining|with|includes?)\b/i.test(prompt)) ||
@@ -677,10 +810,44 @@ export function isActivateSubscriptionPlanPrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * C3 / e2e-bug.360 — this command's own documented example,
+ * `"what subscriptions do we offer"`, did not reach it. Two independent
+ * reasons, both fixed here:
+ *
+ * 1. the verb list was `list|show`, and the example says *offer*;
+ * 2. the noun required a literal `plans` after `subscription`, so the bare
+ *    plural `subscriptions` never matched.
+ *
+ * **Safe to widen, and measured before doing so.** Unlike the two
+ * `catalog.list_packages` examples on the same gap list — which are already
+ * claimed by the consumer-side `isDiscoverPackagesPrompt` and would become a
+ * cross-surface overlap — this phrasing matched **nothing at all**:
+ * `isListSubscriptionPlansPrompt` and `isDiscoverSubscriptionPlansPrompt` both
+ * returned false. There is no command to steal it from.
+ *
+ * The possessive guard keeps this business-scoped. "What subscriptions does
+ * Sarah have" is a question about one customer's subscriptions, not about the
+ * catalogue, and belongs to a different command.
+ */
+const SUBSCRIPTION_CATALOGUE_NOUN =
+  /\b(?:subscription|membership)s?(?:\s+plans?)?\b/i;
+
+/**
+ * Anything that scopes the question to *one person's* subscriptions rather than
+ * the catalogue. The possessive-name form is the one that matters and the one a
+ * pronoun list misses: `"List Anna's subscriptions"` belongs to
+ * `list_customer_subscriptions`, and the first version of this guard let it
+ * through — caught by `ai-customer-crm.integration.spec.ts`, not by reasoning.
+ */
+const NOT_THE_CATALOGUE =
+  /\b(?:my|his|her|their|customer|client)\b|\b\w+['\u2019]s\b|\bfor\s+[A-Z]\w+/;
+
 export function isListSubscriptionPlansPrompt(prompt: string): boolean {
+  if (NOT_THE_CATALOGUE.test(prompt)) return false;
   return (
-    /\b(list|show)\b/i.test(prompt) &&
-    /\b(subscription|membership)\s+plans?\b/i.test(prompt)
+    /\b(list|show|offer|sell)\b/i.test(prompt) &&
+    SUBSCRIPTION_CATALOGUE_NOUN.test(prompt)
   );
 }
 
@@ -903,7 +1070,23 @@ export function rescueCatalogIntent(
     }
     return {
       action: 'deactivate_service',
-      rescueReason: 'deactivate_service',
+      // e2e-bug.430 — say *which* deactivation this is, even when the action
+      // needed no correcting.
+      //
+      // `rescueDeactivateServiceCategoryScopeIntent` above returns null when the
+      // classifier already said `deactivate_service`, on the reasonable ground
+      // that there is no action to change. But the reason is not only a record
+      // of a correction — it names the shape of the request, and
+      // "hide all hair services" is a category-wide deactivation whether or not
+      // the classifier got there unaided. Seven eval cases asserted the scoped
+      // reason and got the generic one.
+      //
+      // The params were already right: this branch builds them with the same
+      // `enrichDeactivateServiceCategoryScopeParamsFromPrompt`. Only the label
+      // was wrong.
+      rescueReason: isDeactivateServiceCategoryScopePrompt(prompt)
+        ? 'deactivate_service_category_scope'
+        : 'deactivate_service',
       params,
     };
   }
@@ -959,7 +1142,9 @@ function normalizeServiceLineName(raw: string): string {
   // first entry when the raw prompt (not the split services text) is scanned.
   const afterColon = name.split(':').pop()?.trim();
   if (afterColon) name = afterColon;
-  const withoutConnector = name.replace(/^(?:and|or|plus|&|и|плюс|և)\s+/i, '').trim();
+  const withoutConnector = name
+    .replace(/^(?:and|or|plus|&|и|плюс|և)\s+/i, '')
+    .trim();
   if (withoutConnector) name = withoutConnector;
   const withoutDescriptor = name.replace(/^services?\s+/i, '').trim();
   if (withoutDescriptor) name = withoutDescriptor;
@@ -1119,8 +1304,18 @@ export function extractPackageServiceNames(prompt: string): string[] {
   const combining = prompt.match(
     /\bcombining\s+(.+?)(?:\s+services?)?(?:\s+for\b|\s+at\b|\s+\$|\s+priced|\s*$)/i,
   );
-  const plusSection =
+  // C3 — the `bundle X and Y at 15% off` shape the detector now admits. Without
+  // this the fallback treats the whole prompt as the service list and yields
+  // `["beard trim at"]`: "haircut" dropped, the price clause glued on. That is
+  // a *mutating* command creating a package from one garbage name, so the
+  // extractor had to move with the detector, not after it.
+  const bundled =
     combining ??
+    prompt.match(
+      /\bbundle\s+(.+?)(?:\s+at\b|\s+for\b|\s+\$|\s+\d+\s*%|\s*$)/i,
+    );
+  const plusSection =
+    bundled ??
     prompt.match(
       /\b(?:with|includes?|:)\s+(.+?)(?:\s+\d+\s*%|\s+off|\s+expires?|\s+for\b|\s+\$|$)/i,
     );
@@ -1276,6 +1471,18 @@ function extractPlanNameFromUpdatePrompt(text: string): string | undefined {
 function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
   const text = segment.trim();
 
+  // e2e-bug.349 — checked first: "Under Y add service A (30 min, $50)" carries
+  // its own category scope, which the generic bulk parser cannot recover once
+  // the segment is considered on its own.
+  const scoped = parseScopedCategoryLinesFromSegment(text);
+  if (scoped) {
+    return {
+      action: 'bulk_create_catalog',
+      params: { catalogDraft: scoped },
+      segment: text,
+    };
+  }
+
   if (isBulkCreateCatalogPrompt(text)) {
     const draft =
       parseBulkCatalogFromPrompt(text) ??
@@ -1393,6 +1600,24 @@ function classifyCatalogSegment(segment: string): CatalogCompoundStep | null {
   if (isConfigurePackageOnlinePaymentPrompt(text)) {
     return {
       action: 'configure_package_online_payment',
+      params: {},
+      segment: text,
+    };
+  }
+  // e2e-bug.448(b) / D3 item (3) — the "Turn on online payment for everything"
+  // tail of e2e-bug.348's and e2e-bug.349's reported prompts.
+  //
+  // Checked AFTER `isConfigurePackageOnlinePaymentPrompt` so a package-scoped
+  // phrasing still classifies as the package action; this is the service-scoped
+  // one. §175 taught `hasServiceOnlinePaymentScope` to accept "everything" /
+  // "all of them", which is what lets this segment match at all.
+  //
+  // Safe to emit only because the executor gained a case for it first: before
+  // that, classifying this step made it reach `default` and fail the entire
+  // compound, which is worse than omitting the toggle.
+  if (isConfigureServiceOnlinePaymentPrompt(text)) {
+    return {
+      action: 'configure_service_online_payment',
       params: {},
       segment: text,
     };

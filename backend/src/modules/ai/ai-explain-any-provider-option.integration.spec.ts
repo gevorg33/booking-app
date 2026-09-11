@@ -7,6 +7,7 @@ import {
 import { EXPLAIN_ANY_PROVIDER_OPTION_MULTILINGUAL_SCENARIOS } from './ai-explain-any-provider-option-multilingual.fixtures.js';
 import { handleExplainAnyProviderOptionLogic } from './ai-explain-any-provider-option.logic.js';
 import { rescueExplainAnyProviderOptionIntent } from './ai-explain-any-provider-option.util.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain any provider option integration (ai-cmd-customer-4.11.1)', () => {
   const employeeRepo = {
@@ -40,15 +41,16 @@ describe('ai explain any provider option integration (ai-cmd-customer-4.11.1)', 
       );
       expect(directRescue?.action).toBe('explain_any_provider_option');
 
-      const validation = validateCommand({
-        action: 'explain_any_provider_option',
-        params: { ...(aspect ? { aspect } : {}) },
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_any_provider_option',
+          params: { ...(aspect ? { aspect } : {}) },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainAnyProviderOptionLogic(

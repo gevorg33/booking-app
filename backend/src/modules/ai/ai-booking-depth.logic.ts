@@ -1,4 +1,6 @@
 import { Between, In, Not, Repository } from 'typeorm';
+import type { NamedResolver } from './ai-name-resolution.types.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import {
   Booking,
   BookingStatus,
@@ -89,7 +91,7 @@ export async function prepareSubscriptionCreditParamsLogic(
   params: Record<string, any>,
   customers: Customer[],
   services: Service[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
   resolveService: (list: Service[], name: string) => Service | undefined,
 ): Promise<
   | { ok: true; params: Record<string, any> }
@@ -605,7 +607,10 @@ async function findBookingsForMarkPaid(
   businessId: string,
   params: Record<string, any>,
   ctx: MarkPaidResolveContext,
-): Promise<Booking[]> {
+): Promise<{
+  bookings: Booking[];
+  ambiguous?: { clarification: string; candidates: { id: string; name: string }[] };
+}> {
   const employees = ctx.employees ?? [];
   const customers = ctx.customers ?? [];
   const prompt = ctx.prompt;
@@ -636,12 +641,42 @@ async function findBookingsForMarkPaid(
     tz,
   );
 
-  const customerResolved =
+  // D5 / §225 — `mark_paid` **writes**: it calls `bookingService.update` to flip
+  // payment status. Resolving the customer with the silent matcher meant a tie
+  // picked whichever namesake sorted first and marked *their* appointments
+  // paid, then reported success. Same shape as slice 5's reschedule — the
+  // lookup does not fail, it succeeds against the wrong person — except the
+  // thing being moved is money. Refuse the tie and name the options.
+  let ambiguous:
+    | { clarification: string; candidates: { id: string; name: string }[] }
+    | undefined;
+  let customerResolved: (typeof customers)[number] | undefined;
+  if (
     enriched.customerName &&
     typeof enriched.customerName === 'string' &&
     customers.length
-      ? fuzzyMatchByName(customers, enriched.customerName)
-      : undefined;
+  ) {
+    const verdict = resolveEntity(customers, enriched.customerName, {
+      entityLabel: 'customer',
+    });
+    if (verdict.status === 'ambiguous') {
+      ambiguous = {
+        clarification:
+          verdict.clarification ??
+          `Which customer did you mean by "${enriched.customerName}"?`,
+        candidates: verdict.candidates.map((c) => ({
+          id: String(c.id ?? ''),
+          name: c.name,
+        })),
+      };
+    } else {
+      // `not_found` keeps the legacy matcher, so acceptance can only stay the
+      // same or widen — the rule the pipeline migration used.
+      customerResolved =
+        verdict.match ?? fuzzyMatchByName(customers, enriched.customerName);
+    }
+  }
+  if (ambiguous) return { bookings: [], ambiguous };
 
   if (!bookings.length && customerResolved && employeeIds?.length) {
     bookings = await queryMarkPaidBookings(
@@ -672,7 +707,7 @@ async function findBookingsForMarkPaid(
       b.paymentStatus !== PaymentStatus.PAID &&
       b.status !== BookingStatus.COMPLETED,
   );
-  return actionable.length ? actionable : bookings;
+  return { bookings: actionable.length ? actionable : bookings };
 }
 
 function resolveMarkPaidBookingIds(
@@ -718,12 +753,23 @@ export async function handleMarkPaidLogic(
       : [];
 
   if (!bookingIds.length && ctx) {
-    const matches = await findBookingsForMarkPaid(
+    const found = await findBookingsForMarkPaid(
       deps,
       businessId,
       workingParams,
       ctx,
     );
+    // D5 / §225 — refuse before any write. `mark_paid` updates payment status,
+    // so a namesake tie previously marked the wrong customer's appointments
+    // paid and reported success.
+    if (found.ambiguous) {
+      return failure('mark_paid', found.ambiguous.clarification, {
+        clarify: true,
+        missing: ['customerId', 'bookingId'],
+        candidates: found.ambiguous.candidates,
+      });
+    }
+    const matches = found.bookings;
     bookingIds = resolveMarkPaidBookingIds(matches, workingParams);
     if (!bookingIds.length && matches.length > 1) {
       return failure(
@@ -857,9 +903,9 @@ export async function handleCreateMultiServiceBookingLogic(
   employees: Employee[],
   services: Service[],
   customers: Customer[],
-  resolveEmployee: (list: Employee[], name: string) => Employee | undefined,
+  resolveEmployee: NamedResolver<Employee>,
   resolveServices: (list: Service[], p: Record<string, any>) => Service[],
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveCustomer: NamedResolver<Customer>,
   userId?: string,
 ): Promise<CommandResult> {
   const matched = resolveServices(services, params);
@@ -979,8 +1025,8 @@ export async function handleCreatePackageBookingLogic(
   employees: Employee[],
   services: Service[],
   customers: Customer[],
-  resolveEmployee: (list: Employee[], name: string) => Employee | undefined,
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+  resolveEmployee: NamedResolver<Employee>,
+  resolveCustomer: NamedResolver<Customer>,
   resolvePackage: (name: string) => Promise<ServicePackage | null>,
   userId?: string,
 ): Promise<CommandResult> {
@@ -1038,6 +1084,11 @@ export async function handleCreatePackageBookingLogic(
   const settings =
     deps.multiServiceBookingsService.resolveSettingsFromBusiness(business);
   const created: string[] = [];
+  // tech-debt D5-b / e2e-bug.448(a) shape — a line dropped by the `continue`
+  // below is a **partial success the user is never told about**: the package
+  // reports "Booked N appointment(s)" and the missing one is simply absent.
+  // Collected and named so the caller can say what did not happen.
+  const skipped: string[] = [];
 
   if (lines.length) {
     for (const line of lines) {
@@ -1046,7 +1097,14 @@ export async function handleCreatePackageBookingLogic(
         : line.employeeName
           ? resolveEmployee(employees, line.employeeName)
           : undefined;
-      if (!employee || !line.serviceId || !line.startTime) continue;
+      if (!employee || !line.serviceId || !line.startTime) {
+        skipped.push(
+          !employee && line.employeeName
+            ? `provider "${line.employeeName}" could not be resolved`
+            : 'a line was missing its service or start time',
+        );
+        continue;
+      }
       const saved = await deps.bookingService.create(
         businessId,
         {
@@ -1128,9 +1186,18 @@ export async function handleCreatePackageBookingLogic(
     );
   }
 
+  const skippedNote = skipped.length
+    ? ` ${skipped.length} line(s) skipped: ${[...new Set(skipped)].join('; ')}.`
+    : '';
+
   return success(
     'create_package_booking',
-    `Booked ${created.length} appointment(s) for ${customer.name} — ${pkg.name}.`,
-    { bookingIds: created, packagePurchaseId: purchase.id, packageId: pkg.id },
+    `Booked ${created.length} appointment(s) for ${customer.name} — ${pkg.name}.${skippedNote}`,
+    {
+      bookingIds: created,
+      packagePurchaseId: purchase.id,
+      packageId: pkg.id,
+      ...(skipped.length ? { skippedLines: skipped } : {}),
+    },
   );
 }

@@ -27,16 +27,14 @@ export const E2E131_CROSS_SURFACE_HALLUCINATION_SCENARIOS = [
   },
   {
     id: 'leave-visit-review-not-reviews-inbox',
-    prompt:
-      'I want to leave a 5-star review for my last visit, it was great',
+    prompt: 'I want to leave a 5-star review for my last visit, it was great',
     expectedAction: 'leave_visit_review' as const,
     misclassifiedAction: 'explain_reviews_inbox' as const,
     surface: 'customer' as const,
   },
   {
     id: 'guest-checkout-not-tour-services',
-    prompt:
-      'Why do you need my email and phone number to book as a guest?',
+    prompt: 'Why do you need my email and phone number to book as a guest?',
     expectedAction: 'explain_guest_checkout_fields' as const,
     misclassifiedAction: 'explain_tour_services' as const,
     surface: 'public' as const,

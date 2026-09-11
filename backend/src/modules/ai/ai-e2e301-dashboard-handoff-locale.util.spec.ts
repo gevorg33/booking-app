@@ -12,12 +12,7 @@ import { t } from '../../common/i18n/messages.js';
 describe('e2e-bug.301: explain_dashboard_only_action summaries localize', () => {
   it.each(E2E301_LOCALIZED_SUMMARY_CASES)(
     'summary $id',
-    ({
-      prompt,
-      locale,
-      expectActionFragment,
-      forbidEnglishFragments,
-    }) => {
+    ({ prompt, locale, expectActionFragment, forbidEnglishFragments }) => {
       const summary = resolveDashboardOnlyActionSummaryFromPrompt(
         prompt,
         locale,

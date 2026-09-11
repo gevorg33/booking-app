@@ -137,7 +137,18 @@ describe('ai-command-eval integration (ai-cmd-0.4)', () => {
     expect(evaluateDeterministicEvalCase(evalCase).passed).toBe(true);
   });
 
-  it('returns empty runtime decomposition for public compound without deterministic handler', async () => {
+  // e2e-bug.522 — this asserted `steps` was empty because at the time no
+  // deterministic recipe covered a public compound, so decompose had nothing to
+  // return. e2e-bug.204 then added `public_public_assistant_compound` (and its
+  // customer twin) precisely so registry examples stay compounds on both
+  // surfaces, which makes the old expectation an assertion about a gap that has
+  // since been filled deliberately.
+  //
+  // The point of the test is the second assertion, not the first: a public
+  // compound must not fall through to the LLM. That guarantee is now met more
+  // strongly — the steps come from the deterministic recipe — so the test keeps
+  // its purpose and drops the stale premise.
+  it('decomposes a public compound deterministically, without the LLM', async () => {
     const prompt = 'List providers and check availability';
     expect(router.routeDeterministic(prompt).tier).toBe('compound');
     const steps = await decomposition.decompose(
@@ -147,7 +158,10 @@ describe('ai-command-eval integration (ai-cmd-0.4)', () => {
       'UTC',
       'public',
     );
-    expect(steps).toEqual([]);
+    expect(steps.map((step) => step.action)).toEqual([
+      'list_providers',
+      'check_availability',
+    ]);
     expect(llm.completeJson).not.toHaveBeenCalled();
   });
 });

@@ -16,13 +16,31 @@ export type E2e334PronounCase = {
 
 /** Every indefinite pronoun × the two named-schedule-triggering verbs. */
 export const E2E334_INDEFINITE_PRONOUN_CASES: readonly E2e334PronounCase[] = [
-  { id: 'anyone-free', prompt: 'is anyone free tomorrow morning for Swedish massage' },
-  { id: 'anyone-available', prompt: 'is anyone available this afternoon for a haircut' },
-  { id: 'anybody-free', prompt: 'is anybody free tomorrow for Deep tissue massage' },
-  { id: 'somebody-available', prompt: 'is somebody available today for a facial' },
-  { id: 'someone-free', prompt: 'is someone free this evening for Swedish massage' },
+  {
+    id: 'anyone-free',
+    prompt: 'is anyone free tomorrow morning for Swedish massage',
+  },
+  {
+    id: 'anyone-available',
+    prompt: 'is anyone available this afternoon for a haircut',
+  },
+  {
+    id: 'anybody-free',
+    prompt: 'is anybody free tomorrow for Deep tissue massage',
+  },
+  {
+    id: 'somebody-available',
+    prompt: 'is somebody available today for a facial',
+  },
+  {
+    id: 'someone-free',
+    prompt: 'is someone free this evening for Swedish massage',
+  },
   { id: 'everybody-free', prompt: 'is everybody free tomorrow morning' },
-  { id: 'everyone-available', prompt: 'is everyone available this week for a haircut' },
+  {
+    id: 'everyone-available',
+    prompt: 'is everyone available this week for a haircut',
+  },
 ] as const;
 
 export type E2e334NamedProviderCase = {

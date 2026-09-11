@@ -50,8 +50,10 @@ export function isApplyOnboardingCatalogPrompt(prompt: string): boolean {
 }
 
 export function isApplyOnboardingSchedulePrompt(prompt: string): boolean {
-  return /\bapply\b.*\b(the\s+)?default\s+schedule\b/i.test(prompt) ||
-    /\bapply\b.*\bschedule\b.*\bonboarding\b/i.test(prompt);
+  return (
+    /\bapply\b.*\b(the\s+)?default\s+schedule\b/i.test(prompt) ||
+    /\bapply\b.*\bschedule\b.*\bonboarding\b/i.test(prompt)
+  );
 }
 
 export function isSkipOnboardingSchedulePrompt(prompt: string): boolean {
@@ -91,7 +93,10 @@ export function rescueOnboardingIntent(
     };
   }
   if (isApplyOnboardingCatalogPrompt(prompt)) {
-    return { action: 'apply_onboarding_catalog', rescueReason: 'apply_catalog' };
+    return {
+      action: 'apply_onboarding_catalog',
+      rescueReason: 'apply_catalog',
+    };
   }
   if (isRecommendCatalogPrompt(prompt)) {
     return { action: 'recommend_catalog', rescueReason: 'recommend_catalog' };

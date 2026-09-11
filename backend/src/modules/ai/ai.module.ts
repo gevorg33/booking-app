@@ -34,6 +34,7 @@ import { AiTourServiceService } from './ai-tour-service.service.js';
 import { AiRecommendationProductService } from './ai-recommendation-product.service.js';
 import { AiPlatformService } from './ai-platform.service.js';
 import { AiPlatformScheduler } from './ai-platform.scheduler.js';
+import { AiCompletionFloorScheduler } from './ai-completion-floor.scheduler.js';
 import { AiBookingDepthService } from './ai-booking-depth.service.js';
 import { AiCatalogService } from './ai-catalog.service.js';
 import { AiDashboardCoreService } from './ai-dashboard-core.service.js';
@@ -182,7 +183,13 @@ import { EnterpriseTrustModule } from '../enterprise-trust/enterprise-trust.modu
 import { StrategyEvalModule } from '../strategy-eval/strategy-eval.module.js';
 import { ExternalDoctorsModule } from '../external-doctors/external-doctors.module.js';
 import { AiCommandTrace } from './entities/ai-command-trace.entity.js';
+import { AiCommandTraceStep } from './entities/ai-command-trace-step.entity.js';
 import { AiCommandTraceService } from './ai-command-trace.service.js';
+import { EntityResolutionService } from './entity-resolution.service.js';
+import { AiCommandPlannerService } from './ai-command-planner.service.js';
+import { AiPlannerShadowService } from './ai-planner-shadow.service.js';
+import { AiConversationStateStore } from './ai-conversation-state.store.js';
+import { AiConversationCarrierService } from './ai-conversation-carrier.service.js';
 import { AiGuideTelemetry } from './entities/ai-guide-telemetry.entity.js';
 import { GuideTelemetryService } from './guide-telemetry.service.js';
 
@@ -216,6 +223,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
       ClinicTestType,
       ClinicTestPanel,
       AiCommandTrace,
+      AiCommandTraceStep,
       AiGuideTelemetry,
     ]),
     forwardRef(() => BookingModule),
@@ -298,6 +306,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiRecommendationProductService,
     AiPlatformService,
     AiPlatformScheduler,
+    AiCompletionFloorScheduler,
     AiBookingDepthService,
     AiCatalogService,
     AiDashboardCoreService,
@@ -375,6 +384,11 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     CustomerCommandUnderstandingAdapter,
     PublicCommandUnderstandingAdapter,
     AiCommandTraceService,
+    EntityResolutionService,
+    AiCommandPlannerService,
+    AiPlannerShadowService,
+    AiConversationStateStore,
+    AiConversationCarrierService,
   ],
   exports: [
     AiPlatformService,
@@ -448,6 +462,11 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiExplainRtlLayoutService,
     GuideTelemetryService,
     AiCommandTraceService,
+    EntityResolutionService,
+    AiCommandPlannerService,
+    AiPlannerShadowService,
+    AiConversationStateStore,
+    AiConversationCarrierService,
   ],
 })
 export class AiModule {}

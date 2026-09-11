@@ -145,7 +145,10 @@ describe('ai-provider-dashboard-handoff.util (e2e-bug.247 / ai-cmd-provider-5.25
       ),
     ).toBe(false);
     expect(
-      rescueProviderAiIntent('Open the full intake answers', 'explain_client_intake'),
+      rescueProviderAiIntent(
+        'Open the full intake answers',
+        'explain_client_intake',
+      ),
     ).toBe('explain_dashboard_only_action');
     expect(
       rescueProviderAiIntent(

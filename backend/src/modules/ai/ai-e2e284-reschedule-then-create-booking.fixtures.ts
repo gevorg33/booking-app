@@ -42,8 +42,7 @@ export const E2E284_POSITIVE_CASES: readonly E2e284CompoundCase[] = [
   },
   {
     id: 'e2e284-shift-also-book',
-    prompt:
-      "Shift Anna's visit to tomorrow; also book a haircut for Bob",
+    prompt: "Shift Anna's visit to tomorrow; also book a haircut for Bob",
     expectCompound: true,
     orderedActions: ['reschedule_booking', 'create_booking'],
     expectCreateCustomerName: 'Bob',
@@ -80,8 +79,7 @@ export const E2E284_NEGATIVE_CASES: readonly E2e284CompoundCase[] = [
   },
   {
     id: 'e2e284-neg-move-nearest-only',
-    prompt:
-      "Move Gevorg's appointment on June 1 to June 2 nearest free time",
+    prompt: "Move Gevorg's appointment on June 1 to June 2 nearest free time",
     expectCompound: false,
   },
   {

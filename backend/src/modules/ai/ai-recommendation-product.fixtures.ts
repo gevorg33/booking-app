@@ -12,7 +12,21 @@ export const RECOMMENDATION_PRODUCT_CLASSIFIER_RULES = `- configure_recommendati
   - "Which products are linked for post-checkout recommendations?" → explain_recommendation_setup
   - "Describe recommendation setup for Haircut service" → explain_recommendation_setup, serviceName=Haircut`;
 
-export const CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS = [
+/** Declared so the array is one type, not a union of eight literal shapes. */
+export type ConfigureRecommendationProductPromptFixture = {
+  id: string;
+  prompt: string;
+  productName: string;
+  externalLink?: string;
+  imageUrl?: string;
+  isUpdate?: boolean;
+  wantsImage?: boolean;
+  wantsLink?: boolean;
+  description?: string;
+  retailPrice?: number;
+};
+
+export const CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS: readonly ConfigureRecommendationProductPromptFixture[] = [
   {
     id: 'shampoo-post-checkout-image-link',
     prompt: 'Add a shampoo product for post-checkout with image and link',
@@ -74,7 +88,16 @@ export const CONFIGURE_RECOMMENDATION_PRODUCT_PROMPTS = [
   },
 ] as const;
 
-export const LINK_RECOMMENDED_PRODUCTS_PROMPTS = [
+/** Declared so the array is one type, not a union of eight literal shapes. */
+export type LinkRecommendedProductsPromptFixture = {
+  id: string;
+  prompt: string;
+  productNames: readonly string[];
+  serviceName?: string;
+  categoryName?: string;
+};
+
+export const LINK_RECOMMENDED_PRODUCTS_PROMPTS: readonly LinkRecommendedProductsPromptFixture[] = [
   {
     id: 'shampoo-conditioner-after-haircut',
     prompt: 'Recommend shampoo and conditioner after haircut service',
@@ -127,7 +150,15 @@ export const LINK_RECOMMENDED_PRODUCTS_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS = [
+/** Declared so the array is one type, not a union of ten literal shapes. */
+export type ExplainRecommendationSetupPromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+  categoryName?: string;
+};
+
+export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS: readonly ExplainRecommendationSetupPromptFixture[] = [
   { id: 'explain-setup', prompt: 'Explain recommendation setup' },
   {
     id: 'show-checkout-config',
@@ -168,4 +199,4 @@ export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS = [
     id: 'recommendation-status',
     prompt: 'Show post-checkout recommendation status',
   },
-] as const;
+];

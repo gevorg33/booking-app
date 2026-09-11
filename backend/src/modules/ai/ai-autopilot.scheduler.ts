@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { SchedulerLockService } from '../../common/scheduler-lock/scheduler-lock.service.js';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { AiSettingsService } from './ai-settings.service.js';
 import { AiCommandService } from './ai-command.service.js';
@@ -37,9 +38,20 @@ export class AiAutopilotScheduler {
   constructor(
     private aiSettings: AiSettingsService,
     private aiCommand: AiCommandService,
+
+    private readonly schedulerLock: SchedulerLockService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
+  async runScheduledRulesScheduled(): Promise<void> {
+    // e2e-bug.497 — the cron entry point; `runScheduledRules` stays callable directly
+    // (and is what the specs drive) so the lock wraps scheduling, not the work.
+    await this.schedulerLock.runExclusively(
+      'ai-autopilot.runScheduledRules',
+      () => this.runScheduledRules(),
+    );
+  }
+
   async runScheduledRules(): Promise<void> {
     const now = new Date();
     const businesses = await this.aiSettings.listAutopilotBusinesses();

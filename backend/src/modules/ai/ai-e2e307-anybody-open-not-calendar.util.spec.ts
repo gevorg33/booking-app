@@ -52,8 +52,11 @@ describe('e2e-bug.307 anybody-open not stolen by add_booking_to_calendar', () =>
           params: {},
           surface: row.surface,
         });
-        expect(row.expectedActions).toContain(result.action);
-        expect(result.action).not.toBe(row.forbidAction);
+        // See the note in ai-e2e286: a declined rescue returns null, and the
+        // `not.toBe` below would pass vacuously if reached through `?.`.
+        expect(result).not.toBeNull();
+        expect(row.expectedActions).toContain(result!.action);
+        expect(result!.action).not.toBe(row.forbidAction);
       },
     );
   });

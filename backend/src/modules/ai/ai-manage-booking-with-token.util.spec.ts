@@ -1,6 +1,4 @@
-import {
-  E2E134_GUEST_MANAGE_LINK_CANCEL_SCENARIOS,
-} from './ai-e2e134-guest-manage-link.fixtures.js';
+import { E2E134_GUEST_MANAGE_LINK_CANCEL_SCENARIOS } from './ai-e2e134-guest-manage-link.fixtures.js';
 import {
   extractManageLinkCredentialsFromPrompt,
   hasManageLinkCredentialsInPrompt,

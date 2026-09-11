@@ -2,6 +2,9 @@ import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
@@ -11,7 +14,7 @@ export type ListProviderReviewsLogicDeps = {
   employeeRepo: Repository<Employee>;
   serviceRepo: Repository<Service>;
   reviewsService: Pick<ReviewsService, 'listPublicProviderReviews'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 };
 
 function failure(summary: string, details: Record<string, unknown> = {}) {
@@ -90,9 +93,12 @@ export async function handleListProviderReviewsLogic(
       },
     };
   } catch (err: any) {
-    return failure(err?.message ?? 'Could not load reviews for this provider.', {
-      employeeId,
-      reason: 'not_found',
-    });
+    return failure(
+      err?.message ?? 'Could not load reviews for this provider.',
+      {
+        employeeId,
+        reason: 'not_found',
+      },
+    );
   }
 }

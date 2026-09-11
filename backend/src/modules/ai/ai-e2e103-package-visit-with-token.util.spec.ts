@@ -14,7 +14,9 @@ describe('e2e-bug.103 package visit with_token NL routing', () => {
   const rescue = new AiIntentRescueService();
 
   it.each(
-    E2E103_PACKAGE_VISIT_WITH_TOKEN_SCENARIOS.map((row) => [row.id, row] as const),
+    E2E103_PACKAGE_VISIT_WITH_TOKEN_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('rescues %s to guest with_token action', (_id, row) => {
     const session =
       'session' in row && row.session

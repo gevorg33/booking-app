@@ -48,7 +48,10 @@ describe('ai-clinic-pre-visit-intake.util (ai-cmd-dashboard-6.3.3)', () => {
 
     it('returns null for unrelated prompts', () => {
       expect(
-        rescueClinicPreVisitIntakeIntent('cancel all bookings today', 'unknown'),
+        rescueClinicPreVisitIntakeIntent(
+          'cancel all bookings today',
+          'unknown',
+        ),
       ).toBeNull();
     });
   });

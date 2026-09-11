@@ -58,7 +58,14 @@ export const APPLY_CLINIC_PLAYBOOK_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_CLINIC_SERVICES_PROMPTS = [
+/** Declared so the array is one type, not a union of eleven literal shapes. */
+export type ExplainClinicServicesPromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+};
+
+export const EXPLAIN_CLINIC_SERVICES_PROMPTS: readonly ExplainClinicServicesPromptFixture[] = [
   {
     id: 'explain-clinic-overview',
     prompt: 'Explain our clinic services and department counts',
@@ -104,9 +111,19 @@ export const EXPLAIN_CLINIC_SERVICES_PROMPTS = [
     prompt: 'Explain clinic settings for CBC',
     serviceName: 'CBC',
   },
-] as const;
+];
 
-export const CONFIGURE_CLINIC_SERVICE_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ConfigureClinicServicePromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName: string;
+  serviceType?: 'consultation' | 'lab_test' | 'procedure';
+  requiresFasting?: boolean;
+  preparationNotes?: string;
+};
+
+export const CONFIGURE_CLINIC_SERVICE_PROMPTS: readonly ConfigureClinicServicePromptFixture[] = [
   {
     id: 'mark-cbc-lab-fasting',
     prompt: 'Mark CBC as a lab test requiring fasting',

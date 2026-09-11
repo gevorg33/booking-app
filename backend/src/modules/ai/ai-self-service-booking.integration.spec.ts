@@ -147,6 +147,27 @@ describe('Sprint 36 customer booking AI scenarios', () => {
       b.metadata = { ...b.metadata, manageToken: 'token-abc' };
       return b;
     }),
+    // `manager.transaction` — the manifest's `mock_missing_transaction` class,
+    // same gap as this file's `.logic` sibling. `ensureBookingManageToken`
+    // opens a transaction and locks the row inside it; with no `manager` the
+    // three manage-link cases died before reaching the behaviour under test.
+    //
+    // The locked read reuses this mock's own `findOne`, so whichever booking a
+    // case set up is the one the token is minted against.
+    manager: {
+      transaction: async (cb: (m: any) => Promise<unknown>) =>
+        cb({
+          createQueryBuilder: () => ({
+            setLock: () => ({
+              where: () => ({
+                getOne: async () =>
+                  bookingRepo.findOne({ where: { id: 'book-1' } }),
+              }),
+            }),
+          }),
+          save: async (_entity: unknown, row: any) => row,
+        }),
+    },
   };
 
   let selfServiceBooking: AiSelfServiceBookingService;

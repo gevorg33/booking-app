@@ -88,17 +88,20 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
   });
 
   it('tracks registered marketing-growth intents still deferred after 4.0 promotion', () => {
+    // acc-2.4 / §226 — this list only shrinks: an intent leaves it by being
+    // promoted. `explain_loyalty_points` has since graduated (promoted=true,
+    // required=true), so the assertion was pinning a pre-promotion snapshot and
+    // failed *because the work progressed*.
     const registered = registeredDeferredMarketingGrowthIntents();
-    expect(registered).toEqual([
-      'switch_to_consumer_app',
-      'explain_loyalty_points',
-    ]);
+    expect(registered).toEqual(['switch_to_consumer_app']);
   });
 
   it('tracks registered consumer-clinic-test-results intents as deferred customer rows', () => {
-    expect(registeredDeferredConsumerClinicTestResultsIntents()).toEqual([
-      'explain_result_status',
-    ]);
+    // §226 — `explain_result_status` graduated too, emptying this list. An
+    // empty deferred list is the ratchet reaching zero, not a lost registration:
+    // the intent is promoted and required, and its coverage is asserted by the
+    // customer-intent-coverage gate.
+    expect(registeredDeferredConsumerClinicTestResultsIntents()).toEqual([]);
   });
 
   it('ships HY and RU fixture siblings for every EN consumer-adoption scenario', () => {
@@ -645,8 +648,12 @@ describe('ai customer deferred locale parity (acc-2.4 / gap-5)', () => {
         (row) => row.locale === 'ru',
       );
 
-    expect(hyCases.length).toBe(21);
-    expect(ruCases.length).toBe(21);
+    // §226 — 21 → 22: a scenario was added, and its HY/RU siblings with it.
+    // The invariant these numbers exist to protect is parity between the two,
+    // which is why they are asserted equal to each other as well.
+    expect(hyCases.length).toBe(22);
+    expect(ruCases.length).toBe(22);
+    expect(hyCases.length).toBe(ruCases.length);
     expect(hyCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(ruCases.every((row) => row.surface === 'customer')).toBe(true);
     expect(hyCases.every((row) => row.expect.needsMultilingual === true)).toBe(

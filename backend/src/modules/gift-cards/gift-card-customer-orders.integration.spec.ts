@@ -206,7 +206,8 @@ describe('Gift card customer orders integration', () => {
     creditRepo as any,
     redemptionRepo as any,
     expirationAuditRepo as any,
-  );
+  
+    undefined as never);
 
   const bundleBusiness = {
     ...business,

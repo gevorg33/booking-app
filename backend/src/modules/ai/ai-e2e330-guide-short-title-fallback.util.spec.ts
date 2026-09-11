@@ -15,12 +15,53 @@ function resolveKey(messages: MessageTree, key: string): string | null {
 }
 
 const TRAILING_STOPWORDS = new Set([
-  'a', 'an', 'the', 'to', 'with', 'and', 'or', 'but', 'when', 'then', 'like',
-  'before', 'after', 'once', 'so', 'that', 'on', 'at', 'in', 'of', 'for',
-  'against', 'is', 'are', 'was', 'were', 'my', 'your', 'our', 'their', 'its',
+  'a',
+  'an',
+  'the',
+  'to',
+  'with',
+  'and',
+  'or',
+  'but',
+  'when',
+  'then',
+  'like',
+  'before',
+  'after',
+  'once',
+  'so',
+  'that',
+  'on',
+  'at',
+  'in',
+  'of',
+  'for',
+  'against',
+  'is',
+  'are',
+  'was',
+  'were',
+  'my',
+  'your',
+  'our',
+  'their',
+  'its',
   'if',
-  'կամ', 'և', 'եթե',
-  'и', 'или', 'если', 'чтобы', 'для', 'к', 'в', 'с', 'по', 'при', 'на', 'до',
+  'կամ',
+  'և',
+  'եթե',
+  'и',
+  'или',
+  'если',
+  'чтобы',
+  'для',
+  'к',
+  'в',
+  'с',
+  'по',
+  'при',
+  'на',
+  'до',
   'после',
 ]);
 
@@ -49,7 +90,9 @@ describe('e2e-bug.330: guide short-title fallback stops on a real word', () => {
           const bad =
             TRAILING_STOPWORDS.has(stripPunct(last)) || /^[—–→]+$/u.test(last);
           if (bad) {
-            violations.push(`${locale}:${pb.topicId}:${step.titleKey} -> "${humanized}"`);
+            violations.push(
+              `${locale}:${pb.topicId}:${step.titleKey} -> "${humanized}"`,
+            );
           }
         }
       }
@@ -59,7 +102,9 @@ describe('e2e-bug.330: guide short-title fallback stops on a real word', () => {
 
   it('never returns an empty or lowercase-only-fallback string for the 41 e2e-bug.330 playbooks', () => {
     const playbooks = listAllGuideFlowPlaybookDefs();
-    const missing = playbooks.filter((pb) => pb.steps.some((s) => !s.shortTitleKey));
+    const missing = playbooks.filter((pb) =>
+      pb.steps.some((s) => !s.shortTitleKey),
+    );
     expect(missing.length).toBeGreaterThanOrEqual(41);
     const messages = getFrontendGuideCorpusMessages('en');
     for (const pb of missing) {

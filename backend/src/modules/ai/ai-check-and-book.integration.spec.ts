@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AiPaymentsService } from './ai-payments.service.js';
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
@@ -168,7 +169,9 @@ function buildLogicDeps(
     subscriptionsService: {} as any,
     bookingRepo: {} as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     serviceRepo: {
       find: jest.fn(async ({ where }: any = {}) =>
@@ -199,11 +202,11 @@ function resolvedCreateBooking(
     params,
     enrichedParams: { serviceId, allProviders: true },
     entities: {
+      services: [],
       service: { id: serviceId, name: 'Permanent lashes' } as any,
       employees: [],
     },
     reasoning: 'test',
-    confidence: 0.9,
   };
 }
 
@@ -240,7 +243,7 @@ describe('ai check-and-book integration', () => {
   };
   attachNearestAcrossWindowsMock(publicBookingService);
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    findOne: jest.fn(async () => makeBusiness({ id: 'biz-1', slug: 'salon' })),
   };
   const serviceRepo = {
     find: jest.fn(async () => services),

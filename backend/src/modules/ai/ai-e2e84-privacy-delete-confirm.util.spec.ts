@@ -37,7 +37,9 @@ describe('e2e-bug.84 privacy_delete requires confirmation before erasure', () =>
         pendingAction: 'privacy_delete',
       });
       expect(result.summary).toMatch(/Reply yes to confirm/i);
-      expect(d.customerPrivacyService.deleteCustomerData).not.toHaveBeenCalled();
+      expect(
+        d.customerPrivacyService.deleteCustomerData,
+      ).not.toHaveBeenCalled();
 
       // e2e-bug.257 — pending must survive public assistant shaping via sessionContext.
       const publicResult = commandResultToPublicAssistantResult(result);
@@ -124,9 +126,9 @@ describe('e2e-bug.84 privacy_delete requires confirmation before erasure', () =>
   );
 
   it('e2e-bug.257 — string pending flags from sessionContext count as pending', () => {
-    expect(
-      isPrivacyDeletePendingParams({ privacyDeletePending: 'true' }),
-    ).toBe(true);
+    expect(isPrivacyDeletePendingParams({ privacyDeletePending: 'true' })).toBe(
+      true,
+    );
     expect(
       rescuePrivacyDeleteConfirmIntent('yes', 'unknown', {
         privacyDeletePending: 'true',

@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { PatientDocumentsService } from '../patient-clinical-profiles/patient-documents.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -15,7 +18,7 @@ import {
 } from './ai-list-my-documents.util.js';
 
 export interface ListMyDocumentsLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   patientDocumentsService: Pick<
     PatientDocumentsService,
     'listReleasedDocumentsForCustomerAccount'

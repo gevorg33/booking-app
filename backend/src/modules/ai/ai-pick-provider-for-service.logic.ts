@@ -1,8 +1,14 @@
+import { resolveEntity } from './ai-entity-resolution.util.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { parsePickProviderForServiceFromPrompt } from './ai-pick-provider-for-service.util.js';
@@ -11,10 +17,10 @@ import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
 import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface PickProviderForServiceLogicDeps {
-  employeeRepo: Pick<Repository<Employee>, 'find'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
+  employeeRepo: EntityFinder<Employee>;
+  serviceRepo: EntityFinder<Service>;
   publicCustomerAuthService: Pick<PublicCustomerAuthService, 'listBookings'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(
@@ -40,22 +46,24 @@ function resolveSessionCustomerId(
   return typeof raw === 'string' && raw.trim() ? raw.trim() : undefined;
 }
 
-function resolveServiceByName(
-  services: readonly Service[],
-  serviceName: string,
-): Service | undefined {
-  const needle = serviceName.trim().toLowerCase();
-  if (!needle) return undefined;
-  return (
-    services.find((entry) => entry.name.toLowerCase() === needle) ??
-    services.find((entry) => entry.name.toLowerCase().includes(needle)) ??
-    services.find((entry) =>
-      needle
-        .split(/\s+/)
-        .every((part) => part && entry.name.toLowerCase().includes(part)),
-    )
-  );
-}
+/**
+ * tech-debt B7 / e2e-bug.367 — this local copy now refuses a tie.
+ *
+ * §187 filed the four remaining re-parsers as blocked on one decision: "may
+ * these surfaces ask a clarifying question", on the grounds that every copy
+ * *guesses* while `EntityResolutionService` *asks*, making each migration a
+ * contract change for its callers.
+ *
+ * Checked, and this caller needs no contract change: an unresolved service simply leaves
+ * `serviceName` as the typed text and navigates to the professionals list
+ * instead of a booking — already the "I could not pin this down" behaviour.
+ *
+ * So the tie is detected with the shared `resolveEntity` and answered with
+ * `undefined`, which the existing path already handles. Acceptance is otherwise
+ * untouched — the original tiers still run for every non-tied name — so this
+ * can only refuse a name that previously resolved to an arbitrary one of
+ * several equally good matches.
+ */
 
 function pickLastVisitWithProvider<
   T extends {
@@ -224,7 +232,17 @@ export async function handlePickProviderForServiceLogic(
 
   const serviceName = parsed.serviceName?.trim();
   const service = serviceName
-    ? resolveServiceByName(services, serviceName)
+    ? // e2e-bug.367 — shared tiers in `resolveServiceByNameOrRefuseTie`; this
+      // closure is this call site's own last tier, and the rule
+      // `ai-compare-services.logic.ts` does not share: every word of the query
+      // appears in the service name ("deep massage" -> "Deep Tissue Massage").
+      resolveServiceByNameOrRefuseTie(services, serviceName, (list, needle) =>
+        list.find((entry) =>
+          needle
+            .split(/\s+/)
+            .every((part) => part && entry.name.toLowerCase().includes(part)),
+        ),
+      )
     : undefined;
 
   const summary = buildPickProviderForServiceSummary({

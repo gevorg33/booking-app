@@ -42,6 +42,7 @@ import {
   buildUtcStartTimeFromDayAndTime,
 } from '../../common/utils/date-format.util.js';
 import { formatDateForAiLabel } from './ai-date-label.util.js';
+import { resolveTomorrowDateKey } from './ai-datetime-resolution.util.js';
 import { timeToMinutes } from '../../common/utils/time-format.util.js';
 import {
   pickTimezone,
@@ -67,6 +68,7 @@ import {
   coerceClinicTestResultExtIntent,
   dispatchClinicTestResultExtIntent,
 } from './ai-clinic-test-result-ext-dispatch.util.js';
+import { resolveEntity } from './ai-entity-resolution.util.js';
 import { AiClinicPatientChartService } from './ai-clinic-patient-chart.service.js';
 import { AiPatientClinicalMutationsService } from './ai-patient-clinical-mutations.service.js';
 import { AiClinicQuestionnaireService } from './ai-clinic-questionnaire.service.js';
@@ -175,6 +177,8 @@ import {
 import { SchedulingEngineService } from '../../engine/scheduling/scheduling-engine.service.js';
 import {
   resolveEmployees,
+  resolveEmployeesVerdict,
+  resolveServicesVerdict,
   resolveDateRange,
   resolveAutoExecute,
   fuzzyMatchServiceByName,
@@ -188,6 +192,7 @@ import {
   isClearSchedulePrompt,
   resolveServicesFromCatalogParams,
   enrichListServicesParamsFromPrompt,
+  fuzzyMatchByName as canonicalFuzzyMatchByName,
 } from './ai-orchestration.helpers.js';
 import {
   enrichDiscoveryParamsFromPrompt,
@@ -405,7 +410,6 @@ import {
   enrichCompoundSubStepGiftCardPaymentsHints,
 } from './ai-gift-card-payments-hints.util.js';
 
-
 @Injectable()
 export class AiBookingCoreService {
   constructor(
@@ -428,7 +432,6 @@ export class AiBookingCoreService {
     private slotResolver: BookingSlotResolverService,
     private customerService: CustomerService,
   ) {}
-
 
   private toCommandResult(result: OrchestrationResult): CommandResult {
     return {
@@ -494,16 +497,161 @@ export class AiBookingCoreService {
     return this.fuzzyMatchByName(customers, name);
   }
 
+  /**
+   * Name resolution that can say "I don't know which one" (tech-debt D5).
+   *
+   * `resolveCustomer`/`resolveEmployee` return `T | undefined`, so a tie is
+   * indistinguishable from a confident hit: two people called "John Smith"
+   * resolve to whichever row Postgres returned first, and nothing tells the
+   * caller it guessed. This returns the verdict so mutating paths can ask.
+   *
+   * Two deliberate constraints keep the delta to ties alone:
+   * `threshold: 0`, because `resolveEntity` otherwise rejects the substring
+   * tiers `fuzzyMatchByName` accepts (that re-tiering is its own change), and
+   * a `not_found` fallback to the legacy matcher, because the two normalise
+   * names differently — so acceptance can only widen here, never narrow.
+   */
+  private resolveNamedVerdict<T extends { id: string; name: string }>(
+    items: T[],
+    name: string,
+    entityLabel: 'customer' | 'provider',
+  ): { match?: T; ambiguous: T[]; clarification: string } {
+    const verdict = resolveEntity(items, name, { entityLabel, threshold: 0 });
+    if (verdict.status === 'ambiguous') {
+      return {
+        ambiguous: verdict.candidates,
+        clarification:
+          verdict.clarification ??
+          `Which ${entityLabel} did you mean by "${name}"?`,
+      };
+    }
+    return {
+      match: verdict.match ?? this.fuzzyMatchByName(items, name),
+      ambiguous: [],
+      clarification: '',
+    };
+  }
+
+  /**
+   * The bulk paths' provider-name guard (tech-debt D5).
+   *
+   * `bulk_smart_cancel`, `update_bookings`, `cancel_bookings` and the two
+   * calendar-visibility handlers all had the same nine-line block: resolve the
+   * name, and bail with "No provider found" if it missed. A *tie* passed that
+   * guard — `resolveEmployee` returns an entity — so the bulk operation ran
+   * against whichever namesake sorted first, cancelling or rewriting a whole
+   * day of someone else's appointments. Stakes are higher here than on a single
+   * create, so the tie is refused first and the miss message is unchanged.
+   *
+   * Returns a `CommandResult` to hand straight back, or null to proceed.
+   */
+  /**
+   * §230 — public because the plan-only previews in
+   * `AiCommandService.dispatchMutatingIntent` call the sweep and visibility
+   * finders **directly**, bypassing the handlers that guard here. Those
+   * finders scope by `resolveEmployee`, the silent-pick wrapper, so an
+   * ambiguous provider name previewed one namesake's appointments in answer to
+   * a question about the other (`e2e-bug.512`). Exposing the existing guard is
+   * applying the house pattern to a ninth caller, not a new mechanism.
+   */
+  providerNameGuard(
+    action: string,
+    params: { employeeName?: string },
+    employees: Employee[],
+  ) {
+    if (!params.employeeName) return null;
+    const verdict = this.resolveNamedVerdict(
+      employees,
+      params.employeeName,
+      'provider',
+    );
+    if (verdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal(action, params, verdict);
+    }
+    if (!verdict.match) {
+      return {
+        success: false,
+        action,
+        summary: `No provider found matching "${params.employeeName}".`,
+        details: { params },
+      };
+    }
+    return null;
+  }
+
+  /**
+   * §311 (`e2e-bug.533`) — the bulk paths' customer-name scope.
+   *
+   * `cancel_bookings` and `update_bookings` both **declared** `customerName`
+   * ("Only cancel appointments for this customer") and both ignored it: the
+   * where-clause was built from employee, service and date scope only. So
+   * "cancel Mary's appointments tomorrow" cancelled everyone's, on a T3
+   * irreversible command. The completion gate hid the worst case — it demands a
+   * date/provider/service and does not accept `customerName` as a filter — but a
+   * customer name *plus* a date sailed through.
+   *
+   * Returns a refusal rather than a silent widening, and refuses a tie the way
+   * `providerNameGuard` does (D5, §225-§238): two customers called Mary must
+   * ask, never pick. An unresolvable name refuses too — on a destructive path,
+   * "I could not find Mary" must not degrade into "cancel everything".
+   */
+  resolveCustomerScope(
+    action: string,
+    params: { customerName?: string; customerId?: string },
+    customers: Customer[],
+  ): { refusal?: CommandResult; customerId?: string } {
+    if (params.customerId) return { customerId: params.customerId };
+    if (!params.customerName) return {};
+    const verdict = this.resolveNamedVerdict(
+      customers,
+      params.customerName,
+      'customer',
+    );
+    if (verdict.ambiguous.length > 1) {
+      return { refusal: this.ambiguityRefusal(action, params, verdict) };
+    }
+    if (!verdict.match) {
+      return {
+        refusal: {
+          success: false,
+          action,
+          summary: `No customer found matching "${params.customerName}".`,
+          details: { params },
+        },
+      };
+    }
+    return { customerId: verdict.match.id };
+  }
+
+  /** Shared shape for the D5 ambiguity early-return. */
+  private ambiguityRefusal(
+    action: string,
+    params: unknown,
+    verdict: { ambiguous: { id: string; name: string }[]; clarification: string },
+  ) {
+    return {
+      success: false,
+      action,
+      summary: verdict.clarification,
+      details: {
+        params,
+        candidates: verdict.ambiguous.map((c) => ({ id: c.id, name: c.name })),
+      },
+    };
+  }
+
   private fuzzyMatchByName<T extends { name: string }>(
     items: T[],
     name: string,
   ): T | undefined {
-    const lower = name.toLowerCase().trim();
-    return (
-      items.find((item) => item.name.toLowerCase() === lower) ||
-      items.find((item) => item.name.toLowerCase().includes(lower)) ||
-      items.find((item) => lower.includes(item.name.toLowerCase()))
-    );
+    // e2e-bug.446 / e2e-bug.362 — this was a third copy of the tiered matcher
+    // whose last tier was a raw `lower.includes(item.name)`. That returned an
+    // employee called "Al" for "is the salon open" (s-**al**-on) and, worse,
+    // for "book Alice for a haircut" — the wrong colleague, confidently.
+    // e2e-bug.362 anchored the shared version to word boundaries; the fix never
+    // reached the private copies. Delegating rather than re-patching, so the
+    // next fix has one place to land.
+    return canonicalFuzzyMatchByName(items, name);
   }
 
   /** Snap HH:mm down to nearest 10-minute boundary (matches booking UI). */
@@ -538,11 +686,20 @@ export class AiBookingCoreService {
     }
 
     const service = serviceResolved.service;
+    // An explicit id is unambiguous by construction, so it still wins outright
+    // and the name is never consulted — same precedence as before.
+    const customerVerdict =
+      !params.customerId && params.customerName
+        ? this.resolveNamedVerdict(customers, params.customerName, 'customer')
+        : null;
+    const employeeVerdict =
+      !params.employeeId && params.employeeName
+        ? this.resolveNamedVerdict(employees, params.employeeName, 'provider')
+        : null;
+
     const customer = params.customerId
       ? customers.find((c) => c.id === params.customerId)
-      : params.customerName
-        ? this.resolveCustomer(customers, params.customerName)
-        : undefined;
+      : (customerVerdict?.match ?? undefined);
 
     if (!service) {
       return {
@@ -553,11 +710,38 @@ export class AiBookingCoreService {
       };
     }
 
+    // A tie is not a match: booking against the wrong customer, or with the
+    // wrong provider, is silent and hard to unpick — so ask rather than pick
+    // (tech-debt D5). Checked after the service guard so the existing "which
+    // service?" message still wins when those are unresolved too.
+    if (customerVerdict && customerVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('create_booking', params, customerVerdict);
+    }
+    if (employeeVerdict && employeeVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('create_booking', params, employeeVerdict);
+    }
+
+    // The plural `employeeNames` path bypasses the check above entirely: it
+    // feeds `providerPriority` further down, where each name was resolved with
+    // the silent-pick matcher. "Book with Anna or Maria" therefore guessed
+    // which Anna even though the singular path had been fixed. Each requested
+    // name is checked, and the first ambiguous one is named back to the user,
+    // so the question is about the name they typed rather than the list.
+    const requestedNames: string[] = Array.isArray(params.employeeNames)
+      ? params.employeeNames.filter(
+          (n: unknown): n is string => typeof n === 'string' && !!n.trim(),
+        )
+      : [];
+    for (const requested of requestedNames) {
+      const verdict = this.resolveNamedVerdict(employees, requested, 'provider');
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('create_booking', params, verdict);
+      }
+    }
+
     let resolvedEmployee = params.employeeId
       ? employees.find((e) => e.id === params.employeeId)
-      : params.employeeName
-        ? this.resolveEmployee(employees, params.employeeName)
-        : undefined;
+      : (employeeVerdict?.match ?? undefined);
     let timeSlot = params.timeSlot ? this.snapTo10min(params.timeSlot) : null;
 
     if (params.bookingFirstAvailable) {
@@ -729,7 +913,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async resolveCreateBookingServiceForParams(
     businessId: string,
     services: Service[],
@@ -780,7 +963,6 @@ export class AiBookingCoreService {
       : undefined;
     return { service, noMatchSummary: null };
   }
-
 
   async pickCreateBookingFirstAvailable(
     businessId: string,
@@ -914,9 +1096,7 @@ export class AiBookingCoreService {
     return { ok: true, pick };
   }
 
-
   private static readonly FIRST_AVAILABLE_SCAN_DAYS = 14;
-
 
   async findFirstAvailableBookingSlot(
     businessId: string,
@@ -986,7 +1166,6 @@ export class AiBookingCoreService {
       : null;
   }
 
-
   async findFirstAvailableBookingSlotOnDay(
     businessId: string,
     service: Service,
@@ -1031,7 +1210,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async handleAssignEmployeeServices(
     businessId: string,
     params: any,
@@ -1071,7 +1249,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleUnassignEmployeeServices(
     businessId: string,
@@ -1113,7 +1290,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleTransferEmployeeServices(
     businessId: string,
@@ -1157,7 +1333,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleSummarizeUtilization(
     businessId: string,
@@ -1211,7 +1386,6 @@ export class AiBookingCoreService {
       details: { range, utilization: sorted },
     };
   }
-
 
   async handleSummarizeCustomers(
     businessId: string,
@@ -1334,7 +1508,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeBookings(
     businessId: string,
     prompt: string,
@@ -1395,7 +1568,6 @@ export class AiBookingCoreService {
       statusFilter: params.statusFilter as string | undefined,
     });
   }
-
 
   async handleListServices(
     businessId: string,
@@ -1571,7 +1743,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleAnalyzeServices(
     businessId: string,
     prompt: string,
@@ -1672,7 +1843,6 @@ export class AiBookingCoreService {
       details: { metric, range, rows },
     };
   }
-
 
   async handleSummarizeStaff(
     businessId: string,
@@ -1781,7 +1951,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleLookupCustomer(
     businessId: string,
     params: Record<string, any>,
@@ -1798,7 +1967,18 @@ export class AiBookingCoreService {
       };
     }
 
-    const customer = this.resolveCustomer(customers, name);
+    // A tie returns *someone else's* full customer record — visit history and
+    // all — to a question about a different person with the same name. Ask
+    // rather than pick (tech-debt D5).
+    const customerVerdict = this.resolveNamedVerdict(
+      customers,
+      name,
+      'customer',
+    );
+    if (customerVerdict.ambiguous.length > 1) {
+      return this.ambiguityRefusal('lookup_customer', params, customerVerdict);
+    }
+    const customer = customerVerdict.match;
     if (!customer) {
       return {
         success: false,
@@ -1901,7 +2081,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeWaitlist(
     businessId: string,
     params: Record<string, any>,
@@ -1987,7 +2166,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleLookupServiceAssignment(
     businessId: string,
     employees: Employee[],
@@ -2013,7 +2191,21 @@ export class AiBookingCoreService {
         };
       }
 
-      const employee = this.resolveEmployee(employees, name);
+      // Same tie problem as `lookup_customer`: answering with the wrong
+      // namesake's service list (tech-debt D5).
+      const providerVerdict = this.resolveNamedVerdict(
+        employees,
+        name,
+        'provider',
+      );
+      if (providerVerdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal(
+          'lookup_service_assignment',
+          params,
+          providerVerdict,
+        );
+      }
+      const employee = providerVerdict.match;
       if (!employee) {
         return {
           success: false,
@@ -2213,6 +2405,39 @@ export class AiBookingCoreService {
       `Providers who can perform ${service.name} (${providers.length})${discoveryNote ? ` ${discoveryNote}` : ''}:`,
       ...providers.map((p) => `• ${p.name}`),
     ];
+
+    // e2e-bug.476 — naming the provider is correct but stops one question
+    // short: the owner's next move is to book them and only then discover
+    // nobody is scheduled. The question had no day in it, so this stays an
+    // addendum to the catalog answer rather than scoping it.
+    const isoTomorrow = resolveTomorrowDateKey(
+      (params._timeZone as string | undefined) ?? 'UTC',
+    );
+    // The addendum is optional by construction: the catalog answer above is
+    // complete and correct without it, so a failure to read the schedule must
+    // degrade to silence rather than take the answer down with it.
+    let unscheduled: Employee[] = [];
+    try {
+      unscheduled = await this.providersWithoutServiceBlockOn(
+        businessId,
+        providers,
+        service.id,
+        isoTomorrow,
+      );
+    } catch {
+      unscheduled = [];
+    }
+    if (unscheduled.length) {
+      const dayLabel = formatDateForAiLabel(isoTomorrow);
+      lines.push(
+        '',
+        unscheduled.length === providers.length
+          ? `No ${service.name} time is scheduled for ${dayLabel} — add one with "create a schedule for ${unscheduled[0].name}".`
+          : `Not scheduled for ${service.name} on ${dayLabel}: ${unscheduled
+              .map((p) => p.name)
+              .join(', ')}.`,
+      );
+    }
     return {
       success: true,
       action: 'lookup_service_assignment',
@@ -2222,10 +2447,16 @@ export class AiBookingCoreService {
         maxPrice: params.maxPrice ?? null,
         serviceRank: params.serviceRank ?? null,
         providers: providers.map((p) => ({ id: p.id, name: p.name })),
+        // e2e-bug.476 — structured, so a caller can offer "create a schedule"
+        // without parsing the summary prose.
+        unscheduledOn: isoTomorrow,
+        unscheduledProviders: unscheduled.map((p) => ({
+          id: p.id,
+          name: p.name,
+        })),
       },
     };
   }
-
 
   handleListEmployees(
     employees: Employee[],
@@ -2252,7 +2483,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   handleListTemplates(templates: ScheduleTemplate[]): CommandResult {
     const active = templates.filter((t) => !t.isDeleted);
     if (active.length === 0) {
@@ -2274,13 +2504,11 @@ export class AiBookingCoreService {
     };
   }
 
-
   bookingDurationMinutes(booking: Booking): number {
     return Math.round(
       (booking.endTime.getTime() - booking.startTime.getTime()) / 60_000,
     );
   }
-
 
   formatServicePrice(service: Service | null | undefined): string {
     if (!service) return '—';
@@ -2288,14 +2516,12 @@ export class AiBookingCoreService {
     return `${currency} ${Number(service.price).toFixed(2)}`;
   }
 
-
   formatAppointmentLine(booking: Booking): string {
     const time = formatTimeRangeDisplay(booking.startTime, booking.endTime);
     const duration = this.bookingDurationMinutes(booking);
     const price = this.formatServicePrice(booking.service);
     return `• ${time} | ${booking.service?.name || 'Service'} | ${booking.customer?.name || 'Walk-in'} | ${booking.employee?.name || 'Unknown'} | ${duration} min | ${price} | ${booking.status}`;
   }
-
 
   async handleAnalyzeAppointments(
     businessId: string,
@@ -2436,7 +2662,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleBulkSmartCancel(
     businessId: string,
     prompt: string,
@@ -2447,19 +2672,29 @@ export class AiBookingCoreService {
     userId?: string,
     options?: { notifyOnly?: boolean },
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
+    // D5 / §236 — services tie the same way providers do, and this handler
+    // **cancels**. `fuzzyMatchServiceByName`'s substring tier means "massage"
+    // matches both "Swedish massage" and "Deep tissue massage" and silently
+    // takes one, so a bulk cancel ran against one service's bookings and
+    // reported success having ignored the other. Refusing rather than matching
+    // both: widening a cancel is the worse failure of the two.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
       return {
         success: false,
         action: 'bulk_smart_cancel',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
       };
     }
+    const matchedServices = serviceVerdict.services;
+
+    const providerIssue = this.providerNameGuard('bulk_smart_cancel', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCancel(
       businessId,
@@ -2522,7 +2757,6 @@ export class AiBookingCoreService {
       }),
     );
   }
-
 
   async handleFillSlotFromWaitlist(
     businessId: string,
@@ -2615,7 +2849,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async buildCreateBookingPlanOnly(
     businessId: string,
     params: any,
@@ -2626,6 +2859,36 @@ export class AiBookingCoreService {
     prompt?: string,
   ): Promise<AgentPlan | null> {
     params = enrichDashboardCreateBookingParams({ ...params }, prompt);
+
+    // tech-debt D5-a — refuse a tied name instead of booking whichever
+    // namesake sorts first.
+    //
+    // §176 held this site back because the signature is `AgentPlan | null` and
+    // "a refusal is not a plan", so migrating looked like trading a wrong guess
+    // for silence. Checked 2026-08-20, and that is not what `null` means here:
+    // `create_booking` is in `MUST_NOT_SILENTLY_SKIP_ACTIONS`
+    // (`compound-command-graph.service.ts`), so a null plan makes the compound
+    // **stop and ask** rather than advance — the channel e2e-bug.329 built for
+    // exactly this. `null` is already the "I could not build this" signal.
+    //
+    // The trade is therefore not guess-vs-silence but guess-vs-refusal, and for
+    // a mutating command that books a real appointment and emails a real
+    // customer, failing closed is the safe side.
+    //
+    // Known residual, filed as e2e-bug.487: the *legacy* compound path
+    // (`executeCompoundIntents`) still drops a null plan silently when other
+    // steps produced plans — e2e-bug.329 was only ever fixed in the graph. That
+    // is a pre-existing gap this change makes reachable by one more route, not
+    // one it introduces, and "silently does not book" is still safer than
+    // "books the wrong person".
+    for (const [list, name, label] of [
+      [customers, params.customerName, 'customer'],
+      [employees, params.employeeName, 'provider'],
+    ] as const) {
+      if (typeof name !== 'string' || !name.trim()) continue;
+      const verdict = this.resolveNamedVerdict(list as any, name, label);
+      if (verdict.ambiguous.length > 1) return null;
+    }
 
     const serviceResolved = await this.resolveCreateBookingServiceForParams(
       businessId,
@@ -2739,7 +3002,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async handleNoShowRecovery(
     businessId: string,
     prompt: string,
@@ -2749,6 +3011,27 @@ export class AiBookingCoreService {
     scopedEmployeeId: string | undefined,
     userId?: string,
   ): Promise<CommandResult> {
+    // tech-debt D5-a — refuse a tied provider name before scoping a bulk write.
+    //
+    // These handlers scope through `applyEmployeeScopeToWhere`, whose
+    // `employeeName` branch calls `resolveEmployee` — first-on-ties. A tie
+    // therefore set `where.employeeId` to whichever namesake sorted first and
+    // this ran against **the wrong person's bookings**, which is the same
+    // defect slice 4 fixed for the other bulk paths and the same shape as
+    // e2e-bug.362.
+    //
+    // §176 listed this site as blocked because `applyEmployeeScopeToWhere`
+    // returns `boolean` and cannot carry a clarification. True of that
+    // function — but not of its callers: these three return `CommandResult`,
+    // so the guard belongs here, exactly as it already does in
+    // `handleUpdateBookings`. No contract change is needed.
+    const providerIssue = this.providerNameGuard(
+      'mark_no_shows',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
+
     const bookings = await this.findBookingsForMarkNoShows(
       businessId,
       params,
@@ -2765,7 +3048,6 @@ export class AiBookingCoreService {
       userId,
     );
   }
-
 
   async handleMarkNoShows(
     businessId: string,
@@ -2787,6 +3069,15 @@ export class AiBookingCoreService {
         userId,
       );
     }
+
+    // tech-debt D5-a — same guard as `handleNoShowRecovery` above; this is the
+    // branch that does NOT delegate to it, so it needs its own.
+    const providerIssue = this.providerNameGuard(
+      'mark_no_shows',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForMarkNoShows(
       businessId,
@@ -2829,7 +3120,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async handlePaymentSweep(
     businessId: string,
     prompt: string,
@@ -2839,6 +3129,27 @@ export class AiBookingCoreService {
     scopedEmployeeId: string | undefined,
     userId?: string,
   ): Promise<CommandResult> {
+    // tech-debt D5-a — refuse a tied provider name before scoping a bulk write.
+    //
+    // These handlers scope through `applyEmployeeScopeToWhere`, whose
+    // `employeeName` branch calls `resolveEmployee` — first-on-ties. A tie
+    // therefore set `where.employeeId` to whichever namesake sorted first and
+    // this ran against **the wrong person's bookings**, which is the same
+    // defect slice 4 fixed for the other bulk paths and the same shape as
+    // e2e-bug.362.
+    //
+    // §176 listed this site as blocked because `applyEmployeeScopeToWhere`
+    // returns `boolean` and cannot carry a clarification. True of that
+    // function — but not of its callers: these three return `CommandResult`,
+    // so the guard belongs here, exactly as it already does in
+    // `handleUpdateBookings`. No contract change is needed.
+    const providerIssue = this.providerNameGuard(
+      'payment_sweep',
+      params,
+      employees,
+    );
+    if (providerIssue) return providerIssue;
+
     const rawBookings = await this.findUnpaidBookingsForSweep(
       businessId,
       params,
@@ -2898,7 +3209,6 @@ export class AiBookingCoreService {
     return result;
   }
 
-
   async handleDayReplan(
     businessId: string,
     prompt: string,
@@ -2918,7 +3228,26 @@ export class AiBookingCoreService {
         details: { params },
       };
     }
-    const targets = resolveEmployees(employees, params);
+    // D5 / §232 — `day_replan` executes a plan scoped to `targets`, so a
+    // namesake tie replanned the **wrong provider's whole day**. Guarded with
+    // `resolveEmployeesVerdict` rather than `providerNameGuard`, because that
+    // one only inspects the singular `employeeName`: `resolveEmployees` also
+    // reads `employeeNames`, which is the plural bypass slice 8 found on
+    // `handleCreateBooking`.
+    const providerVerdict = resolveEmployeesVerdict(employees, params);
+    if (providerVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'day_replan',
+        summary: providerVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: providerVerdict.ambiguous.requestedName,
+          candidates: providerVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const targets = providerVerdict.targets;
     const plans: AgentPlan[] = [];
 
     plans.push(
@@ -2963,7 +3292,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   applyEmployeeScopeToWhere(
     where: Record<string, unknown>,
     params: Record<string, any>,
@@ -2992,7 +3320,6 @@ export class AiBookingCoreService {
     return true;
   }
 
-
   applyServiceScopeToWhere(
     where: Record<string, unknown>,
     params: Record<string, any>,
@@ -3003,7 +3330,6 @@ export class AiBookingCoreService {
       where.serviceId = In(matchedServices.map((s) => s.id));
     }
   }
-
 
   applyDateScopeToWhere(
     where: Record<string, unknown>,
@@ -3024,7 +3350,6 @@ export class AiBookingCoreService {
       where.startTime = Between(from, to);
     }
   }
-
 
   async findBookingsForBulkUpdate(
     businessId: string,
@@ -3050,6 +3375,8 @@ export class AiBookingCoreService {
     ) {
       return [];
     }
+    // §311 (`e2e-bug.533`): the customer scope, resolved by the caller.
+    if (params.customerId) where.customerId = params.customerId;
     this.applyServiceScopeToWhere(where, params, matchedServices);
     this.applyDateScopeToWhere(where, params);
 
@@ -3062,13 +3389,13 @@ export class AiBookingCoreService {
     return filterBookingsByTimeConstraints(bookings, params, prompt);
   }
 
-
   async handleUpdateBookings(
     businessId: string,
     prompt: string,
     params: any,
     services: Service[],
     employees: Employee[],
+    customers: Customer[],
     scopedEmployeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
@@ -3082,6 +3409,7 @@ export class AiBookingCoreService {
         params,
         services,
         employees,
+        customers,
         scopedEmployeeId,
         userId,
       );
@@ -3097,17 +3425,39 @@ export class AiBookingCoreService {
       };
     }
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
+    // D5 / §237 — `findBookingsForBulkUpdate` returns `Booking[]` and cannot
+    // refuse, so the guard belongs here, beside the provider one that already
+    // exists. Service first: an ambiguous service with a valid provider should
+    // report the service, not send the user to fix something that is fine.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
       return {
         success: false,
         action: 'update_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
       };
     }
+
+    // §311 (`e2e-bug.533`): apply the customer scope this command has always
+    // declared and never used. Refuses a tie or an unknown name rather than
+    // widening to every booking that matches the other filters.
+    const customerScope = this.resolveCustomerScope(
+      'update_bookings',
+      params,
+      customers,
+    );
+    if (customerScope.refusal) return customerScope.refusal;
+    if (customerScope.customerId) {
+      params = { ...params, customerId: customerScope.customerId };
+    }
+
+    const providerIssue = this.providerNameGuard('update_bookings', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForBulkUpdate(
       businessId,
@@ -3162,7 +3512,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   buildBulkBookingNoMatchMessage(
     verb: string,
     params: any,
@@ -3187,7 +3536,6 @@ export class AiBookingCoreService {
         : '';
     return `No active bookings found${empFilter}${serviceFilter}${dateFilter}${timeFilter}, so there was nothing to ${verb}.`;
   }
-
 
   async findBookingsForMarkNoShows(
     businessId: string,
@@ -3237,7 +3585,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async findUnpaidBookingsForSweep(
     businessId: string,
     params: any,
@@ -3283,7 +3630,6 @@ export class AiBookingCoreService {
     });
   }
 
-
   async findBookingsForCancel(
     businessId: string,
     params: any,
@@ -3310,6 +3656,8 @@ export class AiBookingCoreService {
     ) {
       return [];
     }
+    // §311 (`e2e-bug.533`): the customer scope, resolved by the caller.
+    if (params.customerId) where.customerId = params.customerId;
     this.applyServiceScopeToWhere(where, params, matchedServices);
     this.applyDateScopeToWhere(where, params);
 
@@ -3321,7 +3669,6 @@ export class AiBookingCoreService {
 
     return filterBookingsByTimeConstraints(bookings, params, prompt);
   }
-
 
   resolveCalendarVisibilityStatusFilters(
     params: any,
@@ -3346,7 +3693,6 @@ export class AiBookingCoreService {
     }
     return null;
   }
-
 
   async findBookingsForCalendarVisibility(
     businessId: string,
@@ -3421,7 +3767,6 @@ export class AiBookingCoreService {
     return bookings;
   }
 
-
   async findBookingsForHide(
     businessId: string,
     params: any,
@@ -3441,7 +3786,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   formatCalendarVisibilityPeriod(params: any): string {
     if (params.dateFrom && params.dateTo) {
       const from = formatDateDisplay(params.dateFrom);
@@ -3452,7 +3796,6 @@ export class AiBookingCoreService {
     return '';
   }
 
-
   async handleHideAppointmentsFromCalendar(
     businessId: string,
     params: any,
@@ -3462,21 +3805,30 @@ export class AiBookingCoreService {
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
-    const statuses =
-      this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
-
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
       return {
         success: false,
         action: 'hide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
       };
     }
+    const matchedServices = serviceVerdict.services;
+    const statuses =
+      this.resolveCalendarVisibilityStatusFilters(params, 'hide') ?? [];
+
+    const providerIssue = this.providerNameGuard('hide_appointments_from_calendar', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForHide(
       businessId,
@@ -3535,7 +3887,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async handleUnhideAppointmentsFromCalendar(
     businessId: string,
     params: any,
@@ -3545,23 +3896,32 @@ export class AiBookingCoreService {
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'unhide_appointments_from_calendar',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
     const statuses = this.resolveCalendarVisibilityStatusFilters(
       params,
       'unhide',
     );
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'unhide_appointments_from_calendar',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
-    }
+    const providerIssue = this.providerNameGuard('unhide_appointments_from_calendar', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCalendarVisibility(
       businessId,
@@ -3629,17 +3989,35 @@ export class AiBookingCoreService {
     );
   }
 
-
   async handleCancelBookings(
     businessId: string,
     prompt: string,
     params: any,
     services: Service[],
     employees: Employee[],
+    customers: Customer[],
     employeeId?: string,
     userId?: string,
   ): Promise<CommandResult> {
-    const matchedServices = this.resolveServices(services, params);
+    // D5 / §237 — service names tie like provider names do (§236):
+    // `fuzzyMatchServiceByName`'s substring tier makes "massage" match both
+    // "Swedish massage" and "Deep tissue massage". These handlers already
+    // refuse an ambiguous *provider*; the service half was never done, so the
+    // same bulk op guarded one entity and silently picked the other.
+    const serviceVerdict = resolveServicesVerdict(services, params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'cancel_bookings',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
+      };
+    }
+    const matchedServices = serviceVerdict.services;
     const requestedServiceLabels = [
       ...(params.serviceNames ?? []),
       ...(params.serviceName && !params.serviceNames?.length
@@ -3663,17 +4041,21 @@ export class AiBookingCoreService {
       };
     }
 
-    if (
-      params.employeeName &&
-      !this.resolveEmployee(employees, params.employeeName)
-    ) {
-      return {
-        success: false,
-        action: 'cancel_bookings',
-        summary: `No provider found matching "${params.employeeName}".`,
-        details: { params },
-      };
+    // §311 (`e2e-bug.533`): apply the customer scope this command has always
+    // declared and never used. Refuses a tie or an unknown name rather than
+    // widening to every booking that matches the other filters.
+    const customerScope = this.resolveCustomerScope(
+      'cancel_bookings',
+      params,
+      customers,
+    );
+    if (customerScope.refusal) return customerScope.refusal;
+    if (customerScope.customerId) {
+      params = { ...params, customerId: customerScope.customerId };
     }
+
+    const providerIssue = this.providerNameGuard('cancel_bookings', params, employees);
+    if (providerIssue) return providerIssue;
 
     const bookings = await this.findBookingsForCancel(
       businessId,
@@ -3735,11 +4117,9 @@ export class AiBookingCoreService {
     );
   }
 
-
   formatBookingTime(start: Date, end: Date): string {
     return formatTimeRangeDisplay(start, end);
   }
-
 
   formatBookingLines(
     bookings: Booking[],
@@ -3753,7 +4133,6 @@ export class AiBookingCoreService {
       return `  • ${time} | ${b.service?.name || 'Service'} | ${b.customer?.name || 'Walk-in'}${providerPart} | ${b.status}`;
     });
   }
-
 
   async describeProvidersOnServiceSchedule(
     businessId: string,
@@ -3838,7 +4217,6 @@ export class AiBookingCoreService {
     ];
     return lines.join('\n');
   }
-
 
   async handleListBookings(
     businessId: string,
@@ -4062,7 +4440,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async serviceNameMap(
     businessId: string,
     serviceIds: string[],
@@ -4076,7 +4453,6 @@ export class AiBookingCoreService {
     return new Map(services.map((s) => [s.id, s.name]));
   }
 
-
   formatPeriodServices(
     serviceIds: string[] | null | undefined,
     nameMap: Map<string, string>,
@@ -4084,7 +4460,6 @@ export class AiBookingCoreService {
     if (!serviceIds?.length) return 'any service';
     return serviceIds.map((id) => nameMap.get(id) || id).join(', ');
   }
-
 
   formatNonServicePeriod(p: SchedulingPeriod): string {
     const from = formatTimeDisplay(p.startTime);
@@ -4100,16 +4475,9 @@ export class AiBookingCoreService {
     return `• ${from}–${to} — Blocked${note ? `: ${note}` : ''}`;
   }
 
-
-  timesOverlap(
-    startA: Date,
-    endA: Date,
-    startB: Date,
-    endB: Date,
-  ): boolean {
+  timesOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
     return startA < endB && endA > startB;
   }
-
 
   mergeOpenSlotRanges(
     slots: Array<{ startTime: Date; endTime: Date }>,
@@ -4139,6 +4507,49 @@ export class AiBookingCoreService {
     }));
   }
 
+  /**
+   * Which of these providers have no {service} block on `isoDay` — e2e-bug.476.
+   *
+   * One query for all of them rather than one per provider: this is an
+   * informational addendum to a catalog answer and must not cost a round trip
+   * each. It reads only scheduling periods, because `hasServiceBlock` is the
+   * whole question here — the bookings half of
+   * `getProviderAvailabilityForService` exists to compute open slots, which an
+   * un-dated capability answer does not show.
+   */
+  private async providersWithoutServiceBlockOn(
+    businessId: string,
+    providers: Employee[],
+    serviceId: string,
+    isoDay: string,
+  ): Promise<Employee[]> {
+    if (!providers.length) return [];
+    const d = parseDateInput(isoDay) ?? new Date(isoDay);
+    const dayStart = new Date(d);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    const periods = await this.periodRepo.find({
+      where: {
+        businessId,
+        employeeId: In(providers.map((p) => p.id)) as any,
+        startTime: Between(dayStart, dayEnd) as any,
+      },
+    });
+
+    const covered = new Set(
+      periods
+        .filter(
+          (period) =>
+            period.type === TemplatePeriodType.SERVICE_BLOCK &&
+            (!period.serviceIds?.length ||
+              period.serviceIds.includes(serviceId)),
+        )
+        .map((period) => period.employeeId),
+    );
+    return providers.filter((p) => !covered.has(p.id));
+  }
 
   async getProviderAvailabilityForService(
     businessId: string,
@@ -4244,7 +4655,6 @@ export class AiBookingCoreService {
       openSlots: this.mergeOpenSlotRanges(openSlotCandidates),
     };
   }
-
 
   async handleCheckAvailability(
     businessId: string,
@@ -4598,7 +5008,6 @@ export class AiBookingCoreService {
     };
   }
 
-
   async handleSummarizeDay(
     businessId: string,
     params: any,
@@ -4654,11 +5063,7 @@ export class AiBookingCoreService {
     };
   }
 
-
-  pickBookingForReschedule(
-    bookings: Booking[],
-    params: any,
-  ): Booking | null {
+  pickBookingForReschedule(bookings: Booking[], params: any): Booking | null {
     if (!bookings.length) return null;
 
     const timeZone = params._timeZone ?? 'UTC';
@@ -4704,7 +5109,6 @@ export class AiBookingCoreService {
     );
   }
 
-
   async handleRescheduleBooking(
     businessId: string,
     params: any,
@@ -4725,7 +5129,18 @@ export class AiBookingCoreService {
       const employees = await this.employeeRepo.find({
         where: { businessId, isActive: true },
       });
-      const employee = this.resolveEmployee(employees, params.employeeName);
+      // A tie here does not merely mis-answer: it selects a namesake, finds
+      // *their* booking, and reschedules it — the wrong appointment moves and
+      // the user is told it worked (tech-debt D5).
+      const verdict = this.resolveNamedVerdict(
+        employees,
+        params.employeeName,
+        'provider',
+      );
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('reschedule_booking', params, verdict);
+      }
+      const employee = verdict.match;
       if (employee) {
         const bookings = await this.bookingRepo.find({
           where: {
@@ -4742,7 +5157,15 @@ export class AiBookingCoreService {
       const customers = await this.customerRepo.find({
         where: { businessId, isActive: true },
       });
-      const customer = this.resolveCustomer(customers, params.customerName);
+      const verdict = this.resolveNamedVerdict(
+        customers,
+        params.customerName,
+        'customer',
+      );
+      if (verdict.ambiguous.length > 1) {
+        return this.ambiguityRefusal('reschedule_booking', params, verdict);
+      }
+      const customer = verdict.match;
       if (customer) {
         const bookings = await this.bookingRepo.find({
           where: {
@@ -4827,10 +5250,7 @@ export class AiBookingCoreService {
         };
       }
 
-      const startIsoDay = clampFirstAvailableStartIsoDay(
-        params.date,
-        timeZone,
-      );
+      const startIsoDay = clampFirstAvailableStartIsoDay(params.date, timeZone);
       const pick = await this.findFirstAvailableBookingSlot(
         businessId,
         targetService,

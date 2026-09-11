@@ -12,27 +12,26 @@ import {
 describe('e2e-bug.280 give_ai_feedback unknown-phase rescue', () => {
   const rescueService = new AiIntentRescueService();
 
-  it.each(
-    E2E280_SHORT_FEEDBACK_PROMPTS.map((row) => [row.id, row] as const),
-  )('%s — util detects short cue', (_id, row) => {
-    expect(isGiveAiFeedbackPrompt(row.prompt)).toBe(true);
-    expect(rescueGiveAiFeedbackIntent(row.prompt, 'unknown')).toEqual({
-      action: 'give_ai_feedback',
-      rescueReason: 'give_ai_feedback',
-    });
-    const parsed = parseGiveAiFeedbackFromPrompt(row.prompt);
-    expect(parsed).not.toBeNull();
-    if (row.expectedRating) {
-      expect(parsed?.rating).toBe(row.expectedRating);
-    }
-    if (row.expectedReason) {
-      expect(parsed?.reason).toBe(row.expectedReason);
-    }
-  });
+  it.each(E2E280_SHORT_FEEDBACK_PROMPTS.map((row) => [row.id, row] as const))(
+    '%s — util detects short cue',
+    (_id, row) => {
+      expect(isGiveAiFeedbackPrompt(row.prompt)).toBe(true);
+      expect(rescueGiveAiFeedbackIntent(row.prompt, 'unknown')).toEqual({
+        action: 'give_ai_feedback',
+        rescueReason: 'give_ai_feedback',
+      });
+      const parsed = parseGiveAiFeedbackFromPrompt(row.prompt);
+      expect(parsed).not.toBeNull();
+      if (row.expectedRating) {
+        expect(parsed?.rating).toBe(row.expectedRating);
+      }
+      if (row.expectedReason) {
+        expect(parsed?.reason).toBe(row.expectedReason);
+      }
+    },
+  );
 
-  it.each(
-    E2E280_SHORT_FEEDBACK_PROMPTS.map((row) => [row.id, row] as const),
-  )(
+  it.each(E2E280_SHORT_FEEDBACK_PROMPTS.map((row) => [row.id, row] as const))(
     '%s — unknown-phase pipeline rescue returns give_ai_feedback',
     (_id, row) => {
       const rescued = rescueService.rescue({

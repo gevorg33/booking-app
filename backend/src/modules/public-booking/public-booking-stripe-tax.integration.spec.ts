@@ -2,7 +2,10 @@ import { ConfigService } from '@nestjs/config';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import { PaymentStatus } from '../booking/entities/booking.entity.js';
 import { BookingPaymentService } from '../booking/booking-payment.service.js';
-import { createPublicBookingServiceHarness } from './public-booking-test.harness.js';
+import {
+  createPublicBookingServiceHarness,
+  createBookingManagerMock,
+} from './public-booking-test.harness.js';
 import type { CheckoutPricingResult } from '../promo-codes/checkout-pricing.types.js';
 
 const taxPricing = (
@@ -79,9 +82,9 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
   };
 
   const bookingPaymentService = {
-    resolveCheckoutPricing: jest.fn(),
-    resolvePackageCheckoutPricing: jest.fn(),
-    resolveMultiServiceCheckoutPricing: jest.fn(),
+    resolveCheckoutPricing: jest.fn<Promise<unknown>, unknown[]>(),
+    resolvePackageCheckoutPricing: jest.fn<Promise<unknown>, unknown[]>(),
+    resolveMultiServiceCheckoutPricing: jest.fn<Promise<unknown>, unknown[]>(),
     resolveFulfillmentCheckoutPricing: jest
       .fn()
       .mockImplementation((recalculated, frozen) =>
@@ -189,6 +192,15 @@ describe('Sprint 36 — public booking Stripe tax fulfillment', () => {
     slotRepo: { find: jest.fn(), createQueryBuilder: jest.fn() },
     schedulingPeriodRepo: { find: jest.fn() },
     bookingRepo: {
+      // e2e-bug.471 — ensureBookingManageToken mints the token inside a
+      // transaction; wire it to this same Map so it lands on the seeded row.
+      manager: createBookingManagerMock({
+        find: (id) => storedBookings.get(String(id)) ?? { id, metadata: {} },
+        save: (booking) => {
+          storedBookings.set(String(booking.id), booking);
+          return booking;
+        },
+      }),
       findOne: jest.fn(
         async ({ where }: { where: { id: string } }) =>
           storedBookings.get(where.id) ?? null,

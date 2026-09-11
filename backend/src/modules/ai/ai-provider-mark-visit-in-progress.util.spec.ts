@@ -14,15 +14,24 @@ describe('ai-provider-mark-visit-in-progress.util (e2e-bug.240 / ai-cmd-provider
   });
 
   it.each(
-    PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
   )('detects %s', (_id, prompt) => {
     expect(isMarkVisitInProgressPrompt(prompt as string)).toBe(true);
   });
 
   it.each(
-    PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [s.id, s.prompt]),
+    PROVIDER_MARK_VISIT_IN_PROGRESS_PROMPT_SCENARIOS.map((s) => [
+      s.id,
+      s.prompt,
+    ]),
   )('rescues %s from unknown', (_id, prompt) => {
-    const rescued = rescueMarkVisitInProgressIntent(prompt as string, 'unknown');
+    const rescued = rescueMarkVisitInProgressIntent(
+      prompt as string,
+      'unknown',
+    );
     expect(rescued?.action).toBe('mark_visit_in_progress');
     expect(rescued?.params.status).toBe('in_progress');
   });
@@ -41,7 +50,10 @@ describe('ai-provider-mark-visit-in-progress.util (e2e-bug.240 / ai-cmd-provider
 
   it('does not re-rescue when already mark_visit_in_progress', () => {
     expect(
-      rescueMarkVisitInProgressIntent('Start appointment now', 'mark_visit_in_progress'),
+      rescueMarkVisitInProgressIntent(
+        'Start appointment now',
+        'mark_visit_in_progress',
+      ),
     ).toBeNull();
   });
 });

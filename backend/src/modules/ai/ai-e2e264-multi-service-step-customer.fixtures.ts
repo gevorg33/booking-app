@@ -18,7 +18,7 @@ export const E2E264_EXTRACT_CASES: readonly E2e264ExtractCase[] = [
   },
   {
     id: 'e2e264-extract-for-jane',
-    prompt: "Complete blowdry leg for Jane",
+    prompt: 'Complete blowdry leg for Jane',
     expectedCustomerName: 'Jane',
   },
   {

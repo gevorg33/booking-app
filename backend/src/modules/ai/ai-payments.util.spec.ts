@@ -192,9 +192,9 @@ describe('ai-payments.util', () => {
       expect(extractAmountFromPrompt('Buy $75 gift card')).toBe(75);
       expect(extractAmountFromPrompt('amount 100')).toBe(100);
       expect(extractAmountFromPrompt('no amount')).toBeNull();
-      expect(resolveTomorrowDateKey(new Date('2026-06-05T12:00:00Z'))).toBe(
-        '2026-06-06',
-      );
+      expect(
+        resolveTomorrowDateKey('UTC', new Date('2026-06-05T12:00:00Z')),
+      ).toBe('2026-06-06');
       expect(
         resolveAvailabilityDateKey(
           { date: '09/06/2026' },
@@ -236,13 +236,17 @@ describe('ai-payments.util', () => {
 
     it('stops at "earliest" instead of capturing "wine tour earliest date"', () => {
       expect(
-        extractServiceNameFromPrompt('Book the wine tour earliest date for 2 people'),
+        extractServiceNameFromPrompt(
+          'Book the wine tour earliest date for 2 people',
+        ),
       ).toBe('wine tour');
     });
 
     it('stops at "nearest" when it trails a real service name mid-capture', () => {
       expect(
-        extractServiceNameFromPrompt('Book the mountain trek nearest departure'),
+        extractServiceNameFromPrompt(
+          'Book the mountain trek nearest departure',
+        ),
       ).toBe('mountain trek');
     });
 
@@ -514,7 +518,7 @@ describe('ai-payments.util', () => {
         'book_nearest_slot',
       ]);
       expect(freeSteps[0]?.params.serviceName).toBe('permanent lashes');
-      expect(freeSteps[0]?.params.date).toBe(resolveTomorrowDateKey());
+      expect(freeSteps[0]?.params.date).toBe(resolveTomorrowDateKey('UTC'));
       expect(freeSteps[0]?.params.notBeforeTime).toBe('17:00');
       expect(freeSteps[1]?.params.bookingFirstAvailable).toBe(true);
 

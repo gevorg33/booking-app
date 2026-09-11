@@ -8,6 +8,7 @@ import { rescueRebookLastAppointmentIntent } from './ai-rebook-last-appointment.
 import { evaluateDeterministicEvalCase } from './eval/ai-command-eval.runner.js';
 import { AI_COMMAND_EVAL_REBOOK_LAST_APPOINTMENT_CASES } from './eval/ai-command-eval.cases.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-rebook-last-appointment integration (ai-cmd-customer-4.4.8)', () => {
   const booking = {
@@ -29,15 +30,16 @@ describe('ai-rebook-last-appointment integration (ai-cmd-customer-4.4.8)', () =>
   it.each(REBOOK_LAST_APPOINTMENT_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand({
-        action: 'rebook_last_appointment',
-        params: {},
-        enrichedParams: {},
-        entities: {},
-        reasoning: 'test',
-        confidence: 0.9,
-        prompt,
-      });
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'rebook_last_appointment',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleRebookLastAppointmentLogic(

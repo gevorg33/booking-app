@@ -65,8 +65,7 @@ export const E2E286_CREATE_BOOKING_NOT_EMPLOYEE_CASES: readonly E2e286CreateBook
     },
     {
       id: 'ai-e2e286-book-first-available-still-ok',
-      prompt:
-        'Book first available massage slot on Monday for any provider',
+      prompt: 'Book first available massage slot on Monday for any provider',
       expectCreateEmployee: false,
       expectCreateBookingCue: false,
       expectFirstAvailable: true,

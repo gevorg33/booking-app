@@ -27,8 +27,7 @@ export const E2E192_TIMED_BOOK_PROMPTS = [
   },
   {
     id: 'e2e192-create-a-booking',
-    prompt:
-      'create a booking for Swedish massage with Gevorg tomorrow at 11am',
+    prompt: 'create a booking for Swedish massage with Gevorg tomorrow at 11am',
     surface: 'customer' as const,
     expectedAction: 'book_appointment' as const,
     expectEmployeeName: 'Gevorg',
@@ -131,8 +130,4 @@ export function shouldExecuteBookAppointmentDeterministically(
   action: string,
 ): boolean {
   return action === 'book_appointment';
-}
-
-export function isE2e192TimedBookPrompt(prompt: string): boolean {
-  return isConcreteTimedBookAppointmentPrompt(prompt);
 }

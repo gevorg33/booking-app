@@ -80,7 +80,8 @@ export function hasRecoverLostManageLinkCue(prompt: string): boolean {
     return true;
   }
   if (
-    (GUEST_RESEND_CUE.test(prompt) || LOST_CONFIRMATION_CHANNEL_CUE.test(prompt)) &&
+    (GUEST_RESEND_CUE.test(prompt) ||
+      LOST_CONFIRMATION_CHANNEL_CUE.test(prompt)) &&
     /\b(?:booking|appointment|visit|manage|link)\b/i.test(prompt)
   ) {
     return true;

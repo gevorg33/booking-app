@@ -23,6 +23,20 @@ export const INTERNAL_COMMAND_DETAIL_KEYS = [
   'reactFallback',
   'understandTrace',
   'parsed',
+  // e2e-bug.442 — `patch` is the parsed mutation echoed back, and for the
+  // integration commands it carries **plaintext credentials**:
+  // `configure_openai_integration` puts `apiKey` ("sk-…", encrypted only once
+  // it reaches storage) in it, and `configure_whatsapp_integration` puts
+  // `accessToken`. Neither key is `_`-prefixed and `patch` was not listed here,
+  // so `sanitizeCommandDetailsForClient` passed both through to the client
+  // verbatim.
+  //
+  // Stripped as a **category** rather than by redacting those two field names:
+  // `patch` is an echo of what the caller already sent, so no client needs it
+  // back, and the user-facing result is in `settings`. Blacklisting `apiKey`
+  // and `accessToken` instead would leave the next credential-bearing patch to
+  // leak — the same blacklist-chases-an-open-set problem as e2e-bug.446.
+  'patch',
   'reasoning',
   'pipelineStage',
   '_availableEmployees',
@@ -30,7 +44,11 @@ export const INTERNAL_COMMAND_DETAIL_KEYS = [
 ] as const;
 
 /** Param-bag detail fields that mix real business params with internal `_`-prefixed hints. */
-const PARAM_BAG_DETAIL_KEYS = new Set(['params', 'partialParams', 'enrichedParams']);
+const PARAM_BAG_DETAIL_KEYS = new Set([
+  'params',
+  'partialParams',
+  'enrichedParams',
+]);
 
 const INTERNAL_DETAIL_KEY_SET = new Set<string>(INTERNAL_COMMAND_DETAIL_KEYS);
 

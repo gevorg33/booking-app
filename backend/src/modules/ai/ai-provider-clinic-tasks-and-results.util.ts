@@ -165,10 +165,7 @@ export function isExplainClinicTaskPrompt(prompt: string): boolean {
   if (isListClinicTasksPrompt(prompt)) return false;
 
   const normalized = prompt.toLowerCase();
-  if (
-    /\bwhat\s+is\s+this\b/.test(normalized) &&
-    /\btask\b/.test(normalized)
-  ) {
+  if (/\bwhat\s+is\s+this\b/.test(normalized) && /\btask\b/.test(normalized)) {
     return true;
   }
   if (/\bwho\s+assigned\b/.test(normalized)) return true;
@@ -196,9 +193,7 @@ export function isExplainClinicTaskPrompt(prompt: string): boolean {
   return false;
 }
 
-export function extractClinicTaskIdFromPrompt(
-  prompt: string,
-): string | null {
+export function extractClinicTaskIdFromPrompt(prompt: string): string | null {
   const match = prompt.match(/\btask\s*#?\s*([a-z0-9-]{6,})\b/i);
   return match?.[1] ?? null;
 }
@@ -215,7 +210,10 @@ export function extractBookingIdForLabSummariesFromPrompt(
 export function rescueProviderClinicTasksAndResultsIntent(
   prompt: string,
   action: string,
-): { action: ProviderClinicTasksAndResultsIntent; rescueReason: string } | null {
+): {
+  action: ProviderClinicTasksAndResultsIntent;
+  rescueReason: string;
+} | null {
   if (isProviderClinicTasksAndResultsIntent(action)) return null;
   // e2e-bug.152 — never overwrite a correct (or pending) agent-ops classification.
   if (action === 'list_agent_tasks') return null;
@@ -245,7 +243,10 @@ export function rescueProviderClinicTasksAndResultsIntent(
     };
   }
   if (isCompleteClinicTaskPrompt(prompt)) {
-    return { action: 'complete_clinic_task', rescueReason: 'complete_clinic_task' };
+    return {
+      action: 'complete_clinic_task',
+      rescueReason: 'complete_clinic_task',
+    };
   }
   if (isClaimClinicTaskPrompt(prompt)) {
     return { action: 'claim_clinic_task', rescueReason: 'claim_clinic_task' };
@@ -269,7 +270,10 @@ export function formatLabResultsQueueSummary(
   ).length;
   const preview = results
     .slice(0, 3)
-    .map((r) => `${r.testName ?? 'Test'} — ${r.customerName ?? 'patient'} (${r.status})`)
+    .map(
+      (r) =>
+        `${r.testName ?? 'Test'} — ${r.customerName ?? 'patient'} (${r.status})`,
+    )
     .join('; ');
   return `${results.length} result${results.length === 1 ? '' : 's'} in your queue${flagged ? `, ${flagged} flagged` : ''}: ${preview}${results.length > 3 ? '…' : ''}.`;
 }
@@ -308,7 +312,9 @@ export function formatClinicTaskDetailText(task: {
   createdByName: string | null;
   isAutoManaged: boolean;
 }): string {
-  const parts = [`"${task.title}" (${task.taskType}, ${task.status}, ${task.priority} priority)`];
+  const parts = [
+    `"${task.title}" (${task.taskType}, ${task.status}, ${task.priority} priority)`,
+  ];
   if (task.customerName) parts.push(`for ${task.customerName}`);
   if (task.dueAt) parts.push(`due ${task.dueAt.slice(0, 10)}`);
   if (task.assigneeName) parts.push(`assigned to ${task.assigneeName}`);
@@ -336,12 +342,10 @@ export function formatClinicTasksListSummary(
   if (!tasks.length) {
     return 'No outstanding clinic tasks right now.';
   }
-  const lines = tasks
-    .slice(0, 8)
-    .map((task) => {
-      const who = task.customerName ? ` — ${task.customerName}` : '';
-      const due = task.dueAt ? ` (due ${task.dueAt.slice(0, 10)})` : '';
-      return `• ${task.title}${who}${due} [${task.priority}]`;
-    });
+  const lines = tasks.slice(0, 8).map((task) => {
+    const who = task.customerName ? ` — ${task.customerName}` : '';
+    const due = task.dueAt ? ` (due ${task.dueAt.slice(0, 10)})` : '';
+    return `• ${task.title}${who}${due} [${task.priority}]`;
+  });
   return `${tasks.length} outstanding task${tasks.length === 1 ? '' : 's'}:\n${lines.join('\n')}${tasks.length > 8 ? '\n…' : ''}`;
 }

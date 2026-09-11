@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -15,11 +19,12 @@ import {
   type ConsumerCheckoutSuccessAspect,
   type ParsedExplainConsumerCheckoutSuccess,
 } from './ai-consumer-checkout-success.util.js';
+import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ExplainConsumerCheckoutSuccessLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  serviceRepo: Pick<Repository<Service>, 'findOne' | 'find'>;
-  bookingRepo: Pick<Repository<Booking>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
+  serviceRepo: EntityFinder<Service> & EntityReader<Service>;
+  bookingRepo: EntityReader<Booking>;
   productRecommendationService: Pick<
     ProductRecommendationService,
     'getCheckoutRecommendations'
@@ -40,17 +45,6 @@ function success(
   details?: Record<string, unknown>,
 ): CommandResult {
   return { success: true, action, summary, details: details ?? {} };
-}
-
-function resolveServiceByName<T extends { id: string; name: string }>(
-  list: T[],
-  name: string,
-): T | undefined {
-  const needle = name.toLowerCase();
-  return (
-    list.find((item) => item.name.toLowerCase() === needle) ??
-    list.find((item) => item.name.toLowerCase().includes(needle))
-  );
 }
 
 function buildSummaryAspectText(input: {
@@ -165,7 +159,7 @@ async function resolveBookedService(
         where: { businessId, isActive: true },
         relations: { category: true },
       })
-      .then((list) => resolveServiceByName(list, parsed.serviceName!));
+      .then((list) => matchServiceByNameLegacy(list, parsed.serviceName!));
     return { service: service ?? null, booking: null };
   }
 

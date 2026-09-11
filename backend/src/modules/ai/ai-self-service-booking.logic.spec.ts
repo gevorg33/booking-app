@@ -158,6 +158,26 @@ function buildDeps(
         ...b,
         metadata: { ...b.metadata, manageToken: 'tok' },
       })),
+      // `manager.transaction` — the manifest's `mock_missing_transaction`
+      // class, third instance. `ensureBookingManageToken` opens a transaction
+      // and locks the row inside it, so without a `manager` every case died on
+      // "Cannot read properties of undefined (reading 'transaction')" before
+      // reaching the flow under test.
+      //
+      // The locked read returns the same `booking` the rest of this mock
+      // serves, so the token is genuinely minted against the row the test set
+      // up rather than a stand-in.
+      manager: {
+        transaction: async (cb: (m: any) => Promise<unknown>) =>
+          cb({
+            createQueryBuilder: () => ({
+              setLock: () => ({
+                where: () => ({ getOne: async () => booking }),
+              }),
+            }),
+            save: async (_entity: unknown, row: any) => row,
+          }),
+      },
     } as any,
     businessRepo: {
       findOne: jest.fn(async () => business),
@@ -173,6 +193,40 @@ function buildDeps(
     ...overrides,
   };
 }
+
+/**
+ * e2e-bug.423 — the clock is frozen because these fixtures name real dates.
+ *
+ * The booking fixtures sit in June 2026 and are treated as upcoming; once the
+ * calendar passes them the flows under test take their past-booking branches
+ * instead, and five assertions change meaning at once.
+ *
+ * Only `Date` is faked: timers stay real, so this changes what the code thinks
+ * today is and nothing about how it runs. Freezing rather than rewriting the
+ * fixtures to offsets from `Date.now()` — an offset-computed fixture becomes a
+ * second implementation of the resolver it is meant to check.
+ *
+ * Found by `TIME_TRAVEL_DAYS` (e2e-bug.422) before it broke, not after.
+ */
+const FROZEN_NOW = new Date('2026-06-01T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: FROZEN_NOW,
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'setTimeout',
+      'setInterval',
+      'clearTimeout',
+      'clearInterval',
+    ],
+  });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
 
 describe('ai-self-service-booking.logic', () => {
   let deps: SelfServiceBookingLogicDeps;

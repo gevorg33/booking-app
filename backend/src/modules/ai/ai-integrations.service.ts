@@ -150,7 +150,13 @@ export class AiIntegrationsService {
     userId?: string,
     prompt?: string,
   ) {
-    return handleCreateApiKeyLogic(this.deps, businessId, params, userId, prompt);
+    return handleCreateApiKeyLogic(
+      this.deps,
+      businessId,
+      params,
+      userId,
+      prompt,
+    );
   }
 
   handleRevokeApiKey(

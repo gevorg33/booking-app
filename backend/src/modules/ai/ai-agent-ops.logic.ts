@@ -31,11 +31,10 @@ export async function handleListAgentTasksLogic(
   const taskId = typeof params.taskId === 'string' ? params.taskId : undefined;
   if (taskId) {
     const workspace = await deps.agentOrchestrator.previewTaskWorkspace(taskId);
-    return success(
-      'list_agent_tasks',
-      `Preview for agent task ${taskId}.`,
-      { taskId, workspace },
-    );
+    return success('list_agent_tasks', `Preview for agent task ${taskId}.`, {
+      taskId,
+      workspace,
+    });
   }
 
   const scope = params.scope === 'pending' ? 'pending' : 'all';

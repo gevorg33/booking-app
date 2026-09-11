@@ -1,4 +1,8 @@
 import { isTrackPhysicalGiftCardPrompt } from './ai-customer-crm.util.js';
+// §185 (e2e-bug.367 / B7) — re-exported, not redefined. The implementation
+// moved to `ai-datetime-resolution.util.ts`, beside the calendar primitives it
+// composes; this keeps existing importers working without a second copy.
+export { resolveTomorrowDateKey } from './ai-datetime-resolution.util.js';
 import {
   hasGiftCardForSomeoneCue,
   isBuyGiftCardForSomeonePrompt,
@@ -85,6 +89,10 @@ import {
   isProvidersAvailableLaterDaysPrompt,
 } from './ai-schedule-resources.util.js';
 import { isPlainServiceCatalogListPrompt } from './ai-list-services-catalog-cue.util.js';
+import {
+  MULTILINGUAL_PROVIDER_AVAILABILITY,
+  MULTILINGUAL_WHO,
+} from './ai-check-and-book-multilingual.util.js';
 
 export const DASHBOARD_PAYMENTS_MUTATE_INTENTS = [
   'configure_cash_payments',
@@ -114,6 +122,24 @@ export const DASHBOARD_PAYMENTS_READ_INTENTS = [
 
 export const PROVIDER_PAYMENTS_INTENTS = [
   'explain_payment_status',
+  'collect_cash_confirm',
+] as const;
+
+/**
+ * The mutating subset — e2e-bug.376.
+ *
+ * The registry binding used to pass `PROVIDER_PAYMENTS_INTENTS` as its own
+ * `mutateIntents`, so **every** intent in it was registered `mutating: true`.
+ * `explain_payment_status` reports whether a booking is paid; it writes nothing.
+ * The misdeclaration routed a read through `executionMode: 'simple_mutate'`,
+ * counted it in the mutating denominator for risk and blast-radius reporting,
+ * and forced its spec to declare a compensation for an operation with nothing
+ * to undo.
+ *
+ * Every other payments binding already names a `*_MUTATE_INTENTS` subset; this
+ * one is now consistent with them.
+ */
+export const PROVIDER_PAYMENTS_MUTATE_INTENTS = [
   'collect_cash_confirm',
 ] as const;
 
@@ -294,6 +320,15 @@ export function isCollectCashConfirmPrompt(prompt: string): boolean {
   );
 }
 
+/**
+ * hy/ru "who" or "free/available", for the compound escape below — §183.
+ * Built from the existing `MULTILINGUAL_*` sets so the vocabulary has one home.
+ */
+const MULTILINGUAL_WHO_OR_AVAILABILITY = new RegExp(
+  `${MULTILINGUAL_WHO.source}|${MULTILINGUAL_PROVIDER_AVAILABILITY.source}`,
+  'iu',
+);
+
 export function isCheckProvidersForServicePrompt(prompt: string): boolean {
   if (isFindSoonestAppointmentPrompt(prompt)) return false;
   // e2e-bug.193 — catalog list "what services are available?" is list_services.
@@ -356,7 +391,17 @@ export function isCheckProvidersForServicePrompt(prompt: string): boolean {
     ) &&
     !/\b(?:who|which|anyone|anybody|someone|somebody|everyone|everybody|check\s+(?:who|providers?|availability)|providers?\s+(?:for|available|free))\b/i.test(
       prompt,
-    )
+    ) &&
+    // §183 (e2e-bug.465) — the escape above is what stops a *compound*
+    // ("… who's free Saturday, book the earliest slot") being treated as a bare
+    // timed book, and it was English-only. So the identical Armenian sentence
+    // fell through to `return false` and its compound never decomposed.
+    //
+    // Located by binary search rather than by reading eleven guards: stripping
+    // the trailing "book the earliest slot" made the Armenian form pass, which
+    // named this clause exactly. The `ով`/`ազատ` tokens were already in
+    // `MULTILINGUAL_*` — the seam existed, this guard just did not consult it.
+    !MULTILINGUAL_WHO_OR_AVAILABILITY.test(prompt)
   ) {
     return false;
   }
@@ -461,10 +506,7 @@ export function isApplyGiftCardCodePrompt(prompt: string): boolean {
   if (isCheckGiftCardBalancePrompt(prompt)) return false;
   // e2e-bug.83 — "redeem referral code X" must not become apply_gift_card_code.
   if (/\breferral\b/i.test(prompt)) return false;
-  if (
-    /\binvite\s+code\b/i.test(prompt) &&
-    !/\bgift\s*card\b/i.test(prompt)
-  ) {
+  if (/\binvite\s+code\b/i.test(prompt) && !/\bgift\s*card\b/i.test(prompt)) {
     return false;
   }
   // e2e-bug.232 — bare "apply/redeem code X at checkout" is apply_promo_code_checkout.
@@ -681,8 +723,7 @@ const TRAILING_SERVICE_TIME_WINDOW =
   /\s+(?:this\s+(?:week|weekend|month|morning|afternoon|evening)|next\s+(?:week|weekend|month|morning|afternoon|evening)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|later(?:\s+today)?|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
 
 /** Stop capture before date/time windows (align with waitlist / find_soonest). */
-const SERVICE_NAME_DATE_BOUNDARY =
-  String.raw`(?=\s*(?:,|;|\?|\band\b|\bbook\b|\bwith\b|\bat\b|\bon\b|\blater\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
+const SERVICE_NAME_DATE_BOUNDARY = String.raw`(?=\s*(?:,|;|\?|\band\b|\bbook\b|\bwith\b|\bat\b|\bon\b|\blater\b|\btomorrow\b|\btoday\b|\btonight\b|\bnext\b|\bthis\b|\bweek\b|\bevening\b|\bmorning\b|\bafternoon\b|\bmonday\b|\btuesday\b|\bwednesday\b|\bthursday\b|\bfriday\b|\bsaturday\b|\bsunday\b|$))`;
 
 const BARE_SERVICE_TIME_WINDOW =
   /^(?:this\s+(?:week|weekend|month)|next\s+(?:week|weekend|month)|(?:this|next)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)|later(?:\s+today)?|today|tomorrow|tonight|(?:early\s+|late\s+)?(?:morning|afternoon|evening)|asap|soon)$/i;
@@ -691,7 +732,10 @@ export function stripTrailingTimeWindowFromServiceName(
   name: string | null | undefined,
 ): string | null {
   if (typeof name !== 'string') return null;
-  let cleaned = name.trim().replace(/[,.'"“”]+$/g, '').trim();
+  let cleaned = name
+    .trim()
+    .replace(/[,.'"“”]+$/g, '')
+    .trim();
   if (!cleaned) return null;
   for (let i = 0; i < 3; i++) {
     const next = cleaned.replace(TRAILING_SERVICE_TIME_WINDOW, '').trim();
@@ -702,7 +746,9 @@ export function stripTrailingTimeWindowFromServiceName(
   return cleaned;
 }
 
-function acceptExtractedServiceName(name: string | null | undefined): string | null {
+function acceptExtractedServiceName(
+  name: string | null | undefined,
+): string | null {
   if (!name) return null;
   const trimmed = stripTrailingTimeWindowFromServiceName(name);
   if (!trimmed || isAvailabilityFillerServiceName(trimmed)) return null;
@@ -797,17 +843,23 @@ export function extractAmountFromPrompt(prompt: string): number | null {
   const amountWord = prompt.match(/\bamount\s+(\d+(?:\.\d{1,2})?)\b/i);
   if (amountWord) return Number.parseFloat(amountWord[1]);
   // e2e-bug.80 — "50 dollar gift card" / "for 75 dollars"
-  const dollarsWord = prompt.match(
-    /\b(\d+(?:\.\d{1,2})?)\s*dollars?\b/i,
-  );
+  const dollarsWord = prompt.match(/\b(\d+(?:\.\d{1,2})?)\s*dollars?\b/i);
   if (dollarsWord) return Number.parseFloat(dollarsWord[1]);
   return null;
 }
 
-export function resolveTomorrowDateKey(now: Date = new Date()): string {
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-  return tomorrow.toISOString().slice(0, 10);
-}
+/**
+ * "Tomorrow" in the business's local calendar.
+ *
+ * e2e-bug.363: this computed `now + 24h` then `.toISOString()`, which is the
+ * **UTC** date. Every timezone is a day late during its local evening — 7 of 24
+ * hours wrong in Los Angeles, 4 in New York and Yerevan — so "book me tomorrow"
+ * at 9pm booked two days out.
+ *
+ * Delegates to the §30 resolvers rather than redoing the arithmetic: they are
+ * timezone-correct and tested. `timeZone` is required, because a default would
+ * silently reintroduce the bug for every caller that forgot it.
+ */
 
 /** Normalize classifier/prompt dates to YYYY-MM-DD for public slot queries. */
 function hasExplicitAvailabilityDate(params: Record<string, unknown>): boolean {

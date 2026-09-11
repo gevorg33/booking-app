@@ -20,11 +20,10 @@ import {
   isExportAnalyticsReportPrompt,
   parseCreateCommissionRuleFromPrompt,
   parseExportAnalyticsReportFromPrompt,
-  rescueRetailFinanceIntent,
   isSuggestRetailUpsellPrompt,
   isAddRetailToMyBookingPrompt,
   isSearchRetailSkuPrompt,
-  isSetRetailSalesLinesPrompt,
+  isSetRetailSalesLinesFinancePrompt,
   extractProductNameFromPrompt,
   extractRetailSearchQuery,
   extractSkuFromPrompt,
@@ -87,11 +86,13 @@ describe('ai-retail-finance.util', () => {
       expect(isPayoutExportPrompt('Payout export this month')).toBe(true);
       expect(isPayoutExportPrompt('Export payout csv for May')).toBe(true);
       expect(
-        isSetRetailSalesLinesPrompt(
+        isSetRetailSalesLinesFinancePrompt(
           'Set retail cart to 2 shampoo, 1 conditioner for booking b1',
         ),
       ).toBe(true);
-      expect(isSetRetailSalesLinesPrompt('Set the business name')).toBe(false);
+      expect(isSetRetailSalesLinesFinancePrompt('Set the business name')).toBe(
+        false,
+      );
     });
 
     it('detects provider retail prompts', () => {
@@ -523,7 +524,9 @@ describe('ai-retail-finance.util', () => {
 
     it('parses a single-line replace prompt', () => {
       expect(
-        parseRetailSalesLinesFromPrompt('Replace the retail cart with 3 candles'),
+        parseRetailSalesLinesFromPrompt(
+          'Replace the retail cart with 3 candles',
+        ),
       ).toEqual([{ quantity: 3, productName: 'candles' }]);
     });
 
@@ -534,9 +537,9 @@ describe('ai-retail-finance.util', () => {
     });
 
     it('returns empty array when prompt has no replace clause', () => {
-      expect(parseRetailSalesLinesFromPrompt('Add shampoo to this booking')).toEqual(
-        [],
-      );
+      expect(
+        parseRetailSalesLinesFromPrompt('Add shampoo to this booking'),
+      ).toEqual([]);
     });
   });
 });

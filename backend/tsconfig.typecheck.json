@@ -1,0 +1,23 @@
+{
+  // F1 / e2e-bug.359 — a typecheck the repo can actually enforce today.
+  //
+  // `tsc --noEmit -p tsconfig.json` reports 1,431 errors, which read as "the
+  // repo does not typecheck" and blocked adding a CI step for it. Measured
+  // 2026-08-20: **every one of those 1,431 is in a `.spec.ts` file, across 394
+  // spec files. Production code has zero.**
+  //
+  // So the production tree is already clean and can be gated now, while the
+  // spec-side errors — dominated by repeated jest-mock shapes that do not match
+  // TypeORM's overloads — are a separate, narrower job than the raw count
+  // suggests.
+  //
+  // Excluding specs is a deliberate first step, not the destination: it locks
+  // in what is already true so a regression in production code cannot land
+  // unnoticed, which is worth more than an unenforceable all-or-nothing gate.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "src/**/*.spec.ts", "test/**/*"]
+}

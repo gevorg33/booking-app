@@ -12,7 +12,6 @@ import {
   getCompoundRecipesForSurface,
   getIntentIdsBySurface,
   getRegistryExecutionMode,
-  isIntentAllowedForTier,
   isIntentAllowedOnSurface,
   isRegistryMutating,
   registrySummaryForPrompt,
@@ -75,14 +74,6 @@ export class AiCommandRegistryService implements OnModuleInit {
 
   allowedOnSurface(intentId: string, surface: CommandSurface): boolean {
     return isIntentAllowedOnSurface(intentId, surface);
-  }
-
-  allowedForTier(
-    intentId: string,
-    tier: AccessTier,
-    surface?: CommandSurface,
-  ): boolean {
-    return isIntentAllowedForTier(intentId, tier, surface);
   }
 
   supportsCompoundStep(intentId: string): boolean {

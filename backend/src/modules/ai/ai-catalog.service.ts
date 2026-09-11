@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from '../business/entities/business.entity.js';
@@ -238,7 +239,7 @@ export class AiCatalogService {
     params: Record<string, any>,
     services: Service[],
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
   ) {
     return handleAssignSubscriptionToCustomerLogic(
       this.deps,
@@ -357,8 +358,19 @@ export class AiCatalogService {
     params: Record<string, any>,
     services: Service[],
     customers: Customer[],
-    resolveCustomer: (list: Customer[], name: string) => Customer | undefined,
+    resolveCustomer: NamedResolver<Customer>,
     userId?: string,
+    /**
+     * e2e-bug.448(b) — passed through, not resolved here. This service has no
+     * payments dependency and should not gain one; the caller has both.
+     */
+    configureServiceOnlinePayment?: (
+      businessId: string,
+      params: Record<string, any>,
+      prompt: string,
+      services: Service[],
+      userId?: string,
+    ) => Promise<CommandResult>,
   ): Promise<CommandResult> {
     return handleCatalogCompoundLogic(
       this.deps,
@@ -369,6 +381,7 @@ export class AiCatalogService {
       customers,
       resolveCustomer,
       userId,
+      configureServiceOnlinePayment,
     );
   }
 }

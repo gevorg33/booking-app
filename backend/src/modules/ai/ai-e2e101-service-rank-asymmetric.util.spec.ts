@@ -1,6 +1,4 @@
-import {
-  E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS,
-} from './ai-e2e101-service-rank-asymmetric.fixtures.js';
+import { E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS } from './ai-e2e101-service-rank-asymmetric.fixtures.js';
 import {
   buildServiceRankDiscoveryRescueParams,
   extractServiceRankFromPrompt,
@@ -16,7 +14,9 @@ import { applyPromptMentionedServiceOverrideToParams } from './ai-booking-param-
 
 describe('e2e-bug.101 service rank high-end vocabulary', () => {
   it.each(
-    E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS.map((row) => [row.id, row] as const),
+    E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS.map(
+      (row) => [row.id, row] as const,
+    ),
   )('extracts rank+category for %s', (_id, row) => {
     expect(extractServiceRankFromPrompt(row.prompt)).toBe(row.expectedRank);
     expect(extractServiceRankServiceCategoryFromPrompt(row.prompt)).toBe(
@@ -38,9 +38,9 @@ describe('e2e-bug.101 service rank high-end vocabulary', () => {
   });
 
   it.each(
-    E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS.filter((row) => 'compound' in row && row.compound).map(
-      (row) => [row.id, row] as const,
-    ),
+    E2E101_SERVICE_RANK_ASYMMETRIC_SCENARIOS.filter(
+      (row) => 'compound' in row && row.compound,
+    ).map((row) => [row.id, row] as const),
   )('compound shared params for %s', (_id, row) => {
     expect(isServiceRankDiscoveryCompoundPrompt(row.prompt)).toBe(true);
     const shared = buildRankCompoundSharedParams(row.prompt, 'customer');
@@ -53,9 +53,9 @@ describe('e2e-bug.101 service rank high-end vocabulary', () => {
     expect(stripLeadingServiceRankAdjectives('most expensive massage')).toBe(
       'massage',
     );
-    expect(
-      stripLeadingServiceRankAdjectives('your most premium facial'),
-    ).toBe('facial');
+    expect(stripLeadingServiceRankAdjectives('your most premium facial')).toBe(
+      'facial',
+    );
     expect(stripLeadingServiceRankAdjectives('cheapest haircut')).toBe(
       'haircut',
     );
@@ -93,7 +93,8 @@ describe('e2e-bug.101 service rank high-end vocabulary', () => {
       'Book the most expensive massage tomorrow, nearest slot',
       {},
     );
-    const scrubbed = enrichServiceDiscoveryFromPrompt(next, 
+    const scrubbed = enrichServiceDiscoveryFromPrompt(
+      next,
       'Book the most expensive massage tomorrow, nearest slot',
     );
     expect(scrubbed.serviceCategory).toBe('massage');

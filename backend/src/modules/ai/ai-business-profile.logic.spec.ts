@@ -5,7 +5,9 @@ import {
   type BusinessProfileLogicDeps,
 } from './ai-business-profile.logic.js';
 
-function buildDeps(overrides: Record<string, any> = {}): BusinessProfileLogicDeps {
+function buildDeps(
+  overrides: Record<string, any> = {},
+): BusinessProfileLogicDeps {
   return {
     businessService: {
       updateProfile: jest.fn(async (_id: string, dto: any) => ({

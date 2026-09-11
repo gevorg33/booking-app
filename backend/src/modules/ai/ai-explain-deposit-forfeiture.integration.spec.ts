@@ -10,6 +10,7 @@ import { AI_COMMAND_EVAL_EXPLAIN_DEPOSIT_FORFEITURE_CASES } from './eval/ai-comm
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
 import { rescueExplainCancelPolicyIntent } from './ai-explain-cancel-policy.util.js';
 import { EXPLAIN_CANCEL_POLICY_RESCUE_SCENARIOS } from './ai-explain-cancel-policy.fixtures.js';
+import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai-explain-deposit-forfeiture integration (ai-cmd-customer-4.20.2)', () => {
   const deps = () => ({
@@ -43,15 +44,16 @@ describe('ai-explain-deposit-forfeiture integration (ai-cmd-customer-4.20.2)', (
   it.each(
     EXPLAIN_DEPOSIT_FORFEITURE_PROMPTS.filter((e) => e.surface === 'customer'),
   )('validates and executes $id', async ({ prompt }) => {
-    const validation = validateCommand({
-      action: 'explain_deposit_forfeiture',
-      params: {},
-      enrichedParams: {},
-      entities: {},
-      reasoning: 'test',
-      confidence: 0.9,
-      prompt,
-    });
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_deposit_forfeiture',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleExplainDepositForfeitureLogic(

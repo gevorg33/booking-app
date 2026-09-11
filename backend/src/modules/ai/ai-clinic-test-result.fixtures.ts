@@ -8,7 +8,18 @@ export const CLINIC_TEST_RESULT_CLASSIFIER_RULES = `- enter_test_result: MUTATE 
   - "Release results to patient Maria" → release_test_result, customerName=Maria
   - "Release test result for order abc123" → release_test_result, orderId=abc123`;
 
-export const ENTER_TEST_RESULT_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type EnterTestResultPromptFixture = {
+  id: string;
+  prompt: string;
+  measurementCode: string;
+  value: string;
+  orderId?: string;
+  customerName?: string;
+  resultId?: string;
+};
+
+export const ENTER_TEST_RESULT_PROMPTS: readonly EnterTestResultPromptFixture[] = [
   {
     id: 'wbc-order-hash',
     prompt: 'Enter WBC 12.5 for order #abc123',
@@ -89,7 +100,16 @@ export const ENTER_TEST_RESULT_PROMPTS = [
   },
 ] as const;
 
-export const RELEASE_TEST_RESULT_PROMPTS = [
+/** Declared so the array is one type, not a union of literal shapes. */
+export type ReleaseTestResultPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+  orderId?: string;
+  resultId?: string;
+};
+
+export const RELEASE_TEST_RESULT_PROMPTS: readonly ReleaseTestResultPromptFixture[] = [
   {
     id: 'release-to-patient',
     prompt: 'Release results to patient',

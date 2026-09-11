@@ -1,4 +1,6 @@
+import { resolveServicesVerdict } from './ai-orchestration.helpers.js';
 import type { CommandResult } from './command-completion.types.js';
+import type { NamedResolver } from './ai-name-resolution.types.js';
 import type { AiBookingDepthService } from './ai-booking-depth.service.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -17,9 +19,9 @@ export type BookingDepthDispatchContext = {
   timeZone: string;
   sessionDate?: string;
   calendarRoute?: string;
-  resolveEmployee: (list: Employee[], name: string) => Employee | undefined;
+  resolveEmployee: NamedResolver<Employee>;
   resolveServices: (list: Service[], p: Record<string, any>) => Service[];
-  resolveCustomer: (list: Customer[], name: string) => Customer | undefined;
+  resolveCustomer: NamedResolver<Customer>;
   resolveBusinessRow: () => Promise<Business | null>;
 };
 
@@ -123,6 +125,26 @@ export function buildBookingDepthDispatchMap(): ReadonlyMap<
         action: 'create_multi_service_booking',
         summary: 'Business not found',
         details: {},
+      };
+    }
+    // D5 / §238 — `handleCreateMultiServiceBookingLogic` receives
+    // `resolveServices` as an injected callback, which the tracker classed as
+    // "one contract change, not a migration". It is not: the callback's
+    // *injection site* is here, and this dispatch entry already returns
+    // `CommandResult` (see the "Business not found" refusal above). So the tie
+    // can be refused without touching the callee's signature — the same
+    // caller-not-helper rule as §225/§228/§234/§235.
+    const serviceVerdict = resolveServicesVerdict(ctx.services, ctx.params);
+    if (serviceVerdict.ambiguous) {
+      return {
+        success: false,
+        action: 'create_multi_service_booking',
+        summary: serviceVerdict.ambiguous.clarification,
+        details: {
+          clarify: true,
+          requestedName: serviceVerdict.ambiguous.requestedName,
+          candidates: serviceVerdict.ambiguous.candidates,
+        },
       };
     }
     return service.handleCreateMultiServiceBooking(

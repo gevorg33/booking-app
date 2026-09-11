@@ -60,10 +60,7 @@ export function buildBusinessTaxLogicDispatchMap(): ReadonlyMap<
     );
   });
   map.set('quote_staff_booking_tax', async (deps, ctx) => {
-    const parsed = parseQuoteStaffBookingTaxFromPrompt(
-      ctx.prompt,
-      ctx.params,
-    );
+    const parsed = parseQuoteStaffBookingTaxFromPrompt(ctx.prompt, ctx.params);
     return handleQuoteStaffBookingTaxLogic(
       deps,
       ctx.businessId,
@@ -100,4 +97,5 @@ export function buildBusinessTaxLogicDispatchMap(): ReadonlyMap<
 }
 
 /** Registry-driven dispatch table for AiBusinessTaxService (ai-cmd-ext-0.5). */
-export const BUSINESS_TAX_LOGIC_DISPATCH_MAP = buildBusinessTaxLogicDispatchMap();
+export const BUSINESS_TAX_LOGIC_DISPATCH_MAP =
+  buildBusinessTaxLogicDispatchMap();

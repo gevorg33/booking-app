@@ -99,12 +99,6 @@ export function buildFillGapAiPrompt(
   return `Fill this gap on ${dateKey} from ${gap.startTime} to ${gap.endTime} — suggest waitlist customers who could book it.`;
 }
 
-export function isFillGapPrompt(prompt: string): boolean {
-  return /fill\s+(?:this\s+)?gap|suggest\s+waitlist.*gap|waitlist.*fill.*gap/i.test(
-    prompt,
-  );
-}
-
 export function extractGapWindowFromPrompt(prompt: string): {
   timeFrom: string | null;
   timeTo: string | null;

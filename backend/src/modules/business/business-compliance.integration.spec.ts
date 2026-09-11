@@ -5,6 +5,7 @@ import { PublicBookingService } from '../public-booking/public-booking.service.j
 import { StripeIntegrationService } from '../billing/stripe-integration.service.js';
 import { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
 import type { Business } from './entities/business.entity.js';
+import { makeBusiness } from './entities/business.test-fixture.js';
 
 function buildPublicBookingService(): PublicBookingService {
   const config = {
@@ -42,11 +43,17 @@ function buildPublicBookingService(): PublicBookingService {
     {} as never,
     {} as never,
     {} as never,
-  );
+  
+    // e2e-bug: PublicBookingService gained four repositories;
+    // `undefined as never` keeps the runtime identical to omitting them.
+    undefined as never,
+    undefined as never,
+    undefined as never,
+    undefined as never);
 }
 
 const baseBusiness = (settings: Record<string, unknown>): Business =>
-  ({
+  makeBusiness({
     id: 'biz-1',
     name: 'Clinic',
     slug: 'clinic',
@@ -59,7 +66,7 @@ const baseBusiness = (settings: Record<string, unknown>): Business =>
       businessType: 'clinic',
       ...settings,
     },
-  }) as Business;
+  });
 
 describe('Sprint 37 — business compliance integration', () => {
   const businessRepo = {

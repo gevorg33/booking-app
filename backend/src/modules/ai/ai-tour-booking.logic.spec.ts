@@ -1,8 +1,9 @@
 import { handleExplainTourBookingLogic } from './ai-tour-booking.logic.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
 
 describe('ai-tour-booking.logic', () => {
-  const cityTour = {
+  const cityTour = makeService({
     id: 'svc-city',
     name: 'City Tour',
     price: 45,
@@ -13,9 +14,9 @@ describe('ai-tour-booking.logic', () => {
       maxGroupSize: 12,
       durationDays: 1,
     },
-  };
+  });
 
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: 'Mountain Trek',
     price: 120,
@@ -26,16 +27,16 @@ describe('ai-tour-booking.logic', () => {
       maxGroupSize: 8,
       durationDays: 3,
     },
-  };
+  });
 
-  const massage = {
+  const massage = makeService({
     id: 'svc-massage',
     name: 'Swedish Massage',
     price: 60,
     currency: 'EUR',
     durationMinutes: 60,
     metadata: {},
-  };
+  });
 
   const serviceService = {
     findAll: jest.fn(async () => [cityTour, mountainTrek, massage]),

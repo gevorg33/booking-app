@@ -4,6 +4,26 @@ import {
   readReferralCodeUsed,
 } from './provider-booking-customer-context.util.js';
 
+/**
+ * e2e-bug.422 — the clock is frozen because these fixtures name real dates.
+ *
+ * `isWinBackCustomer` measures days since `lastCompletedVisitAt` against a
+ * reference date that defaults to `new Date()`, with a 90-day inactivity
+ * threshold. The fixture's customer last visited `2026-05-01`, which was recent
+ * when written and is now over three months ago — so a `win_back` badge appeared
+ * that the expected snapshot does not list, and the suite began failing on a
+ * calendar date rather than on a code change.
+ */
+const FROZEN_NOW = new Date('2026-05-20T09:00:00.000Z');
+
+beforeAll(() => {
+  jest.useFakeTimers({ now: FROZEN_NOW, doNotFake: ['nextTick'] });
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe('provider-booking-customer-context.util (prov-exp-1.1)', () => {
   it('builds a full customer snapshot view', () => {
     const view = buildProviderBookingCustomerContextView({

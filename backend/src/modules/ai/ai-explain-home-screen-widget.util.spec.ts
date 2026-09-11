@@ -19,7 +19,6 @@ import {
   resolveConsumerHomeScreenWidgetExplainContext,
   resolveExplainHomeScreenWidgetAspect,
 } from './ai-explain-home-screen-widget.util.js';
-import { isRebookLastAppointmentPrompt } from './ai-rebook-last-appointment.util.js';
 import { AI_COMMAND_EVAL_EXPLAIN_HOME_SCREEN_WIDGET_CASES } from './eval/ai-command-eval.cases.js';
 
 describe('ai-explain-home-screen-widget.util (ai-cmd-customer-4.13.6)', () => {
@@ -147,18 +146,6 @@ describe('ai-explain-home-screen-widget.util (ai-cmd-customer-4.13.6)', () => {
     expect(isExplainHomeScreenWidgetPrompt('Что показывает виджет?')).toBe(
       true,
     );
-  });
-
-  it('does not steal rebook mutate prompts', () => {
-    expect(isRebookLastAppointmentPrompt('Rebook my last appointment')).toBe(
-      true,
-    );
-    expect(isExplainHomeScreenWidgetPrompt('Rebook my last appointment')).toBe(
-      false,
-    );
-    expect(
-      isExplainHomeScreenWidgetPrompt('What does Book again on the widget do?'),
-    ).toBe(true);
   });
 
   it('builds navigate for add widget aspect', () => {

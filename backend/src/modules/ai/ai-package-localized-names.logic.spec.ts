@@ -1,8 +1,9 @@
 import { handleConfigurePackageLocalizedNamesLogic } from './ai-package-localized-names.logic.js';
 import type { Business } from '../business/entities/business.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-package-localized-names.logic (ai-cmd-lang-6)', () => {
-  const business: Business = {
+  const business: Business = makeBusiness({
     id: 'biz-1',
     name: 'Salon',
     slug: 'salon',
@@ -12,7 +13,7 @@ describe('ai-package-localized-names.logic (ai-cmd-lang-6)', () => {
       defaultLocale: 'en',
       locale: 'en',
     },
-  } as Business;
+  });
 
   const businessRepo = {
     findOne: jest.fn(async () => ({ ...business })),

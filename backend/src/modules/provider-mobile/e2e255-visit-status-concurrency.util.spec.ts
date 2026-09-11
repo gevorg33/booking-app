@@ -1,9 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import {
-  Booking,
-  BookingStatus,
-} from '../booking/entities/booking.entity.js';
+import { Booking, BookingStatus } from '../booking/entities/booking.entity.js';
 import {
   E2E255_LIVE_CASES,
   E2E255_LOCK_SOURCE_RULES,

@@ -49,8 +49,6 @@ describe('ai-provider-search-patient.util (ai-cmd-provider-5.19.1)', () => {
         { name: 'Jane Doe', phone: '555-1234', email: null },
         { name: 'Jane Smith', phone: null, email: null },
       ]),
-    ).toBe(
-      '2 patients match "Jane":\n• Jane Doe — 555-1234\n• Jane Smith',
-    );
+    ).toBe('2 patients match "Jane":\n• Jane Doe — 555-1234\n• Jane Smith');
   });
 });

@@ -24,7 +24,7 @@ import { CLINIC_SERVICE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-servic
 import { CLINIC_LAB_BOOKING_MULTILINGUAL_CLASSIFIER_RULES } from './ai-clinic-lab-booking-multilingual.fixtures.js';
 import { TOUR_CONSUMER_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-consumer-multilingual.fixtures.js';
 import { TOUR_SERVICE_MULTILINGUAL_CLASSIFIER_RULES } from './ai-tour-service-multilingual.fixtures.js';
-import { SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-service-discovery-multilingual.fixtures.js';
+import { SERVICE_DISCOVERY_MULTILINGUAL_CLASSIFIER_RULES } from './ai-service-discovery-multilingual.rules.js';
 
 /**
  * Detection helpers for multilingual AI commands (Armenian, Russian, transliteration).

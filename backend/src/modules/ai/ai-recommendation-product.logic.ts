@@ -1,4 +1,8 @@
 import { In, type Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { InventoryService } from '../inventory/inventory.service.js';
 import type { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
 import type {
@@ -31,17 +35,17 @@ export interface RecommendationLinkLogicDeps {
     ProductRecommendationService,
     'setServiceRecommendations' | 'setCategoryRecommendations'
   >;
-  serviceRepo: Pick<Repository<Service>, 'find' | 'findOne'>;
-  categoryRepo: Pick<Repository<ServiceCategory>, 'find' | 'findOne'>;
+  serviceRepo: EntityFinder<Service> & EntityReader<Service>;
+  categoryRepo: EntityFinder<ServiceCategory> & EntityReader<ServiceCategory>;
 }
 
 export interface ExplainRecommendationSetupLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   inventoryService: Pick<InventoryService, 'listProducts'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
-  categoryRepo: Pick<Repository<ServiceCategory>, 'find'>;
-  serviceLinkRepo: Pick<Repository<ServiceRecommendedProduct>, 'find'>;
-  categoryLinkRepo: Pick<Repository<CategoryRecommendedProduct>, 'find'>;
+  serviceRepo: EntityFinder<Service>;
+  categoryRepo: EntityFinder<ServiceCategory>;
+  serviceLinkRepo: EntityFinder<ServiceRecommendedProduct>;
+  categoryLinkRepo: EntityFinder<CategoryRecommendedProduct>;
 }
 
 interface LinkedProductView {

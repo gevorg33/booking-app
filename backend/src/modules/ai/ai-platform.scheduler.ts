@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { SchedulerLockService } from '../../common/scheduler-lock/scheduler-lock.service.js';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,9 +16,20 @@ export class AiPlatformScheduler {
     private platform: AiPlatformService,
     private aiSettings: AiSettingsService,
     @InjectRepository(Business) private businessRepo: Repository<Business>,
+
+    private readonly schedulerLock: SchedulerLockService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
+  async escalateStuckHitlTasksScheduled(): Promise<void> {
+    // e2e-bug.497 — the cron entry point; `escalateStuckHitlTasks` stays callable directly
+    // (and is what the specs drive) so the lock wraps scheduling, not the work.
+    await this.schedulerLock.runExclusively(
+      'ai-platform.escalateStuckHitlTasks',
+      () => this.escalateStuckHitlTasks(),
+    );
+  }
+
   async escalateStuckHitlTasks(): Promise<void> {
     const businesses = await this.businessRepo.find({
       where: { isActive: true },
