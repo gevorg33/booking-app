@@ -357,3 +357,154 @@ describe('applyAnaphoraToPlan (B4)', () => {
     expect(out.steps[1].variables.appointmentId).toBeUndefined();
   });
 });
+
+/**
+ * e2e-bug.370 — cross-turn anaphora reads the conversation's entity store.
+ */
+describe('applyConversationRefsToPlan (e2e-bug.370)', () => {
+  const { applyConversationRefsToPlan } =
+    require('./ai-anaphora.util.js') as typeof import('./ai-anaphora.util.js');
+  const { createEntityStore, recordResolution } =
+    require('./ai-entity-store.util.js') as typeof import('./ai-entity-store.util.js');
+
+  const NOW = new Date('2026-09-11T12:00:00Z');
+  const ref = (kind: string, id: string, label: string, turnIndex = 1) =>
+    ({ kind, id, label, turnIndex, recordedAt: NOW }) as never;
+  const step = (id: string, command: string, variables: Record<string, unknown> = {}) =>
+    ({ id, command, variables }) as never;
+
+  it('binds "book it" to the service a previous turn resolved', () => {
+    // The 82% case: turn 1 asked about a service, turn 2 says "it".
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('service', 'svc-1', 'Deep Tissue Massage'),
+    );
+    const out = applyConversationRefsToPlan(
+      'book it for tomorrow at 3',
+      [step('s1', 'booking.create', { date: 'tomorrow' })],
+      new Map([['s1', ['serviceId']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(true);
+    expect(out.ambiguous).toBeNull();
+    expect((out.steps[0] as { variables: Record<string, unknown> }).variables.serviceId).toBe('svc-1');
+  });
+
+  it('fills a name variable with the recorded label', () => {
+    // Many specs declare serviceName; the recorded label is an exact catalog
+    // name, so the executor's resolution of it is deterministic.
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('employee', 'emp-1', 'Anna'),
+    );
+    // `findAnaphor` covers it / them / those / that one / the same X — not
+    // person pronouns, so "her" is outside the resolver's contract and is not
+    // what this pins.
+    const out = applyConversationRefsToPlan(
+      'book the same stylist again',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['employeeName']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect((out.steps[0] as { variables: Record<string, unknown> }).variables.employeeName).toBe('Anna');
+  });
+
+  it('refuses when two refs of the kind are equally recent', () => {
+    // Never picks. A wrongly bound anaphor is a mutation on a row the user never
+    // named.
+    let store = createEntityStore('conv-1');
+    store = recordResolution(store, ref('service', 'svc-1', 'Haircut', 1));
+    store = recordResolution(store, ref('service', 'svc-2', 'Facial', 1));
+    const out = applyConversationRefsToPlan(
+      'book it',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(false);
+    expect(out.ambiguous?.candidates.sort()).toEqual(['svc-1', 'svc-2']);
+    expect(out.ambiguous?.clarification).toContain('Haircut');
+    expect(out.ambiguous?.clarification).toContain('Facial');
+  });
+
+  it('leaves a step missing two variables alone', () => {
+    // "book it with her" — the anaphor could stand for either. Guessing which
+    // is how the service gets bound to the provider.
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('service', 'svc-1', 'Haircut'),
+    );
+    const out = applyConversationRefsToPlan(
+      'book it with her',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId', 'employeeId']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(false);
+  });
+
+  it('does nothing without an anaphor in the message', () => {
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('service', 'svc-1', 'Haircut'),
+    );
+    const out = applyConversationRefsToPlan(
+      'book a facial tomorrow',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(false);
+  });
+
+  it('does nothing when the store has no ref of that kind', () => {
+    // Falls through to the ordinary missing-variable clarify — today's
+    // behaviour, so an empty or unrelated store cannot make a turn worse.
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('employee', 'emp-1', 'Anna'),
+    );
+    const out = applyConversationRefsToPlan(
+      'book it',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId']]]),
+      store,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(false);
+    expect(out.ambiguous).toBeNull();
+  });
+
+  it('does nothing with no store at all', () => {
+    const out = applyConversationRefsToPlan(
+      'book it',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId']]]),
+      null,
+      { now: NOW, currentTurn: 2 },
+    );
+    expect(out.changed).toBe(false);
+  });
+
+  it('treats a ref from many turns ago as stale', () => {
+    // §48's window applies: an "it" from twenty turns back is a different
+    // conversation, and lookupEntity is what decides that.
+    const store = recordResolution(
+      createEntityStore('conv-1'),
+      ref('service', 'svc-1', 'Haircut', 1),
+    );
+    const out = applyConversationRefsToPlan(
+      'book it',
+      [step('s1', 'booking.create')],
+      new Map([['s1', ['serviceId']]]),
+      store,
+      { now: NOW, currentTurn: 40 },
+    );
+    expect(out.changed).toBe(false);
+  });
+});

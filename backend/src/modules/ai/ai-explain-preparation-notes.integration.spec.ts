@@ -43,14 +43,16 @@ describe('ai explain preparation notes integration (ai-cmd-customer-4.3.4)', () 
   it.each(EXPLAIN_PREPARATION_NOTES_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_preparation_notes',
-        params: { aspect, bookingId: 'book-1' },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_preparation_notes',
+          params: { aspect, bookingId: 'book-1' },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPreparationNotesLogic(

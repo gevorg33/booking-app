@@ -40,14 +40,16 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
     'validates and handles privacy_export $0',
     async (_id, row) => {
       expect(
-        validateCommand(makeResolvedCommand({
-          action: 'privacy_export',
-          params: {},
-          enrichedParams: {},
-          entities: { employees: [], services: [] },
-          reasoning: 'test',
-          prompt: row.prompt,
-        })).issues,
+        validateCommand(
+          makeResolvedCommand({
+            action: 'privacy_export',
+            params: {},
+            enrichedParams: {},
+            entities: { employees: [], services: [] },
+            reasoning: 'test',
+            prompt: row.prompt,
+          }),
+        ).issues,
       ).toEqual([]);
 
       const result = await handlePrivacyExportLogic(
@@ -68,14 +70,16 @@ describe('customer-ai-command privacy GDPR integration (ai-cmd-customer-4.17.5)'
     'validates and previews privacy_delete without confirm $0',
     async (_id, row) => {
       expect(
-        validateCommand(makeResolvedCommand({
-          action: 'privacy_delete',
-          params: {},
-          enrichedParams: {},
-          entities: { employees: [], services: [] },
-          reasoning: 'test',
-          prompt: row.prompt,
-        })).issues,
+        validateCommand(
+          makeResolvedCommand({
+            action: 'privacy_delete',
+            params: {},
+            enrichedParams: {},
+            entities: { employees: [], services: [] },
+            reasoning: 'test',
+            prompt: row.prompt,
+          }),
+        ).issues,
       ).toEqual([]);
 
       const d = privacyDeps();

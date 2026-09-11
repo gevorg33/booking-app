@@ -1,4 +1,5 @@
 import type { Repository } from 'typeorm';
+import type { EntityReader } from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type {
   ClinicSpecimenListFilters,
@@ -19,7 +20,7 @@ import {
 } from './ai-provider-clinic-collection.util.js';
 
 export interface ProviderClinicCollectionLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   clinicSpecimenService: Pick<
     ClinicSpecimenService,
     'listSpecimens' | 'getSpecimenForBusiness'

@@ -1,4 +1,7 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { handleListTourCalendarWeekLogic } from './ai-tour-calendar-week.logic.js';
 
 /**
@@ -35,22 +38,22 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
   const weekStart = isoDay(currentWeekMonday());
   const weekEnd = isoDay(new Date(currentWeekMonday().getTime() + 6 * DAY_MS));
 
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: '3-Day Mountain Trek',
     metadata: { serviceType: 'tour', maxGroupSize: 8 },
-  };
+  });
 
-  const cityTour = {
+  const cityTour = makeService({
     id: 'svc-city',
     name: 'City Tour',
     metadata: { serviceType: 'tour', maxGroupSize: 12 },
-  };
+  });
 
-  const maria = { id: 'emp-maria', name: 'Maria Lopez' };
-  const gevorg = { id: 'emp-gevorg', name: 'Gevorg Gasparyan' };
+  const maria = makeEmployee({ id: 'emp-maria', name: 'Maria Lopez' });
+  const gevorg = makeEmployee({ id: 'emp-gevorg', name: 'Gevorg Gasparyan' });
 
-  const trekBooking = {
+  const trekBooking = makeBooking({
     id: 'bk-tour-1',
     serviceId: 'svc-mountain',
     employeeId: 'emp-maria',
@@ -65,9 +68,9 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     service: mountainTrek,
     employee: maria,
     customer: { name: 'John Doe' },
-  };
+  });
 
-  const cityBooking = {
+  const cityBooking = makeBooking({
     id: 'bk-tour-2',
     serviceId: 'svc-city',
     employeeId: 'emp-gevorg',
@@ -82,7 +85,7 @@ describe('ai-tour-calendar-week.logic (ai-cmd-tour-12)', () => {
     service: cityTour,
     employee: gevorg,
     customer: { name: 'Anna' },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(

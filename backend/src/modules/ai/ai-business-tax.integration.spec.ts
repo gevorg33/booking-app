@@ -118,20 +118,24 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
       });
       expect(rescued?.action).toBe('configure_business_tax');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_business_tax',
-        params: parsed ?? {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_business_tax',
+          params: parsed ?? {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessTaxLogic(
         deps(),
         'biz-1',
-        parsed ?? {},
+        // Spread: the parse result is a declared shape with no index signature,
+        // and these handlers take `Record<string, unknown>`.
+        { ...(parsed ?? {}) },
         prompt,
       );
       expect(result.success).toBe(true);
@@ -154,20 +158,24 @@ describe('ai business tax integration (ai-cmd-tax-1..3)', () => {
         expect.objectContaining({ serviceQuery, taxRatePercent }),
       );
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'set_service_tax_rate',
-        params: parsed ?? {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'set_service_tax_rate',
+          params: parsed ?? {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const preview = await handleSetServiceTaxRateLogic(
         deps(),
         'biz-1',
-        parsed ?? {},
+        // Spread: the parse result is a declared shape with no index signature,
+        // and these handlers take `Record<string, unknown>`.
+        { ...(parsed ?? {}) },
         prompt,
         false,
       );

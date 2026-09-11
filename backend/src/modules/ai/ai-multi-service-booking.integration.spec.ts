@@ -1,4 +1,5 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
 import {
   applyPackageMultiServicePromptHints,
@@ -53,7 +54,9 @@ function buildScheduleDeps(
       })),
     } as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     serviceRepo: {
       find: jest.fn(async () => services),

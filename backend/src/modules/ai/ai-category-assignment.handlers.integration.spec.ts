@@ -75,7 +75,11 @@ describe('category assignment handler flows', () => {
       name: 'Anna Smith',
       serviceIds: ['s-1-1', 's-1-2', 's-2-1', 's-2-2', 's-4-1', 's-4-2'],
     }),
-    makeEmployee({ id: 'e4', name: 'Mary Torgomyan', serviceIds: ['s-2-1', 's-2-2'] }),
+    makeEmployee({
+      id: 'e4',
+      name: 'Mary Torgomyan',
+      serviceIds: ['s-2-1', 's-2-2'],
+    }),
     makeEmployee({
       id: 'e5',
       name: 'Gevorg',

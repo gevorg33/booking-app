@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleReportBookingProblemLogic } from './ai-report-booking-problem.logic.js';
 import {
   REPORT_BOOKING_PROBLEM_PROMPTS,
@@ -24,7 +25,9 @@ describe('ai-report-booking-problem integration (ai-cmd-customer-4.12.3)', () =>
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),
@@ -56,14 +59,16 @@ describe('ai-report-booking-problem integration (ai-cmd-customer-4.12.3)', () =>
   it.each(REPORT_BOOKING_PROBLEM_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'report_booking_problem',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'report_booking_problem',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

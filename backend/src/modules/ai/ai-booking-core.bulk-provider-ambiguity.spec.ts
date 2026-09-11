@@ -48,7 +48,13 @@ const HANDLERS: {
   {
     action: 'bulk_smart_cancel',
     run: (params) =>
-      service.handleBulkSmartCancel('b1', 'cancel them', params, SERVICES, TIED),
+      service.handleBulkSmartCancel(
+        'b1',
+        'cancel them',
+        params,
+        SERVICES,
+        TIED,
+      ),
   },
   // tech-debt D5-a (2026-08-20) — these three scope through
   // `applyEmployeeScopeToWhere`, whose `employeeName` branch is first-on-ties,
@@ -136,7 +142,14 @@ const HANDLERS: {
   {
     action: 'cancel_bookings',
     run: (params) =>
-      service.handleCancelBookings('b1', 'cancel them', params, SERVICES, TIED, []),
+      service.handleCancelBookings(
+        'b1',
+        'cancel them',
+        params,
+        SERVICES,
+        TIED,
+        [],
+      ),
   },
 ];
 

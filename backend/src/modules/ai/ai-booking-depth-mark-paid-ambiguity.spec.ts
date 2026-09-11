@@ -71,8 +71,8 @@ describe('mark_paid customer ambiguity (D5, §225)', () => {
 
     expect(result.success).toBe(false);
     expect(
-      (deps as never as { bookingService: { update: jest.Mock } }).bookingService
-        .update,
+      (deps as never as { bookingService: { update: jest.Mock } })
+        .bookingService.update,
     ).not.toHaveBeenCalled();
   });
 

@@ -523,7 +523,8 @@ describe('ai service discovery public integration — section D flagship (discov
         currency: 'USD',
       })),
       maxPrice: enriched.maxPrice,
-      serviceCategory: 'facial',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services.map((service) => service.id)).toEqual([
@@ -746,7 +747,8 @@ describe('ai service discovery public integration — section F journey (discove
         currency: 'USD',
       })),
       maxPrice: turn1.maxPrice,
-      serviceCategory: 'hair',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services.map((service) => service.id)).toEqual([
@@ -824,7 +826,8 @@ describe('ai service discovery parity — section G (discover-1.6)', () => {
         currency: 'EUR',
       })),
       maxPrice: publicEnriched.maxPrice,
-      serviceCategory: 'facial',
+      // No `serviceCategory` argument: `composePublicListServicesBudgetResponse`
+      // has no such parameter — the catalog above is already filtered by category.
       header: 'Services within your budget:',
     });
     expect(composed.services).toHaveLength(0);

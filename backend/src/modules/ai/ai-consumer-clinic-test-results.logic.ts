@@ -1,4 +1,5 @@
 import type { Repository } from 'typeorm';
+import type { EntityReader } from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicTestResultsService } from '../clinic-test-results/clinic-test-results.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -15,9 +16,12 @@ import {
 } from './ai-consumer-clinic-test-results.util.js';
 
 export interface ConsumerClinicTestResultsLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   clinicTestResultsService: Pick<
     ClinicTestResultsService,
+    // `listCustomerResultsForTracking` is not called in this file. It is here
+    // because `ai-consumer-clinic-test-results.service.ts:99` forwards this same
+    // deps object to `handleTrackLabOrderStatusLogic`, which does call it.
     'listReleasedResultsForCustomer' | 'listCustomerResultsForTracking'
   >;
 }

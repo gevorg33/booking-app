@@ -7,6 +7,11 @@ import {
   Optional,
   forwardRef,
 } from '@nestjs/common';
+import {
+  AiConversationCarrierService,
+  CONVERSATION_ENTITY_STORE_CONTEXT_KEY,
+  CONVERSATION_TURN_INDEX_CONTEXT_KEY,
+} from './ai-conversation-carrier.service.js';
 import { AiCommandService } from './ai-command.service.js';
 import { CustomerAiCommandService } from './customer-ai-command.service.js';
 import { ProviderAiCommandService } from '../provider-mobile/provider-ai-command.service.js';
@@ -112,6 +117,7 @@ export class AiGatewayService {
   private readonly productGuide: AiProductGuideService;
   /** AI-ROADMAP Phase 3 — optional so the 12-arg constructions in specs keep working. */
   private readonly plannerShadow?: AiPlannerShadowService;
+  private readonly conversationCarrier?: AiConversationCarrierService;
 
   /* istanbul ignore start */
   constructor(
@@ -130,6 +136,10 @@ export class AiGatewayService {
     commandTrace: AiCommandTraceService,
     productGuide: AiProductGuideService,
     @Optional() plannerShadow?: AiPlannerShadowService,
+    // e2e-bug.401 — optional so the many hand-constructed gateways in tests
+    // keep compiling; an absent carrier simply means no state crosses turns,
+    // which is the behaviour before this change.
+    @Optional() conversationCarrier?: AiConversationCarrierService,
   ) {
     this.dashboardCommands = dashboardCommands;
     this.customerCommands = customerCommands;
@@ -144,6 +154,7 @@ export class AiGatewayService {
     this.commandTrace = commandTrace;
     this.productGuide = productGuide;
     this.plannerShadow = plannerShadow;
+    this.conversationCarrier = conversationCarrier;
   }
   /* istanbul ignore end */
 
@@ -373,8 +384,22 @@ export class AiGatewayService {
         historyChannel,
       );
 
+    // e2e-bug.401 — open the conversation before the turn is classified, so
+    // anything downstream can read what previous turns left behind. Awaited
+    // rather than fired off: the point is to have it *before* classification,
+    // and a miss is a resolved null rather than a hang (the store fails fast on
+    // an unreachable Redis and is a no-op while the flag is unset).
+    const carrierContext = await this.conversationCarrier?.begin({
+      userId: params.userId ?? null,
+      businessId: params.businessId,
+      history: params.history ?? [],
+      prompt: params.prompt,
+    });
+
     const enrichedContext: Record<string, unknown> = {
       ...params.context,
+      [CONVERSATION_ENTITY_STORE_CONTEXT_KEY]: carrierContext?.entityStore,
+      [CONVERSATION_TURN_INDEX_CONTEXT_KEY]: carrierContext?.identity.turnIndex,
       [ASSISTANT_MODE_CONTEXT_KEY]: resolveAssistantMode({
         prompt: params.prompt,
         surface: params.surface,
@@ -504,6 +529,13 @@ export class AiGatewayService {
         result.action,
         buildEntityMemoryLearnPayload(result),
       );
+    }
+
+    // e2e-bug.401 — close the conversation. After the result is built, and
+    // fire-and-forget inside `commit`, so a slow Redis cannot add latency to a
+    // response that is already finished.
+    if (carrierContext) {
+      this.conversationCarrier?.commit(carrierContext, result);
     }
 
     const attached = attachGatewayMeta(result, params.surface, tier);

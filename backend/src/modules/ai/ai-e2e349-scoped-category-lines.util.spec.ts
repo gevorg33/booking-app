@@ -45,7 +45,10 @@ describe('e2e-bug.349 — the reported prompt now decomposes', () => {
       (s) => (s.params as { catalogDraft: any }).catalogDraft,
     );
     expect(drafts[0].categoryName).toBe('Y');
-    expect(drafts[0].services.map((x: any) => x.serviceName)).toEqual(['A', 'B']);
+    expect(drafts[0].services.map((x: any) => x.serviceName)).toEqual([
+      'A',
+      'B',
+    ]);
     expect(drafts[1].categoryName).toBe('Z');
     expect(drafts[1].services.map((x: any) => x.serviceName)).toEqual(['C']);
   });
@@ -108,9 +111,7 @@ describe('e2e-bug.349 — the segment parser', () => {
   });
 
   it('returns null for text that is not the scoped shape', () => {
-    expect(
-      parseScopedCategoryLinesFromSegment('Create category Y'),
-    ).toBeNull();
+    expect(parseScopedCategoryLinesFromSegment('Create category Y')).toBeNull();
   });
 });
 

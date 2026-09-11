@@ -150,7 +150,15 @@ export const LINK_RECOMMENDED_PRODUCTS_PROMPTS: readonly LinkRecommendedProducts
   },
 ] as const;
 
-export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS = [
+/** Declared so the array is one type, not a union of ten literal shapes. */
+export type ExplainRecommendationSetupPromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+  categoryName?: string;
+};
+
+export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS: readonly ExplainRecommendationSetupPromptFixture[] = [
   { id: 'explain-setup', prompt: 'Explain recommendation setup' },
   {
     id: 'show-checkout-config',
@@ -191,4 +199,4 @@ export const EXPLAIN_RECOMMENDATION_SETUP_PROMPTS = [
     id: 'recommendation-status',
     prompt: 'Show post-checkout recommendation status',
   },
-] as const;
+];

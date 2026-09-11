@@ -70,11 +70,20 @@ describe('ServiceService', () => {
     ),
   };
 
+  // `settings` is declared open rather than inferred from this one default:
+  // several tests below supply `currency` alongside `stripeConnect`, and the
+  // inferred literal type rejected every one of them.
+  type BusinessRow = { id: string; settings: Record<string, unknown> };
   const businessRepo = {
-    findOne: jest.fn(async ({ where }: { where: { id: string } }) =>
-      where.id === 'biz-1'
-        ? { id: 'biz-1', settings: { stripeConnect: { chargesEnabled: true } } }
-        : null,
+    findOne: jest.fn(
+      async ({
+        where,
+      }: {
+        where: { id: string };
+      }): Promise<BusinessRow | null> =>
+        where.id === 'biz-1'
+          ? { id: 'biz-1', settings: { stripeConnect: { chargesEnabled: true } } }
+          : null,
     ),
   };
 

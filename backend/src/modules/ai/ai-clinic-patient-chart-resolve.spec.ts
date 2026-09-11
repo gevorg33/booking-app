@@ -103,7 +103,8 @@ describe('resolveCustomerForPatientChart asks the database to filter', () => {
 
     expect(result?.id).toBe('cust-maria');
     expect(
-      (deps as never as { customerRepo: { find: jest.Mock } }).customerRepo.find,
+      (deps as never as { customerRepo: { find: jest.Mock } }).customerRepo
+        .find,
     ).not.toHaveBeenCalled();
   });
 });

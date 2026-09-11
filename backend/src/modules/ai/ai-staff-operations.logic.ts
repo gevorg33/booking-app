@@ -1,4 +1,8 @@
-import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+  EntityUpdater,
+} from './ai-logic-repo.types.js';
 import type { EmployeeService } from '../employee/employee.service.js';
 import type { InvitationsService } from '../invitations/invitations.service.js';
 import type { TeamMembersService } from '../business/team-members.service.js';
@@ -15,12 +19,24 @@ import {
   parseOnlineBookingEnabledFromPrompt,
 } from './ai-staff-operations.util.js';
 
+/*
+ * Every member below was declared as a whole class or repository; the logic uses
+ * eight methods between them. Naming those methods is what lets a test double be
+ * one — a full `Repository<Business>` cannot be mocked at all (TypeORM's `save`
+ * alone has four overloads), and a full service demands every private field.
+ */
 export interface StaffOperationsLogicDeps {
-  employeeService: EmployeeService;
-  invitationsService: InvitationsService;
-  teamMembersService: TeamMembersService;
-  businessRepo: Repository<Business>;
-  serviceRepo: Repository<Service>;
+  employeeService: Pick<
+    EmployeeService,
+    'create' | 'findAll' | 'remove' | 'update'
+  >;
+  invitationsService: Pick<
+    InvitationsService,
+    'create' | 'sendEmployeeAppAccess'
+  >;
+  teamMembersService: Pick<TeamMembersService, 'updateRoleByEmployeeId'>;
+  businessRepo: EntityReader<Business> & EntityUpdater<Business>;
+  serviceRepo: EntityFinder<Service>;
 }
 
 function success(

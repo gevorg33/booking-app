@@ -114,6 +114,24 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run test:ai-roadmap-gates
 
+      # e2e-bug.454 — the lint ratchet. ~85 s.
+      #
+      # Lint was enforced nowhere: `eslint src` reported thousands of errors and
+      # nothing failed, so errors accumulated freely. This does not demand zero
+      # — the count is 5,853, of which **86% are `prettier/prettier`** and most
+      # are auto-fixable. It demands that the number not grow.
+      #
+      # Deliberately not preceded by a repo-wide `--fix`: that would rewrite
+      # 4,563 files, collide with anything in flight, and scatter `git blame`.
+      # Collapsing the number is a one-commit job for a quiet moment; stopping
+      # the growth is what has never been true.
+      #
+      # A failure here is usually `npm run lint` on the files you touched.
+      - name: Lint ratchet
+        env:
+          CI: true
+        run: npm run lint:ratchet
+
       # The 8,464-case deterministic corpus plus the accuracy ratchet. This is
       # the gate e2e-bug.449 was filed about. Runs before the sweep because it
       # is ~1 min against the sweep's 5-17, and failing fast on the cheap,

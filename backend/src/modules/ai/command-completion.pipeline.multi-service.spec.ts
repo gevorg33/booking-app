@@ -25,10 +25,7 @@ const service = (id: string, name: string) =>
 
 const catalog: BusinessCatalog = {
   employees: [],
-  services: [
-    service('svc-cut', 'Haircut'),
-    service('svc-beard', 'Beard trim'),
-  ],
+  services: [service('svc-cut', 'Haircut'), service('svc-beard', 'Beard trim')],
   customers: [],
   templates: [],
 };

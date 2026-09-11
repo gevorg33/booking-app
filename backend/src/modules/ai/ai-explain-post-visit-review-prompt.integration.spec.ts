@@ -32,14 +32,16 @@ describe('ai-explain-post-visit-review-prompt integration (ai-cmd-customer-4.12.
   it.each(EXPLAIN_POST_VISIT_REVIEW_PROMPT_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_post_visit_review_prompt',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_post_visit_review_prompt',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPostVisitReviewPromptLogic(

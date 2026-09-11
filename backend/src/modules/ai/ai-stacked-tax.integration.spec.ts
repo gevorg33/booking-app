@@ -88,14 +88,16 @@ describe('ai stacked tax integration (ai-cmd-tax-6..7)', () => {
     });
     expect(rescued?.action).toBe('configure_stacked_tax_rules');
 
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'configure_stacked_tax_rules',
-      params: parsed ?? {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'configure_stacked_tax_rules',
+        params: parsed ?? {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.ok).toBe(true);
 
     const result = await handleConfigureStackedTaxRulesLogic(

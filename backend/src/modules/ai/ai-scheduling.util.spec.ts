@@ -489,3 +489,71 @@ describe('ai-scheduling.util', () => {
     expect(payloads[0].singleBlock?.startTime).toContain('2026-06-06');
   });
 });
+
+/**
+ * e2e-bug.528 — a closure range is closure dates.
+ *
+ * The command describes itself as "Close the business for a **period**" and its
+ * failure message tells the user "Specify closure dates (e.g. Dec 24-26)" — a
+ * range. The parser read only enumerated lists, so a user who said exactly what
+ * they were asked for was asked to restate it. Both the documentation and the
+ * error message already promised this; only the parser did not.
+ */
+describe('e2e-bug.528 — holiday_mode accepts a closure range', () => {
+  const { parseHolidayModeDates, expandClosureDateRange } =
+    require('./ai-scheduling.util.js') as typeof import('./ai-scheduling.util.js');
+
+  it('expands an inclusive range into closure days', () => {
+    expect(
+      parseHolidayModeDates({ dateFrom: '2026-12-24', dateTo: '2026-12-26' })
+        .closeDates,
+    ).toEqual(['2026-12-24', '2026-12-25', '2026-12-26']);
+  });
+
+  it('keeps an enumerated list winning over a range', () => {
+    // Additive, never narrowing: a caller that already lists days is unaffected,
+    // which is what makes widening safe here rather than the way e2e-bug.362
+    // happened.
+    expect(
+      parseHolidayModeDates({
+        closeDates: ['2026-12-25'],
+        dateFrom: '2026-01-01',
+        dateTo: '2026-12-31',
+      }).closeDates,
+    ).toEqual(['2026-12-25']);
+  });
+
+  it('requires both ends', () => {
+    // A lone `dateFrom` names no end, which is exactly what the completion
+    // validator refuses (§306). Widening must not smuggle it back in.
+    expect(expandClosureDateRange({ dateFrom: '2026-12-24' })).toEqual([]);
+    expect(expandClosureDateRange({ dateTo: '2026-12-26' })).toEqual([]);
+  });
+
+  it('refuses a reversed range rather than guessing the order', () => {
+    expect(
+      expandClosureDateRange({ dateFrom: '2026-12-26', dateTo: '2026-12-24' }),
+    ).toEqual([]);
+  });
+
+  it('refuses an absurd range outright rather than truncating it', () => {
+    // holiday_mode is T3 and blocks all booking. A mis-parsed year must not
+    // close a decade — and it must not close a *truncated* span either, because
+    // a business open on a day it believes it is closed is the worse failure.
+    expect(
+      expandClosureDateRange({ dateFrom: '2026-01-01', dateTo: '2030-01-01' }),
+    ).toEqual([]);
+  });
+
+  it('accepts a single-day range', () => {
+    expect(
+      expandClosureDateRange({ dateFrom: '2026-12-25', dateTo: '2026-12-25' }),
+    ).toEqual(['2026-12-25']);
+  });
+
+  it('spans a month and a year boundary', () => {
+    expect(
+      expandClosureDateRange({ dateFrom: '2026-12-31', dateTo: '2027-01-02' }),
+    ).toEqual(['2026-12-31', '2027-01-01', '2027-01-02']);
+  });
+});

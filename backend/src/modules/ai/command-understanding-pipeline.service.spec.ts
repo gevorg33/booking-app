@@ -303,7 +303,13 @@ describe('CommandUnderstandingPipelineService (pipe-1.0.2 / pipe-1.0.3)', () => 
   });
 
   it('runs parallel classify + resolveRoute', async () => {
-    const route: ComplexityRoute = { tier: 'read_only', reason: 'list query' };
+    // `reasoning`, not `reason`: `ComplexityRoute` has no `reason`, and
+    // `fast-intent-heuristics.util.ts` reads `route.reasoning ?? '<default>'`,
+    // so the misspelled field was silently discarded.
+    const route: ComplexityRoute = {
+      tier: 'read_only',
+      reasoning: 'list query',
+    };
     let routeCalled = false;
     let classifyCalled = false;
 

@@ -8,6 +8,7 @@ import {
   mergeHolidayModeSteps,
   mergeOnboardProviderSteps,
 } from './ai-scheduling-plan.util.js';
+import { makeAgentPlanStep } from '../../engine/agent/interfaces/agent.test-fixture.js';
 
 describe('ai-scheduling-plan.util', () => {
   const period = {
@@ -137,12 +138,11 @@ describe('ai-scheduling-plan.util', () => {
       extendPlans: [
         {
           steps: [
-            {
+            makeAgentPlanStep({
               id: 'e1',
               action: 'create_direct_schedule',
               description: 'extend',
-              params: {},
-            },
+            }),
           ],
         },
       ],
@@ -177,12 +177,11 @@ describe('ai-scheduling-plan.util', () => {
         },
       ],
       assignSteps: [
-        {
+        makeAgentPlanStep({
           id: 's1',
           action: 'assign_employee_services',
           description: 'assign',
-          params: {},
-        },
+        }),
       ],
     });
     expect(merged[1].dependsOn).toContain('a1');

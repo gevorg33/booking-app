@@ -2,6 +2,7 @@ import {
   E2E52_EXPECTED_NAVIGATE,
   E2E52_MY_APPOINTMENTS_NAVIGATE_CASES,
 } from './ai-e2e52-my-appointments-navigate.fixtures.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleMyAppointmentsLogic } from './ai-customer-crm.logic.js';
 import { buildMyAppointmentsNavigate } from './ai-customer-crm.util.js';
 import { handleListMyAppointmentsLogic } from './ai-self-service-booking.logic.js';
@@ -46,7 +47,9 @@ describe('e2e-bug.52 my_appointments navigates to Account bookings', () => {
     const result = await handleListMyAppointmentsLogic(
       {
         businessRepo: {
-          findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo' })),
+          findOne: jest.fn(async () =>
+            makeBusiness({ id: 'biz-1', slug: 'demo' }),
+          ),
         },
         publicCustomerAuthService: {
           listBookings: jest.fn(async () => ({
@@ -79,7 +82,9 @@ describe('e2e-bug.52 my_appointments navigates to Account bookings', () => {
     const result = await handleListMyUpcomingAppointmentsLogic(
       {
         businessRepo: {
-          findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo' })),
+          findOne: jest.fn(async () =>
+            makeBusiness({ id: 'biz-1', slug: 'demo' }),
+          ),
         },
         publicCustomerAuthService: {
           listBookings: jest.fn(async () => ({

@@ -4,41 +4,77 @@ import {
   handleDeactivateEmployeeLogic,
   handleInviteStaffMemberLogic,
 } from './ai-staff-operations.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
+import type { Business } from '../business/entities/business.entity.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import type { TeamMemberView } from '../business/team-members.service.js';
+import { MemberRole } from '../business/entities/business-member.entity.js';
+import { makeBusinessInvitation } from '../invitations/entities/business-invitation.test-fixture.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
 
 describe('ai-staff-operations.logic (ai-cmd-ext-2.5–2.8)', () => {
   const employeeService = {
-    create: jest.fn(async () => ({
-      id: 'emp-new',
-      name: 'Anna',
-      email: 'anna@salon.com',
-    })),
+    create: jest.fn(async () =>
+      makeEmployee({ id: 'emp-new', name: 'Anna', email: 'anna@salon.com' }),
+    ),
     findAll: jest.fn(async () => [
-      { id: 'emp-1', name: 'Maria Lopez', email: 'maria@salon.com' },
-      { id: 'emp-2', name: 'Gevorg Gasparyan', email: 'gevorg@salon.com' },
+      makeEmployee({
+        id: 'emp-1',
+        name: 'Maria Lopez',
+        email: 'maria@salon.com',
+      }),
+      makeEmployee({
+        id: 'emp-2',
+        name: 'Gevorg Gasparyan',
+        email: 'gevorg@salon.com',
+      }),
     ]),
     remove: jest.fn(async () => undefined),
+    // `update` was absent while the dep was declared as the whole
+    // `EmployeeService` — the logic calls it, so any test reaching
+    // `update_employee` would have hit `undefined is not a function`.
+    update: jest.fn(async () =>
+      makeEmployee({ id: 'emp-1', name: 'Maria Lopez' }),
+    ),
   };
   const invitationsService = {
-    create: jest.fn(async () => ({ id: 'inv-1' })),
-    sendEmployeeAppAccess: jest.fn(async () => ({ id: 'inv-2' })),
+    create: jest.fn(async () => makeBusinessInvitation({ id: 'inv-1' })),
+    sendEmployeeAppAccess: jest.fn(async () =>
+      makeBusinessInvitation({ id: 'inv-2' }),
+    ),
   };
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-1',
-      settings: { publicBooking: { enabled: true } },
-    })),
+    findOne: jest.fn(
+      async (): Promise<Business | null> =>
+        makeBusiness({
+          id: 'biz-1',
+          settings: { publicBooking: { enabled: true } },
+        }),
+    ),
     update: jest.fn(async () => undefined),
   };
   const serviceRepo = {
     find: jest.fn(async () => [
-      { id: 'svc-1', name: 'Massage Therapy' },
-      { id: 'svc-2', name: 'Haircut' },
+      makeService({ id: 'svc-1', name: 'Massage Therapy' }),
+      makeService({ id: 'svc-2', name: 'Haircut' }),
     ]),
   };
   const teamMembersService = {
+    // A complete `TeamMemberView`: `{ role }` alone was missing the six fields
+    // that identify *which* member had their role changed.
     updateRoleByEmployeeId: jest.fn(
-      async (_b: string, _e: string, role: string) => ({
+      async (
+        _b: string,
+        employeeId: string,
+        role: MemberRole,
+      ): Promise<TeamMemberView> => ({
+        id: 'member-1',
+        userId: 'user-1',
+        email: 'member@salon.com',
+        name: 'Maria Lopez',
         role,
+        employeeId,
+        employeeName: 'Maria Lopez',
       }),
     ),
   };

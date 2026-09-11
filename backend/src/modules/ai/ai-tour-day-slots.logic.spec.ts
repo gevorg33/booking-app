@@ -1,9 +1,11 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { handleExplainTourDaySlotsLogic } from './ai-tour-day-slots.logic.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
 
 describe('ai-tour-day-slots.logic', () => {
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: '3-Day Mountain Trek',
     price: 320,
@@ -14,9 +16,9 @@ describe('ai-tour-day-slots.logic', () => {
       maxGroupSize: 8,
       durationDays: 3,
     },
-  };
+  });
 
-  const cityTour = {
+  const cityTour = makeService({
     id: 'svc-city',
     name: 'Full Day City Tour',
     price: 85,
@@ -26,27 +28,27 @@ describe('ai-tour-day-slots.logic', () => {
       serviceType: TOUR_SERVICE_TYPE,
       maxGroupSize: 12,
     },
-  };
+  });
 
-  const massage = {
+  const massage = makeService({
     id: 'svc-massage',
     name: 'Swedish Massage',
     price: 60,
     currency: 'USD',
     durationMinutes: 60,
     metadata: {},
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date('2026-08-15T08:00:00.000Z'),
         endTime: new Date('2026-08-18T08:00:00.000Z'),
         metadata: { paxCount: 3, tourStartDate: '2026-08-15' },
-      },
+      }),
     ]),
   };
 

@@ -42,14 +42,16 @@ describe('ai-book-another-service integration (ai-cmd-customer-4.3.6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('book_another_service');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'book_another_service',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'book_another_service',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

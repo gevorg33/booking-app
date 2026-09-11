@@ -2,6 +2,9 @@ import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { ReviewsService } from '../reviews/reviews.service.js';
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+} from './ai-logic-repo.types.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
   formatProviderRatingLabel,
@@ -12,8 +15,8 @@ import { parseExplainProfessionalProfileFromPrompt } from './ai-explain-professi
 import type { ProfessionalProfileAspect } from './ai-explain-professional-profile.fixtures.js';
 
 export interface ExplainProfessionalProfileLogicDeps {
-  employeeRepo: Pick<Repository<Employee>, 'find'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
+  employeeRepo: EntityFinder<Employee>;
+  serviceRepo: EntityFinder<Service>;
   reviewsService: Pick<ReviewsService, 'getPublicReviewsByEmployees'>;
 }
 

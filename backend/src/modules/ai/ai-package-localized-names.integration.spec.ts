@@ -75,19 +75,21 @@ describe('ai package localized names integration (ai-cmd-lang-6)', () => {
       });
       expect(rescued?.action).toBe('configure_package_localized_names');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_package_localized_names',
-        params: {
-          operation,
-          packageName,
-          ...(locale ? { locale } : {}),
-          ...(displayName ? { displayName } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_package_localized_names',
+          params: {
+            operation,
+            packageName,
+            ...(locale ? { locale } : {}),
+            ...(displayName ? { displayName } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigurePackageLocalizedNamesLogic(

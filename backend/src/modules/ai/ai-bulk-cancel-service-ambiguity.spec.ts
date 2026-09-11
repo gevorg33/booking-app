@@ -59,7 +59,9 @@ describe('bulk_smart_cancel service ambiguity (D5, §236)', () => {
     expect(result.details?.clarify).toBe(true);
     expect(result.details?.requestedName).toBe('massage');
     expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
+      (result.details.candidates as Array<{ id: string }>)
+        .map((c) => c.id)
+        .sort(),
     ).toEqual(['svc-deep', 'svc-swedish']);
   });
 
@@ -77,9 +79,9 @@ describe('bulk_smart_cancel service ambiguity (D5, §236)', () => {
     // An exact match beats the substring tier, so the fully-qualified name is
     // not a tie even though the shared word is.
     const svc = buildService();
-    await expect(call(svc, { serviceName: 'Deep tissue massage' })).rejects.toThrow(
-      /searched for bookings to cancel/,
-    );
+    await expect(
+      call(svc, { serviceName: 'Deep tissue massage' }),
+    ).rejects.toThrow(/searched for bookings to cancel/);
   });
 });
 
@@ -109,36 +111,87 @@ describe('the other bulk writers refuse a service tie (§237)', () => {
   };
 
   const CASES: Array<[string, string, (svc: any) => Promise<unknown>]> = [
-    ['handleCancelBookings', 'cancel_bookings', (svc) =>
-      svc.handleCancelBookings('biz-1', 'cancel massage bookings',
-        { serviceName: 'massage' }, MASSAGES, [], [], undefined, 'user-1')],
+    [
+      'handleCancelBookings',
+      'cancel_bookings',
+      (svc) =>
+        svc.handleCancelBookings(
+          'biz-1',
+          'cancel massage bookings',
+          { serviceName: 'massage' },
+          MASSAGES,
+          [],
+          [],
+          undefined,
+          'user-1',
+        ),
+    ],
     // Note the arity: hide/unhide take (businessId, params, services, …) with
     // **no prompt**, while cancel/update take (businessId, prompt, params, …).
     // Passing a prompt where `params` belongs made `params.serviceName`
     // undefined, so there was no tie to refuse and the test failed by reaching
     // the real lookup — the third time this session that assuming a uniform
     // signature produced a test that failed for an unrelated reason.
-    ['handleHideAppointmentsFromCalendar', 'hide_appointments_from_calendar', (svc) =>
-      svc.handleHideAppointmentsFromCalendar('biz-1',
-        { serviceName: 'massage' }, MASSAGES, [], [], undefined, 'user-1')],
-    ['handleUnhideAppointmentsFromCalendar', 'unhide_appointments_from_calendar', (svc) =>
-      svc.handleUnhideAppointmentsFromCalendar('biz-1',
-        { serviceName: 'massage' }, MASSAGES, [], [], undefined, 'user-1')],
-    ['handleUpdateBookings', 'update_bookings', (svc) =>
-      svc.handleUpdateBookings('biz-1', 'mark massage bookings confirmed',
-        { serviceName: 'massage', status: 'confirmed' }, MASSAGES, [], [], undefined, 'user-1')],
+    [
+      'handleHideAppointmentsFromCalendar',
+      'hide_appointments_from_calendar',
+      (svc) =>
+        svc.handleHideAppointmentsFromCalendar(
+          'biz-1',
+          { serviceName: 'massage' },
+          MASSAGES,
+          [],
+          [],
+          undefined,
+          'user-1',
+        ),
+    ],
+    [
+      'handleUnhideAppointmentsFromCalendar',
+      'unhide_appointments_from_calendar',
+      (svc) =>
+        svc.handleUnhideAppointmentsFromCalendar(
+          'biz-1',
+          { serviceName: 'massage' },
+          MASSAGES,
+          [],
+          [],
+          undefined,
+          'user-1',
+        ),
+    ],
+    [
+      'handleUpdateBookings',
+      'update_bookings',
+      (svc) =>
+        svc.handleUpdateBookings(
+          'biz-1',
+          'mark massage bookings confirmed',
+          { serviceName: 'massage', status: 'confirmed' },
+          MASSAGES,
+          [],
+          [],
+          undefined,
+          'user-1',
+        ),
+    ],
   ];
 
-  it.each(CASES)('%s refuses and names both candidates', async (_n, action, call) => {
-    const svc = svcFor();
-    const result: any = await call(svc);
+  it.each(CASES)(
+    '%s refuses and names both candidates',
+    async (_n, action, call) => {
+      const svc = svcFor();
+      const result: any = await call(svc);
 
-    expect(result.success).toBe(false);
-    expect(result.action).toBe(action);
-    expect(result.details?.clarify).toBe(true);
-    expect(result.details?.requestedName).toBe('massage');
-    expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
-    ).toEqual(['svc-deep', 'svc-swedish']);
-  });
+      expect(result.success).toBe(false);
+      expect(result.action).toBe(action);
+      expect(result.details?.clarify).toBe(true);
+      expect(result.details?.requestedName).toBe('massage');
+      expect(
+        (result.details.candidates as Array<{ id: string }>)
+          .map((c) => c.id)
+          .sort(),
+      ).toEqual(['svc-deep', 'svc-swedish']);
+    },
+  );
 });

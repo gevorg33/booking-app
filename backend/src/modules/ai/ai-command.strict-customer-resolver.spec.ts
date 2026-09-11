@@ -83,12 +83,18 @@ describe('D5-b — the callbacks handed to compound services use it', () => {
   it('the strict resolver is actually injected somewhere', () => {
     // Guards against the assertion above passing because the callbacks were
     // deleted rather than migrated.
-    expect(SRC).toContain('this.resolveCustomerStrict(list, name, onAmbiguous)');
+    expect(SRC).toContain(
+      'this.resolveCustomerStrict(list, name, onAmbiguous)',
+    );
   });
 
   it('the provider callback migrated too', () => {
-    expect(SRC).toContain('this.resolveEmployeeStrict(list, name, onAmbiguous)');
-    expect(SRC).not.toMatch(/resolveEmployee: \(list, name\) =>\s*\n\s*this\.resolveEmployee\(list, name\)/);
+    expect(SRC).toContain(
+      'this.resolveEmployeeStrict(list, name, onAmbiguous)',
+    );
+    expect(SRC).not.toMatch(
+      /resolveEmployee: \(list, name\) =>\s*\n\s*this\.resolveEmployee\(list, name\)/,
+    );
   });
 
   /**

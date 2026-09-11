@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import { resolvePublicPaymentSettings } from '../../common/utils/customer-self-service.util.js';
 import { getBusinessStripeIntegration } from '../billing/stripe-integration.types.js';
@@ -10,7 +13,7 @@ import {
 } from './ai-diagnose-stripe-checkout-failure.util.js';
 
 export interface DiagnoseStripeCheckoutFailureLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(

@@ -24,7 +24,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const COMMAND_SRC = readFileSync(join(__dirname, 'ai-command.service.ts'), 'utf8');
+const COMMAND_SRC = readFileSync(
+  join(__dirname, 'ai-command.service.ts'),
+  'utf8',
+);
 const LOGIC_SRC = readFileSync(join(__dirname, 'ai-catalog.logic.ts'), 'utf8');
 
 describe('e2e-bug.448(b) — catalog compound gets its payments callback', () => {

@@ -1,0 +1,7 @@
+{
+  "_comment": "e2e-bug.454 lint ratchet. Errors may only DECREASE. Regenerate with `node scripts/lint-ratchet.mjs --update` and say why in the commit.",
+  "measuredAt": "2026-09-10T23:04:46.000Z",
+  "errors": 5853,
+  "warnings": 14626,
+  "files": 4563
+}

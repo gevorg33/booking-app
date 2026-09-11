@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
@@ -27,13 +31,13 @@ const TERMINAL_PACKAGE_VISIT_STATUSES = new Set([
 ]);
 
 export interface ReschedulePackageVisitSelfLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   publicCustomerBookingService: Pick<
     PublicCustomerBookingService,
     'reschedulePackageVisit'
   >;
   publicCustomerAuthService: Pick<PublicCustomerAuthService, 'listBookings'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
+  serviceRepo: EntityFinder<Service>;
   multiServiceBookingsService: Pick<
     MultiServiceBookingsService,
     'resolveSettingsFromBusiness'

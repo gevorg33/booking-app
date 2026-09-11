@@ -1,4 +1,5 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import { LIST_UPCOMING_TOUR_DEPARTURES_PROMPTS } from './ai-upcoming-tour-departures.fixtures.js';
 import { handleListUpcomingTourDeparturesLogic } from './ai-upcoming-tour-departures.logic.js';
@@ -18,7 +19,7 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
 
   const bookingService = {
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
@@ -29,7 +30,7 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
         metadata: { paxCount: 6, tourStartDate: departureDate },
         service: mountainTrek,
         customer: { name: 'John Doe' },
-      },
+      }),
     ]),
   };
 
@@ -69,17 +70,19 @@ describe('ai upcoming tour departures integration (ai-cmd-tour-8)', () => {
       });
       expect(rescued?.action).toBe('list_upcoming_tour_departures');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'list_upcoming_tour_departures',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-          ...(daysAhead ? { daysAhead } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'list_upcoming_tour_departures',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+            ...(daysAhead ? { daysAhead } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleListUpcomingTourDeparturesLogic(

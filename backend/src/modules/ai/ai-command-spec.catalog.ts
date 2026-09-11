@@ -874,7 +874,8 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
     surfaces: ['dashboard'],
     tiers: { dashboard: ['staff', 'manager', 'owner'] },
     risk: 'T1',
-    description: 'Declare which services can be booked together in one visit.',
+    description:
+      'Declare which two services cannot be booked together in one visit.',
     variables: {
       // §308 (`e2e-bug.462` reverse census). This spec was wrong in **name and
       // meaning**. `handleSetServiceCompatibilityLogic` reads
@@ -888,10 +889,10 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
       // "Services bookable alongside it" — a required input no handler reads,
       // documenting the opposite of what the command does.
       //
-      // The command's `description` is inverted the same way and is NOT fixed
-      // here: descriptions feed `commandMatchText`, so editing one invalidates
-      // the committed embedding cache and needs `OPENAI_API_KEY`. Tracked
-      // separately.
+      // The command's `description` was inverted the same way, and its two
+      // examples with it. Fixed 2026-09-11 (e2e-bug.530) once the key was
+      // available: descriptions and examples feed `commandMatchText`, so the
+      // committed embedding cache was rebuilt in the same change.
       incompatibleServiceNames: {
         type: 'string[]',
         description:
@@ -908,8 +909,14 @@ export const CATALOG_COMMAND_SPECS: readonly CommandSpec[] = [
       },
     },
     examples: [
-      'allow massage and facial together',
-      'set which services can be combined',
+      // e2e-bug.530 — both examples were inverted the same way the description
+      // was: "allow … together" and "can be combined" describe compatibility,
+      // while the handler records an *incompatible* pair. Examples feed
+      // `commandMatchText` alongside the description, so leaving them would
+      // have kept steering retrieval with the wrong polarity even after the
+      // sentence above was corrected.
+      'stop massage and facial being booked in the same visit',
+      'set which two services cannot be combined in one visit',
     ],
     confirm: 'if-ambiguous',
     compensation: {

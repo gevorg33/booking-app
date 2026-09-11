@@ -2,6 +2,7 @@ import {
   handleListProviderReviewsLogic,
   type ListProviderReviewsLogicDeps,
 } from './ai-list-provider-reviews.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function buildDeps(
   overrides: Partial<ListProviderReviewsLogicDeps> = {},
@@ -31,7 +32,9 @@ function buildDeps(
       })),
     } as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   };

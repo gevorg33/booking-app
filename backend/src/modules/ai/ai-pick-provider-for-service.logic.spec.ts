@@ -2,21 +2,40 @@ import {
   buildPickProviderForServiceSummary,
   handlePickProviderForServiceLogic,
 } from './ai-pick-provider-for-service.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
+import { makePublicCustomerBookingItem } from '../public-booking/public-customer-auth.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
 import { PICK_PROVIDER_FOR_SERVICE_PROMPTS } from './ai-pick-provider-for-service.fixtures.js';
 
 describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
   const employees = [
-    { id: 'emp-anna', name: 'Anna', businessId: 'biz-1', isActive: true },
-    { id: 'emp-maria', name: 'Maria', businessId: 'biz-1', isActive: true },
+    makeEmployee({
+      id: 'emp-anna',
+      name: 'Anna',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
+    makeEmployee({
+      id: 'emp-maria',
+      name: 'Maria',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
   ];
   const services = [
-    { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
-    {
+    makeService({
+      id: 'svc-color',
+      name: 'Color',
+      businessId: 'biz-1',
+      isActive: true,
+    }),
+    makeService({
       id: 'svc-highlights',
       name: 'Highlights',
       businessId: 'biz-1',
       isActive: true,
-    },
+    }),
   ];
   const employeeRepo = {
     find: jest.fn(async () => employees),
@@ -27,7 +46,7 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
   const publicCustomerAuthService = {
     listBookings: jest.fn(async () => ({
       bookings: [
-        {
+        makePublicCustomerBookingItem({
           id: 'book-1',
           status: 'completed',
           startTime: '2026-06-01T10:00:00.000Z',
@@ -35,12 +54,12 @@ describe('ai-pick-provider-for-service.logic (ai-cmd-customer-4.11.2)', () => {
           employeeName: 'Anna',
           serviceId: 'svc-color',
           serviceName: 'Color',
-        },
+        }),
       ],
     })),
   };
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    findOne: jest.fn(async () => makeBusiness({ id: 'biz-1', slug: 'salon' })),
   };
   const pickDeps = () => ({
     employeeRepo,

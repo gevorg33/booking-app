@@ -705,3 +705,61 @@ describe('e2e-bug.506 — every stamped relative keyword is resolvable downstrea
     expect(enriched.date).toBe('10/06/2026');
   });
 });
+
+/**
+ * e2e-bug.504 — the plural map is redundant for matching, and that is the point.
+ *
+ * `normalizeAvailabilityServiceCategory` singularises an ad-hoc set — `lashes`,
+ * `haircuts`, `hairstyles`, `facials` — and leaves everything else alone, which
+ * reads like an unfinished rule and invites "just strip the trailing s".
+ *
+ * It is not unfinished, it is unnecessary: `matchServicesByQuery` resolves
+ * plurals on its own. Measured — `pedicures` finds `Pedicure` and `massages`
+ * finds both massages with **no** normalisation applied. So completing the map
+ * buys nothing at the matching layer.
+ *
+ * And completing it blindly costs something. e2e-bug.323 records that forcing
+ * `cut`/`cuts` to `haircut` discarded the raw token before
+ * `matchServicesByQuery` ran, so its literal-substring-first expansion never got
+ * to prefer real catalog rows named "Men's cut" over the unrelated `hairstyle`
+ * synonym. A blanket singularisation rule is exactly that fix, reverted.
+ *
+ * These pin the reason, so the next person to notice the inconsistency finds the
+ * measurement rather than repeating it.
+ */
+describe('e2e-bug.504 — plurals resolve without the normaliser', () => {
+  const CATALOG = [
+    { id: 's1', name: 'Swedish Massage' },
+    { id: 's2', name: 'Deep Tissue Massage' },
+    { id: 's3', name: 'Haircut' },
+    { id: 's4', name: 'Pedicure' },
+  ];
+
+  const { matchServicesByQuery } =
+    require('./ai-orchestration.helpers.js') as typeof import('./ai-orchestration.helpers.js');
+  const { normalizeAvailabilityServiceCategory } =
+    require('./ai-flexible-availability.util.js') as typeof import('./ai-flexible-availability.util.js');
+
+  it.each([
+    ['massages', 'Deep Tissue Massage'],
+    ['pedicures', 'Pedicure'],
+  ])(
+    '%s matches its service though the normaliser leaves it plural',
+    (query, expected) => {
+      // Both halves asserted: the normaliser is a no-op here, and the match
+      // happens anyway. If someone later adds these to the map, the first
+      // assertion fails and points at this comment.
+      expect(normalizeAvailabilityServiceCategory(query)).toBe(query);
+      expect(matchServicesByQuery(CATALOG, query).map((s) => s.name)).toContain(
+        expected,
+      );
+    },
+  );
+
+  it('leaves "cut" and "cuts" unaliased, as e2e-bug.323 requires', () => {
+    // The specific entry a blanket rule would add, and the one that broke
+    // catalog matching last time.
+    expect(normalizeAvailabilityServiceCategory('cut')).toBe('cut');
+    expect(normalizeAvailabilityServiceCategory('cuts')).toBe('cuts');
+  });
+});

@@ -52,6 +52,14 @@ const CANONICAL = new Set([
   // *is* the implementation, the same reason `resolveDateRange` above is
   // exempt: counting it would demand deleting the function the others now call.
   'ai-datetime-resolution.util.ts::resolveTomorrowDateKey',
+  // e2e-bug.367, 2026-09-10 — the shared half of the last two
+  // `resolveServiceByName` copies. Exempt for the same reason as the two above:
+  // it matches the pattern because it *is* the implementation the call sites
+  // now delegate to. It refuses ties via `resolveEntity` and takes each caller's
+  // distinctive final tier as a parameter, so the rules that genuinely differed
+  // are visible at the call site instead of duplicated around eleven identical
+  // lines.
+  'ai-legacy-service-match.util.ts::resolveServiceByNameOrRefuseTie',
 ]);
 
 /**
@@ -92,15 +100,27 @@ const KNOWN_REPARSERS: Record<string, string> = {
   // where this guesses, is now a single call site to wire a clarify path
   // through instead of five.
   //
-  // The two genuine variants below stay: they differ from each other and from
-  // the five, and merging them would be a behaviour change wearing a refactor's
-  // clothes.
-  'ai-compare-services.logic.ts::resolveServiceByName':
-    'variant with reverse-substring rule → EntityResolutionService.serviceOrClarify; behaviour change, it currently guesses',
-  'ai-pick-provider-for-service.logic.ts::resolveServiceByName':
-    'variant with reverse-substring rule → EntityResolutionService.serviceOrClarify; behaviour change, it currently guesses',
-  'ai-customer-waitlist.logic.ts::resolveServiceIdByName':
-    'async id lookup → EntityResolutionService.serviceOrClarify',
+  // e2e-bug.367, 2026-09-10: the two genuine `resolveServiceByName` variants are
+  // gone too. The note below used to say they must stay because "merging them
+  // would be a behaviour change wearing a refactor's clothes" — true of merging
+  // them, but they were not merged. The eleven lines they shared moved to
+  // `resolveServiceByNameOrRefuseTie`, and each call site passes its own final
+  // tier as a closure, so both rules are preserved exactly and now stated where
+  // they are used.
+  //
+  // e2e-bug.367, 2026-09-11 (later the same day): the waitlist's
+  // `resolveServiceIdByName` is gone too. Its in-memory tail — refuse a tie,
+  // then fuzzy-match — is exactly `resolveServiceByNameOrRefuseTie` with the
+  // fuzzy matcher passed as the last tier, so it delegates and is renamed
+  // `resolveWaitlistServiceId`: a DB exact match in front of the one resolver
+  // rather than a second implementation of it.
+  //
+  // Their recorded blocker had also gone stale: "behaviour change, it currently
+  // guesses". Both already called `resolveEntity` and returned undefined on a
+  // tie, so both already refused. What remained was duplication, not a
+  // guess-vs-clarify decision — and adopting `EntityResolutionService`'s own
+  // tiers, which would change which service resolves for non-ties, is still the
+  // separate migration these entries described.
   'ai-structural-extractors.ts::extractTimeSlotFromPrompt':
     // §187 fixed the parsing (the meridiem pattern now has one home in
     // MERIDIEM_GROUP_SOURCE), so this is no longer a correctness gap. What is
@@ -161,10 +181,18 @@ describe('re-parser ratchet', () => {
 
   it('exempts only the canonical implementations the service wraps', () => {
     // If this list grows, the gate is being weakened rather than the tree
-    // improved.
+    // improved — so growing it has to be a deliberate edit here, with a reason.
+    //
+    // e2e-bug.367, 2026-09-10: grew to three. The addition is the shared half of
+    // the last two `resolveServiceByName` copies, and it earns the exemption on
+    // the same terms as the other two — it is the implementation the call sites
+    // now delegate to, so counting it would demand deleting the function that
+    // removed the duplication. The trade is visible in the numbers either way:
+    // `KNOWN_REPARSERS` went 4 -> 2 in the same change.
     expect([...CANONICAL]).toEqual([
       'ai-orchestration.helpers.ts::resolveDateRange',
       'ai-datetime-resolution.util.ts::resolveTomorrowDateKey',
+      'ai-legacy-service-match.util.ts::resolveServiceByNameOrRefuseTie',
     ]);
   });
 });

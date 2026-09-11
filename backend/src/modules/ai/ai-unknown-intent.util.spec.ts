@@ -138,8 +138,12 @@ describe('ai-unknown-intent.util (pipe-1.6.2)', () => {
           classifierContext: null,
           method: 'passthrough',
         },
+        // `PromptNormalizationResult` is `{ original, normalized, method,
+        // classifierContext }`. This used to say `normalizedPrompt` and omit
+        // `original`, so it was not the shape the pipeline passes through.
         normalization: {
-          normalizedPrompt: 'Block Gevorg schedule tomorrow',
+          original: 'Block Gevorg schedule tomorrow',
+          normalized: 'Block Gevorg schedule tomorrow',
           method: 'passthrough',
           classifierContext: null,
         },

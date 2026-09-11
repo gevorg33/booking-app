@@ -1,4 +1,5 @@
 import type { Repository } from 'typeorm';
+import type { EntityFinder, EntityReader } from './ai-logic-repo.types.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   BookingStatus,
@@ -30,10 +31,13 @@ import {
 import { extractVisitCustomerNameFromPrompt } from './ai-clinic-test-order.util.js';
 
 export interface ClinicTestResultExtLogicDeps {
-  bookingRepo: Pick<Repository<Booking>, 'find'>;
-  resultRepo: Repository<ClinicTestResult>;
-  orderRepo: Pick<Repository<ClinicTestOrder>, 'find' | 'findOne'>;
-  clinicTestResultService: ClinicTestResultService;
+  bookingRepo: EntityFinder<Booking>;
+  /**
+   * `find` only. This was declared as the whole `Repository<ClinicTestResult>` —
+   * the widest possible over-declaration for a single call.
+   */
+  resultRepo: EntityFinder<ClinicTestResult>;
+  orderRepo: EntityFinder<ClinicTestOrder> & EntityReader<ClinicTestOrder>;
   clinicCatalogService: Pick<
     ClinicTestCatalogService,
     'updateReferenceRangeByCode'

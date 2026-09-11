@@ -97,14 +97,16 @@ describe('ai tour booking integration (ai-cmd-tour-5)', () => {
       const rescued = rescueTourBookingIntent(prompt, 'unknown');
       expect(rescued?.action).toBe('explain_tour_booking');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_tour_booking',
-        params: { serviceName },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_booking',
+          params: { serviceName },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourBookingLogic(

@@ -31,14 +31,16 @@ describe('ai resume pending payment integration (ai-cmd-customer-4.2.3)', () => 
   });
 
   it.each(RESUME_PENDING_PAYMENT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'resume_pending_payment',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'resume_pending_payment',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

@@ -88,7 +88,14 @@ export const ACCEPT_HIPAA_BAA_PROMPTS: readonly AcceptHipaaBaaPromptFixture[] = 
   },
 ] as const;
 
-export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS = [
+/** Two of the four prompts name a field; the other two ask in general. */
+export type ExplainPhiEncryptionStatusPromptFixture = {
+  id: string;
+  prompt: string;
+  fieldName?: string;
+};
+
+export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS: readonly ExplainPhiEncryptionStatusPromptFixture[] = [
   {
     id: 'is-hipaa-encryption-on',
     prompt: 'Is HIPAA encryption on?',
@@ -107,7 +114,7 @@ export const EXPLAIN_PHI_ENCRYPTION_STATUS_PROMPTS = [
     prompt: 'Are patient notes encrypted at rest?',
     fieldName: 'notes',
   },
-] as const;
+];
 
 export const EXPLAIN_MINIMUM_NECESSARY_PHI_ACCESS_PROMPTS = [
   {

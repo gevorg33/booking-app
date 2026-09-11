@@ -1,4 +1,5 @@
 import { resolveEntity } from './ai-entity-resolution.util.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import {
@@ -31,26 +32,6 @@ import type { PaymentsLogicDeps } from './ai-payments.logic.js';
  * can only refuse a name that previously resolved to an arbitrary one of
  * several equally good matches.
  */
-function resolveServiceByName(
-  services: readonly Service[],
-  name: string,
-): Service | undefined {
-  const needle = name.trim().toLowerCase();
-  if (!needle) return undefined;
-  if (
-    resolveEntity(services, name, {
-      entityLabel: 'service',
-      threshold: 0,
-    }).status === 'ambiguous'
-  ) {
-    return undefined;
-  }
-  return (
-    services.find((entry) => entry.name.toLowerCase() === needle) ??
-    services.find((entry) => entry.name.toLowerCase().includes(needle)) ??
-    services.find((entry) => needle.includes(entry.name.toLowerCase()))
-  );
-}
 
 function resolveServicesForCompare(
   services: readonly Service[],
@@ -59,7 +40,17 @@ function resolveServicesForCompare(
   const resolved: Service[] = [];
   const missing: string[] = [];
   for (const name of names) {
-    const match = resolveServiceByName(services, name);
+    // e2e-bug.367 — the shared tiers live in `resolveServiceByNameOrRefuseTie`;
+    // the closure is this call site's own last tier, and the only rule that
+    // differs from `ai-pick-provider-for-service.logic.ts`: the *query*
+    // contains a service name ("how do Deep Tissue Massage and Swedish
+    // compare"). Stated here rather than hidden in a near-identical copy.
+    const match = resolveServiceByNameOrRefuseTie(
+      services,
+      name,
+      (list, needle) =>
+        list.find((entry) => needle.includes(entry.name.toLowerCase())),
+    );
     if (!match) {
       missing.push(name);
       continue;

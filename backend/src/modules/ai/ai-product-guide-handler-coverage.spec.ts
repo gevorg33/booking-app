@@ -248,14 +248,16 @@ describe('ai-product-guide handler coverage (ai-guide-1.8.5)', () => {
       expect(APP_GUIDE_VALIDATED_ACTIONS.has(intent)).toBe(true);
       expect(shouldValidateAction(intent)).toBe(true);
       expect(
-        validateCommand(makeResolvedCommand({
-          action: intent,
-          prompt: 'Walk me through schedule templates',
-          params: { topicId: 'dashboard.core.schedule' },
-          enrichedParams: {},
-          entities: { employees: [], services: [] },
-          reasoning: 'test',
-        })).ok,
+        validateCommand(
+          makeResolvedCommand({
+            action: intent,
+            prompt: 'Walk me through schedule templates',
+            params: { topicId: 'dashboard.core.schedule' },
+            enrichedParams: {},
+            entities: { employees: [], services: [] },
+            reasoning: 'test',
+          }),
+        ).ok,
       ).toBe(true);
     }
     for (const intent of META_PRODUCT_GUIDE_INTENTS) {

@@ -9,8 +9,7 @@ describe('AiEntityMemoryService', () => {
   // infers an `unknown` return, so `mockResolvedValue(...)` resolves its
   // parameter to `never`.
   const openAi = {
-    isAvailableForBusiness:
-      jest.fn<(businessId: string) => Promise<boolean>>(),
+    isAvailableForBusiness: jest.fn<(businessId: string) => Promise<boolean>>(),
     completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
   const aiSettings = {

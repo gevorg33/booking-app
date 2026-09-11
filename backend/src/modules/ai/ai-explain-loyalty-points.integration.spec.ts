@@ -34,14 +34,16 @@ describe('ai-explain-loyalty-points integration (ai-cmd-customer-4.5.1)', () => 
   it.each(EXPLAIN_LOYALTY_POINTS_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_loyalty_points',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_loyalty_points',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainLoyaltyPointsLogic(

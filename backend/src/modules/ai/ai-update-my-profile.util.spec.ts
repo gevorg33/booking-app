@@ -195,7 +195,9 @@ describe('ai-update-my-profile.util (ai-cmd-customer-4.5.6)', () => {
 
     it('leaves the message-only path exactly as it was', () => {
       // The regression guard: every existing caller passes no params.
-      const parsed = parseUpdateMyProfileFromPrompt('Update my name to Jane Doe');
+      const parsed = parseUpdateMyProfileFromPrompt(
+        'Update my name to Jane Doe',
+      );
       expect(parsed?.name).toBe('Jane Doe');
       expect(parsed?.field).toBe('name');
     });

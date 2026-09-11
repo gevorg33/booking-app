@@ -1,4 +1,7 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import type { ServiceCategory } from '../service/entities/service-category.entity.js';
+import type { ServicePackage } from '../service-packages/entities/service-package.entity.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import {
   handleConfigureBusinessLanguagesLogic,
@@ -36,21 +39,24 @@ describe('ai business languages integration (ai-cmd-lang-1)', () => {
   const serviceRepo = {
     save: jest.fn(async (item: Service) => item),
     find: jest.fn(async () => [
-      {
+      makeService({
         id: 's1',
         metadata: { localizedNames: { en: ['Cut'], ru: ['Стрижка'] } },
-      },
+      }),
     ]),
   };
 
+  // Declared returns, not inferred: `async () => ({})` infers `Promise<{}>` and
+  // `async () => []` infers `Promise<never[]>`, neither of which is the entity
+  // these repositories deal in.
   const categoryRepo = {
-    save: jest.fn(async () => ({})),
-    find: jest.fn(async () => []),
+    save: jest.fn(async (item: ServiceCategory) => item),
+    find: jest.fn(async (): Promise<ServiceCategory[]> => []),
   };
 
   const packageRepo = {
-    save: jest.fn(async () => ({})),
-    find: jest.fn(async () => []),
+    save: jest.fn(async (item: ServicePackage) => item),
+    find: jest.fn(async (): Promise<ServicePackage[]> => []),
   };
 
   const deps = () => ({
@@ -122,14 +128,16 @@ describe('ai business languages integration (ai-cmd-lang-1)', () => {
       });
       expect(rescued?.action).toBe('configure_business_languages');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_business_languages',
-        params: { operation, locales: [...locales] },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_business_languages',
+          params: { operation, locales: [...locales] },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessLanguagesLogic(

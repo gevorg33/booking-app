@@ -55,14 +55,16 @@ describe('ai data rights integration (ai-cmd-compliance-7)', () => {
       const rescued = rescueExplainDataRightsIntent(prompt, 'unknown');
       expect(rescued?.action).toBe('explain_data_rights');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_data_rights',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_data_rights',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainDataRightsLogic(

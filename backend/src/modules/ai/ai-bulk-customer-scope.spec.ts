@@ -22,7 +22,10 @@ import { AiBookingCoreService } from './ai-booking-core.service.js';
 const person = (id: string, name: string) => ({ id, name }) as never;
 
 const MARYS = [person('cust-1', 'Mary Smith'), person('cust-2', 'Mary Jones')];
-const ONE_MARY = [person('cust-1', 'Mary Smith'), person('cust-9', 'Bob Stone')];
+const ONE_MARY = [
+  person('cust-1', 'Mary Smith'),
+  person('cust-9', 'Bob Stone'),
+];
 
 function buildService(capture: { where?: any }) {
   const svc: any = Object.create(AiBookingCoreService.prototype);
@@ -38,14 +41,31 @@ function buildService(capture: { where?: any }) {
   return svc;
 }
 
-const cancel = (svc: any, params: Record<string, unknown>, customers: never[]) =>
-  svc.handleCancelBookings('biz-1', 'cancel them', params, [], [], customers, undefined, 'user-1');
+const cancel = (
+  svc: any,
+  params: Record<string, unknown>,
+  customers: never[],
+) =>
+  svc.handleCancelBookings(
+    'biz-1',
+    'cancel them',
+    params,
+    [],
+    [],
+    customers,
+    undefined,
+    'user-1',
+  );
 
 describe('§311 — bulk cancel applies its declared customer scope', () => {
   it('resolves a customer name to an id the finder can filter on', async () => {
     const capture: { where?: any } = {};
     const svc = buildService(capture);
-    await cancel(svc, { customerName: 'Mary Smith', date: '2026-09-02' }, ONE_MARY as never[]);
+    await cancel(
+      svc,
+      { customerName: 'Mary Smith', date: '2026-09-02' },
+      ONE_MARY as never[],
+    );
 
     // The whole point: the finder must receive something that narrows to Mary.
     expect(capture.where?.customerId).toBe('cust-1');

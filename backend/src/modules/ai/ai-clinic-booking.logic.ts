@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ServiceService } from '../service/service.service.js';
 import type { PublicPreVisitIntakeService } from '../public-booking/public-pre-visit-intake.service.js';
@@ -21,7 +24,7 @@ import {
 import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ClinicBookingLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   serviceService: Pick<ServiceService, 'findAll'>;
   publicPreVisitIntakeService: Pick<
     PublicPreVisitIntakeService,

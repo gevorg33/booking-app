@@ -18,11 +18,16 @@ describe('chooseCatalogCompoundSteps', () => {
 
   it('replaces LLM create_services with the deterministic draft that keeps the category', () => {
     const steps = chooseCatalogCompoundSteps(PROMPT, [
-      step('create_services', { names: ['service A', 'service B', 'service C'] }),
+      step('create_services', {
+        names: ['service A', 'service B', 'service C'],
+      }),
     ]);
     expect(steps.map((s) => s.action)).toEqual(['bulk_create_catalog']);
-    const draft = (steps[0].params as { catalogDraft: { categoryName: string; services: unknown[] } })
-      .catalogDraft;
+    const draft = (
+      steps[0].params as {
+        catalogDraft: { categoryName: string; services: unknown[] };
+      }
+    ).catalogDraft;
     expect(draft.categoryName).toBe('Y');
     expect(draft.services).toHaveLength(3);
   });
@@ -53,18 +58,27 @@ describe('chooseCatalogCompoundSteps', () => {
   });
 
   it('leaves the LLM plan alone when it already creates the category', () => {
-    const llm = [step('bulk_create_catalog', { catalogDraft: { categoryName: 'Z', services: [{}] } })];
+    const llm = [
+      step('bulk_create_catalog', {
+        catalogDraft: { categoryName: 'Z', services: [{}] },
+      }),
+    ];
     expect(chooseCatalogCompoundSteps(PROMPT, llm)).toBe(llm);
   });
 
   it('leaves the LLM plan alone when it has no service-creating step', () => {
-    const llm = [step('create_package', {}), step('create_subscription_plan', {})];
+    const llm = [
+      step('create_package', {}),
+      step('create_subscription_plan', {}),
+    ];
     expect(chooseCatalogCompoundSteps(PROMPT, llm)).toBe(llm);
   });
 
   it('leaves the LLM plan alone when the prompt yields no complete draft', () => {
     // No category named, so there is no link to repair and nothing to prefer.
     const llm = [step('create_services', {})];
-    expect(chooseCatalogCompoundSteps('add a 30 minute $40 massage', llm)).toBe(llm);
+    expect(chooseCatalogCompoundSteps('add a 30 minute $40 massage', llm)).toBe(
+      llm,
+    );
   });
 });

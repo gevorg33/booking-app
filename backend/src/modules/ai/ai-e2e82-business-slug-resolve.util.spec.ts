@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
 import { E2E82_HELPER_CASES } from './ai-e2e82-business-slug-resolve.fixtures.js';
 import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
@@ -18,7 +19,9 @@ const SLUG = 'glow-salon';
 function businessRepo(slug: string | null = SLUG) {
   return {
     findOne: jest.fn(async ({ where }: { where: { id: string } }) =>
-      where.id === BUSINESS_ID && slug ? { id: BUSINESS_ID, slug } : null,
+      where.id === BUSINESS_ID && slug
+        ? makeBusiness({ id: BUSINESS_ID, slug })
+        : null,
     ),
   };
 }
@@ -29,7 +32,7 @@ describe('e2e-bug.82 resolveBusinessSlugFromParamsOrId', () => {
     async ({ params, businessId, repoSlug, expected }) => {
       const repo = {
         findOne: jest.fn(async () =>
-          repoSlug ? { id: businessId, slug: repoSlug } : null,
+          repoSlug ? makeBusiness({ id: businessId, slug: repoSlug }) : null,
         ),
       };
       await expect(

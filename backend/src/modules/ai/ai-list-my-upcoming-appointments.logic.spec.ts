@@ -1,4 +1,5 @@
 import { handleListMyUpcomingAppointmentsLogic } from './ai-list-my-upcoming-appointments.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 
@@ -7,7 +8,9 @@ function makeDeps(
 ): SelfServiceBookingLogicDeps {
   return {
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     } as unknown as SelfServiceBookingLogicDeps['businessRepo'],
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings })),

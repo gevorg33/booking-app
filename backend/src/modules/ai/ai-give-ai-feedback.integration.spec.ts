@@ -9,14 +9,16 @@ import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai give AI feedback integration (ai-cmd-customer-4.19.3)', () => {
   it.each(GIVE_AI_FEEDBACK_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'give_ai_feedback',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'give_ai_feedback',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

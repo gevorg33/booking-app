@@ -1,4 +1,7 @@
 import { type Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import { Business } from '../business/entities/business.entity.js';
 import type { ServicePackagesService } from '../service-packages/service-packages.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -21,7 +24,7 @@ import {
 import { parsePackageDisplayNameExplainFromPrompt } from './ai-package-display-name.util.js';
 
 export interface PackageLocalizedNamesLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   packagesService: Pick<
     ServicePackagesService,
     'listPackages' | 'updatePackage'

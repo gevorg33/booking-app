@@ -1,9 +1,10 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { handleExplainTourCalendarSpanLogic } from './ai-tour-calendar-span.logic.js';
 describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
   const weekStart = '2026-06-08';
 
-  const trekBooking = {
+  const trekBooking = makeBooking({
     id: 'bk-tour-1',
     businessId: 'biz-tour',
     serviceId: 'svc-trek',
@@ -21,9 +22,9 @@ describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
       metadata: { serviceType: 'tour', maxGroupSize: 8 },
     },
     customer: { name: 'John Doe' },
-  };
+  });
 
-  const sameDayA = {
+  const sameDayA = makeBooking({
     ...trekBooking,
     id: 'bk-tour-2',
     serviceId: 'svc-a',
@@ -33,9 +34,9 @@ describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
       tourEndDate: '2026-06-11',
     },
     service: { id: 'svc-a', name: 'Tour A', metadata: { serviceType: 'tour' } },
-  };
+  });
 
-  const sameDayB = {
+  const sameDayB = makeBooking({
     ...trekBooking,
     id: 'bk-tour-3',
     serviceId: 'svc-b',
@@ -45,9 +46,9 @@ describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
       tourEndDate: '2026-06-12',
     },
     service: { id: 'svc-b', name: 'Tour B', metadata: { serviceType: 'tour' } },
-  };
+  });
 
-  const longTour = {
+  const longTour = makeBooking({
     ...trekBooking,
     id: 'bk-tour-4',
     serviceId: 'svc-epic',
@@ -61,7 +62,7 @@ describe('ai-tour-calendar-span.logic (ai-cmd-tour-11)', () => {
       name: 'Epic Trek',
       metadata: { serviceType: 'tour' },
     },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [trekBooking, sameDayA, sameDayB, longTour]),

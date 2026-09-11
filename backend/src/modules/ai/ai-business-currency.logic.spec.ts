@@ -13,6 +13,14 @@ import {
   handleSummarizeRevenueKpisLogic,
   handleExplainProviderPaymentCurrencyLogic,
 } from './ai-business-currency.logic.js';
+import type {
+  ServicePopularityReport,
+  StaffPerformanceReport,
+} from '../analytics/analytics.service.js';
+import {
+  makeServicePopularityRow,
+  makeStaffPerformanceRow,
+} from '../analytics/analytics.test-fixture.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { ServicePackage } from '../service-packages/entities/service-package.entity.js';
@@ -28,7 +36,9 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
   });
 
   const businessRepo = {
-    findOne: jest.fn(async () => ({ ...business })),
+    // `Business | null` declared, not inferred: one test resolves `null` to
+    // exercise the not-found path.
+    findOne: jest.fn(async (): Promise<Business | null> => ({ ...business })),
     save: jest.fn(async (b: Business) => b),
   };
 
@@ -59,31 +69,50 @@ describe('ai-business-currency.logic (ai-cmd-curr-1..3)', () => {
     })),
   };
 
+  /*
+   * Complete report rows. `StaffPerformanceRow` also carries `employeeId`,
+   * `completed`, `noShows` and `hoursBooked`, and `ServicePopularityRow` carries
+   * `serviceId` — all absent before, so neither mock was the shape the analytics
+   * service actually resolves. The assertions here are about `currency` and the
+   * revenue figures; the added fields are inert.
+   */
   const analyticsService = {
-    staffPerformance: jest.fn(async () => ({
-      currency: 'USD',
-      rows: [
-        {
-          employeeName: 'Alex',
-          bookings: 10,
-          revenue: 7000,
-          utilizationPercent: 80,
-        },
-        {
-          employeeName: 'Sam',
-          bookings: 8,
-          revenue: 5000,
-          utilizationPercent: 70,
-        },
-      ],
-    })),
-    servicePopularity: jest.fn(async () => ({
-      currency: 'USD',
-      rows: [
-        { serviceName: 'Cut', bookings: 12, revenue: 6000 },
-        { serviceName: 'Color', bookings: 6, revenue: 6000 },
-      ],
-    })),
+    staffPerformance: jest.fn(
+      async (): Promise<StaffPerformanceReport> => ({
+        currency: 'USD',
+        rows: [
+          makeStaffPerformanceRow({
+            employeeName: 'Alex',
+            bookings: 10,
+            revenue: 7000,
+            utilizationPercent: 80,
+          }),
+          makeStaffPerformanceRow({
+            employeeName: 'Sam',
+            bookings: 8,
+            revenue: 5000,
+            utilizationPercent: 70,
+          }),
+        ],
+      }),
+    ),
+    servicePopularity: jest.fn(
+      async (): Promise<ServicePopularityReport> => ({
+        currency: 'USD',
+        rows: [
+          makeServicePopularityRow({
+            serviceName: 'Cut',
+            bookings: 12,
+            revenue: 6000,
+          }),
+          makeServicePopularityRow({
+            serviceName: 'Color',
+            bookings: 6,
+            revenue: 6000,
+          }),
+        ],
+      }),
+    ),
   };
 
   const deps = () => ({

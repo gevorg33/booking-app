@@ -1,4 +1,6 @@
 import { t } from '../../common/i18n/messages.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { isAiDateGroundedBookingAction } from './ai-date-label.util.js';
 import {
   buildExplainClinicServicesSummary,
@@ -14,12 +16,12 @@ describe('e2e-bug.311 HY explain_clinic_services empty locale', () => {
   const emptyDeps = () => ({
     serviceService: {
       findAll: jest.fn(async () => [
-        {
+        makeService({
           id: 'svc-massage',
           name: 'Relaxation Massage',
           metadata: {},
           category: { name: 'Spa' },
-        },
+        }),
       ]),
       update: jest.fn(),
     },

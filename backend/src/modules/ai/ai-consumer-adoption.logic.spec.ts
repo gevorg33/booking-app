@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   handleExplainMyNotificationsLogic,
   handleReferAFriendLogic,
@@ -9,7 +10,9 @@ import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.l
 import { DEFAULT_BUSINESS_NOTIFICATION_SETTINGS } from '../notifications/notification.types.js';
 
 const businessRepo = {
-  findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+  findOne: jest.fn(async () =>
+    makeBusiness({ id: 'biz-1', slug: 'demo-salon' }),
+  ),
 };
 
 describe('ai-consumer-adoption.logic', () => {

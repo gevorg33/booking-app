@@ -102,10 +102,20 @@ async function resolveBookingForPreparationNotes(
     order: { startTime: 'ASC' },
   });
 
+  // e2e-bug.453 — the third parameter is `prompt`, and this passed a *service
+  // name* into it. Both are `string`, so nothing complained.
+  //
+  // It was not merely mislabelled, it lost work: `matchCustomerOwnedBooking`
+  // filters by service from `params.serviceName` (already on `matchParams`) and
+  // never looks at this argument for that. What it uses it for is date
+  // narrowing — `resolveDateRange` and `extractSingleIsoDayFromPrompt` — so
+  // handing it a service name, or `''` when the prompt named no service, meant
+  // "do I need to fast before tomorrow's visit?" could never narrow to
+  // tomorrow's booking.
   const matched = matchCustomerOwnedBooking(
     bookings as CustomerOwnedBookingMatchInput[],
     matchParams,
-    parsed.serviceName ?? '',
+    prompt,
     String(params._timeZone ?? 'UTC'),
     { allowFirstWhenUnspecified: true },
   );

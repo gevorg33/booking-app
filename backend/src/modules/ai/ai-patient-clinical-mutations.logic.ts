@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Customer } from '../customer/entities/customer.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import type { PatientClinicalProfilesService } from '../patient-clinical-profiles/patient-clinical-profiles.service.js';
@@ -14,7 +18,7 @@ import {
 } from './ai-patient-clinical-mutations.util.js';
 
 export interface PatientClinicalMutationsLogicDeps {
-  customerRepo: Pick<Repository<Customer>, 'find' | 'findOne'>;
+  customerRepo: EntityFinder<Customer> & EntityReader<Customer>;
   profilesService: Pick<
     PatientClinicalProfilesService,
     'upsertProfileForCustomer'

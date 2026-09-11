@@ -1,4 +1,5 @@
 import { handleShareMyBookingLogic } from './ai-share-my-booking.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import type { ShareMyBookingLogicDeps } from './ai-share-my-booking.logic.js';
 
 function makeDeps(
@@ -14,7 +15,9 @@ function makeDeps(
       })),
     } as unknown as ShareMyBookingLogicDeps['publicBookingService'],
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     } as ShareMyBookingLogicDeps['businessRepo'],
     ...overrides,
   };

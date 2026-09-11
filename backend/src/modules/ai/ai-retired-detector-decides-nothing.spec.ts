@@ -52,7 +52,9 @@ type InventoryRow = {
 };
 
 const ROWS = (
-  Array.isArray(inventory) ? inventory : (inventory as { detectors: InventoryRow[] }).detectors
+  Array.isArray(inventory)
+    ? inventory
+    : (inventory as { detectors: InventoryRow[] }).detectors
 ) as InventoryRow[];
 
 /** Every name a retired-domain command answers to. */
@@ -125,7 +127,9 @@ describe('no retired detector may decide an action (e2e-bug.394 exit criterion)'
     for (const symbol of SLICE_DETECTORS) {
       for (const index of callSites(symbol)) {
         if (!declinesAt(index)) {
-          deciding.push(`${symbol} at ai-intent-rescue.service.ts:${index + 1}`);
+          deciding.push(
+            `${symbol} at ai-intent-rescue.service.ts:${index + 1}`,
+          );
         }
       }
     }
@@ -138,10 +142,7 @@ describe('no retired detector may decide an action (e2e-bug.394 exit criterion)'
     // Guards the guard. If `callSites` stopped matching — a rename, a
     // formatting change that splits the call across lines — the assertion
     // above would pass by finding nothing to check.
-    const total = SLICE_DETECTORS.reduce(
-      (n, s) => n + callSites(s).length,
-      0,
-    );
+    const total = SLICE_DETECTORS.reduce((n, s) => n + callSites(s).length, 0);
     expect(total).toBeGreaterThan(0);
   });
 });

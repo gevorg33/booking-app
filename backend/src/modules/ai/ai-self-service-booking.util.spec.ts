@@ -606,9 +606,9 @@ describe('C3 — reschedule_mine understands "push my booking to …"', () => {
   });
 
   it('leaves the existing verbs working', () => {
-    expect(isRescheduleMyBookingPrompt('reschedule my booking to tomorrow')).toBe(
-      true,
-    );
+    expect(
+      isRescheduleMyBookingPrompt('reschedule my booking to tomorrow'),
+    ).toBe(true);
     expect(isRescheduleMyBookingPrompt('move my appointment to Friday')).toBe(
       true,
     );

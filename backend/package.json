@@ -358,7 +358,9 @@
     "test:ai-detector-decides-nothing": "jest --runInBand --testPathPatterns='ai-retired-detector-decides-nothing'",
     "test:ai-declared-inputs": "jest --runInBand --testPathPatterns='ai-declared-inputs.rule'",
     "test:ai-planner-spec-examples": "AI_REPLAY=1 jest --runInBand --testPathPatterns='ai-planner-spec-examples'",
-    "test:ai-time-travel": "TIME_TRAVEL_DAYS=${TIME_TRAVEL_DAYS:-400} node ../scripts/ai-known-failures-gate.mjs"
+    "test:ai-time-travel": "TIME_TRAVEL_DAYS=${TIME_TRAVEL_DAYS:-400} node ../scripts/ai-known-failures-gate.mjs",
+    "lint:ratchet": "node ../scripts/lint-ratchet.mjs",
+    "lint:ratchet:update": "node ../scripts/lint-ratchet.mjs --update"
   },
   "dependencies": {
     "@langchain/core": "^1.1.48",

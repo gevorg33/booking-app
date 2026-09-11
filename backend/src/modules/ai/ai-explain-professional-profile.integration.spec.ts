@@ -96,17 +96,19 @@ describe('ai explain professional profile integration (ai-cmd-customer-4.11.5)',
     );
     expect(directRescue?.action).toBe('explain_professional_profile');
 
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'explain_professional_profile',
-      params: {
-        aspect: row.aspect,
-        ...(row.providerName ? { providerName: row.providerName } : {}),
-      },
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt: row.prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_professional_profile',
+        params: {
+          aspect: row.aspect,
+          ...(row.providerName ? { providerName: row.providerName } : {}),
+        },
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: row.prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleExplainProfessionalProfileLogic(

@@ -18435,3 +18435,1248 @@ build green."* This is the first case: two example prompts on a newly declared
 recipe became two eval cases. The update reported **+0%** and printed no
 regression warning, so nothing was papered over; accuracy stayed at one known
 failure (`explain_professional_profile`, e2e-bug.456).
+
+---
+
+### §312 — `e2e-bug.535`: TypeScript's excess-property check as a defect detector
+
+Swept the TS2353 bucket top to bottom. It turns out `tsc`'s excess-property check is
+a good detector for specs that describe production types **wrongly** — the object is
+accepted at runtime, so nothing fails, but the spec is documenting a shape that does
+not exist.
+
+Two of the five findings each appeared in **two** files, which is the part worth
+remembering: a wrong shape gets copied.
+
+- `ComplexityRoute` has no `reason` — it has `reasoning`. Two specs wrote
+  `reason: 'list query'`, and `fast-intent-heuristics.util.ts` reads
+  `route.reasoning ?? '<default>'`, so both tests were pinning the *default* string
+  rather than the one they wrote.
+- `PromptNormalizationResult` is `{ original, normalized, method, classifierContext }`.
+  Two specs built it as `{ normalizedPrompt, … }` — wrong name, and `original` missing
+  entirely. Inert only because the pipeline passes the object straight through.
+
+Also: a mock of `buildDecompositionSchemaView` that could not be its declared return
+type, three arguments passed to a function that has no such parameter, four inert
+`confidence` fields on `ResolvedCommand` literals, and nine mock defaults whose
+inferred type (`Promise<null>`, `settings: { currency: string }`) was narrower than
+their own reassignments. Project typecheck 794 → 772, 447 tests green.
+
+---
+
+## §228 — `e2e-bug.516`: the default was the defect
+
+**Status: Fixed 2026-09-10.** Gate exact-match at 6 suites / 6 tests (manifest 12 → 6);
+accuracy delta +0%.
+
+`resolveBudgetMisrouteActionForSurface` ended `return PUBLIC_BUDGET_MISROUTE_ACTION[misroute] ??
+misroute`. The ticket framed this as a contradiction about one command; it is a fallback that fails
+open. A map is the wrong structure for "may this surface run this", because the consequence of
+forgetting an entry is to **permit**.
+
+What the map forgot was every gift-card action, four of them `risk: 'T2'` with
+`surfaces: ['customer']` and `tiers: { customer: ['client'] }`. The negative control put the real
+reach at **six unowned mutations on public and five on dashboard** — the dashboard branch ended the
+same way, which the ticket had not noticed. The map's two entries surrogate the only actions public
+*is* allowed to run.
+
+**The first fix was wrong and a test said so.** Gating on `surfaces` — refuse anything the surface
+does not declare — broke a passing dashboard case: `explain_checkout_currency` is `risk: 'T0'` and
+does not list dashboard, yet a legitimate fixture expects it there. `surfaces` is under-declared for
+read commands (e2e-bug.462's residue), so treating it as an oracle converts spec gaps into
+behaviour regressions. Re-gated on **mutation** (`isRegistryMutating`), which is the property that
+actually carries the harm and does not depend on `surfaces` being complete for reads.
+
+**The decision.** The disputed half — public gift-card apply, e2e-bug.231's comment versus the
+CommandSpec — was put to the owner rather than assumed, and settled in favour of the spec. Both
+prompts that reach it only *mention* a gift card while booking ("I have a $50 gift card for a
+haircut") rather than asking to redeem one. `check_gift_card_balance` is `T0` and still reaches
+public; the old carve-out had lumped it with apply, which is what made the pair look like one
+decision.
+
+**A second fixture, settled on evidence rather than by extension.** e2e-bug.130's
+`buy-30-check-out-now-public` asserted `buy_gift_card` on public. *Buying* a gift card as a guest is
+a more plausible product than redeeming someone's code, so I checked instead of assuming the
+owner's answer carried over: `public-booking-assistant.service.ts` does not mention `buy_gift_card`
+anywhere, and `isIntentAllowedOnSurface('buy_gift_card', 'public')` is false. That rescue was
+producing an action with no execution path. Added `rescuedActionOnSurface` so the row keeps its
+canonical detector expectation — which is e2e-bug.130's actual point, that "$30" is face value and
+not a maxPrice — while the surface answers with something it can run. The surrogate carries no
+`amount`, and that assertion is now scoped rather than deleted.
+
+**Two extra manifest entries fell out.** `discover-not-gift-en` in the discovery eval and
+integration suites is the same leak seen from another angle. Verified by reverting: they fail
+without this change. Four other entries the gate reported as passing were **already** passing
+before I touched anything — stale from work that landed between sessions — and I checked that
+rather than claiming them.
+
+**Mechanism, not entries, is what is pinned.** The new tests enumerate every action
+`resolveBudgetMisrouteAction` can return and assert that none resolves to a mutation the surface
+disowns, so adding a misroute action cannot silently reopen this. They also assert the T2 actions
+really are mutations, because if a risk tier were downgraded the leak check would go quiet while the
+behaviour got worse. One test caught my own stale prompt table during authoring.
+
+**Note for whoever owns the registry:** two contradictions surfaced here and neither is fixed.
+`explain_checkout_currency` omits `dashboard` from `surfaces` while a fixture expects it there, and
+the three surface mappings for this path now live in three places — the production map, the eval
+util's `BUDGET_PUBLIC_ACTION_MAP`, and branches in the util spec. Filed as `e2e-bug.538`. (Numbered 531 first, then 536; both were taken by a concurrent session.
+The convention this file already set for collisions — *the id referenced from source keeps the
+number* — put the move on mine, since it is cited nowhere in `src/`.)
+
+---
+
+## §229 — `e2e-bug.348` / `e2e-bug.349`: both already fixed, both still marked Open
+
+**Status: Verified fixed 2026-09-10.** No code changed. Two severity-yes rows were stale.
+
+Picked `e2e-bug.349` as the next severity-yes item — a cross-surface steal, the same family as
+e2e-bug.444/505/516. The row reads, in full: *"dashboard 'Under Y add …' stolen by customer-surface
+add_services_to_cart; no sentence split, no plural 'categories' cue"*.
+
+**The steal does not reproduce.** `isAddServicesToCartPrompt('Under Hair add haircut and coloring')`
+is `false`, and `rescue.rescue(...)` returns `null` rather than `add_services_to_cart` — on
+`'dashboard'` and with the surface absent, which is the permissive case and therefore the one most
+likely to still leak. Following the other two cues led to
+`ai-e2e349-scoped-category-lines.util.spec.ts`, whose header states plainly that the steal and the
+plural cue were fixed first and the sentence split last. All 17 of its tests pass; the reported
+prompt decomposes to `[bulk_create_catalog, bulk_create_catalog,
+configure_service_online_payment]`.
+
+`e2e-bug.348` is the same story. `chooseCatalogCompoundSteps` replaced the
+`params.compoundSteps ?? decompose…` that let LLM steps win unconditionally, and it is deliberately
+surgical rather than a blanket "prefer deterministic", because the blunt version dropped the package
+from a "category + services **and** a package" compound. Its false-success half holds on the live
+path too: `handleCatalogCompoundLogic` returns early with `Stopped at step N (action)` and
+`failedStep`, so it cannot reach the `Completed N catalog step(s)` summary with work outstanding.
+69 tests across four suites pass.
+
+**Why this keeps happening, and what it costs.** This is the sixth ticket this session whose stated
+premise did not survive contact — after 506 (test stale, not code), 503 (one of three claims not a
+defect), 505 (two layers were one), 488, and 516 (framed as one command, was a fail-open default).
+The pattern is not that the reports were careless; it is that a row is written at the moment of
+discovery and never revisited when the fix lands somewhere else. The cost is real: I picked 349
+*because* it was marked severity-yes and open, and the first useful thing I learned was that it
+wasn't.
+
+Cheap habit that would have caught both in seconds, and which I used here only after probing:
+`grep -rn "e2e-bug.NNN" --include="*.ts"`. A ticket with a dedicated spec file named after it is
+almost certainly done. Worth doing **before** reproducing, not after.
+
+**Verified by running, not by reading.** Both rows now cite the suites and the specific assertions,
+so the next person does not have to re-derive this. Nothing about the code changed today.
+
+---
+
+### §313 — `e2e-bug.537`: the known-failures gate goes red for one minute a day
+
+The `test:ai-known-failures` sweep ran across 2026-09-09 23:59 UTC and reported
+*"1 failure NOT in the manifest — this change broke them"* against a diff that touches
+no date code. The named spec passed on its own a minute later.
+
+`isWallClockSlotBookable respects day and notBefore` asserts that slot `'23:59'`
+**today** is bookable. The function computes `slotMin > Math.max(now.minutes, notBefore)`,
+so in the final minute of the day that is `1439 > 1439` — false, where the test expects
+true. A shared `pinClock()` now fixes the system time to a mid-morning instant, with a
+file-level `afterEach` restoring real timers; no assertion was weakened. Verified in both
+directions: re-pinned to `23:59:30` the test fails exactly as the sweep saw it, and at
+`09:30` all 14 pass across three consecutive runs.
+
+Worth stating plainly, because it changes how a red gate should be read: `red means red`
+compares an **exact** failure set, so a time-of-day flake does not merely add noise — it
+**accuses whatever change happens to be in flight**. Two sibling tests are pinned for the
+structural reason (each reads the clock once for `dateKey` and again inside the function
+under test) rather than a demonstrated failure; pinning to `00:00:00` does not reproduce
+anything, and the comment in the file says so rather than implying a window I could not
+show.
+
+`e2e-bug.536`, found in the same pass: `GiftCard.business` was declared non-optional on a
+`@ManyToOne` that is only populated when a query asks for it — while
+`gift-card-delivery-content.util.ts` reads it as `card.business?.` in six places with
+`?? 'your business'` fallbacks, and a spec had to cast `as GiftCard` to exercise those
+fallbacks at all. The declaration was the only thing claiming the relation is always
+there. Project typecheck 772 → 762.
+
+---
+
+## §230 — `e2e-bug.401`: the store was finished, the call was missing
+
+**Status: Fixed 2026-09-10.** Gate exact-match 6/6; no behaviour change with the flag unset.
+
+`AiConversationStateStore` has been complete since tech-debt B8 — Redis-backed, versioned, TTL'd,
+off by default, swallowing every error. Its header even says why nothing calls it: *"Nothing reads
+this store yet — B3 and B5 will."* So the ticket's title is exact: there is no **carrier**. State
+that the store can hold has never crossed a turn, which is what blocks e2e-bug.369, .370, .373
+and .374.
+
+**Where it went, and why there.** `AiConversationCarrierService` is wired into
+`AiGatewayService.executeCommandPipeline`. That is the single point where the dashboard, customer
+and provider surfaces converge, and it is the same argument the codebase already made for
+`deriveConversationIdentity` living in the shared trace builder — "computed here rather than at the
+call site so every gateway surface gets it from one place". Wiring three gateways separately would
+have been three places to forget.
+
+**Two asymmetric halves, on purpose.** `begin()` is **awaited** before classification: state that
+arrives after the turn is classified cannot inform it, so there is nothing to gain by deferring it,
+and a miss is a resolved `null` rather than a wait (the store fails fast on an unreachable Redis and
+is a no-op while the flag is unset). `commit()` is fire-and-forget after the result is built, so a
+slow or failing Redis costs the *next* turn its context instead of costing this turn latency — the
+load path already treats a miss as normal, so that is a degradation it is built for.
+
+**What it deliberately does not do.** It does not populate the entity store. Recording refs at
+resolution time is e2e-bug.373, and doing it from the gateway would mean inferring the resolution
+layer's shape from outside it. Because the carrier transports whatever the turn leaves behind, 373
+is now a change to `EntityResolutionService` alone rather than one that also has to invent
+transport. With the flag on and no writer yet, the carrier round-trips an empty store — which is
+deliberately observable via `restored`, so the wiring can be verified before anything depends on it.
+
+**The test that matters most** is not "it saves". It is that successive turns of one conversation
+derive the **same** id: the id comes from replayed history, so if turn 2 keyed differently the
+carrier would write a fresh record every turn and nothing would ever be restored — a carrier that
+looks entirely healthy and transports nothing. Also pinned: an anonymous visitor's null id is never
+turned into a shared bucket, and `commit` does not throw when the write rejects.
+
+**Blast radius kept at zero.** The flag is unset, so both calls are no-ops, and the carrier is an
+`@Optional()` constructor dependency — the many hand-constructed gateways across the test suite
+compile and run with no carrier at all, which is exactly the behaviour before this change.
+
+**Next in the chain:** e2e-bug.373 (write refs at resolution time) now has transport, then .370
+(anaphora consumes them), .369 (clarification expiry, which the store's TTL already models) and
+.374. Note .373 and .374 still have **zero** references anywhere in `src/`.
+
+---
+
+## §231 — `e2e-bug.373`: the service it names is dead code
+
+**Status: Not implemented. Premise corrected, dependency fixed.** No code changed.
+
+Took 373 as the next link after wiring 401's carrier. The row says the entity store *"needs
+EntityResolutionService to record refs at resolution time"*.
+
+**That service is injected nowhere.** It is registered in `ai.module.ts` and referenced from
+comments in five other files, and that is all — no constructor takes it. Adding ref-recording
+inside it would compile, pass a unit test, and record nothing on any request path, because the
+service never runs. This is the same class of finding as e2e-bug.401 (a complete component with no
+caller), which is presumably why both were written as if the other end existed.
+
+**Where resolution actually happens, measured rather than assumed:**
+
+- **12 call sites across 9 files** use the pure `resolveEntity` verdict util — `resolveNamedVerdict`
+  in `ai-booking-core.service.ts` and `ai-command.service.ts`, plus
+  `ai-orchestration.helpers.ts`, `command-completion.pipeline.service.ts`,
+  `ai-pick-provider-for-service.logic.ts`, `ai-schedule-handlers.service.ts` and others.
+- **32 call sites across 10 files** still go through the local `fuzzyMatchByName` /
+  `fuzzyMatchServiceByName` matchers, which return a match with no verdict at all.
+
+So there is no single resolution moment to hook, and roughly 44 places where one could be.
+
+**Why hooking only the 12 would be actively harmful.** It is the tempting slice: they already
+produce a verdict, so recording a ref is a couple of lines each. But an entity store fed by some
+resolutions and not others is *silently incomplete*, and §53's consumer is anaphora. A store that
+holds the service but not the provider will bind "book it with her" to a confidently wrong
+employee, or resolve "it" to a stale ref because the newer one was never recorded. An empty store
+fails visibly and falls back to asking; a half-full one guesses. That asymmetry is the reason not to
+take the slice, and it is worth stating because the slice looks like obvious progress.
+
+**Corrected dependency.** The ticket list has 373 blocked on e2e-bug.401. Transport was indeed
+missing, and §230 fixed it — `_conversationEntityStore` now rides on the command context and the
+carrier persists what a turn leaves behind. But the real blocker is **e2e-bug.367**, the
+consolidation of those 14 local re-parsers onto one resolver. After 367, 373 is the small change it
+was scoped as. Before 367, it is either a 44-site thread or a store that lies.
+
+**Seventh premise correction this session** (after 506, 503, 505, 488, 516, 348/349). The pattern is
+consistent enough to be worth naming as a rule: a ticket that says "component X needs to do Y"
+should be checked for whether X is on a request path *before* estimating Y. `grep -rn "XService"`
+excluding the module file and comments answers it in seconds, and it changed the plan here from a
+three-line edit to "do 367 first".
+
+---
+
+## §232 — `e2e-bug.483`: the option the ticket recommended would have broken group classes
+
+**Status: Closed 2026-09-10** (owner's decision: keep enforcement in the application). One new
+test; one ticket filed.
+
+Every factual claim in this ticket checked out — no `UNIQUE`, `EXCLUDE` or trigger across the 56
+migrations, `maxAppointmentCount` configurable on three entities, the multi-service exemption real.
+After seven premise corrections this session I expected to find drift and did not; the analysis was
+sound.
+
+**What was wrong was the fix.** The ticket offers a "narrowed partial constraint" as the cheaper of
+two options: `WHERE status <> 'cancelled' AND multi_service_group_id IS NULL`, described as
+catching the common shape while "silently exempting exactly the rows that are hardest to reason
+about". It does something worse than exempt them. A group class is **single-service with a null
+group id** and capacity > 1 — claimability is `appointmentCount < maxAppointmentCount` — so that
+predicate matches group-class bookings and the constraint rejects the second and third one. The
+cheap option was not a weaker guard, it was an outage for a supported product feature.
+
+That removed it from the option set, which is what made the decision tractable: what remained was a
+trigger (capacity policy duplicated into PL/pgSQL) or a denormalised capacity column (stale the
+moment a slot's capacity is edited) — both more expensive than insurance against a defect that has
+never occurred. The root cause of the expense is worth stating plainly: **the capacity that decides
+legality lives on the slot row, not the booking row**, so no constraint over `bookings` can express
+it.
+
+**The decision came with a condition, so the condition is now a test.** "Application-only
+enforcement is fine" is true exactly while every writer routes through `BookingService.create`.
+That was an assumption; `booking-creation-paths.spec.ts` makes it an assertion, allowlisting the
+creation sites and failing with the offending filename when a new one appears. It is a ratchet, not
+a prohibition — adding a path is allowed, but it costs an edit to a list whose comment asks whether
+the new path takes the same locks. Negative-controlled.
+
+**Enumerating them found a second writer.** `SchedulingEngineService.createBooking` (filed as
+`e2e-bug.539`) opens a transaction and locks overlapping bookings, so it is not naive — but it
+never touches slot rows. It therefore ignores `maxAppointmentCount` (rejecting legitimate group
+bookings), never increments `appointmentCount` (leaving the counter understated, so a later
+`BookingService.create` thinks there is more room than there is), and lacks the ordered
+`(startTime, id)` micro-slot locking that gives the guarded path its deadlock avoidance. It has
+**zero callers**, which is why it is a latent trap rather than a live defect — and precisely why it
+is the sort of thing someone reaches for later.
+
+**Numbering note:** filed at 539 after 536 and 537 were both taken by a concurrent session. My
+earlier §228 ticket was renumbered 536 → 538 for the same reason, following the convention this
+file already set — the id referenced from source keeps the number, and mine is cited nowhere in
+`src/`.
+
+---
+
+### §314 — `e2e-bug.540`: interfaces that require what nobody supplies
+
+Two more of the same shape as `e2e-bug.536` — a declaration demanding a field that
+producers omit and consumers already read defensively:
+
+- `PublicAssistantNavigate.query` was required, while `ai-payments-compound.logic.ts`
+  reads it as `navigate?.query?.x` in four places and a production fixture is literally
+  `navigate: { path: 'services' }` with no query. **That one field cost eight typecheck
+  errors.**
+- `AiRagSettings.documents` was required, while both consumers guard with
+  `rag.documents ?? []` and `ai.rag?.documents?.length`. Enabling RAG before uploading a
+  document is a real state.
+
+Also `CommandVariableSpec.resolver`, omitted five times in one spec — and once placed at
+the *wrong nesting level*: `spec({ price: {…}, resolver: 'none' })` makes `resolver` a
+sibling of `price`, i.e. a variable named `resolver` whose spec is the string `'none'`.
+Someone had tried to add the field and put it one level out.
+
+Three `AgentPlanStep` / `AgentPlan` literals moved to the existing builders. Wrapping the
+plan then exposed an `action` field that `AgentPlan` does not have — masked until now
+because the `steps` error was reported first. Nothing downstream reads it, so it was
+dropped rather than added to the type. Project typecheck 762 → 751.
+
+---
+
+## §233 — `e2e-bug.366`: stale row, caught by the rule from §231
+
+**Status: Verified fixed 2026-09-10.** No code changed.
+
+§231 ended with a rule: before estimating "component X needs to do Y", check whether X is on a
+request path. Applied here as the first step rather than the last, and it took one grep.
+`e2e-bug.366` says *"the §45 completion-floor gate is not scheduled, so the north-star metric is
+still only checked when someone remembers"*. `grep -rn "e2e-bug.366" --include="*.ts"` lands
+immediately on `ai-completion-floor.scheduler.ts`, whose header is *"tech-debt B1 / e2e-bug.366 —
+scheduling the completion-floor gate"*.
+
+Verified the whole chain rather than stopping at the file's existence, because a scheduler class
+that no module registers is exactly the shape of e2e-bug.401 and .373: the `@Cron` decorator is
+present, the class is a provider at `ai.module.ts:309`, and `app.module.ts:73` calls
+`ScheduleModule.forRoot()` so the decorator fires. 42 tests pass, including the assertion that
+actually mattered — *"the daily check is audible"*, so a healthy day still logs and silence cannot
+be read as success.
+
+**A tooling trap worth writing down.** Twice this session a suite appeared to fail six tests and
+passed on re-run. Both times the cause was the same: I had run `npx jest` with the shell's cwd
+inside `backend/src` rather than `backend`, so `rootDir` resolved wrongly. It looks exactly like a
+real failure, and it cost a detour each time. The environment prints a cwd change notice after
+tool calls that move it — worth reading before believing a surprising red.
+
+**Ninth stale or corrected premise this session** (506, 503, 505, 488, 516, 348, 349, 373, 366).
+Eight of those cost more to discover than the grep would have.
+
+---
+
+### §315 — `e2e-bug.541`: the `*LogicDeps` blocker was never a product decision
+
+The largest remaining typecheck bucket — TS2345, 455 errors across 18 `*LogicDeps`
+types — was recorded here as blocked on a decision (narrow the interface / cast /
+leave). It isn't a decision. It's a declaration problem, and this slice demonstrates
+the fix end to end on one family.
+
+`BusinessComplianceLogicDeps` declared `businessRepo: Pick<Repository<Business>,
+'findOne' | 'save'>`. TypeORM's `save` carries **four overloads**, and no `jest.Mock`
+can be assignable to all four at once — so every deps literal in every `*.logic.spec.ts`
+was a type error *about the interface*, not about the test. The specs were being
+measured against a contract vastly wider than the two calls the logic makes.
+
+`ai-logic-repo.types.ts` now declares `EntityReader` / `EntityFinder` / `EntityWriter`
+— exactly `findOne(options)`, `find(options?)`, `save(entity)`. A real `Repository<T>`
+still satisfies them; the production typecheck stayed exit 0 throughout. The same
+reasoning applied to `ensureOwner`, which all three call sites `await` and discard: it
+is declared `Promise<unknown>` rather than dragging in a `BusinessMember` nobody reads.
+
+**The unmasking is the real value.** With the untestable overload gone, the errors moved
+inward one honest layer at a time — an incomplete `Customer` (new `makeCustomer`
+builder), `deleteCustomerData` mocked as `{ deleted: boolean }` where production says
+`{ deleted: true }`, five mock return types never stated, a `PhiAccessAuditLog` missing
+its nullable `ip`, a `DataBreachIncident` missing five fields, and `listIncidents` typed
+as bare entities when it resolves them decorated with two GDPR deadline flags. Two deps
+— `enterpriseTrustService`, `strategyEvalService` — were simply absent from the
+integration spec's deps object.
+
+`ai-business-compliance.logic.spec.ts` 29 → 0; the family 48 → 0; **project 751 → 703**,
+the largest single pass so far.
+
+**Next slice:** the other 17 `*LogicDeps` types show the identical `save`-overload
+signature. They should follow the same path, but each needs its own peel-and-verify —
+the value is in what the narrowing exposes, and that is different in every file.
+
+---
+
+## §234 — `e2e-bug.515`: a true number under a false heading
+
+**Status: Fixed 2026-09-10.** Gate exact-match 6/6; 22 tests in the suite.
+
+`ai-paraphrase-invariance.spec.ts` declared its subject as *"the deterministic detector layer — the
+786 `is*Prompt` regexes"* and reported three misses. Its `DETECTORS` map is hand-maintained at ten
+commands, against a population the committed inventory puts at **543** detectors whose action comes
+from their own symbol name. §240's census found **54.5%** of that wider population's documented
+examples unmatched, against roughly 14% visible here.
+
+Nothing it measured was wrong. What was wrong is that a suite described as covering the detector
+layer, reporting three misses, invites the reading that the layer has three misses — and that
+reading was off by two orders of magnitude.
+
+**Why the cheaper option is the right one here**, rather than the usual reflex to widen coverage.
+Widening means either importing 543 detector symbols so they can be called, or generating that
+table; and it lands a ratchet with hundreds of entries, which is a different kind of gate from a
+ten-command invariance check. That is a decision about what this suite is for, not a cleanup, so it
+stays open and explicit rather than being made in passing.
+
+**Correcting the words would have re-created the bug.** The header was accurate once. What made it
+false was drift — and a hand-written "ten of 543" would drift again the moment either number moved.
+So both figures are asserted against the inventory: the population, the sample size, and a third
+test that the ratio stays under 5% so the suite cannot quietly grow into something that *should*
+claim coverage without anyone rewriting the claim. This is the same fix §240 applied to this very
+suite's ceiling, which read `<= 9` while the live count had been 3 for months — the gate had six
+points of slack and could not see a regression. A stale number in a gate is the defect; a stale
+number in a gate's *description* is the same defect one level up.
+
+Negative-controlled: changing the documented population to 544 fails the guard by name.
+
+**What this does not fix.** The 54.5% miss rate across the wider population stands as measured. It
+is not a regression and closing this ticket does not shrink it — and per e2e-bug.360's fix
+direction, it must not be closed by adding regex alternations.
+
+---
+
+### §316 — `e2e-bug.542`: the narrowing carried to two more families
+
+`BusinessCurrencyLogicDeps` and `BusinessDateFormatLogicDeps` narrowed to the
+`ai-logic-repo.types.ts` interfaces from §315. A third narrow type was needed:
+`EntityUpdater`, declaring `update(criteria, partial): Promise<unknown>`. The real
+`UpdateResult` carries `raw` and `generatedMaps` that a double would have to fabricate,
+and **no `*Logic` reads the result** — every call site is a bare
+`await deps.<repo>.update(...)`, verified across `src/modules/ai` before declaring it.
+
+What the narrowing exposed:
+
+- Five specs mock `staffPerformance` / `servicePopularity` and **all five wrote partial
+  rows**. New `analytics.test-fixture.ts` supplies the missing fields once.
+- `ClinicTestResult` — a **31-property** entity — was being built as `{ id: 'result-1' }`.
+  New `makeClinicTestResult`, which will also serve `ClinicTestResultExtLogicDeps`.
+- `sendClinicResultReady` mocked as `{ delivered: string[] }` where production declares
+  `ResultReadyDeliveryChannel[]`.
+
+**One self-inflicted error worth recording:** inserting an import with a regex anchored
+on `^import .*$` matched the *opening line* of a multi-line import and split the
+statement, so `tsc` bailed after six parse errors and briefly read as "703 → 6". Caught
+by looking at the file rather than believing the number. The `makeBusiness` lesson holds:
+anchor on a complete statement (`} from '…';`), never on a line that may be a fragment.
+
+Project **703 → 633**. Remaining in this vein: `BusinessTax` (29),
+`ClinicTestResultExt` (18), `SwitchProviderSameTime` (15), `ProviderClinicCollection`
+(14), `StaffOperations` (13), and the rest.
+
+---
+
+### §317 — `e2e-bug.543`: the narrowing keeps finding fixtures that describe impossible shapes
+
+Third `*LogicDeps` slice. `BusinessTaxLogicDeps` narrowed (that family is now at 0) and
+`ClinicTestResultExtLogicDeps` narrowed — the latter declared
+`resultRepo: Repository<ClinicTestResult>`, an **entire repository**, for a single `find`.
+
+It also declared `clinicTestResultService` and **never read it anywhere in the file**.
+Every caller had to supply a whole service for nothing; the spec's version was literally
+`{}`. Removed from the interface and from `extDeps`. It stays a real constructor dep of
+the *other* deps object in that service, which is why it looked used.
+
+Three fixtures describing shapes that cannot exist — none visible while TypeORM's
+untestable overloads were the reported error:
+
+- `testType: { code: 'WBC', name: 'WBC' }` — `ClinicTestType`'s column is `title`, not
+  `name`. Inert, but a fixture inventing a property is a fiction the next reader has to
+  disprove.
+- `measurementFlag: 'H'` / `'L'`, where the domain is `Normal / Abnormal / High / Low / …`.
+  **The test asserted `toContain('[H]')` — pinning a rendering production can never
+  produce**, since the summary interpolates the stored flag. Corrected to `[High]`; the
+  abnormality filter is `flag && flag !== 'Normal'`, so only the string changes.
+- Three dependencies simply absent from the spec's deps object.
+
+Three new builders, all reachable only because of the narrowing: `makeBooking`,
+`makeClinicTestResultMeasurement`, `makeClinicTestType`. **`makeBooking` is worth noting:
+an earlier attempt at it was reverted for making the project worse — that was before the
+deps narrowing, when the booking literals were masked rather than reported.**
+
+Project **633 → 611**; the clinic-ext peel is unfinished at `orderRepo`.
+
+---
+
+## §235 — `e2e-bug.453`: "a function" was 519 of them, and one was actually wrong
+
+**Status: Fixed 2026-09-10.** Gate exact-match 6/6.
+
+The ticket read: *"swappable-argument signature — a function whose two parameters are the same type
+and can be transposed silently. Found in passing during §16x; filed, not fixed. Not re-verified."*
+No file, no name. The §16x write-up does not name it either.
+
+**Censused rather than guessed.** Parsing every exported signature in `modules/ai` for adjacent
+parameters of the same primitive type gives **519** pairs, overwhelmingly the
+`(prompt: string, action: string)` rescue convention repeated across dozens of files. That reframes
+the ticket: this is a house style, not a defect. Rewriting 519 signatures is a convention change,
+and the singular phrasing — "a function" — is what made it look like a bounded fix.
+
+**One instance was genuinely wrong.** `ai-explain-preparation-notes.logic.ts` passed
+`parsed.serviceName ?? ''` into the `prompt` slot of
+`matchCustomerOwnedBooking(bookings, params, prompt, timeZone, options)`. I had walked past this
+during §223 without registering it.
+
+Two things kept it invisible, and both are worth naming because they are what make this class hard:
+
+1. The matcher filters by service from `params.serviceName`, never from that argument — so the
+   wrong value changed nothing about the behaviour it *looked* related to.
+2. With `allowFirstWhenUnspecified` the matcher returns the earliest upcoming booking when it has
+   nothing to narrow by. The bad argument therefore produced a **plausible** answer on every
+   existing fixture. Not a wrong answer — a right-looking one.
+
+What was actually lost is that argument's real job: date narrowing. A guest with two upcoming
+visits could not say which day they meant, because the matcher was reading a service name (or `''`)
+where the prompt should have been.
+
+**The test took three attempts, and the reason is the useful part.** A handler-level assertion
+cannot isolate this: `resolveBookingForPreparationNotes` first runs the prompt through
+`enrichRescheduleMyBookingParamsFromPrompt`, which rewrites the very date params
+`matchCustomerOwnedBooking` then reads — so an end-to-end test measures the enrichment chain, not
+this argument, and mine failed twice for reasons that had nothing to do with the fix. Splitting it
+was the answer: the capability is asserted at the matcher (named day → later booking; empty prompt
+→ earliest, which documents *why* the defect was silent), and the wiring by a source-level check
+that the call site passes `prompt` — the same guard style already used in
+`ai-command.strict-customer-resolver.spec.ts`, and for the same reason: when both arguments are
+`string`, nothing else can catch a swap back. Negative-controlled.
+
+**Left open deliberately.** The other 518. Making them non-transposable means branded types or
+options objects across the module — a convention decision, and a much larger change than the
+defect that prompted it.
+
+---
+
+## §236 — `e2e-bug.504`: an unfinished-looking rule that is finished
+
+**Status: Closed 2026-09-10.** Gate exact-match 6/6; three tests added, no production code changed.
+
+`normalizeAvailabilityServiceCategory` singularises `lashes`, `haircuts`, `hairstyles` and
+`facials`, and leaves `massages`, `pedicures` and everything else alone. That reads like a rule
+someone stopped writing, and the obvious response is to finish it with "strip the trailing s".
+
+Two measurements say otherwise.
+
+**The cited failure is gone.** `ai-flexible-availability.integration` passes 76/76, so the
+`serviceCategory: 'haircuts'` vs `'haircut'` mismatch the ticket was filed against no longer
+happens.
+
+**The map is redundant where it appeared to matter.** `matchServicesByQuery` resolves plurals on
+its own: with no normalisation applied, `pedicures` finds `Pedicure` and `massages` finds both
+massages. That explains the result the ticket already recorded but could not account for — adding
+the normalise call to the discovery path measured **inert**, 6 failures before and after. It was
+inert because the layer below had already handled it.
+
+What remains is two spellings of one category in `params.serviceCategory`. The only equality
+comparisons on that field are in fixtures and in the eval util's
+`enriched.serviceCategory !== expected.serviceCategory` — observable at test time, not by a user.
+
+**Finishing the rule would be a regression, not a cleanup.** e2e-bug.323 records that forcing
+`cut`/`cuts` to `haircut` discarded the raw token before `matchServicesByQuery` ran, so its
+literal-substring-first expansion never got the chance to prefer real catalog rows named "Men's
+cut" over the unrelated `hairstyle` synonym. A blanket singularisation rule is exactly that fix
+reverted — and it is the first thing anyone tidying this function would write.
+
+So the outcome is three tests rather than a refactor: the normaliser is asserted to be a **no-op**
+for `massages` and `pedicures` *and* those queries asserted to match anyway, plus `cut`/`cuts`
+pinned as unaliased with the reason attached. The pairing matters — if someone later adds those
+plurals to the map, the no-op assertion fails and points at the comment explaining why the map is
+not the place.
+
+**On not doing the refactor.** The ticket proposes giving the category vocabulary "one owner and one
+rule". That is still a reasonable shape, and it now has a measured payoff of zero, plus a known
+hazard. Recorded as available rather than done.
+
+---
+
+### §318 — `e2e-bug.544`: fourth `*LogicDeps` slice
+
+Finished the clinic-ext peel left open in §317 — `ai-clinic-test-result-ext.logic.spec.ts`
+is now at **0** — then narrowed `SwitchProviderSameTimeLogicDeps` and
+`ProviderClinicCollectionLogicDeps`. Two new builders (`makeClinicTestOrder`,
+`makeClinicSpecimen`, 27 properties each) plus reuse of `makeEmployee` / `makeService` /
+`makeBusiness` across three switch-provider specs.
+
+Four more required fields no fixture supplied, each invisible until the narrowing removed
+TypeORM's overloads from the error text:
+
+- `ClinicLabStaffContext.membershipRole`, absent from `assertSpecimenLabAccess`'s mock —
+  and it is exactly what the lab access checks branch on, so the double could not have
+  exercised a role decision.
+- `assertResultLabAccess` / `assertSpecimenLabAccess`, both required and both missing.
+- `ClinicTestTypeView` mocked with 4 of its 15 fields.
+- A second `testType: { code, name }` — the invented `name` from §317, in another test in
+  the same file.
+
+**A correction to my own earlier work:** the generic `Promise<Record<string, unknown> | null>`
+widening I applied to `orderRepo.findOne` in §312 was too loose once the deps type became
+honest. It is now `Promise<ClinicTestOrder | null>`, and `find` is
+`Promise<ClinicTestOrder[]>` rather than the inferred `Promise<never[]>`. A blanket
+widening buys a number; the specific type buys a check.
+
+Project **611 → 563**.
+
+---
+
+### §319 — `e2e-bug.545`: the narrowing swept module-wide
+
+Stopped doing this one family at a time. Every `Pick<Repository<X>, '…'>` in
+`src/modules/ai/*.logic.ts` — **74 declarations across 43 files** — now uses the narrow
+`EntityReader` / `EntityFinder` / `EntityWriter` / `EntityUpdater` interfaces.
+
+A method-set inventory ran first, and it mapped cleanly except for a single `'count'`,
+**deliberately left alone**: no narrow interface covers it, and inventing one to reach
+100% would be exactly the blanket rewrite §316 warned against. Production typecheck exit
+0, so every real repository satisfies every narrow interface.
+
+**The sweep itself moves no numbers, and that is the point** — it converts untestable
+overload errors into honest incompleteness errors underneath. Two peel passes followed:
+
+- `makePublicCustomerBookingItem`. Specs supplied **7 of the item's 21 fields**, and the
+  missing ones include `canCancel`, `canReschedule`, `policyMessage`, `rescheduleCount`
+  and `maxReschedules` — the self-service policy answers the item exists to carry. A
+  fixture without them cannot exercise a policy decision at all.
+- One canonical business mock wrapped in `makeBusiness` across **42 spec files**.
+
+**A mid-pass reversal worth recording:** the first file wrapped took the project from 563
+to **565**. Rather than press on, I looked — it was the next layer surfacing, not damage,
+and fixing that layer took it to 562. "The number went up" is exactly when this vein needs
+inspection rather than momentum; the `ResolvedCommand` and `Booking` builder attempts were
+abandoned earlier on that signal alone, and `makeBooking` turned out to be right after all.
+
+Project **563 → 549**.
+
+---
+
+## §237 — `e2e-bug.367`: the blocker had already been cleared
+
+**Status: Partial — re-parsers 4 → 2.** Gate exact-match 6/6; 153 tests in the touched suites.
+
+The re-parser ratchet was already down to four entries from fourteen. Two of them —
+`ai-compare-services.logic.ts` and `ai-pick-provider-for-service.logic.ts`, each with its own
+`resolveServiceByName` — carried the reason *"variant with reverse-substring rule →
+EntityResolutionService.serviceOrClarify; behaviour change, it currently guesses"*.
+
+**That reason was stale.** Both already call `resolveEntity` and return `undefined` on a tie. They
+do not guess; they refuse, which is the D5 contract the rest of the tree follows. Whatever blocked
+them once had been fixed without the entry being updated — the same decay as §231's dead service
+and §233's already-scheduled gate.
+
+**Diffing them turned a vague blocker into one line each.** After normalising the parameter name,
+the two functions are identical except for their final fallback tier:
+
+- compare-services: the *query* contains a service name — "how do Deep Tissue Massage and Swedish
+  compare".
+- pick-provider: every word of the query appears in the service name — "deep massage" → "Deep
+  Tissue Massage".
+
+The manifest was right that merging those two rules would be "a behaviour change wearing a
+refactor's clothes". So they are not merged. The eleven lines they *did* share moved into
+`resolveServiceByNameOrRefuseTie`, and each call site passes its own tier as a closure. The rules
+are preserved exactly, and the thing that actually differed is now a visible argument at the call
+site rather than a difference you have to diff two files to find.
+
+Both local functions are deleted, so `KNOWN_REPARSERS` drops 4 → 2 rather than merely getting
+better comments.
+
+**The gate made me pay for the exemption, correctly.** `CANONICAL` — the list of shared
+implementations exempt from the count — carries the note *"if this list grows, the gate is being
+weakened rather than the tree improved"*, enforced by an assertion on its exact contents. Adding the
+new helper failed that test. That is the guard working: exempting a function has to be a deliberate
+edit with a reason, not a side effect. The reason is now recorded next to it, and the trade is
+legible in the numbers — CANONICAL 2 → 3 bought KNOWN_REPARSERS 4 → 2.
+
+**What is still open**, and worth stating precisely because this ticket has been vague for a while:
+the two remaining entries, and the migration all four describe — adopting `EntityResolutionService`'s
+own matching tiers. That changes which service resolves for queries that are **not** ties, so it is
+a measurable behaviour change rather than a refactor. §231 established that `e2e-bug.373` is blocked
+on that migration, not on `e2e-bug.401` as the ticket list still says elsewhere.
+
+---
+
+## §238 — `e2e-bug.448`: labelled Partial, done on both halves
+
+**Status: Verified fixed 2026-09-10.** No code changed.
+
+The row itself records (a) reporting fixed 2026-08-13 and (b) `enable_online_payment` supported,
+done **and** separately verified end-to-end on 2026-08-20, pinned by
+`ai-catalog-compound-payment-wiring.spec.ts`. The header still said **Partial**, which matched
+neither half.
+
+Verified rather than taken on the row's word — 66 tests pass across the wiring spec, the §349
+decomposition spec and the catalog logic spec.
+
+**One thing that looks like residue and is not.** The switch's `default` branch still returns
+`failure` for an unrecognised step and still stops the loop. That is the intended end state. Fix (a)
+changed the *reporting* — the summary names what landed ("Completed before stopping: bulk create
+catalog.") and `details.completedSteps` exposes it separately from `steps` — not the outcome.
+Converting a partial run into a success would put this straight into the false-success family of
+e2e-bug.136/.348/.256, which `summarizeExecution` asserts against by name ("never calls a partial
+run complete").
+
+**Fourth stale label found by the §231 rule** (after 348, 349, 366), and the pattern is now specific
+enough to name: these are not tickets whose *analysis* rotted — 448's body is accurate and detailed.
+It is the one-word status at the front that nobody updates when the last sub-item lands. The body
+and the label disagree, and only the label is read when choosing what to work on.
+
+---
+
+### §320 — `e2e-bug.546`: the widest over-declaration, and the vein's one counter-example
+
+`StaffOperationsLogicDeps` declared **five whole classes and repositories** for **eight
+methods** between them. Narrowed to exactly those eight.
+
+**The counter-example, worth recording because it inverts the pattern:** narrowing
+`businessRepo` to `EntityUpdater` *broke the production typecheck*.
+`ai-staff-operations.logic.ts:428` passes a bare `businessId` string as the update
+criteria, while `ai-business-currency.logic.ts:1266` passes `{ id: In(…), businessId }` —
+and `EntityUpdater` declared only the where-clause form. Every other case in this vein has
+been a declaration *wider* than the code uses; this is the one where the narrow interface
+was genuinely narrower than the code needs. `criteria` now admits
+`string | string[] | FindOptionsWhere<T>`, with both call sites named in the type.
+
+**A method the logic calls and no double provided.** With the dep declared as the whole
+`EmployeeService`, the spec's three-method mock failed as one opaque error. Narrowed, the
+message became `Property 'update' is missing` — and the logic calls it, so any test
+reaching `update_employee` would have hit `undefined is not a function`.
+
+Four more shapes that could not exercise the decision they exist for: `BusinessInvitation`
+as `{ id }` (omitting `token` / `expiresAt` / `acceptedAt` — the three that decide whether
+an invitation is redeemable), `TeamMemberView` as `{ role }` (missing the six fields
+identifying *which* member changed), plus incomplete `Employee` and `Business`.
+
+Also this pass: the tour family peeled — 13 constants across seven specs, 983 tests green.
+
+Project **549 → 507**.
+
+---
+
+## §239 — `e2e-bug.501` and `e2e-bug.539`: a misread conflict, and a creator deleted
+
+**Status: both closed 2026-09-11.** Gate exact-match 6/6. Decisions taken under the owner's
+standing authorization to decide the open questions myself.
+
+### 501 — the two fixtures were never asserting the same thing
+
+Filed as *"two fixture files declare opposite expectations for the same scenario, so 11 tests
+cannot all pass"*. All 11 pass: 676 tests across 9 suites, zero failures.
+
+The files assert **different stages**. `classifierParams` and `catalogParams` are `'haircut'` —
+what the classifier emits and what the catalog is keyed on — while `expectedDiscovery` and
+`expectedAfterServiceDiscovery` are `'cut'`, the enrichment's own output. Reading a stage boundary
+as a disagreement is what made it look unsatisfiable, and it explains the 2026-08-23 experiment
+exactly: forcing the code to emit `'haircut'` moved 11 → 7 failures but *reversed* which failed,
+because it was overwriting one stage's correct value with the other's.
+
+e2e-bug.323's rationale is the load-bearing part and it survived: the enrichment keeps the raw
+`cut`, because pre-aliasing discards it before `matchServicesByQuery` runs and catalogs with literal
+"Men's cut" rows then lose to an unrelated `hairstyle` match. §236 pins the same rule from the other
+end. So no decision was needed — the disagreement was in the reading.
+
+### 539 — deleted, not repaired
+
+`SchedulingEngineService.createBooking` locked overlapping bookings but never read a slot row: it
+ignored `maxAppointmentCount`, never incremented `appointmentCount`, and lacked the ordered
+micro-slot locking that gives the guarded path its deadlock avoidance.
+
+Deleting beat repairing on three grounds. It had zero callers. This service's used methods are all
+read-only analysis, so booking creation was never its job. And e2e-bug.483 accepted
+application-only protection *on the condition* that every writer routes through
+`BookingService.create` — repairing this one would have meant duplicating slot-claiming logic to
+serve nobody, while keeping the condition harder to hold.
+
+**It also exposed a hole in the guard I wrote for 483 in §232.** `booking-creation-paths.spec.ts`
+checked only creators ⊆ allowlist. Deleting the creator left its entry behind and the suite stayed
+green — still green, still documenting a sanctioned booking-creation path that no longer existed.
+That is the same one-way slack as e2e-bug.360's `<= 9` ceiling, and the known-failures gate refuses
+it explicitly ("a manifest entry that has disappeared → delete the entry"). Worth more than
+tidiness here: an entry naming a file as an accepted creator is a licence, and being listed is part
+of what made a divergent creator look sanctioned. The reverse check is now in, negative-controlled,
+and the allowlist is exactly one file.
+
+The lesson generalises to every allowlist I have added this session: a list that only rejects
+additions rots quietly.
+
+---
+
+### §321 — `e2e-bug.547`: a silent bug in the tooling, found by a plateau
+
+Continued the peel: `ai-business-languages` reached **0**, and the `Business` clusters in
+`ai-e2e82-business-slug-resolve` and `ai-consumer-clinic-test-results` cleared. Two new
+builders, both for entities whose partial literals could not exercise the decision they
+exist for — `makeServicePackage` (built as `{ id, metadata }`, omitting `discountType`,
+`discountValue`, `expiresAt`) and `makeProduct` (built as `{ id, name, retailPrice }`,
+omitting `quantityOnHand` and `reorderLevel`).
+
+**The finding worth keeping is about my own tooling.** `wrap.py`, the anchored
+array-wrapper from §319, used `re.search` and so wrapped only the **first**
+`const <name> = [ … ]` in a file. Specs routinely declare the same fixture name once per
+`describe`, so `ai-recommendation-product.integration.spec.ts` reported
+`products -> makeProduct x1` when there were **seven**.
+
+It reported success every time. The only symptom was that the error count stopped moving —
+which is exactly how a tool that under-applies hides: not as a failure, but as a plateau.
+It now collects every match and rewrites from the last backwards so offsets stay valid;
+the same file then reported x7/x7. **Anything wrapped before this fix in a multi-`describe`
+file may still be partial** and is worth re-running.
+
+Project **507 → 489**.
+
+---
+
+## §240b — `e2e-bug.530` and `e2e-bug.518`: the credential unblocked two, and a gate caught the third thing
+
+**Status: 530 fixed, 518's defect fixed (its two registry decisions remain).** Gate exact-match 6/6.
+Owner supplied the `OPENAI_API_KEY` from `backend/.env`.
+
+**530 — a description that said the opposite.** `catalog.set_service_compatibility` read *"Declare
+which services **can** be booked together in one visit"*, while the handler records an
+*incompatible* pair. Since the description is what the planner disambiguates on, retrieval was being
+steered by inverted polarity.
+
+The ticket's closing line — *"check the `examples` for the same inversion at the same time"* — was
+the valuable part. Both were inverted: `'allow massage and facial together'` and `'set which
+services can be combined'`. Examples feed `commandMatchText` alongside the description, so fixing
+only the sentence would have rebuilt the cache around text that still pointed the wrong way. All
+three corrected together.
+
+**518 — the copy-paste, not the decisions.** `onboarding.apply_playbook` documented `'apply the
+clinic playbook'`, which belongs to `clinic.apply_playbook` — a *different* T3 irreversible command
+— seeding a few-shot that points that prompt at the wrong one, and contradicting
+`ai-onboarding.fixtures.ts`'s explicit "NOT apply_clinic_playbook". Replaced with the fixture's own
+trigger.
+
+Its other two cases stay open and I did not decide them despite having authorization to: three T1
+commands claiming `customer` / "turn on notifications" across three different handlers, and
+`explain` vs `summarise` AI settings on `dashboard`. Those are questions about whether commands
+should exist, and on (a) the answer determines which of three handlers runs. Inventing
+distinguishing examples would paper over the duplication rather than resolve it — and papering is
+worse than the collision, because it looks resolved.
+
+**Both rebuilds were verified, not assumed.** e2e-bug.390's staleness gate was confirmed *red*
+before the first rebuild and green after, so the rebuild is demonstrably what was missing. That
+matters here specifically: §82 records a correct change being reverted over a seven-point accuracy
+drop that turned out to be the stale cache.
+
+**And the conformance gate caught the follow-on.** Its rule that *each named exemption still
+collides* went red the instant the collision was removed — the exemption could not sit there stale,
+hiding the next collision on that surface and string. That is the second time in one day a
+both-directions ratchet paid for itself: e2e-bug.539 found the booking-creation allowlist missing
+exactly that check, and had to have it added. The conformance spec already had it, and it worked.
+
+---
+
+### §322 — `e2e-bug.548`: acting on the last flag caused damage
+
+Re-running the corrected `wrap.py` over `ai-pick-provider-for-service.logic.spec.ts`
+produced `makeEmployee(makeEmployee({…}))` **four times**. The wrapper skipped literals
+followed by `as X` but had no notion of *already wrapped*, and `const employees = [` still
+matches after a pass — so the second run wrapped the builder calls' own arguments.
+
+**Nothing reported it.** `makeEmployee` takes `Partial<Employee>` and a complete
+`Employee` satisfies that, so it typechecked, the error count did not move, and 80 tests
+stayed green. It was found only by reading a file the tool claimed to have changed when it
+was already done.
+
+All four repaired; a tree-wide audit confirms zero remaining. Both wrappers now carry an
+explicit idempotence guard. `wrap_const.py` was *accidentally* immune (after wrapping,
+`const x = makeService({` no longer matches `const x = {`) and now has the guard by intent.
+
+**The lesson: a tool found wrong in one direction is not automatically safe to re-run in
+the other.** §321 identified the under-application and fixed it; it did not ask whether
+re-running was safe.
+
+Then the actual work: nine more constants wrapped across five `ai-tour-*.integration.spec.ts`
+files plus `ai-tour-meeting-point.logic.spec.ts`, which the fixed `wrap_const` reached for
+the first time. Project **489 → 480**.
+
+---
+
+## §241b — the decision set, decided: 493, 475, 528 (and 501, 539, 530, 518 before them)
+
+**Status: all closed or advanced 2026-09-11.** Gate exact-match 6/6 throughout.
+
+Given standing authorization to decide the open questions, the useful finding is how few of them
+were actually decisions.
+
+**493 and 475 were already answered** — under e2e-bug.532 and e2e-bug.520 respectively — and both in
+the direction I had reached independently before finding the fix. Worth recording the independent
+grounds, because they are different from the ones in the tree and both still hold:
+
+- **493**: `customer.my_appointments` is the only one of the pair carrying
+  `surfaces: ['customer','public']`, so preferring `list_my_appointments` on customer would make one
+  phrasing resolve to different commands per surface — the divergence class of
+  e2e-bug.444/505/516. The tree's own reason is better still: e2e-bug.75's steal guard frames
+  `list_my_appointments` as the *classification* a CRM rescue must not clobber, not what the rescue
+  produces.
+- **475**: no tour-specific prepayment rule exists anywhere in `src/`, `prepaymentMode` is a plain
+  three-valued per-service field, and `filter_services_no_prepayment` is a **customer-facing**
+  command promising exactly this — a service marked NONE that charged anyway would make that
+  feature lie. Under uncertainty about money, the recoverable error is not charging.
+
+**528 was a real decision, and the command had already made it.** The ticket framed it as needing to
+know what the classifier emits for range phrasings. It does not: `holiday_mode` describes itself as
+"Close the business for a **period**", and its failure message tells the user "Specify closure dates
+(e.g. **Dec 24-26**)". The product promises range support in the very sentence shown to a user who
+gets it wrong, then refuses the phrasing it just asked for. Teaching `parseHolidayModeDates` to
+expand `dateFrom`/`dateTo` makes the parser agree with its own error message.
+
+Two constraints made it safe to ship on a T3 command that blocks all booking. It is **additive** —
+an enumerated list still wins, so acceptance widens and never narrows, the constraint that separates
+this from how e2e-bug.362 happened. And it is **bounded**: both ends required, reversed ranges
+refused rather than reordered, and a span over 366 days refused *entirely rather than truncated*,
+because a silently shortened closure leaves a business open on a day it believes it is closed —
+worse than refusing outright.
+
+**What I declined to decide, and why.** e2e-bug.518's two registry cases and e2e-bug.493's
+follow-on question all ask whether near-duplicate *commands should exist* — three T1 commands for
+"turn on notifications" across three handlers, `explain` vs `summarise` AI settings, and three
+commands listing a customer's appointments. Those answers pick which handler runs and delete
+capability; they are not reversible the way a description edit is, and inventing distinguishing
+examples would paper over the duplication in a way that looks resolved. Authorization to decide is
+not the same as those being decidable from inside the code, and all three exemptions remain
+asserted to still collide.
+
+---
+
+### §323 — `e2e-bug.549`: bulk transformers abandoned; file-by-file from here
+
+**Post-mortem first, because the round began by making things worse.** Three
+bulk-transformer defects in three rounds:
+
+1. `wrap.py` under-applied — only the first `const <name> = [` per file. Visible as a
+   *plateau* in the error count, not as a failure.
+2. Re-running the fix produced `makeEmployee(makeEmployee({…}))` four times, which
+   **typechecks** — `Partial<Employee>` accepts a complete `Employee` — so nothing
+   reported it.
+3. Applying `makeBooking` to every `findAll: jest.fn(async () => [` without checking what
+   each `findAll` returns wrapped *service* arrays as bookings (473 → 494), and the
+   heuristic fix for that mislabelled a correctly-wrapped Booking in a file at **0**
+   (→ 507).
+
+**And a fourth caught only by luck:** the next transformer draft contained
+`src = src.replace(' ', '')` — it would have stripped every space from every file it
+touched. A malformed heredoc rejected the command before it ran.
+
+Bulk transformers are abandoned for this vein. Each cost more than it saved and the last
+would have destroyed files.
+
+**Then, file-by-file, measured at each step:** professional-profile util 12 → 0 and logic
+6 → 0 (including `PublicProviderReviewSummary.recentReviews`, the summary's third field and
+the only one carrying the reviews); upcoming-tour-departures 11 → 0; tour-service 9 → 3.
+
+**One more wrong narrowing, caught and reverted.** `TourServiceLogicDeps.bookingService`
+declares `'findAll' | 'findOne'` and this file calls only `findAll`, so I dropped `findOne`
+— production typecheck exit 2. The deps object is **forwarded whole** to two other logic
+modules that do call it. Reverted with the reason in the type, and the spec now supplies
+the double it always needed. **"Unused" judged from one file is not unused when the deps
+object is passed on.**
+
+Project **480 → 453**.
+
+---
+
+## §242b — `e2e-bug.454`: lint gets a gate, not a clean-up
+
+**Status: Fixed 2026-09-11.** Lint ratchet green at 5,853; known-failures gate exact-match 6/6.
+
+The ticket had already overtaken its own premise — filed as six lint errors, measured at thousands —
+and set the choice: *"either lint gets a gate and a baseline, or this closes as superseded"*.
+
+**Took the gate.** Every other quality mechanism here is a shrink-only ratchet — the known-failures
+manifest, the detector freeze, the re-parser ratchet, the paraphrase ratchet — and the reason the
+re-parser one gives for existing applies verbatim: it is "the mechanism that actually stopped
+detector growth after two years of it". Lint was the one dimension with no such mechanism, so errors
+accumulated freely and a six-error ticket could not mean anything.
+
+**The number is not what it looks like.** 5,853 errors across 4,563 files, but **5,031 of them (86%)
+are `prettier/prettier`** and most are auto-fixable. This is unformatted code, not five thousand
+defects — which is worth knowing before anyone reads the baseline as a measure of code quality.
+
+**I did not run `--fix` repo-wide, and that is the main judgement call here.** It would collapse
+most of the number in one pass and it is genuinely tempting. It would also rewrite 4,563 files:
+colliding with anything else in flight (a concurrent session took ticket numbers 536 and 537 the
+same day), burying the next reviewer, and scattering `git blame` across the whole tree. Collapsing
+the number is a one-commit job for a moment when nobody else is mid-change. Stopping the growth is
+the thing that has never been true, and it does not require the giant diff.
+
+**It fails in both directions**, like the known-failures manifest — an improvement fails too, until
+the baseline is lowered. That is the lesson this session kept re-learning: e2e-bug.360's `<= 9`
+ceiling sat six points above the live count and could not see a regression back up; e2e-bug.539
+found the booking allowlist missing the same reverse check on the same day. A gate that only
+rejects growth rots into slack.
+
+**One caveat, recorded rather than smoothed over.** While baselining I saw a single unexplained ±1
+drift (5854 → 5853), then stability across four consecutive runs. I could not attribute it, so the
+baseline file says a one-count move is most likely a real change and should be re-baselined with a
+reason rather than dismissed as flake. If it recurs without a code change, that is evidence the
+count is non-deterministic and the design should be revisited — not silently loosened.
+
+---
+
+### §324 — `e2e-bug.550`: the forwarding check earned its keep on the next file
+
+`patient-clinical-alerts.integration` 9 → 0, `ai-consumer-clinic-test-results.logic` 9 → 2.
+New `makeClinicPatientAlertDismissal`: specs built it as `{ alertType, sourceId }` — the
+two fields the filter reads — omitting `businessId`, `customerId` and `dismissedAt`, which
+are what make a dismissal *someone's*, at a time.
+
+**§323's lesson paid off immediately.** `ConsumerClinicTestResultsLogicDeps` declares
+`listCustomerResultsForTracking` and the logic in that file never calls it — precisely the
+shape that tempted me into a wrong narrowing last round. This time I checked first, and
+`ai-consumer-clinic-test-results.service.ts:99` forwards the *same* deps object to
+`handleTrackLabOrderStatusLogic`, which does call it. Dropping it would have broken
+production again. The reason is now recorded on the interface so nobody repeats the
+analysis, and the spec has the double it needed.
+
+Also `ClinicPatientReleasedResultView.measurements`, absent from the mock — the field
+carrying the actual results rather than just their summary flag.
+
+Project **453 → 437**.
+
+---
+
+### §325 — `e2e-bug.551`: wrong-typed mocks, not merely incomplete ones
+
+`ai-recommendation-product.logic` 8 → 2, `ai-booking-depth.logic` 8 → 5. Two findings are
+of the kind the earlier `Booking`-builder attempt was abandoned over — literals that are
+*wrong-typed*, not just missing fields:
+
+- `bookingService.create` mocked as `{ id, ...dto }`, spreading a `CreateBookingDto`
+  (string `startTime`) into what production declares as a `Booking` (Date `startTime`).
+  The logic reads only `saved.id`; the mock now returns a complete booking with nothing
+  spread.
+- `bookingService.cancel` mocked as returning a bare booking — production resolves
+  `{ booking, didCancel }`. A test reading `didCancel` off the old shape would have got
+  `undefined`.
+
+Also `const categories = [{ … }]` declared **once per `describe`** — the shape that broke
+`wrap.py` in §321, caught this time by asserting the occurrence count before replacing.
+
+Left for the next slice, itemised: five `ai-booking-depth` mocks each returning a partial
+shape for a distinct production type. Project **437 → 428**.
+
+---
+
+## §243b — `e2e-bug.367`: the behaviour change was measured at zero, so it stopped being one
+
+**Status: Partial — re-parsers 14 → 1.** Gate exact-match 6/6.
+
+§237 left the migration these entries describe — adopting `EntityResolutionService`'s own matching
+tiers — as "a measurable behaviour change rather than a refactor". Today it was measured.
+
+**How.** The shared helper was instrumented to log every call where `resolveEntity`'s match and the
+legacy tiers picked differently — a pure measurement, no behaviour change — and the whole AI module
+run underneath it. **34,916 tests, zero divergences.** On everything the tree exercises, the
+canonical resolver and the legacy tiers agree. The "behaviour change" was a fear, not a fact, and
+one run settled it.
+
+**What changed on that evidence.** The helper now returns `verdict.match ?? legacy` — the same shape
+as `resolveNamedVerdict`, which keeps a fallback because the two normalise names differently, so
+acceptance can only ever widen. The measurement says the fallback never fires on the corpus; it
+stays because the corpus is not the world.
+
+The waitlist's `resolveServiceIdByName` then fell out too: its in-memory tail (refuse a tie, then
+fuzzy-match) is exactly the shared helper with `fuzzyMatchServiceByName` passed as the last tier.
+Delegated, renamed `resolveWaitlistServiceId` — a DB exact match in front of the one resolver rather
+than a second implementation of it. Ratchet 2 → 1.
+
+**Why the measurement mattered more than the migration.** Three manifest entries had sat blocked for
+weeks on "behaviour change". Two of those blockers were stale (§237). The third was real in
+principle and turned out to be zero in practice. Neither fact was discoverable by reading; both took
+one instrumented run. The general rule: when a ticket says a change is behaviour-altering, ask for
+the number before deferring on it.
+
+**What remains.** `ai-structural-extractors.ts::extractTimeSlotFromPrompt` — a different kind of
+entry. It is a *contract* change (returns `string|null` and guesses a bare "at 8" where
+`resolveTime` would report ambiguity), not a name-resolution tier difference, so today's measurement
+says nothing about it. And for e2e-bug.373: service-name resolution on these paths now has a single
+owner, so "record refs at resolution time" has one place to land for services. Customers and
+providers already go through `resolveNamedVerdict`. The 32 `fuzzyMatchByName` call sites elsewhere
+are still the wider gap.
+
+---
+
+### §326 — `e2e-bug.552`: my own builder had invented a value
+
+`ai-booking-depth.logic.spec.ts` — 29 errors at session start — reaches **0**. The five
+itemised mocks each declared against their real production return type; two new builders
+(`makePackagePurchase`, `makeMultiServiceBookingGroup`).
+
+**The finding I did not expect:** `makeServicePackage`, written by me in §321, defaulted
+`discountType` to `'percentage'` — a value `PackageDiscountType` does not have; it is
+`'percent' | 'fixed'`. The entity column is `string`, so it typechecked. Only when the same
+value reached a mock declared against `PackagePricingPreview` did `tsc` say
+*Did you mean "percent"?*
+
+That is precisely the "fixture describes an impossible shape" class I recorded against
+others' specs in §317 (`measurementFlag: 'H'`) — and it went into a builder that every
+future spec would inherit. Corrected; a repo-wide grep confirms it existed nowhere else.
+
+**A builder's defaults are read by nobody and inherited by everybody. They need the same
+scrutiny as an assertion.** Project **428 → 423**.
+
+---
+
+## §244 — `e2e-bug.373`: the half of the premise nobody re-checked
+
+**Status: Fixed 2026-09-11.** Gate exact-match 6/6; 10 new tests. Residue filed as e2e-bug.540.
+
+§231 took this ticket apart and stopped. It found the prescribed fix impossible (the service it
+named is injected nowhere), counted ~44 real resolution sites, and — correctly — refused to hook a
+subset, because a store fed by some resolutions and not others lies to the anaphora resolver that
+reads it. It concluded 373 was blocked on consolidating those 44.
+
+**It left one clause of the ticket unexamined:** *"as no after-the-fact source works"*. Ten
+premises had already failed this session; that one had not been tested. It fails too.
+
+Command results carry resolved ids. `serviceId`, `employeeId` and `bookingId` appear in results
+about as often as the corresponding names do. And every result, from every surface, passes through
+one place — `AiGatewayService.executeCommandPipeline` — where the e2e-bug.401 carrier already holds
+the store. Recording there captures a resolution **regardless of which of the 44 paths performed
+it.** That is exactly the coverage property §231 said the resolution-time design could not offer,
+obtained without touching any of the 44.
+
+**Two rules make it safe, and both are pinned.** A failed result records nothing: a clarify that
+names three candidate customers resolved none of them, and recording any would be the
+confidently-wrong binding §231 warned about. And a name without an id records nothing: the store
+exists so "it" can be acted on without re-resolving, and a label alone would put resolution back on
+the read path.
+
+**The gap moved, and became something you can list.** Measured across 646 `success()` call sites:
+34% report an entity id and are recorded; 62% report neither, and these are explains, lists and
+settings changes with no single entity to record; 2% — nineteen sites — report a name but no id.
+Of the nineteen, most are summaries mentioning a name. Six act on an entity and merely fail to
+surface its id. Those six are `e2e-bug.540`, and each is a one-line `details` addition the handler
+already has the value for. A gap of six visible handlers is a different kind of thing from a gap of
+44 invisible code paths.
+
+**Sequence, for the record.** 401 built transport. §231 measured where resolution happens and
+refused a store that would lie. §243b measured the "behaviour change" of consolidating and found it
+zero. This step measured the after-the-fact source and found it works. Four steps, each one a
+measurement that changed what the next step should be — and the ticket as written would have had
+me do none of them.
+
+**370 is now unblocked.** The anaphora resolver has refs to consume.
+
+---
+
+### §327 — `e2e-bug.553`: a type the code two-thirds disbelieves
+
+`ai-gateway-meta.util` 7 → 0, `ai-clinic-service.logic` 6 → 0.
+
+**A third wrong-typed mock this session.** `applyVerticalPlaybook` mocked with
+`status: 'configured'` — a string — where production returns the onboarding status
+*object*. The logic passes it through as `details.status`, so a consumer reading
+`details.status.completed` would have got `undefined`. Inert only because no test asserts
+on it.
+
+**`CommandResult.details` is required, and the module two-thirds disbelieves it.** 62
+production reads guard with `.details?.` against 33 that do not, and the two functions
+under test explicitly handle its absence. Two tests pin those guards with
+`details: undefined` — a state the type says cannot exist. Making `details` optional is
+the honest type, but it would surface the 33 unguarded reads as new production errors —
+a change for its own slice, not a side effect of a spec fix. So the two tests carry an
+`as unknown as CommandResult` **with the reason recorded at the cast**, rather than a
+silent widening or a silent cast.
+
+Project **423 → 410**.
+
+---
+
+## §245 — `e2e-bug.370`: the resolver was never the missing part
+
+**Status: Fixed 2026-09-11.** Gate exact-match 6/6; 248 tests across the touched suites.
+
+The ticket says the §49 anaphora resolver is "unwired", leaving 82% of real anaphora unresolved.
+That framing pointed at the wrong half.
+
+**There are two shapes of anaphor, and only one had a resolver.** `applyAnaphoraToPlan` — wired as
+B4 earlier this session — handles the *intra-plan* case: "book a haircut and then cancel it", where
+a later step points at an earlier one. It cannot help the shape the 82% is made of, which is a
+**single-step follow-up whose referent is in the previous turn**:
+
+    turn 1:  what's the price of a deep tissue massage?
+    turn 2:  book it for tomorrow at 3
+
+Turn 2's plan has one step and nothing earlier to bind to. The referent is in the conversation, not
+the plan. And until today the conversation had nowhere to keep it: §53's entity store existed but
+was never written (373) and never carried between turns (401). The missing piece was a **source**,
+not a resolver — which is why 370 sat at the end of a chain rather than at the start of one.
+
+**The read side, now that there is something to read.** `applyConversationRefsToPlan` runs in the
+planner *after* the intra-plan pass — a referent inside this plan is more specific than one from a
+prior turn — and consults `lookupEntity` on the store. The store reaches the planner along
+`gateway → session.context → sessionContext → PlannerContext.entityStore`, landing in a slot whose
+comment had read *"Phase 6 fills this from the session entity store"* and which nothing had ever
+filled.
+
+**The same refusal discipline as B4, deliberately.** Only a step missing exactly one variable is
+bound — "book it with her" could mean either, and guessing is how the service gets bound to the
+provider. A ref of the right kind that is not unique is refused with the candidates named, never
+picked. Staleness uses §48's window with the *real* turn index from the carrier — the first cut
+derived it from `recentTurns`, which the pipeline never populates, so turn-based staleness would
+silently never have fired. No ref of that kind means nothing changes and the ordinary clarify runs.
+
+**One choice worth explaining.** Id variables get the ref's id; *name* variables get the recorded
+label. Many specs declare `serviceName` rather than `serviceId` and let the executor resolve it. A
+recorded label is an exact catalog name, so that resolution is deterministic — this is the one place
+a name-keyed variable is *better* than nothing, because the name is not the user's phrasing.
+
+**Scope limit, recorded rather than quietly extended.** `findAnaphor` matches `it / them / those /
+that one / the same X`. Person pronouns are outside its contract; my first test used "her" and
+failed for that reason, which is the resolver being honest, not the binder being wrong. Widening
+that is its own change.
+
+**The chain, closed.** 401 (transport) → 373's premise corrected → 367's "behaviour change" measured
+at zero → 373 (write side, from results) → 370 (read side). Five steps; the ticket for the last one
+would have had me look for a resolver that already existed.
+
+---
+
+### §328 — `e2e-bug.554`: a phantom field, and a wrong shape copied into a second file
+
+`ai-tour-service.integration` 6 → 0, `ai-clinic-test-result.logic` 6 → 5.
+
+**A phantom field.** The tour-service integration spec destructured `daysAhead` from every
+`EXPLAIN_TOUR_SERVICES_PROMPTS` member and spread it into params — but no member carries
+it. `daysAhead` appears in that fixture file only inside a classifier-rules string, and it
+belongs to `list_upcoming_tour_departures`. The destructure was always `undefined`; the
+spread was dead. The declared fixture type was right; the spec was wrong.
+
+**The `status: 'configured'` wrong-typed mock from §327, in a second file** — both the
+default mock and a `mockResolvedValue` in `beforeEach`. That a wrong shape appears in two
+files with the same wording is the copying pattern §312 recorded: each copy passes because
+each one is inert.
+
+`ai-clinic-test-result.logic` is left mid-chain at 5. Project **410 → 403**.

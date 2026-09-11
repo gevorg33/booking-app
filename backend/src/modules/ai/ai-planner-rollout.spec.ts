@@ -158,7 +158,11 @@ describe('the planner execution path is live (e2e-bug.392 is stale)', () => {
  */
 const SLICE_EVIDENCE: Record<
   string,
-  { sliceTraces: number; rescueDependentTraces: number; recoveredTraces: number }
+  {
+    sliceTraces: number;
+    rescueDependentTraces: number;
+    recoveredTraces: number;
+  }
 > = {
   tour: { sliceTraces: 166, rescueDependentTraces: 34, recoveredTraces: 33 },
   guide: { sliceTraces: 245, rescueDependentTraces: 2, recoveredTraces: 0 },
@@ -187,21 +191,25 @@ describe('every domain enabled by default carries its evidence', () => {
     }
   });
 
-  it.each(RETIRED_DETECTOR_DOMAINS.filter((d) => !ENABLED_WITHOUT_CLEARING.includes(d)))(
-    '%s clears the retirement criterion',
-    (domain) => {
-      const verdict = assessSliceRetirement({
-        domain,
-        ...SLICE_EVIDENCE[domain],
-      });
-      expect(verdict.ready).toBe(true);
-    },
-  );
+  it.each(
+    RETIRED_DETECTOR_DOMAINS.filter(
+      (d) => !ENABLED_WITHOUT_CLEARING.includes(d),
+    ),
+  )('%s clears the retirement criterion', (domain) => {
+    const verdict = assessSliceRetirement({
+      domain,
+      ...SLICE_EVIDENCE[domain],
+    });
+    expect(verdict.ready).toBe(true);
+  });
 
   it('states plainly that `guide` does not clear it', () => {
     // If this ever starts passing `ready`, the exception should be removed
     // rather than left as a lie that happens to be harmless.
-    const verdict = assessSliceRetirement({ domain: 'guide', ...SLICE_EVIDENCE.guide });
+    const verdict = assessSliceRetirement({
+      domain: 'guide',
+      ...SLICE_EVIDENCE.guide,
+    });
     expect(verdict.ready).toBe(false);
     expect(verdict.beatsNothing).toBe(false);
   });

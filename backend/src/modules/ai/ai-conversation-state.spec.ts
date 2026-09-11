@@ -67,7 +67,8 @@ function buildStore(
 ) {
   const config = {
     get: (key: string) => {
-      if (key === CONVERSATION_STATE_ENABLED_KEY) return enabled ? 'true' : undefined;
+      if (key === CONVERSATION_STATE_ENABLED_KEY)
+        return enabled ? 'true' : undefined;
       if (key === CONVERSATION_STATE_TTL_KEY) return ttl;
       return undefined;
     },
@@ -78,7 +79,8 @@ function buildStore(
 describe('AiConversationStateStore — off by default', () => {
   const original = process.env[CONVERSATION_STATE_ENABLED_KEY];
   afterEach(() => {
-    if (original === undefined) delete process.env[CONVERSATION_STATE_ENABLED_KEY];
+    if (original === undefined)
+      delete process.env[CONVERSATION_STATE_ENABLED_KEY];
     else process.env[CONVERSATION_STATE_ENABLED_KEY] = original;
   });
 
@@ -205,7 +207,9 @@ describe('AiConversationStateStore — never throws', () => {
         throw new Error('ECONNREFUSED');
       },
     });
-    await expect(buildStore(true, client).load(CONVERSATION_ID)).resolves.toBeNull();
+    await expect(
+      buildStore(true, client).load(CONVERSATION_ID),
+    ).resolves.toBeNull();
   });
 
   it('survives a failing write and reports it did not persist', async () => {
@@ -214,9 +218,9 @@ describe('AiConversationStateStore — never throws', () => {
         throw new Error('READONLY');
       },
     });
-    await expect(buildStore(true, client).save(CONVERSATION_ID, sampleState())).resolves.toBe(
-      false,
-    );
+    await expect(
+      buildStore(true, client).save(CONVERSATION_ID, sampleState()),
+    ).resolves.toBe(false);
   });
 
   it('survives a failing clear', async () => {
@@ -225,13 +229,23 @@ describe('AiConversationStateStore — never throws', () => {
         throw new Error('down');
       },
     });
-    await expect(buildStore(true, client).clear(CONVERSATION_ID)).resolves.toBeUndefined();
+    await expect(
+      buildStore(true, client).clear(CONVERSATION_ID),
+    ).resolves.toBeUndefined();
   });
 });
 
 describe('decodeConversationState — refuses to half-trust a record', () => {
   it('returns null for empty, malformed or non-object payloads', () => {
-    for (const raw of ['', null, undefined, 'not json', '42', '"a string"', '[]']) {
+    for (const raw of [
+      '',
+      null,
+      undefined,
+      'not json',
+      '42',
+      '"a string"',
+      '[]',
+    ]) {
       expect(decodeConversationState(raw as string | null)).toBeNull();
     }
   });
@@ -276,7 +290,13 @@ describe('decodeConversationState — refuses to half-trust a record', () => {
             recordedAt: '2026-08-04T10:00:00.000Z',
           },
           { kind: 'appointment', id: 'no-date', label: 'x', turnIndex: 1 },
-          { kind: 'appointment', id: 'bad-date', label: 'x', turnIndex: 1, recordedAt: 'nope' },
+          {
+            kind: 'appointment',
+            id: 'bad-date',
+            label: 'x',
+            turnIndex: 1,
+            recordedAt: 'nope',
+          },
           null,
           'garbage',
         ],

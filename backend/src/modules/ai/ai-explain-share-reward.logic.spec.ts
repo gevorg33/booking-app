@@ -1,4 +1,5 @@
 import { handleExplainShareRewardLogic } from './ai-explain-share-reward.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-explain-share-reward.logic (ai-cmd-customer-4.12.4)', () => {
   const deps = () => ({
@@ -15,7 +16,9 @@ describe('ai-explain-share-reward.logic (ai-cmd-customer-4.12.4)', () => {
       })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     },
   });
 

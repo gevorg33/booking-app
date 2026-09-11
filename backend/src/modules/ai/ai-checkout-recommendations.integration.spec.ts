@@ -57,14 +57,16 @@ describe('ai checkout recommendations integration (ai-cmd-rec-5)', () => {
       if (aspect) params.aspect = aspect;
       if (serviceName) params.serviceName = serviceName;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_checkout_recommendations',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_checkout_recommendations',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

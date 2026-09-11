@@ -117,7 +117,9 @@ describe('the 13 reviewed commands stay gated (e2e-bug.405)', () => {
   it.each(REVIEWED)('%s still declares confirm in its spec', (action) => {
     const spec = SPEC_BY_NAME.get(action);
     expect(spec).toBeDefined();
-    expect(requiresConfirmation(spec as never, { ambiguous: false })).toBe(true);
+    expect(requiresConfirmation(spec as never, { ambiguous: false })).toBe(
+      true,
+    );
   });
 });
 

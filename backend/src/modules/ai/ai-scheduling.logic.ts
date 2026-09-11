@@ -1,4 +1,8 @@
 import { Between, In, Not, Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import { Employee } from '../employee/entities/employee.entity.js';
 import { Service } from '../service/entities/service.entity.js';
 import { ScheduleTemplate } from '../schedule/entities/schedule-template.entity.js';
@@ -33,10 +37,10 @@ import {
 } from './ai-scheduling.util.js';
 
 export interface SchedulingLogicDeps {
-  templateRepo: Pick<Repository<ScheduleTemplate>, 'find'>;
-  periodRepo: Pick<Repository<SchedulingPeriod>, 'find'>;
-  bookingRepo: Pick<Repository<Booking>, 'find'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  templateRepo: EntityFinder<ScheduleTemplate>;
+  periodRepo: EntityFinder<SchedulingPeriod>;
+  bookingRepo: EntityFinder<Booking>;
+  businessRepo: EntityReader<Business>;
   orchestration: Pick<CommandOrchestrationService, 'executePlan'>;
   planBuilder: OperationalPlanBuilderService;
 }
@@ -385,7 +389,7 @@ export async function prepareOnboardProviderSchedulePlanLogic(
 }
 
 export async function resolveHolidayDatesForBusinessLogic(
-  businessRepo: Pick<Repository<Business>, 'findOne'>,
+  businessRepo: EntityReader<Business>,
   businessId: string,
 ): Promise<string[]> {
   const business = await businessRepo.findOne({ where: { id: businessId } });
@@ -395,7 +399,7 @@ export async function resolveHolidayDatesForBusinessLogic(
 }
 
 async function loadDayPeriods(
-  periodRepo: Pick<Repository<SchedulingPeriod>, 'find'>,
+  periodRepo: EntityFinder<SchedulingPeriod>,
   businessId: string,
   employeeId: string,
   date: string,

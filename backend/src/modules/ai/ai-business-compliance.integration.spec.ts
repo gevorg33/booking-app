@@ -38,6 +38,10 @@ import {
   handleOpenComplianceDashboardLogic,
   handleViewPhiAccessAuditLogic,
 } from './ai-business-compliance.logic.js';
+import type { BusinessComplianceLogicDeps } from './ai-business-compliance.logic.js';
+import type { RenderedTrustDocument } from '../enterprise-trust/enterprise-trust.types.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
+import type { DataBreachIncident } from '../compliance/entities/data-breach-incident.entity.js';
 import {
   AI_COMMAND_EVAL_ADMIN_DELETE_CUSTOMER_DATA_CASES,
   AI_COMMAND_EVAL_BUSINESS_COMPLIANCE_MULTILINGUAL_CASES,
@@ -74,30 +78,26 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
   } as Business;
 
   const customers = [
-    {
+    makeCustomer({
       id: 'cust-anna',
       name: 'Anna',
       businessId: 'biz-1',
-      isActive: true,
-    },
-    {
+    }),
+    makeCustomer({
       id: 'cust-anna-smith',
       name: 'Anna Smith',
       businessId: 'biz-1',
-      isActive: true,
-    },
-    {
+    }),
+    makeCustomer({
       id: 'cust-bob',
       name: 'Bob',
       businessId: 'biz-1',
-      isActive: true,
-    },
-    {
+    }),
+    makeCustomer({
       id: 'cust-maria',
       name: 'Maria',
       businessId: 'biz-1',
-      isActive: true,
-    },
+    }),
   ];
 
   const businessRepo = {
@@ -110,25 +110,48 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
   };
 
   const customerPrivacyService = {
-    deleteCustomerData: jest.fn(async () => ({ deleted: true })),
+    deleteCustomerData: jest.fn(async () => ({ deleted: true as const })),
   };
 
+  /** A complete `DataBreachIncident`; both breach mocks below resolve one. */
+  const makeIncident = (
+    partial: Partial<DataBreachIncident> = {},
+  ): DataBreachIncident => ({
+    id: 'inc-1',
+    businessId: 'biz-1',
+    reportedByUserId: 'owner-1',
+    description: 'Test breach',
+    affectedCustomerCount: 0,
+    gdprNotificationDeadlineAt: new Date('2026-06-09T12:00:00.000Z'),
+    draftEmailSubject: 'Security notice',
+    draftEmailBody: '',
+    status: 'open',
+    reportedAt: new Date('2026-06-08T12:00:00.000Z'),
+    ...partial,
+  });
+
   const complianceBreachService = {
-    reportBreach: jest.fn(async () => ({
-      id: 'inc-1',
-      affectedCustomerCount: 0,
-      gdprNotificationDeadlineAt: new Date('2026-06-09T12:00:00.000Z'),
-      draftEmailSubject: 'Security notice',
-      status: 'open',
-    })),
-    listIncidents: jest.fn(async () => []),
+    // Complete `DataBreachIncident`s — the five fields below `status` were absent,
+    // so this was never the shape `reportBreach` resolves to.
+    reportBreach: jest.fn(
+      async (): Promise<DataBreachIncident> => makeIncident(),
+    ),
+    // `listIncidents` resolves incidents *decorated* with the two GDPR deadline
+    // flags, not bare entities.
+    listIncidents: jest.fn(
+      async (): Promise<
+        (DataBreachIncident & {
+          gdprDeadlineApproaching: boolean;
+          gdprDeadlineOverdue: boolean;
+        })[]
+      > => [],
+    ),
     sendBreachNotification: jest.fn(async () => ({
       ok: true as const,
-      incident: {
+      incident: makeIncident({
         id: 'a1b2c3d4-0000-4000-8000-000000000001',
         status: 'notified',
-        draftEmailSubject: 'Security notice',
-      },
+      }),
       emailsSent: 2,
       emailsFailed: 0,
       recipientsSkipped: 0,
@@ -144,6 +167,29 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
     ensureOwner: jest.fn(async () => undefined),
   };
 
+  /*
+   * `enterpriseTrustService` and `strategyEvalService` are required by
+   * `BusinessComplianceLogicDeps` and were simply absent here — the deps object
+   * was not a stand-in for the interface it is passed as. No test in this file
+   * exercises a handler that calls them, which is why nothing failed; the stubs
+   * below are inert so that stays true, and a test that does reach them will
+   * now fail on an assertion rather than on `undefined is not a function`.
+   */
+  const enterpriseTrustService = {
+    getSettings: jest.fn(),
+    updateSettings: jest.fn(),
+    renderDocuments: jest.fn(async (): Promise<RenderedTrustDocument[]> => []),
+    getSecurityOnePager: jest.fn(),
+  } as unknown as BusinessComplianceLogicDeps['enterpriseTrustService'];
+
+  const strategyEvalService = {
+    getSummary: jest.fn(),
+    getHipaaFramework: jest.fn(),
+    getMarketplaceFramework: jest.fn(),
+    submitHipaaEval: jest.fn(),
+    submitMarketplaceEval: jest.fn(),
+  } as unknown as BusinessComplianceLogicDeps['strategyEvalService'];
+
   const deps = () => ({
     businessRepo,
     customerRepo,
@@ -151,6 +197,8 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
     complianceBreachService,
     phiAccessAuditService,
     businessService,
+    enterpriseTrustService,
+    strategyEvalService,
   });
 
   let rescue: AiIntentRescueService;
@@ -174,14 +222,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
         params.cookieBannerEnabled = cookieBannerEnabled;
       }
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_privacy_retention',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_privacy_retention',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigurePrivacyRetentionLogic(
@@ -208,14 +258,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
         params.requireThirdPartyIntegrations = requireThirdPartyIntegrations;
       }
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_granular_consent',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_granular_consent',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigureGranularConsentLogic(
@@ -248,14 +300,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
         params.sessionTimeoutMinutes = sessionTimeoutMinutes;
       }
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'enable_hipaa_mode',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'enable_hipaa_mode',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleEnableHipaaModeLogic(
@@ -278,14 +332,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_compliance_status');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_compliance_status',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_compliance_status',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainComplianceStatusLogic(
@@ -309,14 +365,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const params: Record<string, unknown> = {};
       if (article28 != null) params.article28 = article28;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'list_sub_processors',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'list_sub_processors',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleListSubProcessorsLogic(
@@ -338,14 +396,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_gdpr_checklist');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_gdpr_checklist',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_gdpr_checklist',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainGdprChecklistLogic(
@@ -370,14 +430,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       expect(rescued?.action).toBe('admin_delete_customer_data');
 
       const params = { customerName };
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'admin_delete_customer_data',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'admin_delete_customer_data',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleAdminDeleteCustomerDataLogic(
@@ -406,14 +468,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_phi_encryption_status');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_phi_encryption_status',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_phi_encryption_status',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const params: Record<string, unknown> = {};
@@ -449,14 +513,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_minimum_necessary_phi_access');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_minimum_necessary_phi_access',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_minimum_necessary_phi_access',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainMinimumNecessaryPhiAccessLogic(
@@ -481,14 +547,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('explain_hipaa_session_timeout');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_hipaa_session_timeout',
-        params: { personalLogout },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_hipaa_session_timeout',
+          params: { personalLogout },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainHipaaSessionTimeoutLogic(
@@ -528,14 +596,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const params: Record<string, unknown> = {};
       if (enableHipaa != null) params.enableHipaa = enableHipaa;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'accept_hipaa_baa',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'accept_hipaa_baa',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleAcceptHipaaBaaLogic(
@@ -564,14 +634,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('configure_hipaa_session_timeout');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_hipaa_session_timeout',
-        params: { sessionTimeoutMinutes },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_hipaa_session_timeout',
+          params: { sessionTimeoutMinutes },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigureHipaaSessionTimeoutLogic(
@@ -591,14 +663,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('open_compliance_dashboard');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'open_compliance_dashboard',
-        params: { panel },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'open_compliance_dashboard',
+          params: { panel },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleOpenComplianceDashboardLogic(
@@ -628,14 +702,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('send_breach_notification');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'send_breach_notification',
-        params: { incidentRef },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'send_breach_notification',
+          params: { incidentRef },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleSendBreachNotificationLogic(
@@ -658,14 +734,16 @@ describe('ai business compliance integration (ai-cmd-compliance-1..6)', () => {
       const rescued = rescue.rescue({ prompt, action: 'unknown', params: {} });
       expect(rescued?.action).toBe('report_data_breach');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'report_data_breach',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'report_data_breach',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleReportDataBreachLogic(

@@ -36,11 +36,7 @@ import { runIntentRescuePipeline } from './ai-intent-rescue-pipeline.util.js';
 const hit = (action: string) =>
   ({ action, params: {}, reasoning: '', rescued: true }) as any;
 
-const host = (phases: {
-  provider?: any;
-  classified?: any;
-  unknown?: any;
-}) =>
+const host = (phases: { provider?: any; classified?: any; unknown?: any }) =>
   ({
     runRescueProviderPhase: () => phases.provider ?? null,
     runRescueClassifiedPhase: () => phases.classified ?? null,
@@ -87,7 +83,10 @@ describe('e2e-bug.435 — the chain does not stop at a wrong-surface hit', () =>
     // The residual hazard, pinned as current behaviour rather than desired:
     // both candidates are illegal here, so the user gets nothing.
     const out = run(
-      host({ classified: hit('my_gift_cards'), unknown: hit('my_subscriptions') }),
+      host({
+        classified: hit('my_gift_cards'),
+        unknown: hit('my_subscriptions'),
+      }),
       'some_action',
       'dashboard',
     );

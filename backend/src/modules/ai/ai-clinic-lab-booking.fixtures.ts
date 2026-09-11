@@ -242,7 +242,14 @@ export const LIST_PATIENT_PENDING_LAB_REQUESTS_PROMPTS = [
   { id: 'list-awaiting-book', prompt: 'List patients awaiting lab booking' },
 ] as const;
 
-export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS = [
+/** Only one of the three prompts names a patient, hence the optional field. */
+export type NotifyPatientBookLabPromptFixture = {
+  id: string;
+  prompt: string;
+  customerName?: string;
+};
+
+export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS: readonly NotifyPatientBookLabPromptFixture[] = [
   {
     id: 'remind-patient-book-collection',
     prompt: 'Remind patient to book collection',
@@ -256,7 +263,7 @@ export const NOTIFY_PATIENT_BOOK_LAB_PROMPTS = [
     prompt: 'Remind Maria to book her lab collection',
     customerName: 'Maria',
   },
-] as const;
+];
 
 export const AWAITING_PATIENT_BOOKING_LIST_PROMPTS = [
   {

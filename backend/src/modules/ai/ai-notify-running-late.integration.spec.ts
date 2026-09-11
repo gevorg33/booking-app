@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleNotifyRunningLateLogic } from './ai-notify-running-late.logic.js';
 import {
   NOTIFY_RUNNING_LATE_PROMPTS,
@@ -27,7 +28,9 @@ describe('ai-notify-running-late integration (ai-cmd-customer-4.4.6)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     bookingRepo: {
       find: jest.fn(async () => [booking]),
@@ -63,14 +66,16 @@ describe('ai-notify-running-late integration (ai-cmd-customer-4.4.6)', () => {
   it.each(NOTIFY_RUNNING_LATE_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'notify_running_late',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'notify_running_late',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

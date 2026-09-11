@@ -3,6 +3,7 @@ import {
   handleClaimShareRewardLogic,
   handleExplainRewardsWalletLogic,
 } from './ai-consumer-adoption.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import type { ConsumerAdoptionLogicDeps } from './ai-consumer-adoption.logic.js';
 
 function buildDeps(
@@ -45,7 +46,9 @@ function buildDeps(
     notificationsService: {} as any,
     consumerPushTokenService: {} as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   };

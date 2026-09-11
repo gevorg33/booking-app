@@ -31,14 +31,16 @@ describe('ai get directions to salon integration (ai-cmd-customer-4.3.3)', () =>
   it.each(GET_DIRECTIONS_TO_SALON_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'get_directions_to_salon',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'get_directions_to_salon',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleGetDirectionsToSalonLogic(

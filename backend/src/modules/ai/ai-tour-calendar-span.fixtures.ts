@@ -10,7 +10,20 @@ export const TOUR_CALENDAR_SPAN_CLASSIFIER_RULES = `- explain_tour_calendar_span
   - "Почему у каждого тура свой цвет на календаре провайдера?" → explain_tour_calendar_span, aspect=serviceColors
   - "Ինչու են տուրերը կուտակված տողերում օրացույցում?" → explain_tour_calendar_span, aspect=stackedDepartures`;
 
-export const EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ExplainTourCalendarSpanPromptFixture = {
+  id: string;
+  prompt: string;
+  aspect:
+    | 'all'
+    | 'clippedWeek'
+    | 'multiDaySpan'
+    | 'serviceColors'
+    | 'stackedDepartures';
+  serviceName?: string;
+};
+
+export const EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS: readonly ExplainTourCalendarSpanPromptFixture[] = [
   {
     id: 'multi-day-span-general',
     prompt:
@@ -77,4 +90,4 @@ export const EXPLAIN_TOUR_CALENDAR_SPAN_PROMPTS = [
     prompt: 'Ինչու են տուրերը կուտակված տողերում օրացույցում?',
     aspect: 'stackedDepartures' as const,
   },
-] as const;
+];

@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleRebookLastAppointmentLogic } from './ai-rebook-last-appointment.logic.js';
 
 describe('ai-rebook-last-appointment.logic (ai-cmd-customer-4.4.8)', () => {
@@ -17,7 +18,9 @@ describe('ai-rebook-last-appointment.logic (ai-cmd-customer-4.4.8)', () => {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'demo-salon' }),
+      ),
     },
   });
 

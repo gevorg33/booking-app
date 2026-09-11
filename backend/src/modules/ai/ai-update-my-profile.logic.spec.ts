@@ -1,4 +1,5 @@
 import { handleUpdateMyProfileLogic } from './ai-update-my-profile.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-update-my-profile.logic (ai-cmd-customer-4.5.6 / 6.14.3)', () => {
   const deps = {} as any;
@@ -171,7 +172,9 @@ describe('ai-update-my-profile.logic (ai-cmd-customer-4.5.6 / 6.14.3)', () => {
     const liveDeps = {
       publicCustomerAuthService: { updateMyProfile },
       businessRepo: {
-        findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+        findOne: jest.fn(async () =>
+          makeBusiness({ id: 'biz-1', slug: 'demo-salon' }),
+        ),
       },
     } as any;
 

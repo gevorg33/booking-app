@@ -11,14 +11,16 @@ describe('ai retry failed network action integration (ai-cmd-customer-4.18.6)', 
   it.each(RETRY_FAILED_NETWORK_ACTION_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'retry_failed_network_action',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'retry_failed_network_action',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

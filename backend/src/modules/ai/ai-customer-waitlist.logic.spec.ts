@@ -1,4 +1,5 @@
 import { buildCustomerWaitlistRequest } from '../../common/utils/customer-waitlist.util.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import {
   handleCheckWaitlistStatusLogic,
   handleJoinWaitlistLogic,
@@ -12,7 +13,9 @@ describe('ai-customer-waitlist.logic (ai-cmd-customer-4.4.7)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     serviceRepo: {
       createQueryBuilder: jest.fn(() => ({
@@ -119,7 +122,9 @@ describe('e2e-bug.489 — waitlist service linking falls back to the shared matc
   ];
 
   const depsWith = (exact: any, catalog = CATALOG) => ({
-    businessRepo: { findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })) },
+    businessRepo: {
+      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+    },
     serviceRepo: {
       createQueryBuilder: jest.fn(() => ({
         where: jest.fn().mockReturnThis(),
@@ -148,7 +153,9 @@ describe('e2e-bug.489 — waitlist service linking falls back to the shared matc
       { sessionCustomerId: 'cust-1', serviceName },
       `Notify me if a ${serviceName} opens Friday`,
     );
-    return d.publicCustomerWaitlistService.joinWaitlist.mock.calls[0]?.[2] ?? {};
+    return (
+      d.publicCustomerWaitlistService.joinWaitlist.mock.calls[0]?.[2] ?? {}
+    );
   };
 
   it('links a near-miss name that exact matching missed', async () => {

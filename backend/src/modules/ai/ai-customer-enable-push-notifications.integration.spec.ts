@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AiConsumerAdoptionService } from './ai-consumer-adoption.service.js';
 import { Business } from '../business/entities/business.entity.js';
@@ -48,7 +49,9 @@ describe('ai-customer-enable-push-notifications integration (ai-cmd-customer-4.1
         {
           provide: getRepositoryToken(Business),
           useValue: {
-            findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'demo-salon' })),
+            findOne: jest.fn(async () =>
+              makeBusiness({ id: 'biz-1', slug: 'demo-salon' }),
+            ),
           },
         },
       ],

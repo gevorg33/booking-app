@@ -12,7 +12,7 @@
  */
 import { AiBookingCoreService } from './ai-booking-core.service.js';
 
-const rows = <T,>(items: T[]) => ({ find: async () => items }) as any;
+const rows = <T>(items: T[]) => ({ find: async () => items }) as any;
 
 /**
  * Only the three repos this path reads before the ambiguity check need to be

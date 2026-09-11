@@ -9,14 +9,16 @@ import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai explain RTL layout integration (ai-cmd-customer-4.19.4)', () => {
   it.each(EXPLAIN_RTL_LAYOUT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'explain_rtl_layout',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_rtl_layout',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

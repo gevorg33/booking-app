@@ -189,6 +189,7 @@ import { EntityResolutionService } from './entity-resolution.service.js';
 import { AiCommandPlannerService } from './ai-command-planner.service.js';
 import { AiPlannerShadowService } from './ai-planner-shadow.service.js';
 import { AiConversationStateStore } from './ai-conversation-state.store.js';
+import { AiConversationCarrierService } from './ai-conversation-carrier.service.js';
 import { AiGuideTelemetry } from './entities/ai-guide-telemetry.entity.js';
 import { GuideTelemetryService } from './guide-telemetry.service.js';
 
@@ -387,6 +388,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiCommandPlannerService,
     AiPlannerShadowService,
     AiConversationStateStore,
+    AiConversationCarrierService,
   ],
   exports: [
     AiPlatformService,
@@ -464,6 +466,7 @@ import { GuideTelemetryService } from './guide-telemetry.service.js';
     AiCommandPlannerService,
     AiPlannerShadowService,
     AiConversationStateStore,
+    AiConversationCarrierService,
   ],
 })
 export class AiModule {}

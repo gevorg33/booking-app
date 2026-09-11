@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { ClinicTestResultsService } from '../clinic-test-results/clinic-test-results.service.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -14,7 +17,7 @@ import {
 } from './ai-track-lab-order-status.util.js';
 
 export interface TrackLabOrderStatusLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   clinicTestResultsService: Pick<
     ClinicTestResultsService,
     'listCustomerResultsForTracking'

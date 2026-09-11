@@ -51,7 +51,9 @@ function dispatchOwners(): Array<{ alias: string; service: string }> {
     .readdirSync(__dirname)
     .filter((f) => f.endsWith('-dispatch.build.ts'))) {
     const src = fs.readFileSync(path.join(__dirname, file), 'utf8');
-    const service = /import type \{\s*(Ai[A-Za-z0-9]*Service)\s*\}/.exec(src)?.[1];
+    const service = /import type \{\s*(Ai[A-Za-z0-9]*Service)\s*\}/.exec(
+      src,
+    )?.[1];
     if (!service) continue;
     for (const m of src.matchAll(/map\.set\(\s*'([a-z_0-9]+)'/g)) {
       out.push({ alias: m[1], service });

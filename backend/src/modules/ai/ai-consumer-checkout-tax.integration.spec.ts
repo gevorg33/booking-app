@@ -62,14 +62,16 @@ describe('ai consumer checkout tax integration (ai-cmd-tax-14)', () => {
       expect(rescued?.action).toBe('explain_consumer_checkout_tax');
       if (aspect) expect(rescued?.params?.aspect).toBe(aspect);
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_consumer_checkout_tax',
-        params: aspect ? { aspect } : {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_consumer_checkout_tax',
+          params: aspect ? { aspect } : {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

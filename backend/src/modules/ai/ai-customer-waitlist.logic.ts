@@ -1,6 +1,6 @@
 import type { CommandResult } from './command-completion.types.js';
 import { fuzzyMatchServiceByName } from './ai-orchestration.helpers.js';
-import { resolveEntity } from './ai-entity-resolution.util.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import type { SelfServiceBookingLogicDeps } from './ai-self-service-booking.logic.js';
 import type { PublicCustomerWaitlistService } from '../public-booking/public-customer-waitlist.service.js';
 import {
@@ -53,7 +53,7 @@ async function resolveBusinessSlug(
   return business?.slug ?? null;
 }
 
-async function resolveServiceIdByName(
+async function resolveWaitlistServiceId(
   deps: SelfServiceBookingLogicDeps,
   businessId: string,
   serviceName?: string,
@@ -83,17 +83,20 @@ async function resolveServiceIdByName(
   //
   // A tie resolves to nothing rather than to an arbitrary namesake: linking the
   // wrong service is worse than leaving the row free-text, which already works.
+  //
+  // e2e-bug.367 (2026-09-11) — the in-memory tail delegates to the shared
+  // resolver, which refuses ties the same way and prefers the canonical match.
+  // The previous `fuzzyMatchServiceByName` fallback is passed as the last tier
+  // so nothing this path used to accept is lost: acceptance widens, never
+  // narrows. Renamed because it is no longer a re-parser — it is a DB exact
+  // match in front of the one resolver.
   const candidates = await deps.serviceRepo.find({ where: { businessId } });
   if (!candidates.length) return undefined;
-  if (
-    resolveEntity(candidates, serviceName, {
-      entityLabel: 'service',
-      threshold: 0,
-    }).status === 'ambiguous'
-  ) {
-    return undefined;
-  }
-  return fuzzyMatchServiceByName(candidates, serviceName)?.id;
+  return resolveServiceByNameOrRefuseTie(
+    candidates,
+    serviceName,
+    (list, needle) => fuzzyMatchServiceByName([...list], needle),
+  )?.id;
 }
 
 export async function handleJoinWaitlistLogic(
@@ -133,7 +136,7 @@ export async function handleJoinWaitlistLogic(
   const serviceId =
     typeof enriched.serviceId === 'string'
       ? enriched.serviceId
-      : await resolveServiceIdByName(
+      : await resolveWaitlistServiceId(
           deps,
           businessId,
           parsed.serviceName ?? (enriched.serviceName as string | undefined),

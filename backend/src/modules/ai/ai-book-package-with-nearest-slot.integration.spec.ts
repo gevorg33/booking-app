@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { AiSelfServiceBookingService } from './ai-self-service-booking.service.js';
 import {
   BOOK_PACKAGE_WITH_NEAREST_SLOT_PROMPTS,
@@ -24,7 +25,7 @@ describe('book_package_with_nearest_slot integration (ai-cmd-customer-4.6.2)', (
     })),
   };
   const businessRepo = {
-    findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+    findOne: jest.fn(async () => makeBusiness({ id: 'biz-1', slug: 'salon' })),
   };
 
   beforeEach(() => {

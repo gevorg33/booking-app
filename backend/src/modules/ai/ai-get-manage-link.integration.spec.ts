@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleGetManageLinkLogic } from './ai-get-manage-link.logic.js';
 import {
   GET_MANAGE_LINK_PROMPTS,
@@ -24,7 +25,9 @@ describe('ai-get-manage-link integration (ai-cmd-customer-4.4.5)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     bookingRepo: {
       find: jest.fn(async () => [guestBooking]),
@@ -63,14 +66,16 @@ describe('ai-get-manage-link integration (ai-cmd-customer-4.4.5)', () => {
   it.each(GET_MANAGE_LINK_PROMPTS)(
     'validates and executes signed-in $id',
     async ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'get_manage_link',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'get_manage_link',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleGetManageLinkLogic(

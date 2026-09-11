@@ -130,10 +130,14 @@ describe('AiConversationStateStore against a real Redis', () => {
     const store = buildStore('100');
     await store.save(CONVERSATION_ID, sampleState());
     await redis.expire(conversationStateKey(CONVERSATION_ID), 5);
-    expect(await redis.ttl(conversationStateKey(CONVERSATION_ID))).toBeLessThanOrEqual(5);
+    expect(
+      await redis.ttl(conversationStateKey(CONVERSATION_ID)),
+    ).toBeLessThanOrEqual(5);
 
     await store.save(CONVERSATION_ID, sampleState());
-    expect(await redis.ttl(conversationStateKey(CONVERSATION_ID))).toBeGreaterThan(50);
+    expect(
+      await redis.ttl(conversationStateKey(CONVERSATION_ID)),
+    ).toBeGreaterThan(50);
   });
 
   it('clear removes the key', async () => {

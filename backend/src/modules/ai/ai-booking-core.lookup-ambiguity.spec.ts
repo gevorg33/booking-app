@@ -82,8 +82,10 @@ describe('tech-debt D5 — lookup_customer refuses to answer about a guessed per
     // customerService is null, so reaching it throws — asserted rather than
     // swallowed, so this cannot pass just because nothing happened.
     await expect(
-      lookupCustomer([cust('c1', 'John Smith'), cust('c2', 'Mary Poppins')],
-        'John Smith'),
+      lookupCustomer(
+        [cust('c1', 'John Smith'), cust('c2', 'Mary Poppins')],
+        'John Smith',
+      ),
     ).rejects.toThrow();
   });
 });

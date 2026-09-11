@@ -106,17 +106,19 @@ describe('ai tour meeting point integration (ai-cmd-customer-4.10.6)', () => {
       );
       expect(customerPublicRescue?.action).toBe('explain_tour_meeting_point');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_tour_meeting_point',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-          ...(aspect ? { aspect } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_meeting_point',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+            ...(aspect ? { aspect } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourMeetingPointLogic(

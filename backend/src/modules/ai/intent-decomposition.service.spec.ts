@@ -310,11 +310,16 @@ describe('IntentDecompositionService', () => {
       ],
     });
     const schemaSpy = jest.spyOn(schemaModule, 'buildDecompositionSchemaView');
+    // A complete `DecompositionSchemaView`. This previously named the field
+    // `compoundRecipeIds` — which the interface does not have — and omitted
+    // `sharedEntityBlock` and `goldenPatternIds` entirely.
     schemaSpy.mockReturnValueOnce({
       surface: 'dashboard',
       allowedActions: ['summarize_day', 'list_bookings', 'create_booking'],
       maxSteps: 2,
-      compoundRecipeIds: [],
+      sharedEntityBlock: '',
+      recipeIds: [],
+      goldenPatternIds: [],
       promptBlock: 'test',
     });
 

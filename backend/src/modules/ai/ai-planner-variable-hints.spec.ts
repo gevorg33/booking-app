@@ -36,7 +36,14 @@ describe('plannerVariableHints', () => {
   it('names a scalar type', () => {
     expect(
       hint(
-        spec({ price: { type: 'number', description: '', required: true }, resolver: 'none' }),
+        spec({
+          price: {
+            type: 'number',
+            description: '',
+            required: true,
+            resolver: 'none',
+          },
+        }),
         'price',
       )?.type,
     ).toBe('number');
@@ -47,7 +54,12 @@ describe('plannerVariableHints', () => {
     expect(
       hint(
         spec({
-          serviceNames: { type: 'string[]', description: '', required: true, resolver: 'none' },
+          serviceNames: {
+            type: 'string[]',
+            description: '',
+            required: true,
+            resolver: 'none',
+          },
         }),
         'serviceNames',
       )?.type,
@@ -60,9 +72,20 @@ describe('plannerVariableHints', () => {
         type: 'object',
         description: '',
         required: true,
+        resolver: 'none',
         properties: {
-          categoryName: { type: 'string', description: '', required: true, resolver: 'none' },
-          note: { type: 'string', description: '', required: false, resolver: 'none' },
+          categoryName: {
+            type: 'string',
+            description: '',
+            required: true,
+            resolver: 'none',
+          },
+          note: {
+            type: 'string',
+            description: '',
+            required: false,
+            resolver: 'none',
+          },
         },
       },
     });
@@ -79,14 +102,26 @@ describe('plannerVariableHints', () => {
         type: 'object',
         description: '',
         required: true,
+        resolver: 'none',
         properties: {
           services: {
             type: 'object[]',
             description: '',
             required: true,
+            resolver: 'none',
             properties: {
-              serviceName: { type: 'string', description: '', required: true, resolver: 'none' },
-              price: { type: 'number', description: '', required: true, resolver: 'none' },
+              serviceName: {
+                type: 'string',
+                description: '',
+                required: true,
+                resolver: 'none',
+              },
+              price: {
+                type: 'number',
+                description: '',
+                required: true,
+                resolver: 'none',
+              },
             },
           },
         },
@@ -98,7 +133,12 @@ describe('plannerVariableHints', () => {
   });
 
   it('stops at depth 3 rather than rendering an unreadable line', () => {
-    const leaf = { type: 'string' as const, description: '', required: true };
+    const leaf = {
+      type: 'string' as const,
+      description: '',
+      required: true,
+      resolver: 'none' as const,
+    };
     const nest = (d: number): CommandSpec['variables'][string] =>
       d === 0
         ? leaf
@@ -106,6 +146,7 @@ describe('plannerVariableHints', () => {
             type: 'object',
             description: '',
             required: true,
+            resolver: 'none',
             properties: { child: nest(d - 1) },
           };
     const rendered = hint(spec({ deep: nest(6) }), 'deep')?.type ?? '';
@@ -119,6 +160,7 @@ describe('plannerVariableHints', () => {
         type: 'string',
         description: '',
         required: true,
+        resolver: 'none',
         enum: ['confirmed', 'completed'],
       },
     });

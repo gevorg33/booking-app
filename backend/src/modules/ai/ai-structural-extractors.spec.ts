@@ -342,9 +342,7 @@ describe('ai-structural-extractors (pipe-1.13.3)', () => {
 
     it('parses 2:30 pm destination', () => {
       expect(
-        extractRescheduleTargetTime(
-          'Reschedule Jujo to Friday at 2:30 pm',
-        ),
+        extractRescheduleTargetTime('Reschedule Jujo to Friday at 2:30 pm'),
       ).toBe('14:30');
     });
 

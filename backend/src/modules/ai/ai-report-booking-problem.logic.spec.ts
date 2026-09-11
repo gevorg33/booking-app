@@ -1,4 +1,5 @@
 import { handleReportBookingProblemLogic } from './ai-report-booking-problem.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-report-booking-problem.logic (ai-cmd-customer-4.12.3)', () => {
   const booking = {
@@ -14,7 +15,9 @@ describe('ai-report-booking-problem.logic (ai-cmd-customer-4.12.3)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),

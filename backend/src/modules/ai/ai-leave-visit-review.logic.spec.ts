@@ -1,4 +1,5 @@
 import { handleLeaveVisitReviewLogic } from './ai-leave-visit-review.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-leave-visit-review.logic (ai-cmd-customer-4.12.1)', () => {
   const booking = {
@@ -13,7 +14,9 @@ describe('ai-leave-visit-review.logic (ai-cmd-customer-4.12.1)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),

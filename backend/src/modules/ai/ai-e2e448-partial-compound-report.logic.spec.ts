@@ -74,7 +74,9 @@ describe('e2e-bug.448 — partial catalog compound reporting', () => {
 
   it('names the work that already landed in the summary', async () => {
     const r = await run();
-    expect(r.summary).toMatch(/Completed before stopping: bulk create catalog\./);
+    expect(r.summary).toMatch(
+      /Completed before stopping: bulk create catalog\./,
+    );
   });
 
   it('exposes completedSteps separately from the step list', async () => {

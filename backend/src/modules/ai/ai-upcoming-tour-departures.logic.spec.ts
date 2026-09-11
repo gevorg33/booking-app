@@ -1,4 +1,7 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { handleListUpcomingTourDeparturesLogic } from './ai-upcoming-tour-departures.logic.js';
@@ -7,21 +10,21 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
   const departureDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
   const departureDate2 = addDaysToDateKey(departureDate, 3, 'UTC');
 
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: '3-Day Mountain Trek',
     metadata: { serviceType: 'tour', maxGroupSize: 8 },
-  };
+  });
 
-  const cityTour = {
+  const cityTour = makeService({
     id: 'svc-city',
     name: 'City Tour',
     metadata: { serviceType: 'tour', maxGroupSize: 12 },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
@@ -31,9 +34,9 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         ),
         metadata: { paxCount: 3, tourStartDate: departureDate },
         service: mountainTrek,
-        customer: { name: 'Alice' },
-      },
-      {
+        customer: makeCustomer({ name: 'Alice' }),
+      }),
+      makeBooking({
         id: 'bk-2',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
@@ -43,9 +46,9 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         ),
         metadata: { paxCount: 2, tourStartDate: departureDate },
         service: mountainTrek,
-        customer: { name: 'Bob' },
-      },
-      {
+        customer: makeCustomer({ name: 'Bob' }),
+      }),
+      makeBooking({
         id: 'bk-3',
         serviceId: 'svc-city',
         status: BookingStatus.CONFIRMED,
@@ -53,9 +56,9 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         endTime: new Date(`${departureDate2}T17:00:00.000Z`),
         metadata: { paxCount: 4, tourStartDate: departureDate2 },
         service: cityTour,
-        customer: { name: 'Carol' },
-      },
-      {
+        customer: makeCustomer({ name: 'Carol' }),
+      }),
+      makeBooking({
         id: 'bk-pending',
         serviceId: 'svc-city',
         status: BookingStatus.PENDING,
@@ -63,8 +66,8 @@ describe('ai-upcoming-tour-departures.logic (ai-cmd-tour-8)', () => {
         endTime: new Date(`${departureDate2}T17:00:00.000Z`),
         metadata: { paxCount: 5, tourStartDate: departureDate2 },
         service: cityTour,
-        customer: { name: 'Dan' },
-      },
+        customer: makeCustomer({ name: 'Dan' }),
+      }),
     ]),
   };
 

@@ -1637,7 +1637,11 @@ describe('ai-catalog.logic', () => {
           {
             compoundSteps: [
               catalogStep,
-              { action: action as any, params: {}, segment: 'turn on online payment' },
+              {
+                action: action as any,
+                params: {},
+                segment: 'turn on online payment',
+              },
             ],
           },
           services,
@@ -1679,7 +1683,9 @@ describe('ai-catalog.logic', () => {
         const result = await run(undefined);
 
         expect(result.success).toBe(false);
-        expect((result.details as any).failedStep).toBe('enable_online_payment');
+        expect((result.details as any).failedStep).toBe(
+          'enable_online_payment',
+        );
       });
 
       it('reports the catalog work that landed before a delegate failure', async () => {

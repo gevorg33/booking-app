@@ -1,4 +1,6 @@
 import { BULK_ASSIGN_SERVICES_CATEGORY_PROMPTS } from './ai-bulk-assign-services-category.fixtures.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { handleBulkAssignServicesCategoryLogic } from './ai-bulk-assign-services-category.logic.js';
 import { rescueCatalogIntent } from './ai-catalog.util.js';
 
@@ -14,7 +16,7 @@ describe('bulk_assign_services_category AI scenarios', () => {
   ];
 
   const categoryService = {
-    findAll: jest.fn(async () => [{ id: 'cat-hair', name: 'Hair' }]),
+    findAll: jest.fn(async () => [makeService({ id: 'cat-hair', name: 'Hair' })]),
   };
 
   const serviceService = {

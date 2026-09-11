@@ -165,15 +165,6 @@ describe('AI-ROADMAP Phase 1 — CommandSpec conformance with the live registry'
       // A real defect with a ready fix, held only by credentials.
       // `onboarding.apply_playbook` [T3] documents `clinic.apply_playbook`'s
       // [T3] example; `ai-onboarding.fixtures.ts` says outright this string is
-      // NOT the onboarding command. The one-line fix is to replace it with the
-      // fixture's own trigger, 'apply our vertical playbook' — but any edit to a
-      // spec's description or examples changes `commandMatchText` and so
-      // invalidates the committed embedding cache, and
-      // `npm run build:ai-embeddings` needs OPENAI_API_KEY (e2e-bug.390's gate,
-      // §82's seven-point lesson). Applied and reverted here rather than left
-      // failing the chain. Whoever holds the key: make the swap, run the
-      // rebuild, drop this entry. See e2e-bug.518.
-      ['dashboard', 'apply the clinic playbook'],
     ];
     const seen = new Map<string, string[]>();
     for (const spec of COMMAND_SPECS)
@@ -244,7 +235,11 @@ describe('AI-ROADMAP Phase 1 — CommandSpec conformance with the live registry'
     const KNOWN: ReadonlyArray<readonly [string, string]> = [
       ['customer', 'turn on notifications'],
       ['dashboard', 'what are the ai settings'],
-      ['dashboard', 'apply the clinic playbook'],
+      // e2e-bug.518 — 'apply the clinic playbook' was removed on 2026-09-11.
+      // The onboarding spec now carries the fixture's own trigger, 'apply our
+      // vertical playbook', and the embedding cache was rebuilt in the same
+      // change. This assertion is what surfaced the stale entry: the collision
+      // was gone while the exemption still claimed it.
     ];
     for (const [surface, example] of KNOWN) {
       const owners = COMMAND_SPECS.filter(

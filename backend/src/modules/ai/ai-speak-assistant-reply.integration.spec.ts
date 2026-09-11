@@ -9,14 +9,16 @@ import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai speak assistant reply integration (ai-cmd-customer-4.19.2)', () => {
   it.each(SPEAK_ASSISTANT_REPLY_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'speak_assistant_reply',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'speak_assistant_reply',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

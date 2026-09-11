@@ -26,13 +26,17 @@ describe('explain_provider_availability no longer answers sign-in handoffs', () 
     // auth provider. These carry at most two of the three, and must be
     // unaffected — a decline that costs the detector its own traffic is not a
     // narrowing, it is a deletion.
-    expect(isExplainProviderAvailabilityPrompt('Is Karo Mazmanyan free tomorrow?')).toBe(
+    expect(
+      isExplainProviderAvailabilityPrompt('Is Karo Mazmanyan free tomorrow?'),
+    ).toBe(true);
+    expect(
+      isExplainProviderAvailabilityPrompt(
+        'When is Mariam available this week?',
+      ),
+    ).toBe(true);
+    expect(isExplainProviderAvailabilityPrompt('who has openings today')).toBe(
       true,
     );
-    expect(isExplainProviderAvailabilityPrompt('When is Mariam available this week?')).toBe(
-      true,
-    );
-    expect(isExplainProviderAvailabilityPrompt('who has openings today')).toBe(true);
   });
 });
 

@@ -53,11 +53,20 @@ describe('e2e-bug.130 gift-card purchase vs multi-service / budget', () => {
           params: {},
           surface: row.surface,
         });
-        expect(result?.action).toBe(row.expectedAction);
+        // e2e-bug.516 — a surface may only answer with an action it can run.
+        const expectedOnSurface =
+          (row as { rescuedActionOnSurface?: string }).rescuedActionOnSurface ??
+          row.expectedAction;
+        expect(result?.action).toBe(expectedOnSurface);
         expect(result?.action).not.toBe('check_multi_service_availability');
         expect(result?.action).not.toBe('list_services');
         expect(result?.action).not.toBe('apply_gift_card_code');
-        if (row.amount != null) {
+        // The face value is only carried when the surface actually resolves to
+        // the purchase. e2e-bug.516's `booking_help` surrogate is not a
+        // purchase and deliberately carries no `amount` — asserting one here
+        // would be asserting that the guest surface prepared a payment it
+        // cannot execute.
+        if (row.amount != null && expectedOnSurface === row.expectedAction) {
           expect(result?.params?.amount).toBe(row.amount);
         }
         expect(result?.params?.paymentMethod).toBeUndefined();

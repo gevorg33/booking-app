@@ -62,7 +62,11 @@ const catalogServices = [
 ];
 
 const employees = [
-  makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
+  makeEmployee({
+    id: 'e1',
+    name: 'Gevorg Gasparyan',
+    serviceIds: ['s1', 's2', 's4'],
+  }),
   makeEmployee({ id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] }),
 ];
 
@@ -941,7 +945,11 @@ describe('ai-category-assignment.util', () => {
       const result = resolveTransferEmployeeServicesInput(
         [
           { id: 'e9', name: 'Bare Provider' },
-          makeEmployee({ id: 'e2', name: 'Maria Lopez', serviceIds: ['s1', 's2'] }),
+          makeEmployee({
+            id: 'e2',
+            name: 'Maria Lopez',
+            serviceIds: ['s1', 's2'],
+          }),
         ],
         catalogServices,
         {
@@ -986,7 +994,11 @@ describe('ai-category-assignment.util', () => {
   describe('resolveScopedEmployeeServices', () => {
     it('uses unassignFromCategory branch for category scope', () => {
       const scoped = resolveScopedEmployeeServices(
-        makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
+        makeEmployee({
+          id: 'e1',
+          name: 'Gevorg Gasparyan',
+          serviceIds: ['s1', 's2', 's4'],
+        }),
         catalogServices,
         {
           categoryName: 'Color',
@@ -999,7 +1011,11 @@ describe('ai-category-assignment.util', () => {
 
     it('uses categoryName-only branch when flags are false', () => {
       const scoped = resolveScopedEmployeeServices(
-        makeEmployee({ id: 'e1', name: 'Gevorg Gasparyan', serviceIds: ['s1', 's2', 's4'] }),
+        makeEmployee({
+          id: 'e1',
+          name: 'Gevorg Gasparyan',
+          serviceIds: ['s1', 's2', 's4'],
+        }),
         catalogServices,
         {
           categoryName: 'Color',

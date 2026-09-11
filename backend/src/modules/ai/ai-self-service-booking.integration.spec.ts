@@ -160,7 +160,8 @@ describe('Sprint 36 customer booking AI scenarios', () => {
           createQueryBuilder: () => ({
             setLock: () => ({
               where: () => ({
-                getOne: async () => bookingRepo.findOne({ where: { id: 'book-1' } }),
+                getOne: async () =>
+                  bookingRepo.findOne({ where: { id: 'book-1' } }),
               }),
             }),
           }),

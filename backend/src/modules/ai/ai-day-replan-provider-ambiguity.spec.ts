@@ -19,8 +19,14 @@ import { AiBookingCoreService } from './ai-booking-core.service.js';
 const employee = (id: string, name: string) =>
   ({ id, name, isActive: true }) as never;
 
-const NAMESAKES = [employee('emp-1', 'John Smith'), employee('emp-2', 'John Smith')];
-const DISTINCT = [employee('emp-1', 'John Smith'), employee('emp-2', 'Maria Lopez')];
+const NAMESAKES = [
+  employee('emp-1', 'John Smith'),
+  employee('emp-2', 'John Smith'),
+];
+const DISTINCT = [
+  employee('emp-1', 'John Smith'),
+  employee('emp-2', 'Maria Lopez'),
+];
 
 /**
  * `executing: false` makes `executePlan` throw, so a refusal that leaks fails
@@ -43,7 +49,11 @@ function buildService({ executing = false } = {}) {
   return svc;
 }
 
-const call = (svc: any, params: Record<string, unknown>, employees: unknown[]) =>
+const call = (
+  svc: any,
+  params: Record<string, unknown>,
+  employees: unknown[],
+) =>
   svc.handleDayReplan(
     'biz-1',
     'replan tomorrow for John',
@@ -57,7 +67,11 @@ const call = (svc: any, params: Record<string, unknown>, employees: unknown[]) =
 describe('day_replan provider ambiguity (D5, §232)', () => {
   it('replans nothing when two providers share the named person', async () => {
     const svc = buildService();
-    const result: any = await call(svc, { employeeName: 'John Smith' }, NAMESAKES);
+    const result: any = await call(
+      svc,
+      { employeeName: 'John Smith' },
+      NAMESAKES,
+    );
 
     expect(result.success).toBe(false);
     expect(svc.orchestration.executePlan).not.toHaveBeenCalled();
@@ -74,7 +88,9 @@ describe('day_replan provider ambiguity (D5, §232)', () => {
     expect(result.details?.clarify).toBe(true);
     expect(result.details?.requestedName).toBe('John Smith');
     expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
+      (result.details.candidates as Array<{ id: string }>)
+        .map((c) => c.id)
+        .sort(),
     ).toEqual(['emp-1', 'emp-2']);
   });
 
@@ -100,7 +116,11 @@ describe('day_replan provider ambiguity (D5, §232)', () => {
 
   it('proceeds for an unambiguous provider', async () => {
     const svc = buildService({ executing: true });
-    const result: any = await call(svc, { employeeName: 'John Smith' }, DISTINCT);
+    const result: any = await call(
+      svc,
+      { employeeName: 'John Smith' },
+      DISTINCT,
+    );
 
     expect(result.details?.candidates).toBeUndefined();
     expect(svc.planBuilder.buildDayReplanPlan).toHaveBeenCalled();

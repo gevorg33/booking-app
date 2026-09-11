@@ -28,7 +28,9 @@ describe('integration credentials are redacted from command details', () => {
   describe('configure_openai_integration', () => {
     it('does not return the api key on the success branch', async () => {
       const result: any = await handleConfigureOpenaiIntegrationLogic(
-        openaiDeps(jest.fn().mockResolvedValue({ usingPlatformDefault: false })),
+        openaiDeps(
+          jest.fn().mockResolvedValue({ usingPlatformDefault: false }),
+        ),
         'biz-1',
         { apiKey: API_KEY, usePlatformDefault: false },
         `set the openai key to ${API_KEY}`,
@@ -59,7 +61,9 @@ describe('integration credentials are redacted from command details', () => {
   describe('configure_whatsapp_integration', () => {
     it('does not return the access token on the success branch', async () => {
       const result: any = await handleConfigureWhatsappIntegrationLogic(
-        whatsappDeps(jest.fn().mockResolvedValue({ usingPlatformDefault: false })),
+        whatsappDeps(
+          jest.fn().mockResolvedValue({ usingPlatformDefault: false }),
+        ),
         'biz-1',
         { accessToken: ACCESS_TOKEN, usePlatformDefault: false },
         `set the whatsapp token to ${ACCESS_TOKEN}`,
@@ -72,7 +76,9 @@ describe('integration credentials are redacted from command details', () => {
 
     it('does not return the access token on the failure branch either', async () => {
       const result: any = await handleConfigureWhatsappIntegrationLogic(
-        whatsappDeps(jest.fn().mockRejectedValue(new Error('upstream refused'))),
+        whatsappDeps(
+          jest.fn().mockRejectedValue(new Error('upstream refused')),
+        ),
         'biz-1',
         { accessToken: ACCESS_TOKEN, usePlatformDefault: false },
         `set the whatsapp token to ${ACCESS_TOKEN}`,

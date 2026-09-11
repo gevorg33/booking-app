@@ -60,14 +60,16 @@ describe('ai consumer checkout success integration (ai-cmd-rec-6)', () => {
       };
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_consumer_checkout_success',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_consumer_checkout_success',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

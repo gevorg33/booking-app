@@ -1,4 +1,5 @@
 import { CommandCompletionPipelineService } from './command-completion.pipeline.service.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { CommandReasoningService } from './command-reasoning.service.js';
 import {
   handleCheckProvidersForServiceLogic,
@@ -102,7 +103,9 @@ function buildDeps(
     subscriptionsService: {} as any,
     bookingRepo: {} as any,
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     serviceRepo: {
       find: jest.fn(async ({ where }: any = {}) => {

@@ -92,7 +92,10 @@ describe('D1 — "same <contact field>" is not a prior-visit cue', () => {
     ['Book the same service again', 'again'],
     ['Rebook my last appointment', 'explicit rebook'],
     ['Book the same service', 'bare "same" still counts'],
-    ['Book the same service again with the same phone', 'again outranks the carve-out'],
+    [
+      'Book the same service again with the same phone',
+      'again outranks the carve-out',
+    ],
     ['Book the same appointment', 'appointment'],
     ['Book the same time slot', 'time'],
     ['Book me the same as before', '"same as" with no noun'],
@@ -105,7 +108,9 @@ describe('D1 — "same <contact field>" is not a prior-visit cue', () => {
     // Not a regression from the whitelist: this returns false at the top of the
     // function, before any prior-visit reasoning. Pinned because "same stylist"
     // reads like a rebook cue and a future edit might well add it.
-    expect(hasRebookLastAppointmentCoreCue('Book the same stylist')).toBe(false);
+    expect(hasRebookLastAppointmentCoreCue('Book the same stylist')).toBe(
+      false,
+    );
     // e2e-bug.450, fixed 2026-08-20 — this now resolves. It used to be false
     // because `\bbook\b` does not match "Rebook" and `same as last` requires
     // the two words to be adjacent, so "same **stylist** as last" reached
@@ -143,12 +148,16 @@ describe('D1 — "same <contact field>" is not a prior-visit cue', () => {
       // block, so widening it did not take provider picks away from
       // `pick_provider_for_service`.
       expect(
-        hasRebookLastAppointmentCoreCue('Book the same therapist as last visit'),
+        hasRebookLastAppointmentCoreCue(
+          'Book the same therapist as last visit',
+        ),
       ).toBe(false);
       // …and adding the explicit word flips it, which is the distinction the
       // block is drawing.
       expect(
-        hasRebookLastAppointmentCoreCue('Rebook the same therapist as last visit'),
+        hasRebookLastAppointmentCoreCue(
+          'Rebook the same therapist as last visit',
+        ),
       ).toBe(true);
     });
   });

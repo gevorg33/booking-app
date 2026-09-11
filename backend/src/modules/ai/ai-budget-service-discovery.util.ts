@@ -891,12 +891,65 @@ export function resolveBudgetMisrouteAction(prompt: string): string | null {
   return null;
 }
 
+/** The dashboard's own surrogates, previously inline `if`s in the resolver. */
+const DASHBOARD_BUDGET_MISROUTE_ACTION: Record<string, string> = {
+  discover_packages: 'list_packages',
+  apply_gift_card_code: 'validate_gift_card',
+  check_gift_card_balance: 'validate_gift_card',
+  discover_subscription_plans: 'list_subscription_plans',
+};
+
 const PUBLIC_BUDGET_MISROUTE_ACTION: Record<string, string> = {
   discover_packages: 'booking_help',
   // e2e-bug.231 — public booking now executes gift-card apply/check; keep them.
   // Only packages/subscriptions stay surrogate-mapped to booking_help.
   discover_subscription_plans: 'booking_help',
 };
+
+/**
+ * e2e-bug.516 — never surrogate a mutation onto a surface that disowns it.
+ *
+ * `resolveBudgetMisrouteActionForSurface` used to end `return
+ * PUBLIC_BUDGET_MISROUTE_ACTION[misroute] ?? misroute`, i.e. anything absent
+ * from a two-entry map reached the guest surface untouched. Measured: that map
+ * surrogates the two actions public *is* allowed to run (`discover_packages`,
+ * `discover_subscription_plans`) and passes through the customer-only
+ * gift-card ones. Four of those are `risk: 'T2'` with `surfaces: ['customer']`
+ * and `tiers: { customer: ['client'] }` — `apply_gift_card_code`,
+ * `buy_gift_card`, `buy_gift_card_for_someone`, `buy_gift_card_physical` — so
+ * an unauthenticated guest prompt could route straight at a payment mutation.
+ * The dashboard branch ended the same way, with the same actions.
+ *
+ * Gated on **mutation**, not on `surfaces` alone. Failing closed for anything a
+ * surface does not declare was the first version and it broke a passing
+ * dashboard case: `explain_checkout_currency` is `risk: 'T0'` and declares
+ * `['public', 'customer']`, so a fixture that legitimately expects it on the
+ * dashboard started returning the surrogate. `surfaces` is demonstrably
+ * under-declared for read commands (that is e2e-bug.462's residue), so treating
+ * it as an oracle turns spec gaps into behaviour regressions. Mutation is the
+ * property that actually carries the harm here, and it is read from the
+ * registry rather than re-derived.
+ *
+ * `booking_help` is the surrogate the map already uses for "this surface cannot
+ * do that", so nothing new is invented for the closed case.
+ */
+function surrogateBudgetMisrouteForSurface(
+  misroute: string,
+  surface: 'public' | 'dashboard',
+  mapped: string | undefined,
+): string {
+  if (mapped) return mapped;
+  // Loaded lazily to break a cycle: this module is reachable from
+  // `ai-command-registry.build.ts` (via the CRM/payments utils), so importing
+  // the registry at module scope leaves its intent lists undefined at init and
+  // every suite that touches this file fails to load. Same reason, and the same
+  // shape, as the deferred require in `ai-flexible-availability.util.ts`.
+  const { isIntentAllowedOnSurface, isRegistryMutating } =
+    require('./ai-command-registry.util.js') as typeof import('./ai-command-registry.util.js');
+  if (!isRegistryMutating(misroute)) return misroute;
+  if (isIntentAllowedOnSurface(misroute, surface)) return misroute;
+  return 'booking_help';
+}
 
 /** Surface-specific misroute — public web has no discover_packages / subscription catalog. */
 export function resolveBudgetMisrouteActionForSurface(
@@ -907,17 +960,18 @@ export function resolveBudgetMisrouteActionForSurface(
   if (!misroute) return null;
   if (surface === 'customer') return misroute;
   if (surface === 'dashboard') {
-    if (misroute === 'discover_packages') return 'list_packages';
-    if (misroute === 'apply_gift_card_code') return 'validate_gift_card';
-    if (misroute === 'check_gift_card_balance') {
-      return 'validate_gift_card';
-    }
-    if (misroute === 'discover_subscription_plans') {
-      return 'list_subscription_plans';
-    }
-    return misroute;
+    const dashboardMapped = DASHBOARD_BUDGET_MISROUTE_ACTION[misroute];
+    return surrogateBudgetMisrouteForSurface(
+      misroute,
+      'dashboard',
+      dashboardMapped,
+    );
   }
-  return PUBLIC_BUDGET_MISROUTE_ACTION[misroute] ?? misroute;
+  return surrogateBudgetMisrouteForSurface(
+    misroute,
+    'public',
+    PUBLIC_BUDGET_MISROUTE_ACTION[misroute],
+  );
 }
 
 /** Post-LLM enrichment — set maxPrice when classifier missed it (budget-1.3). */

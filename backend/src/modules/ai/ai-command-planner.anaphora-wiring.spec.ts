@@ -28,7 +28,10 @@ const SRC = readFileSync(
 describe('B4 — the planner calls the anaphora pass', () => {
   it('imports it at all — the thing the ticket says was missing', () => {
     expect(SRC).toMatch(
-      /import \{ applyAnaphoraToPlan \} from '\.\/ai-anaphora\.util\.js';/,
+      // e2e-bug.370 widened this to a multi-line import that also brings in
+      // `applyConversationRefsToPlan`. The claim is that the intra-plan pass is
+      // imported, not the exact shape of the statement.
+      /import \{[^}]*\bapplyAnaphoraToPlan\b[^}]*\} from '\.\/ai-anaphora\.util\.js';/,
     );
   });
 
@@ -49,7 +52,9 @@ describe('B4 — the planner calls the anaphora pass', () => {
     const guard = before.lastIndexOf('if (!validation.executable)');
     expect(guard).toBeGreaterThan(-1);
     // …and only for steps validation actually reported as short a variable.
-    expect(before.slice(guard)).toContain("problem.code === 'missing_variables'");
+    expect(before.slice(guard)).toContain(
+      "problem.code === 'missing_variables'",
+    );
   });
 
   it('re-validates the rewritten plan instead of trusting the rewrite', () => {
@@ -80,5 +85,48 @@ describe('B4 — the planner calls the anaphora pass', () => {
     // the negative control, which is what that control is for.
     expect(apply).toBeGreaterThan(-1);
     expect(SRC.slice(apply)).not.toContain('decoded.plan');
+  });
+});
+
+/**
+ * e2e-bug.370 — the cross-turn half is wired, not just written.
+ *
+ * Same shape as the B4 assertions above, for the same reason: the binder can
+ * be perfectly correct and the planner can still hand it `null`, and no unit
+ * test of the binder would notice. Negative-controlled by replacing the
+ * argument with `null` — this fails, the binder's own tests do not.
+ */
+describe('e2e-bug.370 — the planner consults the conversation store', () => {
+  const SRC = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, 'ai-command-planner.service.ts'),
+    'utf8',
+  ) as string;
+
+  it('calls the cross-turn binder', () => {
+    expect(SRC.indexOf('applyConversationRefsToPlan(')).toBeGreaterThan(-1);
+  });
+
+  it('passes the store from the planner context', () => {
+    const at = SRC.indexOf('applyConversationRefsToPlan(');
+    expect(SRC.slice(at, at + 400)).toContain('request.context.entityStore');
+  });
+
+  it('runs after the intra-plan pass, which is more specific', () => {
+    // A referent inside this plan beats one from a previous turn.
+    expect(SRC.indexOf('applyConversationRefsToPlan(')).toBeGreaterThan(
+      SRC.indexOf('applyAnaphoraToPlan('),
+    );
+  });
+
+  it('the pipeline threads the store into the planner context', () => {
+    const pipeline = require('node:fs').readFileSync(
+      require('node:path').join(
+        __dirname,
+        'command-understanding-pipeline.service.ts',
+      ),
+      'utf8',
+    ) as string;
+    expect(pipeline).toContain('_conversationEntityStore');
+    expect(pipeline).toContain('_conversationTurnIndex');
   });
 });

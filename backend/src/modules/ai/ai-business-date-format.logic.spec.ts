@@ -13,6 +13,8 @@ import {
   handleNotifyPatientResultReadyLogic,
   handlePreviewNotificationDatetimeLogic,
 } from './ai-business-date-format.logic.js';
+import type { ResultReadyDeliverySummary } from '../notifications/notifications.service.js';
+import { makeClinicTestResult } from '../clinic-test-results/entities/clinic-test-result.test-fixture.js';
 import {
   DASHBOARD_DATE_SURFACE_DEFERRED,
   DASHBOARD_DATE_SURFACE_MIGRATED,
@@ -34,13 +36,15 @@ describe('ai-business-date-format.logic (ai-cmd-fmt-1..2)', () => {
     save: jest.fn(async (b: Business) => b),
   };
   const resultRepo = {
-    findOne: jest.fn(async () => ({ id: 'result-1' })),
-    find: jest.fn(async () => [{ id: 'result-1' }]),
+    findOne: jest.fn(async () => makeClinicTestResult({ id: 'result-1' })),
+    find: jest.fn(async () => [makeClinicTestResult({ id: 'result-1' })]),
   };
-  const sendClinicResultReady = jest.fn(async () => ({
-    delivered: ['email', 'whatsapp'],
-    pushSkippedReason: 'consumer_push_tokens_not_available',
-  }));
+  const sendClinicResultReady = jest.fn(
+    async (): Promise<ResultReadyDeliverySummary> => ({
+      delivered: ['email', 'whatsapp'],
+      pushSkippedReason: 'consumer_push_tokens_not_available',
+    }),
+  );
 
   const deps = () => ({
     businessRepo,

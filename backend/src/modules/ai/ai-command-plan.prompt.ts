@@ -9,6 +9,7 @@
  * Deterministic and pure, so the exact text the model receives is testable.
  */
 import type { AccessTier } from './access-control.matrix.js';
+import type { EntityStore } from './ai-entity-store.util.js';
 import type { CommandSurface } from './ai-command-registry.types.js';
 import { buildPlannerShortlist } from './ai-command-spec.derive.js';
 import type { CommandSpec } from './ai-command-spec.types.js';
@@ -24,6 +25,15 @@ export type PlannerContext = {
    * from the session entity store.
    */
   knownEntities?: Record<string, string>;
+  /**
+   * e2e-bug.370 — the conversation's entity store, loaded by the e2e-bug.401
+   * carrier and written by e2e-bug.373's recorder. The planner binds a
+   * cross-turn anaphor ("book it") against it deterministically, after the
+   * intra-plan resolver has had its turn.
+   */
+  entityStore?: EntityStore | null;
+  /** e2e-bug.370 — user-turn number from the carrier; staleness is measured in turns. */
+  turnIndex?: number;
   /** Verbatim recent turns, oldest first. */
   recentTurns?: { role: 'user' | 'assistant'; text: string }[];
 };

@@ -85,17 +85,19 @@ describe('ai package display name integration (ai-cmd-lang-7)', () => {
       });
       expect(rescued?.action).toBe('explain_package_display_name');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_package_display_name',
-        params: {
-          packageName,
-          ...(locale ? { locale } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_package_display_name',
+          params: {
+            packageName,
+            ...(locale ? { locale } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainPackageDisplayNameLogic(

@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleShareMyBookingLogic } from './ai-share-my-booking.logic.js';
 import {
   SHARE_MY_BOOKING_PROMPTS,
@@ -21,7 +22,9 @@ describe('ai-share-my-booking integration (ai-cmd-customer-4.3.7)', () => {
       })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
   });
 
@@ -34,14 +37,16 @@ describe('ai-share-my-booking integration (ai-cmd-customer-4.3.7)', () => {
   it.each(SHARE_MY_BOOKING_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, bookingId }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'share_my_booking',
-        params: bookingId ? { bookingId } : {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'share_my_booking',
+          params: bookingId ? { bookingId } : {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleShareMyBookingLogic(

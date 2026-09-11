@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { PublicCustomerBookingService } from '../public-booking/public-customer-booking.service.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
@@ -14,7 +17,7 @@ import {
 } from './ai-cancel-package-visit-self.util.js';
 
 export interface CancelPackageVisitSelfLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   publicCustomerBookingService: Pick<
     PublicCustomerBookingService,
     'cancelPackageVisit'

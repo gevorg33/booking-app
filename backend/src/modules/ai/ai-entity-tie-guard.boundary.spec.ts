@@ -33,29 +33,87 @@ type Guard =
 /** file → method → the guard it must keep. */
 const GUARDED: ReadonlyArray<readonly [string, string, Guard]> = [
   // §231–§233, §237 — booking-core writers
-  ['ai-booking-core.service.ts', 'handleBulkSmartCancel', 'resolveServicesVerdict'],
-  ['ai-booking-core.service.ts', 'handleUpdateBookings', 'resolveServicesVerdict'],
-  ['ai-booking-core.service.ts', 'handleCancelBookings', 'resolveServicesVerdict'],
-  ['ai-booking-core.service.ts', 'handleHideAppointmentsFromCalendar', 'resolveServicesVerdict'],
-  ['ai-booking-core.service.ts', 'handleUnhideAppointmentsFromCalendar', 'resolveServicesVerdict'],
+  [
+    'ai-booking-core.service.ts',
+    'handleBulkSmartCancel',
+    'resolveServicesVerdict',
+  ],
+  [
+    'ai-booking-core.service.ts',
+    'handleUpdateBookings',
+    'resolveServicesVerdict',
+  ],
+  [
+    'ai-booking-core.service.ts',
+    'handleCancelBookings',
+    'resolveServicesVerdict',
+  ],
+  [
+    'ai-booking-core.service.ts',
+    'handleHideAppointmentsFromCalendar',
+    'resolveServicesVerdict',
+  ],
+  [
+    'ai-booking-core.service.ts',
+    'handleUnhideAppointmentsFromCalendar',
+    'resolveServicesVerdict',
+  ],
   ['ai-booking-core.service.ts', 'handleDayReplan', 'resolveEmployeesVerdict'],
   // §226–§227, §231, §233–§234 — schedule writers
-  ['ai-schedule-handlers.service.ts', 'handleDeleteScheduleTemplates', 'resolveEntity'],
-  ['ai-schedule-handlers.service.ts', 'handleApplySchedule', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleBlockSchedule', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleFillScheduleGaps', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleTemplateCascade', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleCreateDirectSchedule', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleDeleteScheduleBlock', 'resolveEmployeesVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleUpdateScheduleTemplate', 'resolveTemplateVerdict'],
-  ['ai-schedule-handlers.service.ts', 'handleDuplicateScheduleTemplate', 'resolveTemplateVerdict'],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleDeleteScheduleTemplates',
+    'resolveEntity',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleApplySchedule',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleBlockSchedule',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleFillScheduleGaps',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleTemplateCascade',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleCreateDirectSchedule',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleDeleteScheduleBlock',
+    'resolveEmployeesVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleUpdateScheduleTemplate',
+    'resolveTemplateVerdict',
+  ],
+  [
+    'ai-schedule-handlers.service.ts',
+    'handleDuplicateScheduleTemplate',
+    'resolveTemplateVerdict',
+  ],
 ];
 
 function methodBody(file: string, method: string): string | null {
   const src = fs.readFileSync(path.join(__dirname, file), 'utf8');
   const lines = src.split('\n');
   const start = lines.findIndex((l) =>
-    new RegExp(`^  (?:private |public |protected )?(?:async )?${method}\\s*\\(`).test(l),
+    new RegExp(
+      `^  (?:private |public |protected )?(?:async )?${method}\\s*\\(`,
+    ).test(l),
   );
   if (start === -1) return null;
   const end = lines.findIndex(
@@ -93,7 +151,10 @@ describe('D5 — writing handlers refuse an ambiguous name (§239)', () => {
       // The guard's result is always bound, sometimes through a ternary whose
       // other arm short-circuits (`allProviders ? … : guard(…)`, §231).
       const binding = /const (\w+)\s*=[^;]*$/.exec(body.slice(0, at))?.[1];
-      expect({ method, binding }).toEqual({ method, binding: expect.any(String) });
+      expect({ method, binding }).toEqual({
+        method,
+        binding: expect.any(String),
+      });
       // That exact binding must be tested for ambiguity, and the return must sit
       // INSIDE the block — `[^}]` not `[\\s\\S]`, because a block that only logs
       // and falls through matched a `return` in the statement after it (§239).

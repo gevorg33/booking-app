@@ -36,14 +36,16 @@ describe('ai recommendation analytics integration (ai-cmd-rec-8)', () => {
       const params: Record<string, unknown> = {};
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_recommendation_analytics',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_recommendation_analytics',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

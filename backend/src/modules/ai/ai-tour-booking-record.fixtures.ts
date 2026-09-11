@@ -19,7 +19,22 @@ export const CUSTOMER_TOUR_BOOKING_RECORD_CLASSIFIER_RULES = `- explain_tour_boo
   - "Какой номер подтверждения моего тура?" → explain_tour_booking_record, aspect=confirmationNumber
   - "Ամփոփիր իմ խմբային ամրագրումը" → explain_tour_booking_record, aspect=all`;
 
-export const EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ExplainTourBookingRecordPromptFixture = {
+  id: string;
+  prompt: string;
+  bookingId?: string;
+  aspect:
+    | 'all'
+    | 'calendarSpan'
+    | 'confirmationNumber'
+    | 'dates'
+    | 'paxCount'
+    | 'specialRequirements';
+  customerName?: string;
+};
+
+export const EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS: readonly ExplainTourBookingRecordPromptFixture[] = [
   {
     id: 'explain-record-bk-tour-1',
     prompt: 'Explain tour booking record for booking bk-tour-1 — pax and dates',
@@ -94,7 +109,7 @@ export const EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS = [
     bookingId: 'bk-tour-1',
     aspect: 'paxCount' as const,
   },
-] as const;
+];
 
 export const EXPLAIN_TOUR_BOOKING_RECORD_CUSTOMER_PROMPTS = [
   {

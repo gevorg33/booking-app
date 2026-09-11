@@ -48,9 +48,9 @@ describe('ai-catalog-service-localized-names.logic', () => {
 
   it('skips locales already provided explicitly', async () => {
     // Declares the arity so `toHaveBeenCalledWith` below can name four arguments.
-    const completeJson = jest.fn(
-      async (..._args: unknown[]) => ({ ru: 'Мужская стрижка' }),
-    );
+    const completeJson = jest.fn(async (..._args: unknown[]) => ({
+      ru: 'Мужская стрижка',
+    }));
     const openAi = mockOpenAi(completeJson);
 
     const result = await resolveCreateServiceLocalizedNames(openAi, {

@@ -430,11 +430,9 @@ describe('e2e-bug.443 — clinical patient lookup query', () => {
 
   const findArgs = async (name: string) => {
     customerRepo.find.mockResolvedValue([]);
-    await resolvePatientClinicalCustomer(
-      { customerRepo } as any,
-      'biz-1',
-      { customerName: name },
-    );
+    await resolvePatientClinicalCustomer({ customerRepo } as any, 'biz-1', {
+      customerName: name,
+    });
     return customerRepo.find.mock.calls.at(-1)?.[0] ?? {};
   };
 

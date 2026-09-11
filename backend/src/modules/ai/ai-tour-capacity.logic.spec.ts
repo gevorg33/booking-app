@@ -1,23 +1,25 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
 import { handleDiagnoseTourCapacityLogic } from './ai-tour-capacity.logic.js';
 
 describe('ai-tour-capacity.logic (ai-cmd-tour-9)', () => {
-  const mountainTrek = {
+  const mountainTrek = makeService({
     id: 'svc-mountain',
     name: '3-Day Mountain Trek',
     metadata: { serviceType: 'tour', maxGroupSize: 8 },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-mountain',
         status: BookingStatus.CONFIRMED,
         startTime: new Date('2026-08-15T08:00:00.000Z'),
         endTime: new Date('2026-08-18T08:00:00.000Z'),
         metadata: { paxCount: 6, tourStartDate: '2026-08-15' },
-      },
+      }),
     ]),
   };
 

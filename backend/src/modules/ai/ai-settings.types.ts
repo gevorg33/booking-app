@@ -93,7 +93,13 @@ export interface RagDocument {
 
 export interface AiRagSettings {
   enabled: boolean;
-  documents: RagDocument[];
+  /**
+   * Optional because the only consumer already reads it that way —
+   * `ai-rag.util.ts:72` is `selectRagDocuments(rag.documents ?? [], prompt)` —
+   * and a settings blob that enables RAG before any document is uploaded is a
+   * real state.
+   */
+  documents?: RagDocument[];
 }
 
 export interface AiSettings {

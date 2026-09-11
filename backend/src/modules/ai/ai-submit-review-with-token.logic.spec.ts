@@ -2,6 +2,7 @@ import {
   handleSubmitReviewWithTokenLogic,
   type SubmitReviewWithTokenLogicDeps,
 } from './ai-submit-review-with-token.logic.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 function buildDeps(
   overrides: Partial<SubmitReviewWithTokenLogicDeps> = {},
@@ -26,7 +27,9 @@ function buildDeps(
       })),
     },
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'salon' }),
+      ),
     } as any,
     ...overrides,
   } as SubmitReviewWithTokenLogicDeps;

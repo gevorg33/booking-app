@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleRecoverLostManageLinkLogic } from './ai-recover-lost-manage-link.logic.js';
 import {
   RECOVER_LOST_MANAGE_LINK_PROMPTS,
@@ -43,7 +44,9 @@ describe('ai-recover-lost-manage-link integration (ai-cmd-customer-4.17.3)', () 
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     bookingRepo: {
       find: jest.fn(async () => guestBookings),
@@ -88,14 +91,16 @@ describe('ai-recover-lost-manage-link integration (ai-cmd-customer-4.17.3)', () 
   it.each(
     RECOVER_LOST_MANAGE_LINK_PROMPTS.filter((row) => row.email || row.phone),
   )('validates and executes guest $id', async ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'recover_lost_manage_link',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'recover_lost_manage_link',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleRecoverLostManageLinkLogic(

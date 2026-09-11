@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import { PrepaymentMode } from '../service/entities/service.entity.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -16,8 +19,8 @@ import {
 } from './ai-pay-at-venue-fallback.util.js';
 
 export interface PayAtVenueFallbackLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  serviceRepo: Pick<Repository<Service>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
+  serviceRepo: EntityReader<Service>;
 }
 
 function failure(

@@ -58,7 +58,14 @@ export const APPLY_CLINIC_PLAYBOOK_PROMPTS = [
   },
 ] as const;
 
-export const EXPLAIN_CLINIC_SERVICES_PROMPTS = [
+/** Declared so the array is one type, not a union of eleven literal shapes. */
+export type ExplainClinicServicesPromptFixture = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+};
+
+export const EXPLAIN_CLINIC_SERVICES_PROMPTS: readonly ExplainClinicServicesPromptFixture[] = [
   {
     id: 'explain-clinic-overview',
     prompt: 'Explain our clinic services and department counts',
@@ -104,7 +111,7 @@ export const EXPLAIN_CLINIC_SERVICES_PROMPTS = [
     prompt: 'Explain clinic settings for CBC',
     serviceName: 'CBC',
   },
-] as const;
+];
 
 /** Declared so the array is one type, not a union of twelve literal shapes. */
 export type ConfigureClinicServicePromptFixture = {

@@ -1,4 +1,5 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import { EXPLAIN_TOUR_BOOKING_RECORD_PROMPTS } from './ai-tour-booking-record.fixtures.js';
 import { handleExplainTourBookingRecordLogic } from './ai-tour-booking-record.logic.js';
@@ -11,7 +12,7 @@ describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
   const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
   const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
-  const tourBooking = {
+  const tourBooking = makeBooking({
     id: 'bk-tour-1',
     businessId: 'biz-tour',
     serviceId: 'svc-2',
@@ -29,7 +30,7 @@ describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
       metadata: { serviceType: 'tour', maxGroupSize: 8 },
     },
     customer: { name: 'John Doe' },
-  };
+  });
 
   const bookingService = {
     findAll: jest.fn(async () => [tourBooking]),
@@ -65,18 +66,20 @@ describe('ai tour booking record integration (ai-cmd-tour-7)', () => {
       });
       expect(rescued?.action).toBe('explain_tour_booking_record');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_tour_booking_record',
-        params: {
-          ...(bookingId ? { bookingId } : {}),
-          ...(customerName ? { customerName } : {}),
-          ...(aspect ? { aspect } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_booking_record',
+          params: {
+            ...(bookingId ? { bookingId } : {}),
+            ...(customerName ? { customerName } : {}),
+            ...(aspect ? { aspect } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourBookingRecordLogic(

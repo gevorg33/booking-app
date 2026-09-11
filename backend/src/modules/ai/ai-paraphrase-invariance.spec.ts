@@ -6,11 +6,32 @@
  * command to a spec file extends the corpus automatically; it cannot drift from
  * the command because it is derived from it.
  *
- * The subject under test is the **deterministic detector layer** — the 786
- * `is*Prompt` regexes the roadmap exists to delete. That is the only layer whose
- * paraphrase behaviour can be measured without a model in the loop: §21
- * established that planner accuracy is answered by the shadow run on real
- * traffic, not by fixtures.
+ * ## Scope: a sample of the detector layer, not coverage of it
+ *
+ * e2e-bug.515 — this docstring used to say the subject under test was "the
+ * deterministic detector layer, the 786 `is*Prompt` regexes". It is not. The
+ * `DETECTORS` map below is hand-maintained at **ten commands**, while the
+ * committed inventory reports **543** detectors whose action comes from their
+ * own symbol name — so this measures roughly **2%** of the population it was
+ * described as covering, and the census in TODO.md §240 found **54.5%** of the
+ * wider population's documented examples unmatched against the ~14% visible
+ * here. The reported figure is sound for these ten commands and is not
+ * representative of the rest.
+ *
+ * That mattered because of how the number reads: a gate described as covering
+ * the detector layer, reporting three misses, invites the conclusion that the
+ * layer has three misses. The measurement was never wrong — the claim was. The
+ * two figures are asserted against the inventory below so this paragraph cannot
+ * quietly go stale the way the ratchet's own ceiling did (see §240).
+ *
+ * Widening to the censused population is a separate decision, not a silent one:
+ * it means either importing 543 detector symbols to call them, or generating
+ * that table — and it would land a ratchet with hundreds of entries, which is a
+ * different kind of gate from this one.
+ *
+ * Within its ten commands, this is the only layer whose paraphrase behaviour
+ * can be measured without a model in the loop: §21 established that planner
+ * accuracy is answered by the shadow run on real traffic, not by fixtures.
  *
  * Two bars, deliberately different:
  *
@@ -211,5 +232,50 @@ describe('AI-ROADMAP Phase 2 — paraphrase invariance', () => {
       );
       expect(totalChecked).toBeGreaterThan(0);
     });
+  });
+});
+
+/**
+ * e2e-bug.515 — the scope claim, asserted rather than written down.
+ *
+ * The header says this suite samples ten commands out of a population of 543.
+ * Both halves of that are facts about the tree, and both drift: someone adds a
+ * command to `DETECTORS`, or the detector layer grows. A stale scope claim is
+ * exactly the defect this ticket was filed for, so it is checked here instead
+ * of trusted — the same reasoning as §240's fix to this suite's own ceiling,
+ * which read `<= 9` while the live count had been 3 for months.
+ */
+describe('e2e-bug.515 — the stated scope is still true', () => {
+  const inventory = JSON.parse(
+    require('node:fs').readFileSync(
+      require('node:path').join(__dirname, 'ai-command-inventory.json'),
+      'utf8',
+    ),
+  ) as { actionSourceCounts: Record<string, number> };
+
+  /** Commands whose action is derived from their own `is<Action>Prompt` name. */
+  const DOCUMENTED_POPULATION = 543;
+  /** What the map above actually covers. */
+  const DOCUMENTED_SAMPLE = 10;
+
+  it('the population the header cites matches the committed inventory', () => {
+    // Fails when the detector layer grows or shrinks, which is the moment to
+    // update the header rather than let it rot.
+    expect(inventory.actionSourceCounts.symbol_name).toBe(
+      DOCUMENTED_POPULATION,
+    );
+  });
+
+  it('the sample the header cites matches the map', () => {
+    expect(Object.keys(DETECTORS)).toHaveLength(DOCUMENTED_SAMPLE);
+  });
+
+  it('is still a sample, so it is never read as coverage', () => {
+    // The substance of e2e-bug.515: a suite reporting three misses while
+    // described as covering the detector layer invites the reading that the
+    // layer has three misses. If the map ever grows enough for that reading to
+    // be fair, this fails and the header should be rewritten to claim it.
+    const pct = (DOCUMENTED_SAMPLE / DOCUMENTED_POPULATION) * 100;
+    expect(pct).toBeLessThan(5);
   });
 });

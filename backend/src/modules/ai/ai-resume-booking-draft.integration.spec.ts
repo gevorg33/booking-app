@@ -9,14 +9,16 @@ import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai resume booking draft integration (ai-cmd-customer-4.18.3)', () => {
   it.each(RESUME_BOOKING_DRAFT_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'resume_booking_draft',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'resume_booking_draft',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

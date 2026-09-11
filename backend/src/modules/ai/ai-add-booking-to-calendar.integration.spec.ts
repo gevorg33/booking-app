@@ -72,14 +72,16 @@ describe('ai add booking to calendar integration (ai-cmd-customer-4.3.2)', () =>
   it.each(ADD_BOOKING_TO_CALENDAR_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, format }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'add_booking_to_calendar',
-        params: { format, bookingId: 'book-1' },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'add_booking_to_calendar',
+          params: { format, bookingId: 'book-1' },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleAddBookingToCalendarLogic(

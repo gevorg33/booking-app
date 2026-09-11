@@ -24,7 +24,10 @@ import {
   narrowShortlist,
 } from './ai-command-shortlist.util.js';
 import type { CommandSpec } from './ai-command-spec.types.js';
-import { applyAnaphoraToPlan } from './ai-anaphora.util.js';
+import {
+  applyAnaphoraToPlan,
+  applyConversationRefsToPlan,
+} from './ai-anaphora.util.js';
 import {
   decodePlanResponse,
   type PlanDecodeFailure,
@@ -288,6 +291,52 @@ export class AiCommandPlannerService {
             request.surface,
             request.tier,
           );
+        }
+
+        // e2e-bug.370 — the cross-turn half. Whatever the intra-plan resolver
+        // could not bind (a single-step "book it" has no earlier step) is
+        // tried against the conversation's entity store, which holds what
+        // previous turns resolved. Runs second on purpose: a referent inside
+        // this plan is more specific than one from a prior turn.
+        if (!validation.executable) {
+          const stillMissing = new Map<string, readonly string[]>();
+          for (const problem of validation.problems) {
+            if (problem.code === 'missing_variables' && problem.stepId) {
+              stillMissing.set(problem.stepId, problem.details ?? []);
+            }
+          }
+          if (stillMissing.size) {
+            const fromStore = applyConversationRefsToPlan(
+              request.message,
+              plan.steps,
+              stillMissing,
+              request.context.entityStore,
+              {
+                now: new Date(),
+                currentTurn:
+                  request.context.turnIndex ??
+                  (request.context.recentTurns?.length ?? 0) + 1,
+              },
+            );
+            if (fromStore.ambiguous) {
+              return {
+                status: 'clarify',
+                plan,
+                validation,
+                question: fromStore.ambiguous.clarification,
+                repairs: decoded.repairs,
+              };
+            }
+            if (fromStore.changed) {
+              plan = { ...plan, steps: fromStore.steps };
+              validation = validatePlan(
+                allSpecs,
+                plan,
+                request.surface,
+                request.tier,
+              );
+            }
+          }
         }
       }
     }

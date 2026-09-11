@@ -131,7 +131,9 @@ describeMaybe('planner shadow replay (opt-in, makes OpenAI calls)', () => {
     const undecodable = outcomes.filter((o) =>
       o.verdict.startsWith('undecodable'),
     ).length;
-    const rejected = outcomes.filter((o) => o.verdict.startsWith('reject')).length;
+    const rejected = outcomes.filter((o) =>
+      o.verdict.startsWith('reject'),
+    ).length;
     const truthInShortlist = outcomes.filter((o) => o.truthInShortlist).length;
     // Surface is not on `ReplayOutcome`, so it is looked up from the rows the
     // query returned. Worth keeping: "explain_floor_status (provider)" says
@@ -170,7 +172,8 @@ describeMaybe('planner shadow replay (opt-in, makes OpenAI calls)', () => {
         (sp) => sp.id === o.truth || sp.aliases.includes(o.truth),
       );
       const plannedSpec = specs.find(
-        (sp) => sp.id === o.routedAction || sp.aliases.includes(o.routedAction ?? ''),
+        (sp) =>
+          sp.id === o.routedAction || sp.aliases.includes(o.routedAction ?? ''),
       );
       console.log(
         `[judge]\n` +

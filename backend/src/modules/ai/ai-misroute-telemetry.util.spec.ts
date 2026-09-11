@@ -158,8 +158,11 @@ describe('ai-misroute-telemetry.util (pipe-1.10.2)', () => {
           classifierContext: null,
           method: 'passthrough',
         },
+        // `PromptNormalizationResult` is `{ original, normalized, method,
+        // classifierContext }` — same wrong shape the unit spec carried.
         normalization: {
-          normalizedPrompt: 'book nearest haircut tomorrow',
+          original: 'book nearest haircut tomorrow',
+          normalized: 'book nearest haircut tomorrow',
           method: 'passthrough',
           classifierContext: null,
         },

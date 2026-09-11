@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from '@nestjs/common';
+import type { EntityStore } from './ai-entity-store.util.js';
 import { AiCommandPlannerService } from './ai-command-planner.service.js';
 import {
   decidePlannerRoute,
@@ -259,6 +260,17 @@ export class CommandUnderstandingPipelineService {
         context: {
           today: new Date().toISOString().slice(0, 10),
           timeZone: input.timeZone ?? 'UTC',
+          // e2e-bug.370 — the store the gateway's carrier put on the command
+          // context, so a single-step follow-up can bind "it" to a previous
+          // turn. Absent (no carrier, flag off, anonymous) it is simply null.
+          entityStore:
+            (input.sessionContext?._conversationEntityStore as
+              | EntityStore
+              | undefined) ?? null,
+          turnIndex:
+            typeof input.sessionContext?._conversationTurnIndex === 'number'
+              ? input.sessionContext._conversationTurnIndex
+              : undefined,
         },
       });
       if (outcome.status !== 'executable') {

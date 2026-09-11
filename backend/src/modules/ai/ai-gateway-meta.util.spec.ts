@@ -5,6 +5,7 @@ import {
   buildProviderEntityMemoryLearnPayload,
   shouldLearnFromCommandResult,
 } from './ai-gateway-meta.util.js';
+import type { CommandResult } from './command-completion.types.js';
 
 describe('ai-gateway-meta.util', () => {
   it('shouldLearnFromCommandResult accepts successful known actions only', () => {
@@ -13,6 +14,7 @@ describe('ai-gateway-meta.util', () => {
         success: true,
         action: 'list_bookings',
         summary: 'ok',
+        details: {},
       }),
     ).toBe(true);
     expect(
@@ -20,6 +22,7 @@ describe('ai-gateway-meta.util', () => {
         success: false,
         action: 'list_bookings',
         summary: 'x',
+        details: {},
       }),
     ).toBe(false);
     expect(
@@ -27,6 +30,7 @@ describe('ai-gateway-meta.util', () => {
         success: true,
         action: 'unknown',
         summary: 'x',
+        details: {},
       }),
     ).toBe(false);
     expect(
@@ -34,6 +38,7 @@ describe('ai-gateway-meta.util', () => {
         success: true,
         action: 'error',
         summary: 'x',
+        details: {},
       }),
     ).toBe(false);
     expect(
@@ -70,12 +75,16 @@ describe('ai-gateway-meta.util', () => {
       service: undefined,
     });
     expect(
+      // `details` is required on `CommandResult`, so this state cannot be
+      // produced through the type — but `buildEntityMemoryLearnPayload` guards
+      // with `result.details ?? {}`, as do 62 other reads in the module against
+      // 33 that do not. This pins the guard; the cast is the only way to reach it.
       buildEntityMemoryLearnPayload({
         success: true,
         action: 'list_bookings',
         summary: 'ok',
         details: undefined,
-      }),
+      } as unknown as CommandResult),
     ).toEqual({
       employee: undefined,
       service: undefined,
@@ -109,6 +118,7 @@ describe('ai-gateway-meta.util', () => {
         success: true,
         action: 'ok',
         summary: 'ok',
+        details: {},
       }),
     ).toEqual({
       service: undefined,
@@ -186,7 +196,13 @@ describe('ai-gateway-meta.util', () => {
 
     expect(
       attachGatewayMeta(
-        { success: true, action: 'list_bookings', summary: 'ok' },
+        // Same reason as above: pins that `attachGatewayMeta` constructs
+        // `details` when a result arrives without one.
+        {
+          success: true,
+          action: 'list_bookings',
+          summary: 'ok',
+        } as unknown as CommandResult,
         'dashboard',
         'owner',
       ).details,

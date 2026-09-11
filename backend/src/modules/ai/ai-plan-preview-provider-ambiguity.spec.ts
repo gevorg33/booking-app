@@ -20,15 +20,24 @@ import { AiBookingCoreService } from './ai-booking-core.service.js';
 const employee = (id: string, name: string) =>
   ({ id, name, isActive: true }) as never;
 
-const NAMESAKES = [employee('emp-1', 'John Smith'), employee('emp-2', 'John Smith')];
+const NAMESAKES = [
+  employee('emp-1', 'John Smith'),
+  employee('emp-2', 'John Smith'),
+];
 
 describe('providerNameGuard is reachable from the plan-only previews (§230)', () => {
-  const core = Object.create(AiBookingCoreService.prototype) as AiBookingCoreService & {
+  const core = Object.create(
+    AiBookingCoreService.prototype,
+  ) as AiBookingCoreService & {
     providerNameGuard: (
       action: string,
       params: { employeeName?: string },
       employees: unknown[],
-    ) => { success: boolean; summary: string; details?: Record<string, unknown> } | null;
+    ) => {
+      success: boolean;
+      summary: string;
+      details?: Record<string, unknown>;
+    } | null;
   };
 
   it('is public, because the preview lives in a different service', () => {
@@ -47,7 +56,9 @@ describe('providerNameGuard is reachable from the plan-only previews (§230)', (
     expect(issue).not.toBeNull();
     expect(issue!.success).toBe(false);
     expect(
-      (issue!.details?.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
+      (issue!.details?.candidates as Array<{ id: string }>)
+        .map((c) => c.id)
+        .sort(),
     ).toEqual(['emp-1', 'emp-2']);
   });
 
@@ -87,7 +98,10 @@ describe('the plan-only branches actually call it (§230)', () => {
   const callSites = (finder: string) => {
     // `prepareDirectSchedulePlan` hangs off `scheduleHandlers`, the other two
     // off `bookingCore` — match either receiver rather than hardcoding one.
-    const needle = new RegExp(`this\\.(?:bookingCore|scheduleHandlers)\\.${finder}\\(`, 'g');
+    const needle = new RegExp(
+      `this\\.(?:bookingCore|scheduleHandlers)\\.${finder}\\(`,
+      'g',
+    );
     return [...src.matchAll(needle)].map((m) => m.index as number);
   };
 
@@ -102,20 +116,17 @@ describe('the plan-only branches actually call it (§230)', () => {
     ['prepareApplySchedulePlan'],
     ['prepareTemplateCascadePlan'],
     ['buildCreateBookingPlanOnly'],
-  ])(
-    'guards *every* call to %s',
-    (finder) => {
-      const sites = callSites(finder);
-      expect(sites.length).toBeGreaterThan(0);
+  ])('guards *every* call to %s', (finder) => {
+    const sites = callSites(finder);
+    expect(sites.length).toBeGreaterThan(0);
 
-      const unguarded = sites.filter((at) => {
-        const preceding = src.slice(Math.max(0, at - 900), at);
-        return !preceding.includes('this.bookingCore.providerNameGuard(');
-      });
+    const unguarded = sites.filter((at) => {
+      const preceding = src.slice(Math.max(0, at - 900), at);
+      return !preceding.includes('this.bookingCore.providerNameGuard(');
+    });
 
-      expect(unguarded).toEqual([]);
-    },
-  );
+    expect(unguarded).toEqual([]);
+  });
 
   it('acts on the guard rather than merely calling it', () => {
     // The two previews return the refusal; `buildPlanForResolvedIntent` returns
@@ -127,7 +138,9 @@ describe('the plan-only branches actually call it (§230)', () => {
     // `buildPlanForResolvedIntent`, which returns `AgentPlan | null` and has no
     // field for a reason. Counted, so a fourth cannot appear unnoticed.
     const nullRefusals = [
-      ...src.matchAll(/providerNameGuard\([\s\S]{0,200}?\)\s*\)\s*\{\s*return null;/g),
+      ...src.matchAll(
+        /providerNameGuard\([\s\S]{0,200}?\)\s*\)\s*\{\s*return null;/g,
+      ),
     ];
     expect(nullRefusals.length).toBe(3);
   });

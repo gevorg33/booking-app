@@ -83,14 +83,16 @@ describe('ai business date format integration (ai-cmd-fmt-1..2)', () => {
       if (dateFormat) params.dateFormat = dateFormat;
       if (timeFormat) params.timeFormat = timeFormat;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_business_date_format',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_business_date_format',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.ok).toBe(true);
 
       const result = await handleConfigureBusinessDateFormatLogic(

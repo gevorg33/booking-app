@@ -67,7 +67,12 @@ describe('e2e-bug.485 — orchestrator flags', () => {
       for (const tier of tiers) {
         let prompt: string;
         try {
-          prompt = buildPlannerSystemPrompt(specs, surface as any, tier as any, context);
+          prompt = buildPlannerSystemPrompt(
+            specs,
+            surface as any,
+            tier as any,
+            context,
+          );
         } catch {
           continue; // surface/tier combination not valid; nothing to assert
         }

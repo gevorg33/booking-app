@@ -97,19 +97,84 @@ describe('signTestPValue', () => {
  * rather than smoothed.
  */
 const SLICES: readonly SliceEvidence[] = [
-  { domain: 'tour', sliceTraces: 166, rescueDependentTraces: 34, recoveredTraces: 33 },
-  { domain: 'push', sliceTraces: 41, rescueDependentTraces: 18, recoveredTraces: 15 },
-  { domain: 'commerce', sliceTraces: 50, rescueDependentTraces: 11, recoveredTraces: 2 },
-  { domain: 'catalog', sliceTraces: 120, rescueDependentTraces: 22, recoveredTraces: 2 },
-  { domain: 'booking', sliceTraces: 1634, rescueDependentTraces: 34, recoveredTraces: 2 },
-  { domain: 'operations', sliceTraces: 653, rescueDependentTraces: 30, recoveredTraces: 1 },
-  { domain: 'business', sliceTraces: 99, rescueDependentTraces: 14, recoveredTraces: 0 },
-  { domain: 'clinic', sliceTraces: 82, rescueDependentTraces: 23, recoveredTraces: 0 },
-  { domain: 'customer', sliceTraces: 400, rescueDependentTraces: 11, recoveredTraces: 0 },
-  { domain: 'marketing', sliceTraces: 72, rescueDependentTraces: 8, recoveredTraces: 0 },
-  { domain: 'payment', sliceTraces: 584, rescueDependentTraces: 8, recoveredTraces: 0 },
-  { domain: 'guide', sliceTraces: 245, rescueDependentTraces: 2, recoveredTraces: 0 },
-  { domain: 'compliance', sliceTraces: 6, rescueDependentTraces: 1, recoveredTraces: 0 },
+  {
+    domain: 'tour',
+    sliceTraces: 166,
+    rescueDependentTraces: 34,
+    recoveredTraces: 33,
+  },
+  {
+    domain: 'push',
+    sliceTraces: 41,
+    rescueDependentTraces: 18,
+    recoveredTraces: 15,
+  },
+  {
+    domain: 'commerce',
+    sliceTraces: 50,
+    rescueDependentTraces: 11,
+    recoveredTraces: 2,
+  },
+  {
+    domain: 'catalog',
+    sliceTraces: 120,
+    rescueDependentTraces: 22,
+    recoveredTraces: 2,
+  },
+  {
+    domain: 'booking',
+    sliceTraces: 1634,
+    rescueDependentTraces: 34,
+    recoveredTraces: 2,
+  },
+  {
+    domain: 'operations',
+    sliceTraces: 653,
+    rescueDependentTraces: 30,
+    recoveredTraces: 1,
+  },
+  {
+    domain: 'business',
+    sliceTraces: 99,
+    rescueDependentTraces: 14,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'clinic',
+    sliceTraces: 82,
+    rescueDependentTraces: 23,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'customer',
+    sliceTraces: 400,
+    rescueDependentTraces: 11,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'marketing',
+    sliceTraces: 72,
+    rescueDependentTraces: 8,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'payment',
+    sliceTraces: 584,
+    rescueDependentTraces: 8,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'guide',
+    sliceTraces: 245,
+    rescueDependentTraces: 2,
+    recoveredTraces: 0,
+  },
+  {
+    domain: 'compliance',
+    sliceTraces: 6,
+    rescueDependentTraces: 1,
+    recoveredTraces: 0,
+  },
 ];
 
 describe('assessSliceRetirement against the measured slices', () => {
@@ -118,7 +183,9 @@ describe('assessSliceRetirement against the measured slices', () => {
   );
 
   it('clears exactly `tour` and `push`', () => {
-    const ready = [...verdicts.values()].filter((v) => v.ready).map((v) => v.domain);
+    const ready = [...verdicts.values()]
+      .filter((v) => v.ready)
+      .map((v) => v.domain);
     expect(ready.sort()).toEqual(['push', 'tour']);
   });
 
@@ -147,7 +214,15 @@ describe('assessSliceRetirement against the measured slices', () => {
   });
 
   it('holds every zero-recovery slice without dividing by zero', () => {
-    for (const domain of ['business', 'clinic', 'customer', 'marketing', 'payment', 'guide', 'compliance']) {
+    for (const domain of [
+      'business',
+      'clinic',
+      'customer',
+      'marketing',
+      'payment',
+      'guide',
+      'compliance',
+    ]) {
       const v = verdicts.get(domain)!;
       expect(v.ready).toBe(false);
       expect(v.signTestP).toBe(1);

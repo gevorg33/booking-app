@@ -28,7 +28,10 @@ describe('buildPolicyRiskExplain', () => {
 
   it('falls back to step count for small scope', () => {
     const result = buildPolicyRiskExplain({
-      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: 'a' })], riskAssessment: { level: 'low', factors: [] } }),
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: 'a' })],
+        riskAssessment: { level: 'low', factors: [] },
+      }),
       employeeCount: 1,
       daySpan: 1,
     });
@@ -46,7 +49,9 @@ describe('buildPolicyRiskExplain', () => {
 
   it('uses provider-only and day-only scope phrases', () => {
     const providersOnly = buildPolicyRiskExplain({
-      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })] }),
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })],
+      }),
       employeeCount: 4,
       daySpan: 1,
     });
@@ -60,7 +65,13 @@ describe('buildPolicyRiskExplain', () => {
     expect(daysOnly.headline).toContain('5 days');
 
     const stepsOnly = buildPolicyRiskExplain({
-      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' }), makeAgentPlanStep({ id: '3' })] }),
+      plan: makeAgentPlan({
+        steps: [
+          makeAgentPlanStep({ id: '1' }),
+          makeAgentPlanStep({ id: '2' }),
+          makeAgentPlanStep({ id: '3' }),
+        ],
+      }),
       employeeCount: 1,
       daySpan: 1,
     });
@@ -85,7 +96,9 @@ describe('buildPolicyRiskExplain', () => {
 
   it('uses providers-only scope when multiple providers and one day', () => {
     const result = buildPolicyRiskExplain({
-      plan: makeAgentPlan({ steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })] }),
+      plan: makeAgentPlan({
+        steps: [makeAgentPlanStep({ id: '1' }), makeAgentPlanStep({ id: '2' })],
+      }),
       employeeCount: 3,
       daySpan: 1,
     });

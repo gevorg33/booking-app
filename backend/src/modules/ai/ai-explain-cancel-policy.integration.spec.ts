@@ -41,14 +41,16 @@ describe('ai-explain-cancel-policy integration (ai-cmd-customer-4.4.4)', () => {
   it.each(EXPLAIN_CANCEL_POLICY_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_cancel_policy',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_cancel_policy',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainCancelPolicyLogic(

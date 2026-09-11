@@ -317,7 +317,13 @@ export interface PublicAssistantNavigate {
     | 'profile'
     | 'packages'
     | 'multi/checkout';
-  query: Record<string, string>;
+  /**
+   * Optional because producers omit it — `E2E277_BOOKING_HELP_GUIDE_ROUNDTRIP`
+   * is `{ path: 'services' }` with no query — and every consumer already reads
+   * it that way: `ai-payments-compound.logic.ts:60` is `navigate?.query?.x`.
+   * The declaration was the only thing requiring it.
+   */
+  query?: Record<string, string>;
 }
 
 export interface PublicAssistantResult {

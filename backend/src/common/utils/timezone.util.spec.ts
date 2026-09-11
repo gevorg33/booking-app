@@ -12,6 +12,32 @@ import {
   resolveTimezone,
 } from './timezone.util.js';
 
+/*
+ * Three tests below read the *current* wall clock and assert against it, which
+ * makes them fail on a clock, not on a change:
+ *
+ *  - `isWallClockSlotBookable respects day and notBefore` asserts that slot
+ *    '23:59' today is bookable. In the final minute of the day that is
+ *    `1439 > 1439` — false. Observed failing in a sweep spanning
+ *    2026-09-09 23:59 UTC.
+ *  - The other two are pinned for the same structural reason rather than a
+ *    demonstrated failure: each reads the clock once for `dateKey` and again
+ *    inside the function under test, so a midnight rollover between the two
+ *    reads makes them disagree. Pinning to 00:00:00 does *not* fail them, so
+ *    that window is reasoned about, not reproduced.
+ *
+ * Pinning to a mid-morning instant removes the window without weakening a
+ * single assertion — verified by re-pinning to 23:59:30, where the first test
+ * fails exactly as the sweep saw it.
+ */
+function pinClock() {
+  jest.useFakeTimers().setSystemTime(new Date('2026-06-15T09:30:00.000Z'));
+}
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('resolveTimezone', () => {
   it('defaults invalid or empty to UTC', () => {
     expect(resolveTimezone()).toBe('UTC');
@@ -43,6 +69,7 @@ describe('resolveBusinessWallClockTimezone', () => {
   });
 
   it('filters past slots with inferred timezone', () => {
+    pinClock();
     const tz = resolveBusinessWallClockTimezone('UTC', 'hy');
     const now = getWallClockNow(tz);
     const pastHour = Math.max(0, Math.floor(now.minutes / 60) - 2);
@@ -94,6 +121,7 @@ describe('wall clock helpers', () => {
   });
 
   it('isWallClockStartInPast compares calendar day and minutes', () => {
+    pinClock();
     const past = new Date('2020-01-01T10:00:00.000Z');
     expect(isWallClockStartInPast(past, 'UTC')).toBe(true);
     const future = new Date('2099-01-01T10:00:00.000Z');
@@ -105,6 +133,7 @@ describe('wall clock helpers', () => {
   });
 
   it('isWallClockSlotBookable respects day and notBefore', () => {
+    pinClock();
     expect(isWallClockSlotBookable('2099-01-01', '10:00', 'UTC')).toBe(true);
     expect(isWallClockSlotBookable('2020-01-01', '10:00', 'UTC')).toBe(false);
     const today = getWallClockNow('UTC').dateKey;

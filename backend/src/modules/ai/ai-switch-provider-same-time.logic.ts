@@ -2,6 +2,7 @@ import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
 import type { Repository } from 'typeorm';
+import type { EntityFinder, EntityReader } from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
@@ -11,10 +12,10 @@ import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.ut
 import { formatTimeDisplay } from '../../common/utils/date-format.util.js';
 
 export interface SwitchProviderSameTimeLogicDeps {
-  employeeRepo: Pick<Repository<Employee>, 'find'>;
-  serviceRepo: Pick<Repository<Service>, 'findOne'>;
+  employeeRepo: EntityFinder<Employee>;
+  serviceRepo: EntityReader<Service>;
   publicBookingService: Pick<PublicBookingService, 'getServiceDaySlots'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(

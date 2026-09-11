@@ -132,8 +132,9 @@ async function loadCorpus(): Promise<{
   await client.connect();
   try {
     const rows = (await client.query<ReplayRow>(RESCUE_CORPUS_SQL)).rows;
-    const labelRows = (await client.query<ClassifierLabel>(CLASSIFIER_LABEL_SQL))
-      .rows;
+    const labelRows = (
+      await client.query<ClassifierLabel>(CLASSIFIER_LABEL_SQL)
+    ).rows;
     return {
       rows,
       labels: new Map(labelRows.map((l) => [l.prompt, l])),

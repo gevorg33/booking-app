@@ -39,14 +39,16 @@ describe('ai recommendation performance integration (ai-cmd-rec-9)', () => {
       const params: Record<string, unknown> = {};
       if (aspect) params.aspect = aspect;
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'summarize_recommendation_performance',
-        params,
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'summarize_recommendation_performance',
+          params,
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

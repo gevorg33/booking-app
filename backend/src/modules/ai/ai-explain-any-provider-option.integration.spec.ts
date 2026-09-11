@@ -41,14 +41,16 @@ describe('ai explain any provider option integration (ai-cmd-customer-4.11.1)', 
       );
       expect(directRescue?.action).toBe('explain_any_provider_option');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_any_provider_option',
-        params: { ...(aspect ? { aspect } : {}) },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_any_provider_option',
+          params: { ...(aspect ? { aspect } : {}) },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainAnyProviderOptionLogic(

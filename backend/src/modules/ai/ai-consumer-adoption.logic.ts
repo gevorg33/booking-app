@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { PublicBookingService } from '../public-booking/public-booking.service.js';
@@ -39,7 +42,7 @@ export interface ConsumerAdoptionLogicDeps {
   notificationsService: NotificationsService;
   consumerPushTokenService: ConsumerPushTokenService;
   /** e2e-bug.125 — resolve booking slug from authenticated businessId. */
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(

@@ -30,14 +30,16 @@ describe('ai-rebook-last-appointment integration (ai-cmd-customer-4.4.8)', () =>
   it.each(REBOOK_LAST_APPOINTMENT_PROMPTS)(
     'validates and executes $id',
     async ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'rebook_last_appointment',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'rebook_last_appointment',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleRebookLastAppointmentLogic(

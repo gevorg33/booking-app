@@ -861,11 +861,13 @@ describe('C3 — deactivate_service understands "stop offering X"', () => {
   });
 
   it('leaves the existing verb sets working', () => {
+    expect(isDeactivateServicePrompt('Hide balayage from public booking')).toBe(
+      true,
+    );
     expect(
-      isDeactivateServicePrompt('Hide balayage from public booking'),
-    ).toBe(true);
-    expect(
-      extractDeactivateServiceNameFromPrompt('delete the service called Balayage'),
+      extractDeactivateServiceNameFromPrompt(
+        'delete the service called Balayage',
+      ),
     ).toBe('Balayage');
   });
 });
@@ -885,9 +887,9 @@ describe('C3 — deactivate_service understands "stop offering X"', () => {
  */
 describe('C3 — create_package understands "bundle X and Y"', () => {
   it('claims the documented example and extracts both services', () => {
-    expect(isCreatePackagePrompt('bundle haircut and beard trim at 15% off')).toBe(
-      true,
-    );
+    expect(
+      isCreatePackagePrompt('bundle haircut and beard trim at 15% off'),
+    ).toBe(true);
     expect(
       extractPackageServiceNames('bundle haircut and beard trim at 15% off'),
     ).toEqual(['haircut', 'beard trim']);

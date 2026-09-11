@@ -23,14 +23,16 @@ describe('ai explain guest checkout fields integration (ai-cmd-customer-4.2.2)',
   it.each(EXPLAIN_GUEST_CHECKOUT_FIELDS_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, aspect }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_guest_checkout_fields',
-        params: { aspect },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_guest_checkout_fields',
+          params: { aspect },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainGuestCheckoutFieldsLogic(

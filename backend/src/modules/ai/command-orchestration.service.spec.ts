@@ -175,7 +175,11 @@ describe('e2e-bug.486 — stranded writes are named on failure', () => {
   const task = {
     plan: {
       steps: [
-        { id: 's1', description: 'Add Monday schedule', action: 'add_schedule' },
+        {
+          id: 's1',
+          description: 'Add Monday schedule',
+          action: 'add_schedule',
+        },
         { id: 's2', description: 'Create booking', action: 'create_booking' },
         { id: 's3', description: 'Charge deposit', action: 'charge' },
       ],

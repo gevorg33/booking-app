@@ -903,23 +903,23 @@ export const LONG_TAIL_COMMAND_SPECS: readonly CommandSpec[] = [
     risk: 'T3',
     description: 'Apply a whole onboarding playbook to the business.',
     variables: {},
-    // §241: this example is WRONG and the fix is one line, but it is held by
-    // credentials, not by doubt. 'apply the clinic playbook' is
-    // `clinic.apply_playbook`'s example — a *different* T3 command — and
+    // §241 / e2e-bug.518 — fixed 2026-09-11, once the credential was available.
+    //
+    // This example used to read 'apply the clinic playbook', which is
+    // `clinic.apply_playbook`'s example — a *different* T3 command — so one
+    // prompt seeded a few-shot pointing at the wrong irreversible command.
     // `ai-onboarding.fixtures.ts` says so outright: "Triggers: apply the
     // playbook, apply our vertical playbook. NOT apply_clinic_playbook /
     // apply_tour_playbook (those are dedicated clinic/tour setup flows, not the
     // generic onboarding wizard)". Onboarding does own a 'clinic' vertical
-    // playbook (`VerticalPlaybookId = 'salon' | 'clinic' | 'tour'`), which is why
-    // the string looked plausible sitting here.
+    // playbook (`VerticalPlaybookId = 'salon' | 'clinic' | 'tour'`), which is
+    // why the wrong string looked plausible sitting here.
     //
-    // Replace with 'apply our vertical playbook' — the fixture's own trigger —
-    // and then run `npm run build:ai-embeddings`, which needs OPENAI_API_KEY:
-    // examples feed `commandMatchText`, so the edit invalidates the committed
-    // embedding cache and e2e-bug.390's staleness gate fails without a rebuild.
-    // Applied, verified, and reverted rather than left breaking the gate chain.
-    // Tracked as e2e-bug.518.
-    examples: ['set us up as a barbershop', 'apply the clinic playbook'],
+    // Replaced with the fixture's own trigger. Examples feed `commandMatchText`,
+    // so the committed embedding cache was rebuilt in the same change —
+    // skipping that is what §82 cost: a correct change reverted over a
+    // seven-point drop that was really the stale cache.
+    examples: ['set us up as a barbershop', 'apply our vertical playbook'],
     confirm: 'always',
     compensation: {
       kind: 'manual',

@@ -33,6 +33,12 @@ const BUDGET_DASHBOARD_ACTION_MAP: Record<string, string> = {
 const BUDGET_PUBLIC_ACTION_MAP: Record<string, string> = {
   discover_packages: 'booking_help',
   discover_subscription_plans: 'booking_help',
+  // e2e-bug.516 — `apply_gift_card_code` is `risk: 'T2'` with
+  // `surfaces: ['customer']`, so the guest surface takes the same
+  // `booking_help` surrogate rather than being pointed at a payment mutation
+  // the command disowns. `check_gift_card_balance` is deliberately absent: it
+  // is `risk: 'T0'`, a read, and still reaches public unchanged.
+  apply_gift_card_code: 'booking_help',
 };
 
 const BUDGET_CUSTOMER_ACTION_MAP: Record<string, string> = {

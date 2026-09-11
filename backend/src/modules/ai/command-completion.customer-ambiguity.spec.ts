@@ -18,7 +18,12 @@ const resolve = (customers: any[], customerName: string) =>
     `book ${customerName} in`,
     {
       action: 'create_booking',
-      params: { customerName, serviceName: 'Haircut', date: '26_05_2026', timeSlot: '09:00' },
+      params: {
+        customerName,
+        serviceName: 'Haircut',
+        date: '26_05_2026',
+        timeSlot: '09:00',
+      },
       reasoning: '',
       confidence: 0.9,
     } as any,

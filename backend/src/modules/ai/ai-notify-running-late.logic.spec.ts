@@ -1,4 +1,5 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleNotifyRunningLateLogic } from './ai-notify-running-late.logic.js';
 
 describe('ai-notify-running-late.logic (ai-cmd-customer-4.4.6)', () => {
@@ -17,7 +18,9 @@ describe('ai-notify-running-late.logic (ai-cmd-customer-4.4.6)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     bookingRepo: {
       find: jest.fn(async () => [booking]),

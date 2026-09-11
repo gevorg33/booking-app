@@ -57,7 +57,10 @@ const svcFor = () =>
 describe('create_multi_service_booking service ambiguity (D5, §238)', () => {
   it('books nothing when the service name matches two services', async () => {
     const svc = svcFor();
-    const result: any = await handler()(svc, ctxFor({ serviceNames: ['massage'] }) as never);
+    const result: any = await handler()(
+      svc,
+      ctxFor({ serviceNames: ['massage'] }) as never,
+    );
 
     expect(result.success).toBe(false);
     expect(
@@ -75,7 +78,9 @@ describe('create_multi_service_booking service ambiguity (D5, §238)', () => {
     expect(result.details?.clarify).toBe(true);
     expect(result.details?.requestedName).toBe('massage');
     expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
+      (result.details.candidates as Array<{ id: string }>)
+        .map((c) => c.id)
+        .sort(),
     ).toEqual(['svc-deep', 'svc-swedish']);
   });
 
@@ -86,7 +91,9 @@ describe('create_multi_service_booking service ambiguity (D5, §238)', () => {
     await expect(
       handler()(
         svc,
-        ctxFor({ serviceNames: ['Swedish massage', 'Deep tissue massage'] }) as never,
+        ctxFor({
+          serviceNames: ['Swedish massage', 'Deep tissue massage'],
+        }) as never,
       ),
     ).rejects.toThrow(/booked on an ambiguous service/);
   });

@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { type Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { OnboardingService } from '../onboarding/onboarding.service.js';
 import { Business } from '../business/entities/business.entity.js';
 import type { ServiceService } from '../service/service.service.js';
@@ -32,7 +35,7 @@ export interface ClinicServiceLogicDeps {
 }
 
 export interface ClinicPlaybookLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
   onboardingService: Pick<OnboardingService, 'applyVerticalPlaybook'>;
 }
 

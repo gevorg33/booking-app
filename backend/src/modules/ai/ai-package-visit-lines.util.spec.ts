@@ -1,4 +1,5 @@
 import { buildPackageVisitLinesFromTarget } from './ai-package-visit-lines.util.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 
 describe('ai-package-visit-lines.util', () => {
   function buildDeps() {
@@ -10,7 +11,9 @@ describe('ai-package-visit-lines.util', () => {
         ]),
       },
       businessRepo: {
-        findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'salon' })),
+        findOne: jest.fn(async () =>
+          makeBusiness({ id: 'biz-1', slug: 'salon' }),
+        ),
       },
       multiServiceBookingsService: {
         resolveSettingsFromBusiness: jest.fn(() => ({

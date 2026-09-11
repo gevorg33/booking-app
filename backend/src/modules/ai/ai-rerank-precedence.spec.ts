@@ -44,7 +44,10 @@ describe('rerank precedence', () => {
   });
 
   it('orders by confidence within the same precedence', () => {
-    const r = rerankIntentCandidates([planner(0.7, 1), { ...planner(0.95, 1), action: 'other' }]);
+    const r = rerankIntentCandidates([
+      planner(0.7, 1),
+      { ...planner(0.95, 1), action: 'other' },
+    ]);
     expect(r?.winner.action).toBe('other');
   });
 
@@ -54,7 +57,10 @@ describe('rerank precedence', () => {
   });
 
   it('keeps the merged result reporting every candidate', () => {
-    const merged = mergeAndRerankIntentCandidates([planner(0.9, 1), classifier(0.95)]);
+    const merged = mergeAndRerankIntentCandidates([
+      planner(0.9, 1),
+      classifier(0.95),
+    ]);
     expect(merged?.merged).toHaveLength(2);
     expect(merged?.winner.source).toBe('planner');
   });

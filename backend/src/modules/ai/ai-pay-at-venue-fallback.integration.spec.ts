@@ -25,14 +25,16 @@ describe('ai pay at venue fallback integration (ai-cmd-customer-4.18.2)', () => 
   });
 
   it.each(PAY_AT_VENUE_FALLBACK_PROMPTS)('validates $id', ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'pay_at_venue_fallback',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'pay_at_venue_fallback',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
   });
 

@@ -778,7 +778,9 @@ describe('C2 — orchestration-set flags are named, not discovered (§220)', () 
     // still pass while a flag leaked back into the planner prompt — the exact
     // condition `e2e-bug.485` was filed about.
     const unmarked = ORCHESTRATION_SET_FLAGS.filter(([id, name]) => {
-      const spec = (COMMAND_SPECS as unknown as Spec[]).find((s) => s.id === id);
+      const spec = (COMMAND_SPECS as unknown as Spec[]).find(
+        (s) => s.id === id,
+      );
       const variable = (spec?.variables ?? {})[name] as
         | { source?: string }
         | undefined;
@@ -793,7 +795,9 @@ describe('C2 — orchestration-set flags are named, not discovered (§220)', () 
     // `e2e-bug.399` one: a required orchestration flag would make the planner
     // ask the user to confirm they are inside a compound they cannot see.
     for (const [id, name] of ORCHESTRATION_SET_FLAGS) {
-      const spec = (COMMAND_SPECS as unknown as Spec[]).find((s) => s.id === id);
+      const spec = (COMMAND_SPECS as unknown as Spec[]).find(
+        (s) => s.id === id,
+      );
       expect(spec).toBeDefined();
       const variable = (spec!.variables ?? {})[name] as
         | { required?: boolean }

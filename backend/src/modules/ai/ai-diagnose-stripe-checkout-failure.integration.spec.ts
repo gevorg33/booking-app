@@ -25,14 +25,16 @@ describe('ai diagnose stripe checkout failure integration (ai-cmd-customer-4.18.
   it.each(DIAGNOSE_STRIPE_CHECKOUT_FAILURE_CONSUMER_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'diagnose_stripe_checkout_failure',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'diagnose_stripe_checkout_failure',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

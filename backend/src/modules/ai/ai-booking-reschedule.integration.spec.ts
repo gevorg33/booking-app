@@ -29,9 +29,12 @@ describe('ai booking & reschedule integration (ai-cmd-h3.1)', () => {
       action: 'create_booking',
       params,
       enrichedParams: { serviceId: 's1' },
-      entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+      entities: {
+        employees: [],
+        services: [],
+        service: { id: 's1', name: 'facemassage' } as any,
+      },
       reasoning: 'test',
-      confidence: 0.9,
     });
     expect(result.ok).toBe(true);
     expect(resolveFirstAvailableNotBeforeTime(params, '')).toBe('17:00');
@@ -48,9 +51,12 @@ describe('ai booking & reschedule integration (ai-cmd-h3.1)', () => {
         timeSlot: '09:00',
       },
       enrichedParams: { serviceId: 's1' },
-      entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+      entities: {
+        employees: [],
+        services: [],
+        service: { id: 's1', name: 'facemassage' } as any,
+      },
       reasoning: 'test',
-      confidence: 0.9,
     });
     expect(result.ok).toBe(true);
   });

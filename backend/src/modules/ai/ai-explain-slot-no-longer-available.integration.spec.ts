@@ -15,14 +15,16 @@ describe('ai explain slot no longer available integration (ai-cmd-customer-4.18.
   it.each(EXPLAIN_SLOT_NO_LONGER_AVAILABLE_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_slot_no_longer_available',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_slot_no_longer_available',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

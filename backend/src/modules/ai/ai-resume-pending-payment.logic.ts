@@ -1,4 +1,7 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { BookingCheckoutDraft } from '../booking/entities/booking-checkout-draft.entity.js';
 import type { CreatePublicBookingDto } from '../public-booking/dto/public-booking.dto.js';
 import type { CommandResult } from './command-completion.types.js';
@@ -10,7 +13,7 @@ import {
 } from './ai-resume-pending-payment.util.js';
 
 export interface ResumePendingPaymentLogicDeps {
-  draftRepo: Pick<Repository<BookingCheckoutDraft>, 'findOne'>;
+  draftRepo: EntityReader<BookingCheckoutDraft>;
 }
 
 function failure(

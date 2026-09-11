@@ -9,7 +9,20 @@ export const CLINIC_BOOKING_CLASSIFIER_RULES = `- explain_clinic_booking: READ �
   - "Что писать в поле симптомов при записи?" → explain_clinic_booking, aspect=symptoms
   - "Պետք է լինեմ ծոմավորո՞ւմ այս լաբ թեստից առաջ" → explain_clinic_booking, aspect=preparation`;
 
-export const EXPLAIN_CLINIC_BOOKING_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ExplainClinicBookingPromptFixture = {
+  id: string;
+  prompt: string;
+  aspect:
+    | 'all'
+    | 'preVisitIntake'
+    | 'preparation'
+    | 'referralNotes'
+    | 'symptoms';
+  serviceName?: string;
+};
+
+export const EXPLAIN_CLINIC_BOOKING_PROMPTS: readonly ExplainClinicBookingPromptFixture[] = [
   {
     id: 'symptoms-field',
     prompt: 'What should I put in the symptoms field on checkout?',
@@ -72,7 +85,7 @@ export const EXPLAIN_CLINIC_BOOKING_PROMPTS = [
     aspect: 'preparation',
     serviceName: 'CBC',
   },
-] as const;
+];
 
 export const CLINIC_BOOKING_RESCUE_SCENARIOS = [
   {

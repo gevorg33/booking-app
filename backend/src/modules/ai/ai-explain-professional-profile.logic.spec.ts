@@ -1,26 +1,30 @@
 import { buildExplainProfessionalProfileSummary } from './ai-explain-professional-profile.logic.js';
+import { makeEmployee } from '../employee/entities/employee.test-fixture.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import type { PublicProviderReviewSummary } from '../reviews/reviews.service.js';
 import { handleExplainProfessionalProfileLogic } from './ai-explain-professional-profile.logic.js';
 
 describe('ai-explain-professional-profile.logic (ai-cmd-customer-4.11.5)', () => {
   const employeeRepo = {
     find: jest.fn(async () => [
-      {
+      makeEmployee({
         id: 'emp-anna',
         name: 'Anna',
         businessId: 'biz-1',
-        isActive: true,
         serviceIds: ['svc-color'],
         metadata: { role: 'Colorist', specialty: 'Balayage' },
-      },
+      }),
     ]),
   };
   const serviceRepo = {
     find: jest.fn(async () => [
-      { id: 'svc-color', name: 'Color', businessId: 'biz-1', isActive: true },
+      makeService({ id: 'svc-color', name: 'Color', businessId: 'biz-1' }),
     ]),
   };
   const reviewsService = {
-    getPublicReviewsByEmployees: jest.fn(async () => new Map()),
+    getPublicReviewsByEmployees: jest.fn(
+      async (): Promise<Map<string, PublicProviderReviewSummary>> => new Map(),
+    ),
   };
 
   beforeEach(() => {

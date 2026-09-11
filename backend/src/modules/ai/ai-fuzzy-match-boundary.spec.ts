@@ -20,7 +20,9 @@ describe('fuzzyMatchByName word-boundary tier', () => {
 
   it('does not match a name that is only a prefix of another word', () => {
     // "Alice" is not Al.
-    expect(fuzzyMatchByName(named('Al'), 'book Alice for a haircut')).toBeUndefined();
+    expect(
+      fuzzyMatchByName(named('Al'), 'book Alice for a haircut'),
+    ).toBeUndefined();
   });
 
   it('does not match letters buried inside an unrelated word', () => {
@@ -29,7 +31,9 @@ describe('fuzzyMatchByName word-boundary tier', () => {
   });
 
   it('matches a name at the start and end of the query', () => {
-    expect(fuzzyMatchByName(named('Al'), 'Al is free tomorrow')?.name).toBe('Al');
+    expect(fuzzyMatchByName(named('Al'), 'Al is free tomorrow')?.name).toBe(
+      'Al',
+    );
     expect(fuzzyMatchByName(named('Al'), 'book it with Al')?.name).toBe('Al');
   });
 
@@ -39,25 +43,32 @@ describe('fuzzyMatchByName word-boundary tier', () => {
 
   it('keeps the earlier tiers intact', () => {
     // exact
-    expect(fuzzyMatchByName(named('Jo', 'John Smith'), 'John Smith')?.name).toBe(
-      'John Smith',
-    );
+    expect(
+      fuzzyMatchByName(named('Jo', 'John Smith'), 'John Smith')?.name,
+    ).toBe('John Smith');
     // item name contains the query
     expect(
-      fuzzyMatchByName(named('Deep Tissue', 'Swedish Massage'), 'massage')?.name,
+      fuzzyMatchByName(named('Deep Tissue', 'Swedish Massage'), 'massage')
+        ?.name,
     ).toBe('Swedish Massage');
     // token prefix
-    expect(fuzzyMatchByName(named('John Baker'), 'Joh')?.name).toBe('John Baker');
+    expect(fuzzyMatchByName(named('John Baker'), 'Joh')?.name).toBe(
+      'John Baker',
+    );
   });
 
   it('works for non-Latin names', () => {
     // The boundary check uses Unicode letter classes, not \b, which is
     // ASCII-only — §48 established this corpus is Armenian and Russian too.
-    expect(fuzzyMatchByName(named('Կարո'), 'ամրագրիր Կարո մոտ')?.name).toBe('Կարո');
+    expect(fuzzyMatchByName(named('Կարո'), 'ամրագրիր Կարո մոտ')?.name).toBe(
+      'Կարո',
+    );
     expect(fuzzyMatchByName(named('Ան'), 'Անna գրանցիր')).toBeUndefined();
   });
 
   it('returns undefined when nothing matches', () => {
-    expect(fuzzyMatchByName(named('Ann'), 'cancel my appointment')).toBeUndefined();
+    expect(
+      fuzzyMatchByName(named('Ann'), 'cancel my appointment'),
+    ).toBeUndefined();
   });
 });

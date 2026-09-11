@@ -15,14 +15,16 @@ describe('ai explain multi-service payment return integration (ai-cmd-customer-4
   it.each(EXPLAIN_MULTI_SERVICE_PAYMENT_RETURN_PROMPTS)(
     'validates $id',
     ({ prompt }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_multi_service_payment_return',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_multi_service_payment_return',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
     },
   );

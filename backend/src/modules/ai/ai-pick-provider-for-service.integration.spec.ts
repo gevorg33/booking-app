@@ -83,18 +83,20 @@ describe('ai pick provider for service integration (ai-cmd-customer-4.11.2)', ()
     );
     expect(directRescue?.action).toBe('pick_provider_for_service');
 
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'pick_provider_for_service',
-      params: {
-        mode: row.mode,
-        ...(row.providerName ? { providerName: row.providerName } : {}),
-        ...(row.serviceName ? { serviceName: row.serviceName } : {}),
-      },
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt: row.prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'pick_provider_for_service',
+        params: {
+          mode: row.mode,
+          ...(row.providerName ? { providerName: row.providerName } : {}),
+          ...(row.serviceName ? { serviceName: row.serviceName } : {}),
+        },
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt: row.prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handlePickProviderForServiceLogic(

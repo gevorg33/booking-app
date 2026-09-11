@@ -11,7 +11,8 @@
  * The redaction seam already existed and was already correct for PHI — it
  * simply had no credential patterns.
  */
-import { redactCommandTracePrompt,
+import {
+  redactCommandTracePrompt,
   redactCommandTraceParams,
 } from './ai-command-trace.util.js';
 

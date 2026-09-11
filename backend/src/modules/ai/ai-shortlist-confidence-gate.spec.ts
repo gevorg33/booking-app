@@ -28,7 +28,16 @@ function indexWithTarget(targetId: string, targetScore: number) {
     embeddings.set(
       spec.id,
       spec.id === targetId
-        ? unit([targetScore, Math.sqrt(1 - targetScore * targetScore), 0, 0, 0, 0, 0, 0])
+        ? unit([
+            targetScore,
+            Math.sqrt(1 - targetScore * targetScore),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+          ])
         : unit([0, 0, 1, 0, 0, 0, 0, 0]),
     );
   }
@@ -41,29 +50,55 @@ describe('shortlist confidence gate', () => {
   const target = specs[0].id;
 
   it('narrows when the top score clears the threshold', () => {
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      indexWithTarget(target, 0.9), {});
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      indexWithTarget(target, 0.9),
+      {},
+    );
     expect(r.reason).toBe('narrowed');
     expect(r.specs.length).toBeLessThan(specs.length);
   });
 
   it('refuses to cut when the top score is below it', () => {
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      indexWithTarget(target, NARROW_MIN_TOP_SCORE - 0.1), {});
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      indexWithTarget(target, NARROW_MIN_TOP_SCORE - 0.1),
+      {},
+    );
     expect(r.reason).toBe('low_confidence');
     expect(r.specs).toHaveLength(specs.length);
   });
 
   it('falling back returns the full permitted list, not a guess', () => {
     // The failure mode of the gate must be the previous behaviour.
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      indexWithTarget(target, 0.1), {});
-    expect(r.specs.map((s) => s.id).sort()).toEqual(specs.map((s) => s.id).sort());
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      indexWithTarget(target, 0.1),
+      {},
+    );
+    expect(r.specs.map((s) => s.id).sort()).toEqual(
+      specs.map((s) => s.id).sort(),
+    );
   });
 
   it('never widens beyond what the actor may run', () => {
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      indexWithTarget(target, 0.1), {});
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      indexWithTarget(target, 0.1),
+      {},
+    );
     const allowed = new Set(specs.map((s) => s.id));
     expect(r.specs.every((s) => allowed.has(s.id))).toBe(true);
   });
@@ -71,15 +106,27 @@ describe('shortlist confidence gate', () => {
   it('still narrows for pinned commands even when confidence is low', () => {
     // Pinning is a caller asserting relevance the score cannot see (§53's entity
     // store, §49's anaphora); the gate must not override it.
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      indexWithTarget(target, 0.1), { pinned: [target] });
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      indexWithTarget(target, 0.1),
+      { pinned: [target] },
+    );
     expect(r.reason).toBe('narrowed');
     expect(r.specs.map((s) => s.id)).toContain(target);
   });
 
   it('keeps degrading to the full list when there are no embeddings at all', () => {
-    const r = narrowShortlist(COMMAND_SPECS, 'dashboard', 'owner', QUERY,
-      buildCommandIndex(COMMAND_SPECS), {});
+    const r = narrowShortlist(
+      COMMAND_SPECS,
+      'dashboard',
+      'owner',
+      QUERY,
+      buildCommandIndex(COMMAND_SPECS),
+      {},
+    );
     expect(r.reason).toBe('no_embeddings');
     expect(r.specs).toHaveLength(specs.length);
   });

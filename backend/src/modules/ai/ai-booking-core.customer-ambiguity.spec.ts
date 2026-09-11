@@ -58,7 +58,12 @@ const book = (
 ) =>
   service.handleCreateBooking(
     'biz-1',
-    { serviceName: 'Haircut', date: '26_05_2026', timeSlot: '09:00', ...params },
+    {
+      serviceName: 'Haircut',
+      date: '26_05_2026',
+      timeSlot: '09:00',
+      ...params,
+    },
     employees,
     SERVICES,
     customers,
@@ -70,19 +75,17 @@ const emp = (id: string, name: string) => ({ id, name }) as Employee;
 
 describe('tech-debt D5 — create_booking asks which customer instead of picking one', () => {
   it('refuses to book when two customers share the name', async () => {
-    const r = await book(
-      [cust('c1', 'John Smith'), cust('c2', 'John Smith')],
-      { customerName: 'John Smith' },
-    );
+    const r = await book([cust('c1', 'John Smith'), cust('c2', 'John Smith')], {
+      customerName: 'John Smith',
+    });
     expect(r.success).toBe(false);
     expect(r.summary).toMatch(/which customer/i);
   });
 
   it('names the tied candidates so the caller can offer a choice', async () => {
-    const r = await book(
-      [cust('c1', 'John Smith'), cust('c2', 'John Baker')],
-      { customerName: 'John' },
-    );
+    const r = await book([cust('c1', 'John Smith'), cust('c2', 'John Baker')], {
+      customerName: 'John',
+    });
     expect(r.success).toBe(false);
     expect((r.details as any).candidates.map((c: any) => c.id).sort()).toEqual([
       'c1',
@@ -91,10 +94,10 @@ describe('tech-debt D5 — create_booking asks which customer instead of picking
   });
 
   it('an explicit customerId still wins outright, even when the name is a tie', async () => {
-    const r = await book(
-      [cust('c1', 'John Smith'), cust('c2', 'John Smith')],
-      { customerId: 'c2', customerName: 'John Smith' },
-    );
+    const r = await book([cust('c1', 'John Smith'), cust('c2', 'John Smith')], {
+      customerId: 'c2',
+      customerName: 'John Smith',
+    });
     // Not the ambiguity refusal: the id resolved it, so the handler proceeds
     // past customer resolution (and fails later, on repo access).
     expect(r.summary ?? '').not.toMatch(/which customer/i);
@@ -116,10 +119,10 @@ describe('tech-debt D5 — create_booking asks which customer instead of picking
   });
 
   it('the missing-service message still wins when both are unresolved', async () => {
-    const r = await book(
-      [cust('c1', 'John Smith'), cust('c2', 'John Smith')],
-      { customerName: 'John Smith', serviceName: 'Nonexistent Service' },
-    );
+    const r = await book([cust('c1', 'John Smith'), cust('c2', 'John Smith')], {
+      customerName: 'John Smith',
+      serviceName: 'Nonexistent Service',
+    });
     expect(r.success).toBe(false);
     expect(r.summary).not.toMatch(/which customer/i);
   });
@@ -139,11 +142,7 @@ describe('tech-debt D5 — create_booking asks which provider instead of picking
   });
 
   it('an explicit employeeId still wins outright, even when the name is a tie', async () => {
-    const r = await book(
-      [],
-      { employeeId: 'e2', employeeName: 'Anna' },
-      TIED,
-    );
+    const r = await book([], { employeeId: 'e2', employeeName: 'Anna' }, TIED);
     expect(r.summary ?? '').not.toMatch(/which provider/i);
   });
 
@@ -176,11 +175,7 @@ describe('tech-debt D5 — create_booking asks which provider instead of picking
   });
 
   it('a tie anywhere in the list refuses, naming that entry', async () => {
-    const r = await book(
-      [],
-      { employeeNames: ['Anna Petrova', 'Anna'] },
-      TIED,
-    );
+    const r = await book([], { employeeNames: ['Anna Petrova', 'Anna'] }, TIED);
     expect(r.success).toBe(false);
     expect(r.summary).toMatch(/which provider/i);
   });

@@ -1,4 +1,6 @@
 import { BookingStatus } from '../booking/entities/booking.entity.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { getTodayDateKey } from '../../common/utils/date-format.util.js';
 import { addDaysToDateKey } from '../../common/utils/timezone.util.js';
 import { TOUR_SERVICE_TYPE } from '../../common/utils/tour-service.util.js';
@@ -10,7 +12,7 @@ import {
 describe('ai-tour-meeting-point.logic (ai-cmd-customer-4.10.6)', () => {
   const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
 
-  const tourBooking = {
+  const tourBooking = makeBooking({
     id: 'bk-tour-1',
     businessId: 'biz-1',
     customerId: 'cust-1',
@@ -31,11 +33,11 @@ describe('ai-tour-meeting-point.logic (ai-cmd-customer-4.10.6)', () => {
         maxGroupSize: 10,
       },
     },
-  };
+  });
 
   const services = [
     tourBooking.service,
-    {
+    makeService({
       id: 'svc-mountain',
       name: 'Mountain Trek',
       metadata: {
@@ -43,15 +45,15 @@ describe('ai-tour-meeting-point.logic (ai-cmd-customer-4.10.6)', () => {
         meetingPoint: 'Trailhead parking lot',
         maxGroupSize: 8,
       },
-    },
-    {
+    }),
+    makeService({
       id: 'svc-city',
       name: 'City Tour',
       metadata: {
         serviceType: TOUR_SERVICE_TYPE,
         meetingPoint: 'Main hotel lobby',
       },
-    },
+    }),
   ];
 
   const bookingService = {

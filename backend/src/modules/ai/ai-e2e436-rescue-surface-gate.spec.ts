@@ -30,15 +30,21 @@ const CONSUMER_ONLY = [
 ] as const;
 
 describe('e2e-bug.436 — consumer-only commands are refused on dashboard', () => {
-  it.each(CONSUMER_ONLY)('registry agrees %s is not a dashboard command', (action) => {
-    expect(isIntentAllowedOnSurface(action, 'dashboard')).toBe(false);
-    expect(isIntentAllowedOnSurface(action, 'customer')).toBe(true);
-  });
+  it.each(CONSUMER_ONLY)(
+    'registry agrees %s is not a dashboard command',
+    (action) => {
+      expect(isIntentAllowedOnSurface(action, 'dashboard')).toBe(false);
+      expect(isIntentAllowedOnSurface(action, 'customer')).toBe(true);
+    },
+  );
 
-  it.each(CONSUMER_ONLY)('the rescue gate rejects %s on dashboard', (action) => {
-    // `my_gift_cards` is the one that actually executed for an owner.
-    expect(acceptRescueForSurface(rescue(action), 'dashboard')).toBeNull();
-  });
+  it.each(CONSUMER_ONLY)(
+    'the rescue gate rejects %s on dashboard',
+    (action) => {
+      // `my_gift_cards` is the one that actually executed for an owner.
+      expect(acceptRescueForSurface(rescue(action), 'dashboard')).toBeNull();
+    },
+  );
 
   it('still accepts them on their own surface', () => {
     // Guards the gate being tightened into uselessness.
@@ -53,6 +59,8 @@ describe('e2e-bug.436 — consumer-only commands are refused on dashboard', () =
     // not as desired behaviour: it is the same fail-open default that made
     // e2e-bug.444 look like a live steal, and it is why the fix above depends
     // on every caller actually passing its surface.
-    expect(acceptRescueForSurface(rescue('my_gift_cards'), undefined)).not.toBeNull();
+    expect(
+      acceptRescueForSurface(rescue('my_gift_cards'), undefined),
+    ).not.toBeNull();
   });
 });

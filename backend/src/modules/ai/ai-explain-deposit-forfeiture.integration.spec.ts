@@ -44,14 +44,16 @@ describe('ai-explain-deposit-forfeiture integration (ai-cmd-customer-4.20.2)', (
   it.each(
     EXPLAIN_DEPOSIT_FORFEITURE_PROMPTS.filter((e) => e.surface === 'customer'),
   )('validates and executes $id', async ({ prompt }) => {
-    const validation = validateCommand(makeResolvedCommand({
-      action: 'explain_deposit_forfeiture',
-      params: {},
-      enrichedParams: {},
-      entities: { employees: [], services: [] },
-      reasoning: 'test',
-      prompt,
-    }));
+    const validation = validateCommand(
+      makeResolvedCommand({
+        action: 'explain_deposit_forfeiture',
+        params: {},
+        enrichedParams: {},
+        entities: { employees: [], services: [] },
+        reasoning: 'test',
+        prompt,
+      }),
+    );
     expect(validation.issues).toEqual([]);
 
     const result = await handleExplainDepositForfeitureLogic(

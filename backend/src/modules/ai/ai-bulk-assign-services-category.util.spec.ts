@@ -92,7 +92,9 @@ describe('C3 — bulk scope may name the service type, not the word "services"',
     // service, and this command is the bulk one. Pinned because the new
     // alternative reads as though it would accept it.
     expect(
-      isBulkAssignServicesCategoryPrompt('assign every haircut to the Hair category'),
+      isBulkAssignServicesCategoryPrompt(
+        'assign every haircut to the Hair category',
+      ),
     ).toBe(false);
   });
 
@@ -109,7 +111,9 @@ describe('C3 — bulk scope may name the service type, not the word "services"',
   it('still requires a category target — "into Hair Care" alone is not enough', () => {
     // Pinned as current behaviour, not as desired behaviour: see the note above.
     expect(
-      isBulkAssignServicesCategoryPrompt('move haircut and blow dry into Hair Care'),
+      isBulkAssignServicesCategoryPrompt(
+        'move haircut and blow dry into Hair Care',
+      ),
     ).toBe(false);
   });
 });

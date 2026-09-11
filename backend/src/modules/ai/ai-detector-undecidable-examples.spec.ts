@@ -28,9 +28,7 @@
  * If a detector ever *does* claim one of these, this file fails — which is the
  * point. Reopen the analysis rather than deleting the assertion.
  */
-import {
-  isBulkAssignServicesCategoryPrompt,
-} from './ai-bulk-assign-services-category.util.js';
+import { isBulkAssignServicesCategoryPrompt } from './ai-bulk-assign-services-category.util.js';
 import { isListPackagesPrompt } from './ai-catalog.util.js';
 import { isDiscoverPackagesPrompt } from './ai-customer-crm.util.js';
 

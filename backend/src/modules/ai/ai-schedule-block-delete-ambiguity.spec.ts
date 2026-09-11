@@ -15,8 +15,14 @@ import { AiScheduleHandlersService } from './ai-schedule-handlers.service.js';
 const employee = (id: string, name: string) =>
   ({ id, name, isActive: true }) as never;
 
-const NAMESAKES = [employee('emp-1', 'John Smith'), employee('emp-2', 'John Smith')];
-const DISTINCT = [employee('emp-1', 'John Smith'), employee('emp-2', 'Maria Lopez')];
+const NAMESAKES = [
+  employee('emp-1', 'John Smith'),
+  employee('emp-2', 'John Smith'),
+];
+const DISTINCT = [
+  employee('emp-1', 'John Smith'),
+  employee('emp-2', 'Maria Lopez'),
+];
 
 // A real block belonging to the *first* namesake. Without it the "removes
 // nothing" test passes for the wrong reason: with the guard disabled the
@@ -68,7 +74,9 @@ describe('delete_schedule_block provider ambiguity (D5, §231)', () => {
     expect(result.details?.clarify).toBe(true);
     expect(result.details?.requestedName).toBe('John Smith');
     expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
+      (result.details.candidates as Array<{ id: string }>)
+        .map((c) => c.id)
+        .sort(),
     ).toEqual(['emp-1', 'emp-2']);
   });
 
@@ -119,7 +127,12 @@ describe('the remaining schedule writers refuse a provider tie (§233)', () => {
   // an exact name, so the *template* lookup is never the ambiguous thing here —
   // the provider tie is what these assert.
   const TEMPLATES = [
-    { id: 'tpl-2025', name: 'Summer 2025', businessId: 'biz-1', isDeleted: false },
+    {
+      id: 'tpl-2025',
+      name: 'Summer 2025',
+      businessId: 'biz-1',
+      isDeleted: false,
+    },
   ];
 
   const svcFor = () => {
@@ -133,7 +146,9 @@ describe('the remaining schedule writers refuse a provider tie (§233)', () => {
     svc.executePlan = jest.fn(async () => {
       throw new Error('executed during an ambiguous provider match');
     });
-    svc.planBuilder = { buildBlockSchedulePlan: jest.fn(() => ({ steps: [] })) };
+    svc.planBuilder = {
+      buildBlockSchedulePlan: jest.fn(() => ({ steps: [] })),
+    };
     return svc;
   };
 
@@ -143,41 +158,112 @@ describe('the remaining schedule writers refuse a provider tie (§233)', () => {
   ] as never[];
 
   const CASES: Array<[string, string, (svc: any) => Promise<unknown>]> = [
-    ['handleApplySchedule', 'apply_schedule', (svc) =>
-      svc.handleApplySchedule('biz-1', 'apply Summer for John',
-        { templateName: 'Summer 2025', employeeName: 'John Smith', dateFrom: '2026-08-17', dateTo: '2026-08-23' },
-        NAMESAKES, 'user-1')],
-    ['handleBlockSchedule', 'block_schedule', (svc) =>
-      svc.handleBlockSchedule('biz-1', 'block John on Tuesday',
-        { employeeName: 'John Smith', dateFrom: '2026-08-17', dateTo: '2026-08-23' },
-        NAMESAKES, [], 'user-1')],
-    ['handleFillScheduleGaps', 'fill_unused_slots', (svc) =>
-      svc.handleFillScheduleGaps('biz-1', 'fill gaps for John',
-        { employeeName: 'John Smith', dateFrom: '2026-08-17', dateTo: '2026-08-23' },
-        NAMESAKES, [], 'user-1')],
-    ['handleTemplateCascade', 'setup_week_schedule', (svc) =>
-      svc.handleTemplateCascade('biz-1', 'cascade Summer for John',
-        { templateName: 'Summer 2025', employeeName: 'John Smith', dateFrom: '2026-08-17', dateTo: '2026-08-23' },
-        NAMESAKES, [], 'user-1')],
+    [
+      'handleApplySchedule',
+      'apply_schedule',
+      (svc) =>
+        svc.handleApplySchedule(
+          'biz-1',
+          'apply Summer for John',
+          {
+            templateName: 'Summer 2025',
+            employeeName: 'John Smith',
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
+          NAMESAKES,
+          'user-1',
+        ),
+    ],
+    [
+      'handleBlockSchedule',
+      'block_schedule',
+      (svc) =>
+        svc.handleBlockSchedule(
+          'biz-1',
+          'block John on Tuesday',
+          {
+            employeeName: 'John Smith',
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
+          NAMESAKES,
+          [],
+          'user-1',
+        ),
+    ],
+    [
+      'handleFillScheduleGaps',
+      'fill_unused_slots',
+      (svc) =>
+        svc.handleFillScheduleGaps(
+          'biz-1',
+          'fill gaps for John',
+          {
+            employeeName: 'John Smith',
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
+          NAMESAKES,
+          [],
+          'user-1',
+        ),
+    ],
+    [
+      'handleTemplateCascade',
+      'setup_week_schedule',
+      (svc) =>
+        svc.handleTemplateCascade(
+          'biz-1',
+          'cascade Summer for John',
+          {
+            templateName: 'Summer 2025',
+            employeeName: 'John Smith',
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
+          NAMESAKES,
+          [],
+          'user-1',
+        ),
+    ],
     // §234 — the site the D5 tracker called return-shape blocked.
     // `prepareDirectSchedulePlan` returns `AgentPlan | null` and indeed cannot
     // refuse; the *caller* can, which is what makes the label wrong.
-    ['handleCreateDirectSchedule', 'create_direct_schedule', (svc) =>
-      svc.handleCreateDirectSchedule('biz-1', 'set up a schedule for John',
-        { employeeName: 'John Smith', dateFrom: '2026-08-17', dateTo: '2026-08-23' },
-        NAMESAKES, [], 'user-1')],
+    [
+      'handleCreateDirectSchedule',
+      'create_direct_schedule',
+      (svc) =>
+        svc.handleCreateDirectSchedule(
+          'biz-1',
+          'set up a schedule for John',
+          {
+            employeeName: 'John Smith',
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
+          NAMESAKES,
+          [],
+          'user-1',
+        ),
+    ],
   ];
 
-  it.each(CASES)('%s refuses and names both candidates', async (_n, action, call) => {
-    const svc = svcFor();
-    const result: any = await call(svc);
+  it.each(CASES)(
+    '%s refuses and names both candidates',
+    async (_n, action, call) => {
+      const svc = svcFor();
+      const result: any = await call(svc);
 
-    expect(result.success).toBe(false);
-    expect(result.action).toBe(action);
-    expect(result.details?.clarify).toBe(true);
-    expect(result.details?.requestedName).toBe('John Smith');
-    expect(
-      (result.details.candidates as Array<{ id: string }>).map((c) => c.id).sort(),
-    ).toEqual(['emp-1', 'emp-2']);
-  });
+      expect(result.success).toBe(false);
+      expect(result.action).toBe(action);
+      expect(result.details?.clarify).toBe(true);
+      expect(result.details?.requestedName).toBe('John Smith');
+      expect(
+        (result.details.candidates as Array<{ id: string }>)
+          .map((c) => c.id)
+          .sort(),
+      ).toEqual(['emp-1', 'emp-2']);
+    },
+  );
 });

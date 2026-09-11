@@ -43,7 +43,10 @@ describe('command-completion.validator', () => {
       );
 
     it('asks for closure dates when only a date range is given', () => {
-      const result = holiday({ employeeName: 'Gevorg', dateFrom: '2026-12-24' });
+      const result = holiday({
+        employeeName: 'Gevorg',
+        dateFrom: '2026-12-24',
+      });
       expect(result.issues.some((i) => i.field === 'closeDates')).toBe(true);
     });
 
@@ -73,7 +76,8 @@ describe('command-completion.validator', () => {
           timeSlot: '09:00',
         },
         enrichedParams: { employeeId: 'e1' },
-        entities: { services: [],
+        entities: {
+          services: [],
           employee: { id: 'e1', name: 'Gevorg' } as any,
           employees: [],
         },
@@ -94,7 +98,11 @@ describe('command-completion.validator', () => {
           timeSlot: '09:00',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -109,7 +117,11 @@ describe('command-completion.validator', () => {
           serviceName: 'facemassage',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -126,7 +138,11 @@ describe('command-completion.validator', () => {
           notBeforeTime: '17:00',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(true);
@@ -143,7 +159,11 @@ describe('command-completion.validator', () => {
           timeOfDay: 'evening',
         },
         enrichedParams: { serviceId: 's1' },
-        entities: { employees: [], services: [], service: { id: 's1', name: 'facemassage' } as any },
+        entities: {
+          employees: [],
+          services: [],
+          service: { id: 's1', name: 'facemassage' } as any,
+        },
       }),
     );
     expect(result.ok).toBe(false);

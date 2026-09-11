@@ -1,4 +1,5 @@
 import { validateCommand } from './command-completion.validator.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
 import { handleLeaveVisitReviewLogic } from './ai-leave-visit-review.logic.js';
 import {
   LEAVE_VISIT_REVIEW_PROMPTS,
@@ -22,7 +23,9 @@ describe('ai-leave-visit-review integration (ai-cmd-customer-4.12.1)', () => {
 
   const deps = () => ({
     businessRepo: {
-      findOne: jest.fn(async () => ({ id: 'biz-1', slug: 'glow-salon' })),
+      findOne: jest.fn(async () =>
+        makeBusiness({ id: 'biz-1', slug: 'glow-salon' }),
+      ),
     },
     publicCustomerAuthService: {
       listBookings: jest.fn(async () => ({ bookings: [booking] })),
@@ -47,14 +50,16 @@ describe('ai-leave-visit-review integration (ai-cmd-customer-4.12.1)', () => {
   it.each(LEAVE_VISIT_REVIEW_PROMPTS)(
     'validates and executes $id',
     async ({ prompt, serviceName, rating }) => {
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'leave_visit_review',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'leave_visit_review',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const localDeps = deps();

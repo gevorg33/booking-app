@@ -1,9 +1,14 @@
 import { resolveEntity } from './ai-entity-resolution.util.js';
+import { resolveServiceByNameOrRefuseTie } from './ai-legacy-service-match.util.js';
 import { BookingStatus } from '../booking/entities/booking.entity.js';
 import type { Employee } from '../employee/entities/employee.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
 import type { PublicCustomerAuthService } from '../public-booking/public-customer-auth.service.js';
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { CommandResult } from './command-completion.types.js';
 import { parsePickProviderForServiceFromPrompt } from './ai-pick-provider-for-service.util.js';
@@ -12,10 +17,10 @@ import { resolveEmployeeByName } from './ai-explain-provider-specialty.util.js';
 import { resolveBusinessSlugFromParamsOrId } from './ai-resolve-business-slug.util.js';
 
 export interface PickProviderForServiceLogicDeps {
-  employeeRepo: Pick<Repository<Employee>, 'find'>;
-  serviceRepo: Pick<Repository<Service>, 'find'>;
+  employeeRepo: EntityFinder<Employee>;
+  serviceRepo: EntityFinder<Service>;
   publicCustomerAuthService: Pick<PublicCustomerAuthService, 'listBookings'>;
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
 }
 
 function failure(
@@ -59,30 +64,6 @@ function resolveSessionCustomerId(
  * can only refuse a name that previously resolved to an arbitrary one of
  * several equally good matches.
  */
-function resolveServiceByName(
-  services: readonly Service[],
-  serviceName: string,
-): Service | undefined {
-  const needle = serviceName.trim().toLowerCase();
-  if (!needle) return undefined;
-  if (
-    resolveEntity(services, serviceName, {
-      entityLabel: 'service',
-      threshold: 0,
-    }).status === 'ambiguous'
-  ) {
-    return undefined;
-  }
-  return (
-    services.find((entry) => entry.name.toLowerCase() === needle) ??
-    services.find((entry) => entry.name.toLowerCase().includes(needle)) ??
-    services.find((entry) =>
-      needle
-        .split(/\s+/)
-        .every((part) => part && entry.name.toLowerCase().includes(part)),
-    )
-  );
-}
 
 function pickLastVisitWithProvider<
   T extends {
@@ -251,7 +232,17 @@ export async function handlePickProviderForServiceLogic(
 
   const serviceName = parsed.serviceName?.trim();
   const service = serviceName
-    ? resolveServiceByName(services, serviceName)
+    ? // e2e-bug.367 — shared tiers in `resolveServiceByNameOrRefuseTie`; this
+      // closure is this call site's own last tier, and the rule
+      // `ai-compare-services.logic.ts` does not share: every word of the query
+      // appears in the service name ("deep massage" -> "Deep Tissue Massage").
+      resolveServiceByNameOrRefuseTie(services, serviceName, (list, needle) =>
+        list.find((entry) =>
+          needle
+            .split(/\s+/)
+            .every((part) => part && entry.name.toLowerCase().includes(part)),
+        ),
+      )
     : undefined;
 
   const summary = buildPickProviderForServiceSummary({

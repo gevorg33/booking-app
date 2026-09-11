@@ -940,9 +940,9 @@ describe('C3 — mark_paid understands a past-tense payment statement', () => {
     // Phase 2 gate flagged as two natural-phrasing breaks. Those transforms
     // must not change recognition; a leading auxiliary is what marks a question.
     expect(isMarkPaidPrompt("Sarah paid cash for today's massage?")).toBe(true);
-    expect(isMarkPaidPrompt("can you Sarah paid cash for today's massage")).toBe(
-      true,
-    );
+    expect(
+      isMarkPaidPrompt("can you Sarah paid cash for today's massage"),
+    ).toBe(true);
   });
 
   it('leaves the existing branches working', () => {

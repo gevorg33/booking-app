@@ -292,3 +292,136 @@ export function applyAnaphoraToPlan(
 
   return { steps: next, changed, ambiguous: null };
 }
+
+// ---------------------------------------------------------------------------
+// e2e-bug.370 — cross-turn anaphora: "it" that points at a previous turn.
+// ---------------------------------------------------------------------------
+
+import {
+  lookupEntity,
+  type EntityRefKind,
+  type EntityStore,
+} from './ai-entity-store.util.js';
+
+/**
+ * Which step variable a kind of stored ref can fill.
+ *
+ * Ids first: the store exists so "it" can be acted on without re-resolving.
+ * Names second, because many specs declare `serviceName` rather than
+ * `serviceId` and the executor resolves the name — a recorded label is an
+ * exact catalog name, so that resolution is deterministic rather than fuzzy.
+ */
+const VARIABLES_BY_KIND: ReadonlyArray<{
+  kind: EntityRefKind;
+  variables: readonly string[];
+}> = [
+  { kind: 'service', variables: ['serviceId', 'serviceName'] },
+  { kind: 'employee', variables: ['employeeId', 'employeeName'] },
+  { kind: 'customer', variables: ['customerId', 'customerName'] },
+  { kind: 'appointment', variables: ['bookingId'] },
+  { kind: 'package', variables: ['packageId', 'packageName'] },
+];
+
+function kindForVariable(
+  variable: string,
+): { kind: EntityRefKind; isId: boolean } | null {
+  for (const row of VARIABLES_BY_KIND) {
+    const index = row.variables.indexOf(variable);
+    if (index !== -1) return { kind: row.kind, isId: index === 0 };
+  }
+  return null;
+}
+
+export interface ConversationBinding {
+  steps: PlanStep[];
+  changed: boolean;
+  /** Set when a ref of the right kind exists but is not unique. */
+  ambiguous: { clarification: string; candidates: string[] } | null;
+}
+
+/**
+ * Bind an anaphor to an entity the conversation resolved on a *previous* turn.
+ *
+ * `applyAnaphoraToPlan` above handles the intra-plan case — "book a haircut
+ * and then cancel it" — by pointing a later step at an earlier one. It cannot
+ * help the far more common shape, which is a single-step follow-up:
+ *
+ *     turn 1: "what's the price of a deep tissue massage?"
+ *     turn 2: "book it for tomorrow at 3"
+ *
+ * There is no earlier step in turn 2's plan; the referent is in the previous
+ * turn. e2e-bug.370 measured this as 82% of real anaphora unresolved, with
+ * `compound_intent` at 0%. What was missing was not a resolver but a source:
+ * §53's entity store existed and was never written (e2e-bug.373) and never
+ * transported between turns (e2e-bug.401). Both are now in place, so this is
+ * the read side.
+ *
+ * The same refusal discipline as the intra-plan resolver:
+ *
+ *   - Only steps missing **exactly one** variable are bound. Two missing
+ *     variables means the anaphor could stand for either, and guessing which is
+ *     how "book it with her" binds the service to the provider.
+ *   - A ref of the right kind that is not unique is refused with the
+ *     candidates, never picked. `lookupEntity` already treats equally-recent
+ *     refs as a tie.
+ *   - Staleness is `lookupEntity`'s call, using §48's window and turn limit —
+ *     an "it" from twenty turns ago is not the same conversation.
+ *   - No ref of that kind at all means nothing is changed: the plan goes on to
+ *     the ordinary missing-variable clarify, which is today's behaviour.
+ */
+export function applyConversationRefsToPlan(
+  message: string,
+  steps: readonly PlanStep[],
+  missingByStepId: ReadonlyMap<string, readonly string[]>,
+  store: EntityStore | null | undefined,
+  options: { now: Date; currentTurn: number },
+): ConversationBinding {
+  const unchanged = { steps: [...steps], changed: false, ambiguous: null };
+  if (!store || store.refs.length === 0) return unchanged;
+
+  const mention = findAnaphor(message);
+  if (!mention) return unchanged;
+
+  const next = [...steps];
+  let changed = false;
+
+  for (let i = 0; i < next.length; i += 1) {
+    const missing = missingByStepId.get(next[i].id);
+    if (!missing || missing.length !== 1) continue;
+
+    const target = kindForVariable(missing[0]);
+    if (!target) continue;
+
+    const lookup = lookupEntity(store, {
+      now: options.now,
+      currentTurn: options.currentTurn,
+      kind: target.kind,
+    });
+
+    if (lookup.status === 'ambiguous') {
+      return {
+        steps: [...steps],
+        changed: false,
+        ambiguous: {
+          clarification: `Which one did you mean by "${mention.text}"? ${lookup.candidates
+            .map((c) => c.label)
+            .join(' or ')}?`,
+          candidates: lookup.candidates.map((c) => c.id),
+        },
+      };
+    }
+
+    if (lookup.status !== 'resolved' || !lookup.ref) continue;
+
+    next[i] = {
+      ...next[i],
+      variables: {
+        ...next[i].variables,
+        [missing[0]]: target.isId ? lookup.ref.id : lookup.ref.label,
+      },
+    };
+    changed = true;
+  }
+
+  return { steps: next, changed, ambiguous: null };
+}

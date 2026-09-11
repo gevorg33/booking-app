@@ -25,7 +25,8 @@ function buildScheduler(opts: {
   const traceRepo = {
     manager: {
       query: async (sql: string) => {
-        if (opts.throwOn === 'query') throw new Error('relation does not exist');
+        if (opts.throwOn === 'query')
+          throw new Error('relation does not exist');
         return sql.includes('by_surface')
           ? (opts.bySurface ?? [])
           : (opts.overall ?? []);
@@ -78,7 +79,13 @@ describe('the committed floors are loadable at runtime', () => {
     ).toBe(true);
     expect(
       existsSync(
-        join(process.cwd(), 'src', 'modules', 'ai', 'ai-completion-floors.json'),
+        join(
+          process.cwd(),
+          'src',
+          'modules',
+          'ai',
+          'ai-completion-floors.json',
+        ),
       ),
     ).toBe(true);
   });
@@ -112,9 +119,9 @@ describe('measure() reads the same views as the CLI gate', () => {
     expect(seen.some((s) => s.includes('ai_command_completion_summary'))).toBe(
       true,
     );
-    expect(seen.some((s) => s.includes('ai_command_completion_by_surface'))).toBe(
-      true,
-    );
+    expect(
+      seen.some((s) => s.includes('ai_command_completion_by_surface')),
+    ).toBe(true);
   });
 
   it('survives empty views rather than producing NaN', async () => {
@@ -188,7 +195,9 @@ describe('the daily check is audible', () => {
 
   it('never throws, but says loudly that it could not run', async () => {
     const { scheduler, logged } = buildScheduler({ throwOn: 'query' });
-    await expect(scheduler.checkCompletionFloorsDaily()).resolves.toBeUndefined();
+    await expect(
+      scheduler.checkCompletionFloorsDaily(),
+    ).resolves.toBeUndefined();
 
     const errors = logged.filter((l) => l.level === 'error');
     expect(errors).toHaveLength(1);

@@ -1,4 +1,8 @@
 import type { Repository } from 'typeorm';
+import type {
+  EntityFinder,
+  EntityReader,
+} from './ai-logic-repo.types.js';
 import type { ProductRecommendationService } from '../inventory/product-recommendation.service.js';
 import type { Business } from '../business/entities/business.entity.js';
 import type { Service } from '../service/entities/service.entity.js';
@@ -14,9 +18,9 @@ import {
 import { matchServiceByNameLegacy } from './ai-legacy-service-match.util.js';
 
 export interface ExplainCheckoutRecommendationsLogicDeps {
-  businessRepo: Pick<Repository<Business>, 'findOne'>;
-  serviceRepo: Pick<Repository<Service>, 'findOne' | 'find'>;
-  bookingRepo: Pick<Repository<Booking>, 'findOne'>;
+  businessRepo: EntityReader<Business>;
+  serviceRepo: EntityFinder<Service> & EntityReader<Service>;
+  bookingRepo: EntityReader<Booking>;
   productRecommendationService: Pick<
     ProductRecommendationService,
     'getCheckoutRecommendations'

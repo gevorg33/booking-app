@@ -137,7 +137,12 @@ describe('the other mutating template paths refuse a tie too (§227)', () => {
         svc.handleApplySchedule(
           'biz-1',
           'apply Summer',
-          { templateName: 'Summer', allProviders: true, dateFrom: '2026-08-17', dateTo: '2026-08-23' },
+          {
+            templateName: 'Summer',
+            allProviders: true,
+            dateFrom: '2026-08-17',
+            dateTo: '2026-08-23',
+          },
           EMPLOYEES,
           'user-1',
         ),
@@ -164,26 +169,37 @@ describe('the other mutating template paths refuse a tie too (§227)', () => {
       'handleUpdateScheduleTemplate',
       'update_schedule_template',
       (svc) =>
-        svc.handleUpdateScheduleTemplate('biz-1', { templateName: 'Summer' }, 'user-1'),
+        svc.handleUpdateScheduleTemplate(
+          'biz-1',
+          { templateName: 'Summer' },
+          'user-1',
+        ),
     ],
     [
       'handleDuplicateScheduleTemplate',
       'duplicate_schedule_template',
       (svc) =>
-        svc.handleDuplicateScheduleTemplate('biz-1', { templateName: 'Summer' }, 'user-1'),
+        svc.handleDuplicateScheduleTemplate(
+          'biz-1',
+          { templateName: 'Summer' },
+          'user-1',
+        ),
     ],
   ];
 
-  it.each(CASES)('%s refuses and names both candidates', async (_name, action, call) => {
-    const result: any = await call(buildFor());
+  it.each(CASES)(
+    '%s refuses and names both candidates',
+    async (_name, action, call) => {
+      const result: any = await call(buildFor());
 
-    expect(result.success).toBe(false);
-    expect(result.action).toBe(action);
-    expect(result.details?.clarify).toBe(true);
-    expect(
-      (result.details.candidates as Array<{ name: string }>)
-        .map((c) => c.name)
-        .sort(),
-    ).toEqual(['Summer 2025', 'Summer 2026']);
-  });
+      expect(result.success).toBe(false);
+      expect(result.action).toBe(action);
+      expect(result.details?.clarify).toBe(true);
+      expect(
+        (result.details.candidates as Array<{ name: string }>)
+          .map((c) => c.name)
+          .sort(),
+      ).toEqual(['Summer 2025', 'Summer 2026']);
+    },
+  );
 });

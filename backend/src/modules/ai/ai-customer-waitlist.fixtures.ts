@@ -11,7 +11,17 @@ export type CustomerWaitlistPromptFixture = {
 };
 
 /** e2e-bug.112 — provider-only waitlist must not duplicate name into serviceName. */
-export const E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS = [
+/** Not `CustomerWaitlistPromptFixture`: these scenarios carry no
+ * `expectedAction` / `rescueReason`, which that type requires. */
+export type ProviderOnlyWaitlistScenario = {
+  id: string;
+  prompt: string;
+  surface: 'customer' | 'public';
+  employeeName: string;
+  serviceName?: string;
+};
+
+export const E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS: readonly ProviderOnlyWaitlistScenario[] = [
   {
     id: 'e2e112-gevorg-tomorrow-public',
     prompt: 'put me on the waitlist for Gevorg Gasparyan tomorrow',
@@ -37,7 +47,7 @@ export const E2E112_PROVIDER_ONLY_WAITLIST_SCENARIOS = [
     serviceName: 'massage',
     employeeName: 'Gevorg Gasparyan',
   },
-] as const;
+];
 
 /**
  * e2e-bug.235 — confirmation must not say "with Gevorg with Gevorg" or
@@ -111,7 +121,17 @@ export const E2E235_WAITLIST_SUMMARY_SCENARIOS = [
 ] as const;
 
 /** e2e-bug.235 — NL prompts that must parse + summarize without duplicate "with". */
-export const E2E235_WAITLIST_PROMPT_SCENARIOS = [
+/** Parse plus summary assertions; one prompt names no service. */
+export type WaitlistPromptSummaryScenario = {
+  id: string;
+  prompt: string;
+  serviceName?: string;
+  employeeName: string;
+  summaryIncludes: string;
+  forbidden: string[];
+};
+
+export const E2E235_WAITLIST_PROMPT_SCENARIOS: readonly WaitlistPromptSummaryScenario[] = [
   {
     id: 'e2e235-prompt-swedish-with-gevorg',
     prompt: 'put me on the waitlist for Swedish massage with Gevorg tomorrow',
@@ -135,7 +155,7 @@ export const E2E235_WAITLIST_PROMPT_SCENARIOS = [
     summaryIncludes: 'Gevorg Gasparyan',
     forbidden: ['opens for with ', 'for with Gevorg'],
   },
-] as const;
+];
 
 export const CUSTOMER_PUBLIC_CUSTOMER_WAITLIST_CLASSIFIER_RULES = `- join_waitlist: MUTATE — logged-in customer asks to be notified when a slot opens ("Notify me if something opens Friday", "Put me on the waitlist for massage"). Set serviceName, date/dateFrom/dateTo, timeSlot, timeOfDay, employeeName when mentioned. Provider-only prompts ("put me on the waitlist for Gevorg Gasparyan tomorrow") set employeeName only — never copy the provider into serviceName (e2e-bug.112). Uses POST /me/waitlist. Requires sign-in. NOT offer_waitlist_slot|list_waitlist_entries (staff dashboard), NOT suggest_waitlist_for_gap|coordinate_waitlist_offer (provider staff), NOT check_availability (browse open times without waitlist join cue), NOT book_appointment.
 - check_waitlist_status: READ — logged-in customer asks whether they are already on the waitlist ("Am I on the waitlist?", "What's my waitlist status?"). Uses GET /me/waitlist. Requires sign-in. NOT list_waitlist_entries (staff CRM list).`;

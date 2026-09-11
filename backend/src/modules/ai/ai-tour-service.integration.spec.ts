@@ -1,4 +1,9 @@
 import { AiIntentRescueService } from './ai-intent-rescue.service.js';
+import type { OnboardingService } from '../onboarding/onboarding.service.js';
+import { makeService } from '../service/entities/service.test-fixture.js';
+import { makeCustomer } from '../customer/entities/customer.test-fixture.js';
+import { makeBusiness } from '../business/entities/business.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import { validateCommand } from './command-completion.validator.js';
 import {
   handleApplyTourPlaybookLogic,
@@ -17,13 +22,13 @@ import { makeResolvedCommand } from './command-completion.test-fixture.js';
 
 describe('ai tour service integration (ai-cmd-tour-1)', () => {
   const services = [
-    {
+    makeService({
       id: 'svc-1',
       name: 'Full Day City Tour',
       metadata: { serviceType: 'tour', maxGroupSize: 12 },
       durationMinutes: 480,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-2',
       name: '3-Day Mountain Trek',
       metadata: {
@@ -32,33 +37,36 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
         maxGroupSize: 8,
       },
       durationMinutes: 4320,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-3',
       name: 'Sunset Coastal Drive',
       metadata: {},
       durationMinutes: 300,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-4',
       name: 'Weekend Heritage Tour',
       metadata: { serviceType: 'tour', difficulty: 'moderate' },
       durationMinutes: 2880,
-    },
-    {
+    }),
+    makeService({
       id: 'svc-city',
       name: 'City Tour',
       metadata: {},
       durationMinutes: 480,
-    },
+    }),
   ];
 
   const tourStartDate = addDaysToDateKey(getTodayDateKey(), 10, 'UTC');
   const tourEndDate = addDaysToDateKey(tourStartDate, 2, 'UTC');
 
   const bookingService = {
+    // Required by the deps: this object is forwarded to the booking-record and
+    // meeting-point logic, which call `findOne` (same as the logic spec).
+    findOne: jest.fn(async () => makeBooking({ id: 'bk-1' })),
     findAll: jest.fn(async () => [
-      {
+      makeBooking({
         id: 'bk-1',
         serviceId: 'svc-2',
         status: BookingStatus.CONFIRMED,
@@ -69,12 +77,12 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
           tourStartDate,
           tourEndDate,
         },
-        service: {
+        service: makeService({
           name: '3-Day Mountain Trek',
           metadata: { serviceType: 'tour' },
-        },
-        customer: { name: 'John Doe' },
-      },
+        }),
+        customer: makeCustomer({ name: 'John Doe' }),
+      }),
     ]),
   };
 
@@ -90,22 +98,40 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
   };
 
   const businessRepo = {
-    findOne: jest.fn(async () => ({
-      id: 'biz-tour',
-      settings: { businessType: 'tour_operator' },
-    })),
+    findOne: jest.fn(async () =>
+      makeBusiness({
+        id: 'biz-tour',
+        settings: { businessType: 'tour_operator' },
+      }),
+    ),
   };
 
   const onboardingService = {
-    applyVerticalPlaybook: jest.fn(async () => ({
-      playbookId: 'tour',
-      categoriesCreated: 3,
-      servicesCreated: 5,
-      slotsCreated: 70,
-      templatesApplied: ['Tour operating hours'],
-      employeeName: 'Guide',
-      status: 'configured',
-    })),
+    // Declared against the real return type; `status` is the onboarding status
+    // object, not the string `'configured'` this used to hold (see
+    // ai-clinic-service.logic.spec for the same defect).
+    applyVerticalPlaybook: jest.fn(
+      async (): ReturnType<OnboardingService['applyVerticalPlaybook']> => ({
+        playbookId: 'tour',
+        categoriesCreated: 3,
+        servicesCreated: 5,
+        slotsCreated: 70,
+        templatesApplied: ['Tour operating hours'],
+        employeeName: 'Guide',
+        status: {
+          completed: true,
+          step: 'done',
+          businessType: 'tour_operator',
+          businessTypeNotes: null,
+          hasCatalog: true,
+          hasSchedule: true,
+          categoryCount: 3,
+          serviceCount: 9,
+          bookingSlug: 'tour',
+          bookingPath: '/book/tour',
+        },
+      }),
+    ),
   };
 
   const deps = () => ({ serviceService, bookingService });
@@ -117,10 +143,12 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
     jest.clearAllMocks();
     rescue = new AiIntentRescueService();
     serviceService.findAll.mockResolvedValue([...services]);
-    businessRepo.findOne.mockResolvedValue({
-      id: 'biz-tour',
-      settings: { businessType: 'tour_operator' },
-    });
+    businessRepo.findOne.mockResolvedValue(
+      makeBusiness({
+        id: 'biz-tour',
+        settings: { businessType: 'tour_operator' },
+      }),
+    );
     onboardingService.applyVerticalPlaybook.mockResolvedValue({
       playbookId: 'tour',
       categoriesCreated: 3,
@@ -128,7 +156,18 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       slotsCreated: 70,
       templatesApplied: ['Tour operating hours'],
       employeeName: 'Guide',
-      status: 'configured',
+      status: {
+        completed: true,
+        step: 'done',
+        businessType: 'tour_operator',
+        businessTypeNotes: null,
+        hasCatalog: true,
+        hasSchedule: true,
+        categoryCount: 3,
+        serviceCount: 9,
+        bookingSlug: 'tour',
+        bookingPath: '/book/tour',
+      },
     });
   });
 
@@ -142,19 +181,21 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('configure_tour_service');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'configure_tour_service',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-          ...(enableTour ? { enableTour: true } : {}),
-          ...(maxGroupSize !== undefined ? { maxGroupSize } : {}),
-          ...(difficulty ? { difficulty } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'configure_tour_service',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+            ...(enableTour ? { enableTour: true } : {}),
+            ...(maxGroupSize !== undefined ? { maxGroupSize } : {}),
+            ...(difficulty ? { difficulty } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleConfigureTourServiceLogic(
@@ -179,14 +220,16 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('apply_tour_playbook');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'apply_tour_playbook',
-        params: {},
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'apply_tour_playbook',
+          params: {},
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleApplyTourPlaybookLogic(
@@ -207,7 +250,10 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
 
   it.each(EXPLAIN_TOUR_SERVICES_PROMPTS)(
     'rescues and executes explain tour services $id',
-    async ({ prompt, serviceName, daysAhead }) => {
+    // No `daysAhead`: no member of `EXPLAIN_TOUR_SERVICES_PROMPTS` carries it —
+    // it belongs to `list_upcoming_tour_departures` — so the destructure was
+    // always `undefined` and the spread below it was dead.
+    async ({ prompt, serviceName }) => {
       const rescued = rescue.rescue({
         prompt,
         action: 'unknown',
@@ -215,17 +261,18 @@ describe('ai tour service integration (ai-cmd-tour-1)', () => {
       });
       expect(rescued?.action).toBe('explain_tour_services');
 
-      const validation = validateCommand(makeResolvedCommand({
-        action: 'explain_tour_services',
-        params: {
-          ...(serviceName ? { serviceName } : {}),
-          ...(daysAhead ? { daysAhead } : {}),
-        },
-        enrichedParams: {},
-        entities: { employees: [], services: [] },
-        reasoning: 'test',
-        prompt,
-      }));
+      const validation = validateCommand(
+        makeResolvedCommand({
+          action: 'explain_tour_services',
+          params: {
+            ...(serviceName ? { serviceName } : {}),
+          },
+          enrichedParams: {},
+          entities: { employees: [], services: [] },
+          reasoning: 'test',
+          prompt,
+        }),
+      );
       expect(validation.issues).toEqual([]);
 
       const result = await handleExplainTourServicesLogic(

@@ -11,8 +11,7 @@ describe('AiConversationSummaryService', () => {
   // Naming the signature is the fix; casting the object would silence it
   // without restoring any checking.
   const openAi = {
-    isAvailableForBusiness:
-      jest.fn<(businessId: string) => Promise<boolean>>(),
+    isAvailableForBusiness: jest.fn<(businessId: string) => Promise<boolean>>(),
     completeJson: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   };
 

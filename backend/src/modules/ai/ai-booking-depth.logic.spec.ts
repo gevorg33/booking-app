@@ -2,6 +2,12 @@ import {
   BookingStatus,
   PaymentStatus,
 } from '../booking/entities/booking.entity.js';
+import type { MultiServiceSettings } from '../../common/utils/multi-service-settings.util.js';
+import type { MultiServiceBookingsService } from '../multi-service-bookings/multi-service-bookings.service.js';
+import { makeMultiServiceBookingGroup } from '../multi-service-bookings/entities/multi-service-booking-group.test-fixture.js';
+import type { ServicePackagesService } from '../service-packages/service-packages.service.js';
+import { makePackagePurchase } from '../service-packages/entities/service-package.test-fixture.js';
+import { makeBooking } from '../booking/entities/booking.test-fixture.js';
 import {
   prepareSubscriptionCreditParamsLogic,
   prepareCashCreateParamsLogic,
@@ -90,33 +96,92 @@ function buildDeps(
     } as any,
     packageRepo: { find: jest.fn().mockResolvedValue([]) } as any,
     bookingService: {
-      create: jest.fn(async (_b, dto) => ({
-        id: `bk-${dto.serviceId}`,
-        ...dto,
+      // Returns a complete `Booking`. The old `{ id, ...dto }` spread a
+      // `CreateBookingDto` (string `startTime`) into what production declares as
+      // a `Booking` (Date `startTime`) — a wrong-typed value, not merely an
+      // incomplete one. The logic reads only `saved.id`.
+      create: jest.fn(
+        async (_b: string, dto: { serviceId: string; employeeId: string }) =>
+          makeBooking({
+            id: `bk-${dto.serviceId}`,
+            serviceId: dto.serviceId,
+            employeeId: dto.employeeId,
+          }),
+      ),
+      // `cancel` resolves `{ booking, didCancel }`, not a bare booking.
+      cancel: jest.fn(async () => ({
+        booking: makeBooking(),
+        didCancel: true,
       })),
-      cancel: jest.fn(async () => ({})),
-      update: jest.fn(async () => ({})),
+      update: jest.fn(async () => makeBooking()),
       findOne: jest.fn(),
     },
     subscriptionsService: {
       getActiveForCustomerService: jest.fn().mockResolvedValue(null),
     },
     packagesService: {
-      previewFromPackage: jest.fn(() => ({
-        pricing: { packagePrice: 100 },
-        currency: 'USD',
-      })),
-      createPackagePurchase: jest.fn(async () => ({ id: 'purchase-1' })),
+      // Declared against the real return type. The logic reads
+      // `preview.pricing.packagePrice` and `preview.currency`; the rest is the
+      // shape production actually resolves, filled inertly.
+      previewFromPackage: jest.fn(
+        (): ReturnType<ServicePackagesService['previewFromPackage']> => ({
+          package: {
+            id: 'pkg-1',
+            name: 'Package',
+            discountType: 'percent',
+            discountValue: 0,
+          },
+          items: [],
+          pricing: {
+            regularTotal: 100,
+            packagePrice: 100,
+            savings: 0,
+            savingsPercent: 0,
+            discountType: 'percent',
+            discountValue: 0,
+            lineItems: [],
+          },
+          currency: 'USD',
+        }),
+      ),
+      createPackagePurchase: jest.fn(async () =>
+        makePackagePurchase({ id: 'purchase-1' }),
+      ),
     },
     multiServiceBookingsService: {
-      resolveSettingsFromBusiness: jest.fn(() => ({
-        schedulingMode: 'same_visit',
-        turnoverBufferMinutes: 5,
-      })),
-      previewTotals: jest.fn(async () => ({
-        totals: { totalPrice: 60, totalDurationMinutes: 45 },
-      })),
-      createGroup: jest.fn(async () => ({ id: 'group-1' })),
+      // Complete `MultiServiceSettings` — the two-field literal omitted `enabled`
+      // and the caps, which are what the settings decide.
+      resolveSettingsFromBusiness: jest.fn(
+        (): MultiServiceSettings => ({
+          enabled: true,
+          maxServiceCount: 5,
+          maxDurationMinutes: 480,
+          turnoverBufferMinutes: 5,
+          schedulingMode: 'same_visit',
+          incompatiblePairMode: 'service',
+          incompatiblePairs: [],
+          incompatibleCategoryPairs: [],
+        }),
+      ),
+      // Declared against the real return type; the logic reads `preview.totals`.
+      previewTotals: jest.fn(
+        async (): ReturnType<MultiServiceBookingsService['previewTotals']> => ({
+          services: [],
+          totals: {
+            serviceCount: 2,
+            totalPrice: 60,
+            totalDurationMinutes: 45,
+            blockDurationMinutes: 45,
+            currency: 'USD',
+          },
+          valid: true,
+          errors: [],
+          incompatiblePairs: [],
+        }),
+      ),
+      createGroup: jest.fn(async () =>
+        makeMultiServiceBookingGroup({ id: 'group-1' }),
+      ),
     },
     resourcesService: {
       listResources: jest

@@ -16,7 +16,16 @@ export const PUBLIC_PACKAGE_DISPLAY_NAME_CLASSIFIER_RULES = `- explain_package_d
   - "Почему пакет Spa Day называется по-армянски на этой странице?" → explain_package_display_name, packageName=Spa Day
   - "Ինչ անուն է ցուցադրվում Spa Day փաթեթի համար հայերենով" → explain_package_display_name, packageName=Spa Day, locale=hy`;
 
-export const EXPLAIN_PACKAGE_DISPLAY_NAME_PROMPTS = [
+/** Declared so the array is one type, not a union of twelve literal shapes. */
+export type ExplainPackageDisplayNamePromptFixture = {
+  id: string;
+  prompt: string;
+  packageName: string;
+  locale?: 'en' | 'hy' | 'ru';
+  surface: 'dashboard' | 'public';
+};
+
+export const EXPLAIN_PACKAGE_DISPLAY_NAME_PROMPTS: readonly ExplainPackageDisplayNamePromptFixture[] = [
   {
     id: 'dash-ru-spa-day',
     prompt:
@@ -104,4 +113,4 @@ export const EXPLAIN_PACKAGE_DISPLAY_NAME_PROMPTS = [
     locale: 'en' as const,
     surface: 'dashboard' as const,
   },
-] as const;
+];
